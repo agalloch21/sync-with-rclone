@@ -1,0 +1,26 @@
+{
+  "name": "sync-with-rclone",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "author": "",
+  "license": "ISC",
+  "imports": {
+    "#src/*": "./src/*",
+    "#test/*": "./test/*"
+  },
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^7.7.3",
+    "eslint": "^10.1.0"
+  },
+  "dependencies": {
+    "ignore": "^7.0.5"
+  }
+}

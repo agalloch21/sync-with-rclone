@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
 
-import { collectPatterns, filterEntries, gatherChildrenKeys, locateDirectories } from '#src/modules/ignore/git-adapter.js'
+import { filterDirectory, gitAdapter, locateDirectories } from '#src/modules/ignore/git-adapter.js'
+import { buildSnapshot } from '#src/modules/scan/build-snapshot.js'
 
 const snapshot = {
   root: '/demo/root',
@@ -32,29 +33,11 @@ test('test locateDirectories', () => {
   assert.ok(dirs.includes('.') && dirs.includes('nested') && dirs.includes('nested/deeper-nested'))
 })
 
-test('test reading patterns: input path must be valid and absolute', async () => {
-  // can not be empty
-  await assert.rejects(() => collectPatterns(''))
+test('test filterDirectory: input validation', async () => {
+  // folder does not exist
+  await assert.rejects(() => filterDirectory('folder-does-not-exist', snapshot))
 
-  // must exsit
-  const rootPath = path.resolve('test/fixtures/ignore')
-  await assert.rejects(() => collectPatterns(path.join(rootPath, 'folder-does-not-exist', '.gitignore')))
-
-  // can not be a directory
-  await assert.rejects(() => collectPatterns(rootPath))
-})
-
-test('test reading patterns: return empty array if the file is empty', async () => {
-  assert.equal((await collectPatterns(path.resolve('test/fixtures/ignore/basic/.gitignore-empty'))).length, 0)
-})
-
-test('test reading patterns: delete comments and duplicated lines', async () => {
-  assert.deepStrictEqual(await collectPatterns(path.resolve('test/fixtures/ignore/basic/.gitignore-with-comment')), ['node_modules'])
-
-  assert.deepStrictEqual(await collectPatterns(path.resolve('test/fixtures/ignore/basic/.gitignore-with-duplicated')), ['node_modules', '[Ll]ogs', 'Logs'])
-})
-
-test('test assemble entries: the input path is invalid', () => {
+  // empty folder
   // the folder is empty which means the snapshot is minimum
   const snapshotEmpty = {
     root: '/demo/root',
@@ -63,52 +46,71 @@ test('test assemble entries: the input path is invalid', () => {
       ['.', []],
     ]),
   }
-  assert.equal(gatherChildrenKeys('.', snapshotEmpty).length, 0)
+  assert.equal((await filterDirectory('.', snapshotEmpty)).length, 0)
 
-  // the path is directing to a file
-  assert.throws(() => {
-    gatherChildrenKeys('src/index.js', snapshot)
-  })
-  // the path is not in snapshot
-  assert.throws(() => {
-    gatherChildrenKeys('dir-does-not-exist', snapshot)
-  })
+  // file
+  await assert.rejects(() => filterDirectory('src/index.js', snapshot))
 })
 
-test('test assemble entries: assemble all the entries under the root', () => {
-  let entriesUnderRoot = gatherChildrenKeys('.', snapshot)
-  assert.equal(entriesUnderRoot.length, snapshot.entriesByPath.size)
+test('test filterDirectory: result validation', async () => {
+  // filter root
+  let rootPath = path.posix.resolve('test/fixtures/ignore/basic')
+  let snapshot = await buildSnapshot(rootPath)
+  let filtered = await filterDirectory('.', snapshot)
+  assert.ok(filtered.includes('node_modules') === false)
 
-  // has trailing /
-  entriesUnderRoot = gatherChildrenKeys('./', snapshot)
-  assert.equal(entriesUnderRoot.length, snapshot.entriesByPath.size)
+  // filter nested
+  rootPath = path.posix.resolve('test/fixtures/ignore/nested')
+  snapshot = await buildSnapshot(rootPath)
+  filtered = await filterDirectory('.', snapshot)
+  assert.ok(filtered.includes('folder-b') === false)
+  assert.ok(filtered.includes('deeper-nested/folder-b') === false)
+  assert.ok(filtered.includes('deeper-nested/folder-a') === true)
+
+  rootPath = path.posix.resolve('test/fixtures/ignore/nested')
+  snapshot = await buildSnapshot(rootPath)
+  filtered = await filterDirectory('deeper-nested', snapshot)
+  assert.ok(filtered.includes('deeper-nested/folder-a') === false)
+
+  // no .gitignore file
+  rootPath = path.posix.resolve('test/fixtures/ignore/noignore')
+  snapshot = await buildSnapshot(rootPath)
+  filtered = await filterDirectory('.', snapshot)
+  assert.equal(filtered.length, 4)
+
+  // negate
+  rootPath = path.posix.resolve('test/fixtures/ignore/negate')
+  snapshot = await buildSnapshot(rootPath)
+  filtered = await filterDirectory('.', snapshot)
+  assert.ok(filtered.includes('.env.simple') === false)
+  assert.ok(filtered.includes('.env.example') === true)
+  assert.ok(filtered.includes('.yarn/yarn-file') === false)
+  assert.ok(filtered.includes('.yarn/patches/patch-file') === true)
+
+  filtered = await filterDirectory('nested-negate', snapshot)
+  assert.ok(filtered.includes('nested-negate/folder-a/nested-folder-a-file') === true)
 })
 
-test('test assemble entries: assemble the entries in the nested dir only', () => {
-  let nestedPath = 'nested'
-  let entriesUnderNested = gatherChildrenKeys(nestedPath, snapshot)
-  const destEntries = Array.from(snapshot.entriesByPath.keys()).filter(k => k.startsWith(`${nestedPath}/`))
-  assert.equal(entriesUnderNested.length, destEntries.length)
+test('test gitAdapter', async () => {
+// filter root
+  let rootPath = path.posix.resolve('test/fixtures/ignore/basic')
+  let snapshot = await buildSnapshot(rootPath)
+  snapshot = await gitAdapter.apply(snapshot)
+  assert.ok(snapshot.entriesByPath.has('node_modules') === false)
+  assert.ok(snapshot.entriesByPath.has('node_modules/module-a') === false)
+  assert.ok(snapshot.childrenByPath.has('node_modules') === false)
+  assert.ok(snapshot.childrenByPath.has('node_modules/module-a') === false)
 
-  nestedPath = 'nested' + '/'
-  entriesUnderNested = gatherChildrenKeys(nestedPath, snapshot)
-  assert.equal(entriesUnderNested.length, destEntries.length)
+  // filter nested
+  rootPath = path.posix.resolve('test/fixtures/ignore/nested')
+  snapshot = await buildSnapshot(rootPath)
+  snapshot = await gitAdapter.apply(snapshot)
+  console.log(snapshot)
+  assert.ok(snapshot.entriesByPath.has('deeper-nested/folder-a') === false)
+  assert.ok(snapshot.entriesByPath.has('deeper-nested/folder-b') === false)
+  assert.ok(snapshot.entriesByPath.has('folder-a') === true)
 
-  nestedPath = 'nested' + '\\'
-  entriesUnderNested = gatherChildrenKeys(nestedPath, snapshot)
-  assert.equal(entriesUnderNested.length, destEntries.length)
-})
-
-test('test ignore filter: basic', () => {
-  const entries = Array.from(snapshot.entriesByPath.keys()).map((p) => {
-    if (snapshot.entriesByPath.get(p).type === 'dir')
-      return `${p}/`
-    return p
-  })
-  const patterns = ['node_modules/']
-  const filtered = filterEntries(entries, patterns)
-  const matched = entries.filter(p => p.includes('node_modules'))
-
-  assert.equal(filtered.filter(p => p.includes('node_modules')).length, 0)
-  assert.equal(entries.length - filtered.length, matched.length)
+  assert.ok(snapshot.childrenByPath.has('deeper-nested/folder-a') === false)
+  assert.ok(snapshot.childrenByPath.has('deeper-nested/folder-b') === false)
+  assert.ok(snapshot.childrenByPath.has('folder-a') === true)
 })

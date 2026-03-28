@@ -19,12 +19,10 @@ test('buildSnapshot returns an empty snapshot for an empty directory', async () 
 
   // root 是扫描根目录
   assert.equal(snapshot.root, fixtureDir)
-  // 根目录自己不进入 entries
-  assert.ok(snapshot.entriesByPath.has('.') === false)
-  // 空目录情况下, entriesByPath为空
-  assert.equal(snapshot.entriesByPath.size, 0)
-  // 空目录情况下, childrenByPath里至少有一个根目录的值
-  assert.deepEqual(snapshot.childrenByPath.get('.'), [])
+  // 空目录情况下, fileEntries为空
+  assert.equal(snapshot.fileEntries.size, 0)
+  // 空目录情况下, dirEntries里至少有一个根目录的值
+  assert.deepEqual(snapshot.dirEntries.get('.').children.size, 0)
 })
 
 test('nested files and directories', async () => {
@@ -32,27 +30,27 @@ test('nested files and directories', async () => {
 
   const snapshot = await buildSnapshot(fixtureDir)
 
-  // entriesByPath 里同时有文件和目录
-  assert.ok(snapshot.entriesByPath.has('top.txt') && snapshot.entriesByPath.has('docs'))
-  // entriesByPath 里文件和目录的type是正确的
-  assert.ok(snapshot.entriesByPath.get('top.txt').type === 'file')
-  assert.ok(snapshot.entriesByPath.get('docs').type === 'dir')
+  // fileEntries 只有文件, dirEntries 只有目录
+  assert.ok(snapshot.fileEntries.has('top.txt') && snapshot.fileEntries.has('docs') === false)
+  assert.ok(snapshot.dirEntries.has('top.txt') === false && snapshot.dirEntries.has('docs'))
+  // children 里文件和目录的type是正确的
+  assert.ok(snapshot.dirEntries.get('.').children.get('top.txt').type === 'file')
+  assert.ok(snapshot.dirEntries.get('.').children.get('docs').type === 'dir')
+
   // 文件有 size 和mtimeMs
-  assert.ok(!!(snapshot.entriesByPath.get('top.txt')))
-  assert.ok(snapshot.entriesByPath.get('top.txt')?.mtimeMs !== undefined && snapshot.entriesByPath.get('top.txt')?.size !== undefined)
-  // entriesByPath的key是相对根目录的路径
-  assert.ok(snapshot.entriesByPath.get('docs/note.txt') !== undefined)
-  assert.ok(snapshot.entriesByPath.get('docs/chap1') !== undefined)
-  // childrenByPath的key是相对根目录的路径
-  assert.ok(snapshot.childrenByPath.get('docs/chap1') !== undefined)
-  // childrenByPath的value里存的是相对根目录的路径数组
-  assert.ok(snapshot.childrenByPath.get('docs/chap1').includes('article1.txt'))
-  // entry.path 使用的路径格式暂不确定
+  assert.ok(!!(snapshot.fileEntries.get('top.txt')))
+  assert.ok(snapshot.fileEntries.get('top.txt')?.mtimeMs !== undefined && snapshot.fileEntries.get('top.txt')?.size !== undefined)
+  // fileEntries的key是相对根目录的路径
+  assert.ok(snapshot.fileEntries.get('docs/note.txt') !== undefined)
+  // dirEntries的key是相对根目录的路径
+  assert.ok(snapshot.dirEntries.get('docs/chap1') !== undefined)
+  // dirEntries的value里存的是相对根目录的路径数组
+  assert.ok(snapshot.dirEntries.get('docs/chap1').children.has('article1.txt') === true)
 })
 
 test('use POSIX seperator', async () => {
   const snapshot = await buildSnapshot(path.posix.resolve(testBasePath))
   assert.equal(snapshot.root.includes('\\'), false)
-  assert.equal(Array.from(snapshot.entriesByPath.keys()).filter(k => k.includes('\\')).length, 0)
-  assert.equal(Array.from(snapshot.childrenByPath.keys()).filter(k => k.includes('\\')).length, 0)
+  assert.equal(Array.from(snapshot.fileEntries.keys()).filter(k => k.includes('\\')).length, 0)
+  assert.equal(Array.from(snapshot.dirEntries.keys()).filter(k => k.includes('\\')).length, 0)
 })

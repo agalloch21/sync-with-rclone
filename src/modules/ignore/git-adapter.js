@@ -5,34 +5,14 @@ import ignore from 'ignore'
 
 const PATTERN_FILE = '.gitignore'
 /**
- * Locate all the folders containing specific ignore file
+ * Create a node-ignore object with the patterns
  *
- * @export
- * @param {Snapshot} snapshot - snapshot of the entire directory
- * @return {string[]} - paths of dir relative to the root
- */
-export function locateDirectories(snapshot) {
-  const dirs = []
-  snapshot.childrenByPath.forEach((fileNamesInDir, dirEntryKey) => {
-    if (fileNamesInDir.includes(PATTERN_FILE)) {
-      dirs.push(dirEntryKey)
-    }
-  })
-
-  return dirs
-}
-
-/**
- * Create a node-ignore object with the patterns in the directory added
- *
- * @param {string} dirEntryKey - entry key of the directory
- * @param {Snapshot} snapshot - snapshot of the entire directory
+ * @param {string} absFilePath - entry key of the directory
  * @return {ignore} - ignore object
  */
-async function createFilter(dirEntryKey, snapshot) {
-  const filePath = path.posix.resolve(snapshot.root, dirEntryKey, PATTERN_FILE)
+async function createFilter(absFilePath) {
   try {
-    await fs.stat(filePath)
+    await fs.stat(absFilePath)
   }
   catch {
     // return undefined if not found
@@ -40,7 +20,7 @@ async function createFilter(dirEntryKey, snapshot) {
   }
 
   try {
-    const contents = await fs.readFile(filePath, 'utf-8')
+    const contents = await fs.readFile(absFilePath, 'utf-8')
     const patterns = contents.split(/\r?\n/)
 
     const filtered = [...new Set(patterns
@@ -50,108 +30,59 @@ async function createFilter(dirEntryKey, snapshot) {
     return ignore().add(filtered)
   }
   catch (err) {
-    throw new Error(`Error reading file ${filePath}. ${err}`)
+    throw new Error(`Error reading file ${absFilePath}. ${err}`)
   }
 }
 
 /**
- * Filter a directory recursively using the node-ignore object
- *
- * @param {string} dirEntryKey - entry key of the directory
- * @param {Snapshot} snapshot - snapshot of the entire directory
- * @param {ignore} ig - node-ignore object
- * @return {string[]} - keys of the filtered entries
+ * A wrapper of node-ignore filter
+ * @typedef {object} Filter
+ * @property {Snapshot} snapshot - snapshot of the entire directory
+ * @property {string} [dirKey='.'] - relative path to the root
+ * @property {ignore} [filterStack=[]] - node-ignore object
  */
-function filterEntries(dirEntryKey, snapshot, ig) {
-  const filtered = []
-  for (const child of snapshot.childrenByPath.get(dirEntryKey)) {
-    const childKey = path.posix.join(dirEntryKey, child)
-    const entry = snapshot.entriesByPath.get(childKey)
-    const matchIgnore = entry.type === 'dir' ? ig?.ignores(childKey + path.posix.sep) : ig?.ignores(childKey)
-    if (matchIgnore) {
-      continue
+async function filterDirectory(snapshot, dirKey = '.', filterStack = []) {
+  const dirEntry = snapshot.dirEntries.get(dirKey)
+
+  const children = dirEntry.children
+  const filters = children.has(PATTERN_FILE) && children.get(PATTERN_FILE).type === 'file'
+    ? filterStack.concat({ dirKey, ig: await createFilter(path.posix.resolve(snapshot.root, dirKey, PATTERN_FILE)) })
+    : filterStack
+
+  for (const [entryName, childRef] of children) {
+    if (childRef.type === 'dir') {
+      await filterDirectory(snapshot, childRef.path, filters)
     }
+    else if (childRef.type === 'file') {
+      let ignored = false
+      for (const filter of filters) {
+        const pathToFilter = path.posix.relative(filter.dirKey, childRef.path)
+        const res = filter.ig.checkIgnore(pathToFilter)
+        if (res.ignored) {
+          ignored = true
+        }
+        else if (res.unignord) {
+          ignored = false
+        }
+      }
 
-    filtered.push(childKey)
-    if (entry.type === 'dir') {
-      filtered.push(...filterEntries(childKey, snapshot, ig))
+      if (ignored) {
+        snapshot.fileEntries.delete(childRef.path)
+        children.delete(entryName)
+      }
     }
   }
-  return filtered
-}
 
-/**
- * Filter a specific direcotry
- *
- * @export
- * @param {string} dirEntryKey - entry key of the directory
- * @param {Snapshot} snapshot - snapshot of the entire directory
- * @return {string[]} - keys of the filtered entries
- */
-export async function filterDirectory(dirEntryKey, snapshot) {
-  const ig = await createFilter(dirEntryKey, snapshot)
-
-  const filtered = filterEntries(dirEntryKey, snapshot, ig)
-
-  return filtered
-}
-
-/**
- * Filter multiple directories
- *
- * @param {string[]} dirEntryKeys - keys of the directories
- * @param {Snapshot} snapshot - snapshot of the entire directory
- * @return {Set<string>} - keys of the filtered entries
- */
-async function filterDirectories(dirEntryKeys, snapshot) {
-  const filtered = []
-  for (const dirEntryKey of dirEntryKeys) {
-    filtered.push(...(await filterDirectory(dirEntryKey, snapshot)))
+  if (children.size === 0 && dirKey !== '.') {
+    snapshot.dirEntries.delete(dirKey)
+    snapshot.dirEntries.get(dirEntry.parent)?.children.delete(path.posix.basename(dirKey))
   }
-
-  return [...new Set(filtered)]
-}
-
-/**
- * Reassemble new snapshot by the keys of filtered entires
- *
- * @param {string[]} filteredEntryKeys - keys of filtered entries
- * @param {Snapshot} snapshot - snapshot of the entire directory
- * @param {Snapshot} - new snapshot
- */
-function reassembleSnapshot(filteredEntryKeys, snapshot) {
-  /** @type {Snapshot} */
-  const ss = {
-    root: snapshot.root,
-    entriesByPath: new Map(),
-    childrenByPath: new Map(),
-  }
-
-  for (const key of filteredEntryKeys) {
-    const entry = snapshot.entriesByPath.get(key)
-    ss.entriesByPath.set(key, entry)
-
-    const parentKey = path.posix.dirname(key) // both of dirname('node_modules') and dirname('index.js) are '.'
-    if (ss.childrenByPath.has(parentKey) === false) {
-      ss.childrenByPath.set(parentKey, [])
-    }
-    ss.childrenByPath.get(parentKey).push(path.posix.basename(key))
-  }
-
-  return ss
 }
 
 export const gitAdapter = {
   name: 'git',
   /** @param {Snapshot} snapshot */
   async apply(snapshot) {
-    // walk through the snapshot to find ignore files
-    const dirEntryKeys = locateDirectories(snapshot)
-
-    // filter entries by directory
-    const keysToKeep = await filterDirectories(dirEntryKeys, snapshot)
-
-    // trim the snapshot
-    return reassembleSnapshot(keysToKeep, snapshot)
+    await filterDirectory(snapshot)
   },
 }

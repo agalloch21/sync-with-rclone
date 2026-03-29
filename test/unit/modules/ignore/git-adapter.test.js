@@ -121,6 +121,7 @@ test('test gitAdapter', async () => {
   let snapshot = await buildSnapshot(rootPath)
 
   await gitAdapter.apply(snapshot)
+  console.log(snapshot)
   assert.ok(snapshot.dirEntries.has('node_modules') === false)
   assert.ok(snapshot.dirEntries.has('node_modules/module-a') === false)
   assert.ok(snapshot.dirEntries.get('.').children.has('node_modules') === false)
@@ -129,6 +130,7 @@ test('test gitAdapter', async () => {
   rootPath = path.posix.resolve('test/fixtures/ignore/nested')
   snapshot = await buildSnapshot(rootPath)
   await gitAdapter.apply(snapshot)
+  console.log(snapshot)
   assert.ok(snapshot.dirEntries.has('deeper-nested/folder-a') === false)
   assert.ok(snapshot.dirEntries.has('deeper-nested/folder-b') === false)
   assert.ok(snapshot.dirEntries.has('folder-a') === true)
@@ -137,6 +139,7 @@ test('test gitAdapter', async () => {
   rootPath = path.posix.resolve('test/fixtures/ignore/noignore')
   snapshot = await buildSnapshot(rootPath)
   await gitAdapter.apply(snapshot)
+  console.log(snapshot)
   assert.ok(snapshot.fileEntries.has('node_modules/index.txt'))
   assert.ok(snapshot.dirEntries.get('.').children.has('node_modules'))
 

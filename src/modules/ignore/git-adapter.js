@@ -69,36 +69,37 @@ function removeEntry(snapshot, entryKey, type) {
  *
  * @property {Snapshot} snapshot - snapshot of the entire directory
  * @param {string} [dirKey]  - relative path to the root
- * @param {Filter} [parentFilter] - ignore filter
+ * @param {Filter[]} [filterStack] - ignore filter
  */
-async function filterDirectory(snapshot, dirKey = '.', parentFilter = null) {
+async function filterDirectory(snapshot, dirKey = '.', filterStack = []) {
   const dirEntry = snapshot.dirEntries.get(dirKey)
 
   const children = dirEntry.children
-  let filter = parentFilter
+  let filters = filterStack
   if (children.has(PATTERN_FILE) && children.get(PATTERN_FILE).type === 'file') {
-    const patterns = [
-      ...(parentFilter?.patterns || []),
-      ...(await readPatterns(path.posix.resolve(snapshot.root, dirKey, PATTERN_FILE))),
-    ]
-    filter = {
+    const patterns = await readPatterns(path.posix.resolve(snapshot.root, dirKey, PATTERN_FILE))
+    filters = filterStack.concat({
       dirKey,
       patterns,
       ig: ignore().add(patterns),
-    }
+    })
   }
 
   for (const [, childRef] of children) {
     let ignored = false
 
-    if (filter) {
+    for (const filter of filters) {
       const pathToFilter = path.posix.relative(filter.dirKey, childRef.path) + (childRef.type === 'dir' ? '/' : '')
-      const res = filter.ig.checkIgnore(pathToFilter)
-      if (res.ignored) {
-        ignored = true
+      const res = filter.ig.ignores(pathToFilter)
+      if (ignored === false) {
+        ignored = res
       }
-      else if (res.unignored) {
-        ignored = false
+      else {
+        // double check due to the node-ignore bug
+        const check = filter.ig.checkIgnore(pathToFilter)
+        if (check.unignored === true) {
+          ignored = false
+        }
       }
     }
 
@@ -107,7 +108,7 @@ async function filterDirectory(snapshot, dirKey = '.', parentFilter = null) {
     }
     else {
       if (childRef.type === 'dir') {
-        await filterDirectory(snapshot, childRef.path, filter)
+        await filterDirectory(snapshot, childRef.path, filters)
       }
     }
   }
@@ -122,6 +123,43 @@ export const gitAdapter = {
   name: 'git',
   /** @param {Snapshot} snapshot */
   async apply(snapshot) {
+    // const parentPatterns = ['/folder-a', '/index.js']
+    // const ig = ignore().add(parentPatterns)
+    // console.log(ig.ignores('folder-a/'))
+    // console.log(ig.ignores('index.js'))
+    // console.log(ig.ignores('nested/folder-a/'))
+    // console.log(ig.ignores('nested/folder-a/a.txt'))
+    // console.log(ig.ignores('nested/index.js'))
+
+    // // inside 'nested'
+    // const childPatterns = ['!folder-a']
+    // ig.add(childPatterns)
+    // console.log(ig.ignores('folder-a/'))
+    // console.log(ig.ignores('folder-a/a.txt'))
+    // console.log(ig.ignores('index.js'))
+
+    // const patterns = ['.yarn/*', '!.yarn/patches', 'abc*.js']
+    // let ig = ignore().add(patterns)
+    // console.log(ig.checkIgnore('.yarn/'))
+    // console.log(ig.checkIgnore('.yarn/index.js'))
+    // console.log(ig.checkIgnore('.yarn/patches/'))
+    // console.log(ig.checkIgnore('.yarn/patches/patch.js'))
+    // console.log(ig.checkIgnore('abcd.js'))
+
+    // console.log(ig.ignores('.yarn/'))
+    // console.log(ig.ignores('.yarn/index.js'))
+    // console.log(ig.ignores('.yarn/patches/'))
+    // console.log(ig.ignores('.yarn/patches/patch.js'))
+    // console.log(ig.ignores('abcd.js'))
+
+    // console.log(ignore().add('.yarn/*').ignores('.yarn/'))
+    // console.log(ignore().add('.yarn/*').checkIgnore('.yarn/'))
+    // console.log(ignore().add('foo**/bar').checkIgnore('foobar'))
+    // console.log(ignore().add('bar/').checkIgnore('foo/bar/'))
+    // console.log(ignore().add('\\*').ignores('\\'))
+
+    // const childPatterns = ['!folder-a', '!folder-a/', '!/folder-a', '!folder-a/*']
+    // console.log(ignore().add(childPatterns).checkIgnore('folder-a/'))
     await filterDirectory(snapshot)
   },
 }

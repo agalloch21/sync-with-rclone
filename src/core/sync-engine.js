@@ -25,27 +25,7 @@ export async function syncCore(options) {
 
   const diff = compareSnapshot(srcSnapshot, destSnapshot)
 
-  console.log(diff)
-
-  // const destSnapshot =
-
-  // applyIgnoreSystem(srcSnapshot, extraPatterns)
-
-  // const { srcFolder, destFolder, configPath } = options;
-
-  // const { ignoreFiles, extraPatterns} = loadConfig(configPath)
-
-  // const srcSnapshot = listAllFiles(srcFolder, extraFiles = ignoreFiles)
-
-  // const destSnapshot = listAllFiles(destFolder)
-
-  // applyIgnoreModule(srcSnapshot, extraPatterns)
-
-  // const result = applyDiffModule(srcSnapshot, destSnapshot)
-
-  // const resultPath = writeToTempFile(result)
-
-  // callRcloneToMoveFile(srcFolder, destFolder, resultPath)
+  // todo: open a electron window to show the differences visually as a file tree
 }
 
 (async () => {
@@ -63,6 +43,8 @@ export async function syncCore(options) {
     const destSnapshot = mode === 'push' ? remoteSnapshot : localSnapshot
 
     const diff = compareSnapshot(srcSnapshot, destSnapshot)
+
+    await showDiffWindow(diff)
     console.log(diff)
   }
   catch (error) {

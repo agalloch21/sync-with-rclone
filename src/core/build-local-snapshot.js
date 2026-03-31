@@ -1,6 +1,7 @@
-/** @typedef {import('../../types/snapshot.d.ts').Snapshot} Snapshot */
+/** @typedef {import('../types/snapshot.js').Snapshot} Snapshot */
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { pushEntryToSnapshot } from '#src/types/snapshot.js'
 import ignore from 'ignore'
 
 /**
@@ -13,25 +14,12 @@ import ignore from 'ignore'
 
 const PATTERN_FILE = '.gitignore'
 
-/**
- *
- *
- * @param {*} snapshot
- * @param {*} entryPath
- * @param {*} stat
- */
-function pushEntryToSnapshot(snapshot, entryPath, stat) {
-  const dirName = path.posix.dirname(entryPath)
-  const baseName = path.posix.basename(entryPath)
-  const entryMap = stat.isFile() ? snapshot.fileEntries : snapshot.dirEntries
-  const entry = stat.isFile()
-    ? { parent: dirName, mtimeMs: stat.mtimeMs, size: stat.size }
-    : { parent: dirName, children: new Map() }
+const FORBIDDEN_CHARS = /[<>:"/\\|?*\x00-\x1F]/
+function isValidFilename(name) {
+  if (!name || name.length > 255)
+    return false
 
-  entryMap.set(entryPath, entry)
-
-  const parentEntryMap = snapshot.dirEntries.get(dirName)
-  parentEntryMap.children.set(baseName, { path: entryPath, type: stat.isFile() ? 'file' : 'dir' })
+  return !FORBIDDEN_CHARS.test(name)
 }
 
 /**
@@ -70,14 +58,14 @@ async function readPatterns(absFilePath) {
  *
  * @param {Filterp[]} filters
  * @param {string} entryPath
- * @param {string} type
+ * @param {boolean} isDir
  * @return {boolean}
  */
-function checkIgnore(filters, entryPath, type) {
+function checkIgnore(filters, entryPath, isDir) {
   let ignored = false
 
   for (const filter of filters) {
-    const pathToFilter = path.posix.relative(filter.dirPath, entryPath) + (type === 'dir' ? '/' : '')
+    const pathToFilter = path.posix.relative(filter.dirPath, entryPath) + (isDir ? '/' : '')
     const res = filter.ig.ignores(pathToFilter)
     if (ignored === false) {
       ignored = res
@@ -119,12 +107,17 @@ async function walkDir(dirPath, filterStack, snapshot, applyIgnore = true) {
     const entryPath = path.posix.join(dirPath, entryName)
     const stat = await fs.stat(path.posix.join(snapshot.root, entryPath))
     const type = stat.isFile() ? 'file' : (stat.isDirectory() ? 'dir' : null)
-    if (!type || (applyIgnore && checkIgnore(filters, path.posix.join(entryPath), type)))
+    const isValidName = isValidFilename(entryName)
+    if (!type || !isValidName)
       continue
 
-    pushEntryToSnapshot(snapshot, entryPath, stat)
+    const isDir = stat.isDirectory()
+    if (applyIgnore && checkIgnore(filters, path.posix.join(entryPath), isDir))
+      continue
 
-    if (stat.isDirectory())
+    pushEntryToSnapshot(snapshot, entryPath, isDir, stat.size, stat.mtimeMs)
+
+    if (isDir)
       await walkDir(entryPath, filters, snapshot)
   }
 }
@@ -136,7 +129,7 @@ async function walkDir(dirPath, filterStack, snapshot, applyIgnore = true) {
  * @param {string} rootAbsPath - absolute path
  * @return {Snapshot}
  */
-export async function buildSnapshot(rootAbsPath, applyIgnore = true, extraPatterns = []) {
+export async function buildLocalSnapshot(rootAbsPath, applyIgnore = true, extraPatterns = []) {
   if (!path.isAbsolute(rootAbsPath)) {
     throw new Error(`Input must be an absolute path. ${rootAbsPath}`)
   }

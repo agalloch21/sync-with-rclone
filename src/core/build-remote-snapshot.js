@@ -66,14 +66,3 @@ export async function buildRemoteSnapshot(remotePath) {
     console.error(err)
   }
 }
-
-(async () => {
-  try {
-    const remoteFolder = 'synology:ProjectsSynced/2025.10.2_xiaobo.fyi/code/xiaobo.fyi'
-    const res = await buildRemoteSnapshot(remoteFolder)
-    console.log(res)
-  }
-  catch (error) {
-    console.log(error)
-  }
-})()

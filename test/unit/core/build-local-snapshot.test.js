@@ -2,12 +2,12 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
 
-import { buildSnapshot } from '#src/core/build-snapshot.js'
+import { buildLocalSnapshot } from '#src/core/build-local-snapshot.js'
 
-test('test gitAdapter', async () => {
+test('test buildLocalSnapshot', async () => {
   // filter root
   let rootPath = path.posix.resolve('test/fixtures/ignore/basic')
-  let snapshot = await buildSnapshot(rootPath)
+  let snapshot = await buildLocalSnapshot(rootPath)
 
   console.log(snapshot)
   assert.ok(snapshot.dirEntries.has('node_modules') === false)
@@ -16,7 +16,7 @@ test('test gitAdapter', async () => {
 
   // filter nested
   rootPath = path.posix.resolve('test/fixtures/ignore/nested')
-  snapshot = await buildSnapshot(rootPath)
+  snapshot = await buildLocalSnapshot(rootPath)
 
   console.log(snapshot)
   assert.ok(snapshot.dirEntries.has('deeper-nested/folder-a') === false)
@@ -26,7 +26,7 @@ test('test gitAdapter', async () => {
 
   // no .gitignore file
   rootPath = path.posix.resolve('test/fixtures/ignore/noignore')
-  snapshot = await buildSnapshot(rootPath)
+  snapshot = await buildLocalSnapshot(rootPath)
 
   console.log(snapshot)
   assert.ok(snapshot.fileEntries.has('node_modules/index.txt'))
@@ -34,7 +34,7 @@ test('test gitAdapter', async () => {
 
   // negate
   rootPath = path.posix.resolve('test/fixtures/ignore/negate')
-  snapshot = await buildSnapshot(rootPath)
+  snapshot = await buildLocalSnapshot(rootPath)
 
   console.log(snapshot)
   assert.ok(snapshot.fileEntries.has('.env.simple') === false)

@@ -1,7 +1,8 @@
-/** @typedef {import('#src/types/snapshot.ss').Snapshot} Snapshot */
+/** @typedef {import('#src/types/snapshot.js').Snapshot} Snapshot */
 /** @typedef {import('#src/types/snapshot.js').DiffSnapshot} DiffSnapshot */
 
-import { createEmptyDiffSnapshot, DiffState, pushEntryToDiffSnapshot, removeEntryFromSnapshot } from '#src/types/snapshot.js'
+import path from 'node:path'
+import { createEmptyDiffSnapshot, DiffState } from '#src/types/snapshot.js'
 
 // function compareDirectory(dirPath, srcSnapshot, dstSnapshot, diffSnapshot) {
 //   for (const [, srcEntryRef] of srcSnapshot.get(dirPath).children) {
@@ -52,14 +53,95 @@ import { createEmptyDiffSnapshot, DiffState, pushEntryToDiffSnapshot, removeEntr
  * @return {DiffSnapshot}
  */
 export function compareSnapshot(srcSnapshot, dstSnapshot) {
-  const diffSnapshot = {
-    srcRoot: srcSnapshot.root,
-    dstRoot: dstSnapshot.root,
-    fileEntries: new Map(),
-    dirEntries: new Map([
-      ['.', { parent: null, children: new Map(), changes: new Map() }],
-    ]),
+  const diffSnapshot = createEmptyDiffSnapshot(srcSnapshot.root, dstSnapshot.root)
+
+  function incrementChangeCount(dirPath, state) {
+    let currentDirPath = dirPath
+    while (currentDirPath) {
+      const dirEntry = diffSnapshot.dirEntries.get(currentDirPath)
+      dirEntry.changes.set(state, (dirEntry.changes.get(state) || 0) + 1)
+      currentDirPath = dirEntry.parent
+    }
   }
 
-  // todo: compare srcSnapshot and dstSnapshot, and then store the differences into a new flat DiffSnapshot object. The type of the differences include deleted, added and modified
+  function ensureDirEntry(dirPath) {
+    if (diffSnapshot.dirEntries.has(dirPath))
+      return
+
+    const parentPath = path.posix.dirname(dirPath)
+    ensureDirEntry(parentPath)
+
+    diffSnapshot.dirEntries.set(dirPath, {
+      parent: parentPath,
+      children: new Map(),
+      changes: new Map(),
+    })
+    diffSnapshot.dirEntries.get(parentPath).children.set(path.posix.basename(dirPath), {
+      path: dirPath,
+      isDir: true,
+    })
+  }
+
+  function pushDiffEntry(entryPath, isDir, state, size, mtimeMs) {
+    const parentPath = path.posix.dirname(entryPath)
+    ensureDirEntry(parentPath)
+
+    if (isDir) {
+      if (!diffSnapshot.dirEntries.has(entryPath)) {
+        diffSnapshot.dirEntries.set(entryPath, {
+          parent: parentPath,
+          children: new Map(),
+          changes: new Map(),
+        })
+        diffSnapshot.dirEntries.get(parentPath).children.set(path.posix.basename(entryPath), {
+          path: entryPath,
+          isDir: true,
+        })
+      }
+      incrementChangeCount(entryPath, state)
+      return
+    }
+
+    if (!diffSnapshot.fileEntries.has(entryPath)) {
+      diffSnapshot.fileEntries.set(entryPath, {
+        parent: parentPath,
+        state,
+        size,
+        mtimeMs,
+      })
+      diffSnapshot.dirEntries.get(parentPath).children.set(path.posix.basename(entryPath), {
+        path: entryPath,
+        isDir: false,
+      })
+      incrementChangeCount(parentPath, state)
+    }
+  }
+
+  for (const [entryPath] of srcSnapshot.dirEntries) {
+    if (entryPath !== '.' && !dstSnapshot.dirEntries.has(entryPath))
+      pushDiffEntry(entryPath, true, DiffState.added)
+  }
+
+  for (const [entryPath, srcFileEntry] of srcSnapshot.fileEntries) {
+    const dstFileEntry = dstSnapshot.fileEntries.get(entryPath)
+    if (!dstFileEntry) {
+      pushDiffEntry(entryPath, false, DiffState.added, srcFileEntry.size, srcFileEntry.mtimeMs)
+      continue
+    }
+
+    if (srcFileEntry.size !== dstFileEntry.size || srcFileEntry.mtimeMs !== dstFileEntry.mtimeMs)
+      pushDiffEntry(entryPath, false, DiffState.modified, srcFileEntry.size, srcFileEntry.mtimeMs)
+  }
+
+  for (const [entryPath] of dstSnapshot.dirEntries) {
+    if (entryPath !== '.' && !srcSnapshot.dirEntries.has(entryPath))
+      pushDiffEntry(entryPath, true, DiffState.deleted)
+  }
+
+  for (const [entryPath, dstFileEntry] of dstSnapshot.fileEntries) {
+    if (!srcSnapshot.fileEntries.has(entryPath))
+      pushDiffEntry(entryPath, false, DiffState.deleted, dstFileEntry.size, dstFileEntry.mtimeMs)
+  }
+
+  return diffSnapshot
 }

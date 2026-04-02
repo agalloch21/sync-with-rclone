@@ -106,6 +106,15 @@ export const DiffState = Object.freeze({
   deleted: 3,
 })
 
+export function getDiffStateStr(state) {
+  switch (state) {
+    case 0: return 'unchanged'
+    case 1: return 'modified'
+    case 2: return 'added'
+    case 3: return 'deleted'
+  }
+}
+
 /** @typedef {FileEntry & { state: DiffState }} DiffFileEntry */
 /** @typedef {DirEntry & { changes: Map<DiffState, number> }} DiffDirEntry */
 
@@ -135,4 +144,30 @@ export function createEmptyDiffSnapshot(srcRootPath, dstRootPath) {
     ]),
   }
   return snapshot
+}
+
+export function printDiffSnapshot(diffSnapshot) {
+  printLog('========= Printing DiffSnapshot Start ========= ')
+  printLog('srcRoot: ', diffSnapshot.srcRoot)
+  printLog('dstRoot: ', diffSnapshot.dstRoot)
+  for (const [filePath, fileEntry] of diffSnapshot.fileEntries) {
+    printLog(`File: '${filePath}' => { 
+        parent: '${fileEntry.parent}', 
+        state: ${getDiffStateStr(fileEntry.state)}
+    }`)
+  }
+  for (const [dirPath, dirEntry] of diffSnapshot.dirEntries) {
+    const changesStr = `modified: ${dirEntry.changes.get(DiffState.modified) || 0}, added: ${dirEntry.changes.get(DiffState.added) || 0}, deleted: ${dirEntry.changes.get(DiffState.deleted) || 0}, unchanged: ${dirEntry.changes.get(DiffState.unchanged) || 0}`
+    const childrenStr = `${[...dirEntry.children.keys()]}`
+    printLog(`Dir: '${dirPath}' => { 
+        parent: '${dirEntry.parent}', 
+        changes:[ ${changesStr} ], 
+        children: [ ${childrenStr} ]
+    }`)
+  }
+  printLog('========= Printing DiffSnapshot End ========= ')
+}
+
+function printLog(str) {
+  console.log(str) // eslint-disable-line no-console
 }

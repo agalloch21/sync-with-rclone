@@ -43,26 +43,21 @@ function fetchDirectory(execPath, remotePath) {
 }
 
 export async function buildRemoteSnapshot(remotePath) {
-  try {
-    const entries = await fetchDirectory('', remotePath)
+  const entries = await fetchDirectory('', remotePath)
 
-    const snapshot = {
-      root: remotePath,
-      fileEntries: new Map(),
-      dirEntries: new Map([
-        ['.', { parent: null, children: new Map() }],
-      ]),
-    }
-
-    for (const entry of entries) {
-      // entry sample:
-      // {"Path":"app/app.vue","Name":"app.vue","Size":76,"ModTime":"2026-03-18T18:22:17Z","IsDir":false},
-      pushEntryToSnapshot(snapshot, entry.Path, entry.IsDir, entry.Size, Date.parse(entry.ModTime))
-    }
-
-    return snapshot
+  const snapshot = {
+    root: remotePath,
+    fileEntries: new Map(),
+    dirEntries: new Map([
+      ['.', { parent: null, children: new Map() }],
+    ]),
   }
-  catch (err) {
-    console.error(err)
+
+  for (const entry of entries) {
+    // entry sample:
+    // {"Path":"app/app.vue","Name":"app.vue","Size":76,"ModTime":"2026-03-18T18:22:17Z","IsDir":false},
+    pushEntryToSnapshot(snapshot, entry.Path, entry.IsDir, entry.Size, Date.parse(entry.ModTime))
   }
+
+  return snapshot
 }

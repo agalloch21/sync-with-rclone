@@ -9,11 +9,13 @@
     "#src/*": "./src/*",
     "#test/*": "./test/*"
   },
-  "main": "index.js",
+  "main": "src/desktop/main/index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
+    "start": "node src/index.js",
+    "desktop": "electron .",
     "test": "node --test"
   },
   "devDependencies": {

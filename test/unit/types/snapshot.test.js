@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
-import test from 'node:test' // eslint-disable-line test/no-import-node-test
+import test from 'node:test'
 
 /**
  * 这个测试不做运行时类型检查。
  * 目标只是固定住 Snapshot 在项目里的“数据长相”，让后续模块按同一结构组织数据。
  *
- * @type {import('../../../src/types/snapshot.d.ts').Snapshot}
+ * @type {import('#src/types/snapshot.js').Snapshot}
  */
 const snapshotSample = {
   root: '/demo/root',

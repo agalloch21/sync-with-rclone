@@ -1,53 +1,83 @@
-import path from 'node:path'
 import { buildLocalSnapshot } from './build-local-snapshot.js'
 import { buildRemoteSnapshot } from './build-remote-snapshot.js'
 import { compareSnapshot } from './compare-snapshot.js'
 import { resolvePath } from './path-resolver.js'
+
 /**
  * @typedef {object} Options
- * @property {'push', 'pull'} mode
+ * @property {'push' | 'pull'} mode
  * @property {string} localFolderPath
  * @property {string} remoteFolderPath
  */
-export async function syncCore(options) {
-  // const srcFolder = resolvePath(options.srcFolder)
-  const localFolder = '/Users/xiaobo/NAS/ProjectsSynced/2025.10.2_xiaobo.fyi/code/xiaobo.fyi'
 
-  const remoteFolder = 'synology:ProjectsSynced/2025.10.2_xiaobo.fyi/code/xiaobo.fyi'
+/**
+ * @typedef {object} Hooks
+ * @property {(diffSnapshot: import('#src/types/snapshot.js').DiffSnapshot, context: SyncContext) => Promise<unknown>} [reviewDiff]
+ */
 
-  const localSnapshot = await buildLocalSnapshot(localFolder)
+/**
+ * @typedef {object} SyncContext
+ * @property {Options} options
+ * @property {import('#src/types/snapshot.js').Snapshot} localSnapshot
+ * @property {import('#src/types/snapshot.js').Snapshot} remoteSnapshot
+ * @property {import('#src/types/snapshot.js').Snapshot} srcSnapshot
+ * @property {import('#src/types/snapshot.js').Snapshot} destSnapshot
+ */
 
-  const remoteSnapshot = await buildRemoteSnapshot(remoteFolder)
+function normalizeOptions(options) {
+  if (!options?.mode || (options.mode !== 'push' && options.mode !== 'pull'))
+    throw new Error(`Invalid sync mode: ${options?.mode}`)
 
-  const mode = 'push'
-  const srcSnapshot = mode === 'push' ? localSnapshot : remoteSnapshot
-  const destSnapshot = mode === 'push' ? remoteSnapshot : localSnapshot
+  if (!options.localFolderPath)
+    throw new Error('localFolderPath is required')
 
-  const diff = compareSnapshot(srcSnapshot, destSnapshot)
+  if (!options.remoteFolderPath)
+    throw new Error('remoteFolderPath is required')
 
-  // todo: open a electron window to show the differences visually as a file tree
+  return {
+    mode: options.mode,
+    localFolderPath: resolvePath(options.localFolderPath),
+    remoteFolderPath: options.remoteFolderPath,
+  }
 }
 
-(async () => {
-  try {
-    const localFolder = '/Users/xiaobo/NAS/ProjectsSynced/2025.10.2_xiaobo.fyi/code/xiaobo.fyi'
-
-    const remoteFolder = 'synology:ProjectsSynced/2025.10.2_xiaobo.fyi/code/xiaobo.fyi'
-
-    const localSnapshot = await buildLocalSnapshot(localFolder)
-
-    const remoteSnapshot = await buildRemoteSnapshot(remoteFolder)
-
-    const mode = 'push'
-    const srcSnapshot = mode === 'push' ? localSnapshot : remoteSnapshot
-    const destSnapshot = mode === 'push' ? remoteSnapshot : localSnapshot
-
-    const diff = compareSnapshot(srcSnapshot, destSnapshot)
-
-    await showDiffWindow(diff)
-    console.log(diff)
+async function acceptDiffByDefault(diffSnapshot) {
+  return {
+    action: 'accept',
+    diffSnapshot,
   }
-  catch (error) {
-    console.log(error)
+}
+
+/**
+ * Headless sync pipeline. UI review is injected from the outside.
+ *
+ * @export
+ * @param {Options} options
+ * @param {Hooks} [hooks]
+ */
+export async function syncCore(options, hooks = {}) {
+  const normalizedOptions = normalizeOptions(options)
+  const localSnapshot = await buildLocalSnapshot(normalizedOptions.localFolderPath)
+  const remoteSnapshot = await buildRemoteSnapshot(normalizedOptions.remoteFolderPath)
+
+  const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot
+  const destSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
+  const diffSnapshot = compareSnapshot(srcSnapshot, destSnapshot)
+
+  const context = {
+    options: normalizedOptions,
+    localSnapshot,
+    remoteSnapshot,
+    srcSnapshot,
+    destSnapshot,
   }
-})()
+
+  const reviewDiff = hooks.reviewDiff || acceptDiffByDefault
+  const reviewResult = await reviewDiff(diffSnapshot, context)
+
+  return {
+    ...context,
+    diffSnapshot,
+    reviewResult,
+  }
+}

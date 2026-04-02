@@ -98,7 +98,7 @@ export function compareSnapshot(srcSnapshot, dstSnapshot) {
           isDir: true,
         })
       }
-      incrementChangeCount(entryPath, state)
+      //   incrementChangeCount(entryPath, state)  // Don't count dir-type changes
       return
     }
 

@@ -1,0 +1,195 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f3eb;
+  --panel: rgba(255, 251, 245, 0.95);
+  --line: #dacdbb;
+  --text: #2f2418;
+  --muted: #7f705f;
+  --accent: #8c5e34;
+  --added: #1f7a4d;
+  --modified: #a36a1c;
+  --deleted: #b23a3a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "SF Mono", "Menlo", monospace;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(194, 145, 76, 0.16), transparent 25%),
+    linear-gradient(180deg, #faf7f1 0%, var(--bg) 100%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.layout {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+}
+
+.header,
+.footer {
+  padding: 18px 22px;
+  background: var(--panel);
+}
+
+.header {
+  border-bottom: 1px solid var(--line);
+}
+
+.footer {
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.content {
+  overflow: auto;
+  padding: 18px 22px 28px;
+}
+
+.title {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.roots,
+.selection,
+.empty {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.summary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.pill {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pill.added {
+  color: var(--added);
+}
+
+.pill.modified {
+  color: var(--modified);
+}
+
+.pill.deleted {
+  color: var(--deleted);
+}
+
+.tree-list {
+  list-style: none;
+  margin: 0;
+  padding-left: 18px;
+  border-left: 1px solid rgba(218, 205, 187, 0.8);
+}
+
+.tree-list.root {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.tree-item {
+  margin: 8px 0;
+}
+
+details > summary {
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.node-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.name {
+  font-size: 13px;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.folder-badges {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.folder-badge {
+  font-size: 10px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: rgba(127, 112, 95, 0.08);
+  color: var(--muted);
+}
+
+.state {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.state.added {
+  color: var(--added);
+}
+
+.state.modified {
+  color: var(--modified);
+}
+
+.state.deleted {
+  color: var(--deleted);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.button {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.button.primary {
+  background: var(--accent);
+  color: #fff;
+}

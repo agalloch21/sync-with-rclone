@@ -1,5 +1,5 @@
 import { syncCore } from './core/sync-engine.js'
-import { serializeDiffSnapshot } from './core/serialize-diff-snapshot.js'
+import { reviewDiffInCli } from './cli/review.js'
 
 const args = process.argv.slice(2);
 
@@ -11,12 +11,7 @@ const args = process.argv.slice(2);
       localFolderPath: args[1],
       remoteFolderPath: args[2] || ''
     }, {
-      async reviewDiff(diffSnapshot) {
-        console.log(JSON.stringify(serializeDiffSnapshot(diffSnapshot), null, 2))
-        return {
-          action: 'accept',
-        }
-      }
+      reviewDiff: reviewDiffInCli
     });
   } catch (error) {
     console.error(`Error: ${error.message}`);

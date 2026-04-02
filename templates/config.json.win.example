@@ -1,0 +1,23 @@
+{
+  "globalIgnorePatterns": [    
+    ".DS_Store",
+    "Thumbs.db",
+    "*.swp",
+    "*.swo",
+    "~$*",
+    "*.tmp",
+    ".vscode/",
+    ".idea/",
+    ".git/",
+    "node_modules/"
+  ],
+  "syncJobs": [
+    {
+      "name": "ProjectsSynced",
+      "rcloneRemote": "synology",
+      "localBasePath": "D:/ProjectsSynced",
+      "remoteBasePath": "ProjectsSynced",
+      "ignorePatterns": []
+    }
+  ]
+}

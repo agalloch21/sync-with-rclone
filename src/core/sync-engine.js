@@ -8,6 +8,7 @@ import { resolvePath } from './path-resolver.js'
  * @property {'push' | 'pull'} mode
  * @property {string} localFolderPath
  * @property {string} remoteFolderPath
+ * @property {string[]} [extraIgnorePatterns]
  */
 
 /**
@@ -38,6 +39,7 @@ function normalizeOptions(options) {
     mode: options.mode,
     localFolderPath: resolvePath(options.localFolderPath),
     remoteFolderPath: options.remoteFolderPath,
+    extraIgnorePatterns: Array.isArray(options.extraIgnorePatterns) ? options.extraIgnorePatterns : [],
   }
 }
 
@@ -57,7 +59,11 @@ async function acceptDiffByDefault(diffSnapshot) {
  */
 export async function syncCore(options, hooks = {}) {
   const normalizedOptions = normalizeOptions(options)
-  const localSnapshot = await buildLocalSnapshot(normalizedOptions.localFolderPath)
+  const localSnapshot = await buildLocalSnapshot(
+    normalizedOptions.localFolderPath,
+    true,
+    normalizedOptions.extraIgnorePatterns,
+  )
   const remoteSnapshot = await buildRemoteSnapshot(normalizedOptions.remoteFolderPath)
 
   const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot

@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import TreeNode from './components/TreeNode.vue'
 
 const payload = ref(null)
+const errorMessage = ref('')
 const selection = reactive({})
 
 const selectedCount = computed(() => Object.values(selection).filter(Boolean).length)
@@ -37,13 +38,30 @@ async function cancel() {
 }
 
 onMounted(async () => {
-  payload.value = await window.syncReview.getPayload()
-  initializeSelection(payload.value.tree)
+  try {
+    payload.value = await window.syncReview.getPayload()
+    initializeSelection(payload.value.tree)
+  }
+  catch (error) {
+    errorMessage.value = error?.message || String(error)
+    console.error('Failed to initialize review renderer', error)
+  }
 })
 </script>
 
 <template>
-  <div v-if="payload" class="layout">
+  <div v-if="errorMessage" class="layout">
+    <div class="header">
+      <h1 class="title">Review Sync Differences</h1>
+    </div>
+    <div class="content">
+      <div class="error-panel">
+        Failed to initialize renderer: {{ errorMessage }}
+      </div>
+    </div>
+  </div>
+
+  <div v-else-if="payload" class="layout">
     <div class="header">
       <h1 class="title">Review Sync Differences</h1>
       <div class="roots">
@@ -83,6 +101,17 @@ onMounted(async () => {
         <button class="button primary" @click="confirm">
           Confirm
         </button>
+      </div>
+    </div>
+  </div>
+
+  <div v-else class="layout">
+    <div class="header">
+      <h1 class="title">Review Sync Differences</h1>
+    </div>
+    <div class="content">
+      <div class="empty">
+        Loading review data...
       </div>
     </div>
   </div>

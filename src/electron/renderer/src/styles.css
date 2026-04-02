@@ -64,10 +64,15 @@ input {
 
 .roots,
 .selection,
-.empty {
+.empty,
+.error-panel {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.6;
+}
+
+.error-panel {
+  color: var(--deleted);
 }
 
 .summary {

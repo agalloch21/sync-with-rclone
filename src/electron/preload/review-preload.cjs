@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+const { contextBridge, ipcRenderer } = require('electron')
 
 const encoded = process.argv.find(arg => arg.startsWith('{"getPayload"'))
 const channels = encoded ? JSON.parse(encoded) : null

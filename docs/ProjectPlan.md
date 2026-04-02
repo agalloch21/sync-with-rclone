@@ -25,6 +25,7 @@
 - Electron renderer 采用 Vue 实现，避免把 UI 写死在 main 进程字符串里
 - CLI 路径也需要 review 确认，而不是跳过确认
 - config 系统是关键底座之一，要承载同步任务、路径映射和额外 ignore patterns
+- CLI 正式入口位于 `src/cli/index.js`
 - 第一阶段先打通 `Push / Pull -> 差异确认 -> 执行同步`
 
 ## 给未来自己或 AI 的阅读建议

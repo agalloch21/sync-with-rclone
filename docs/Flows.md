@@ -38,10 +38,19 @@ flowchart LR
 - 取出任务级额外 ignore patterns
 - 拒绝任何跨同步任务的路径组合
 
+当前实现里，配置读取的默认位置是：
+
+- macOS: `~/Library/Application Support/sync-with-rclone/config.json`
+- Windows: `%APPDATA%/sync-with-rclone/config.json`
+- Linux/其他: `~/.config/sync-with-rclone/config.json`
+
+也可以通过环境变量 `CONFIG_PATH` 指向自定义路径。
+
 这里最后一步的含义是：
 
 - `Push / Pull` 不是“猜一个 remote”，而是直接得到这个本地路径在当前 `syncJob` 中唯一对应的 remote 路径
 - `Push To... / Pull From...` 也不是得到多个 remote 候选项，而是得到“当前 `syncJob` 的 remote 根目录树”，供用户在这个任务内部继续选目录
+- 如果配置文件当前不存在，则开发阶段会退回到显式传入 `remoteFolderPath` 的模式
 ## 4. `Push` 流程
 
 ```mermaid

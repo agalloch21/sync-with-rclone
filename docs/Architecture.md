@@ -35,6 +35,9 @@ flowchart LR
 ```text
 src/
   app/
+    constants.js
+    load-config.js
+    path-utils.js
     start-sync.js
     resolve-sync-task.js
     review-contracts.js
@@ -58,7 +61,7 @@ src/
       review-window.js
       ipc-handlers.js
     preload/
-      review-preload.js
+      review-preload.cjs
     renderer/
       index.html
       src/
@@ -228,15 +231,24 @@ flowchart TD
 
 这不是 Vue 特有要求，而是因为浏览器和 Electron renderer 不能直接执行 `.vue` 源文件，必须先经过编译。
 
-## 7. 配置层预留
+## 7. 配置层
 
-配置系统应作为独立能力预留，而不是散落在入口逻辑里。
+配置系统应作为独立能力，而不是散落在入口逻辑里。
 
-推荐未来增加：
+当前已经落地的 app/config 文件包括：
 
-- `src/config/load-config.js`
-- `src/config/resolve-task.js`
-- `src/config/types.js`
+- `src/app/constants.js`
+- `src/app/load-config.js`
+- `src/app/path-utils.js`
+- `src/app/resolve-sync-task.js`
+
+默认配置路径当前是：
+
+- macOS: `~/Library/Application Support/sync-with-rclone/config.json`
+- Windows: `%APPDATA%/sync-with-rclone/config.json`
+- Linux/其他: `~/.config/sync-with-rclone/config.json`
+
+也可以通过环境变量 `CONFIG_PATH` 覆盖。
 
 配置层负责：
 
@@ -246,6 +258,12 @@ flowchart TD
 - 保证本地路径和 remote 路径始终在同一个同步任务内
 - 提供额外 ignore patterns
 - 为 `push / pull / push to / pull from` 提供任务内路径解析能力
+
+当前实现里，如果配置文件不存在：
+
+- app 层会返回 `null`
+- 此时仍允许沿用显式传入的 `remoteFolderPath`
+- 这是一种兼容当前开发阶段的 fallback，不代表最终产品一定保留这个行为
 
 ### 7.1 `syncJob` 配置结构
 

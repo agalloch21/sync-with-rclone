@@ -29,9 +29,21 @@ export async function reviewDiffInWindow(diffSnapshot) {
       title: 'Sync Review',
       webPreferences: {
         contextIsolation: true,
-        preload: path.join(__dirname, '../preload/review-preload.js'),
+        preload: path.join(__dirname, '../preload/review-preload.cjs'),
         additionalArguments: [JSON.stringify(channels)],
       },
+    })
+
+    reviewWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {
+      console.log(`[renderer:${level}] ${message} (${sourceId}:${line})`)
+    })
+
+    reviewWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription, validatedURL) => {
+      console.error(`Renderer failed to load: ${errorCode} ${errorDescription} ${validatedURL}`)
+    })
+
+    reviewWindow.webContents.on('render-process-gone', (_, details) => {
+      console.error(`Renderer process gone: ${details.reason}`)
     })
 
     const cleanup = () => {
@@ -80,5 +92,8 @@ export async function reviewDiffInWindow(diffSnapshot) {
         cleanup()
         reject(error)
       })
+
+    if (process.env.DEBUG_ELECTRON === '1')
+      reviewWindow.webContents.openDevTools({ mode: 'detach' })
   })
 }

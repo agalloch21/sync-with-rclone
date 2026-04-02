@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build:renderer": "vite build",
-    "start": "node src/index.js",
+    "start": "node src/cli/index.js",
     "desktop": "electron .",
     "test": "node --test"
   },

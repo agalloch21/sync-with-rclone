@@ -13,25 +13,31 @@
 
 ```mermaid
 flowchart LR
-  A["系统右键菜单 / CLI"] --> B["Desktop Shell / CLI Entrypoint"]
-  B --> C["Core Sync Engine"]
-  C --> D["Snapshot Builders"]
-  C --> E["Diff / Plan / Apply"]
-  B --> F["Review UI"]
-  F --> B
+  A["系统右键菜单 / CLI"] --> B["Shell Layer"]
+  B --> C["App Orchestrator"]
+  C --> D["Core Sync Engine"]
+  D --> E["Snapshot Builders"]
+  D --> F["Diff / Plan / Apply"]
+  B --> G["Review UI"]
+  G --> B
 ```
 
 分层原则：
 
 - `core` 只做业务和执行
-- `desktop` 只做窗口与 IPC
-- `cli` 只做命令行入口
+- `app` 负责配置解析、任务编排和 review 协调
+- `electron` 只做窗口与 IPC
+- `cli` 只做命令行 shell
 - `shared` 只放双方共享的数据契约
 
 ## 3. 推荐目录结构
 
 ```text
 src/
+  app/
+    start-sync.js
+    resolve-sync-task.js
+    review-contracts.js
   core/
     build-local-snapshot.js
     build-remote-snapshot.js
@@ -45,17 +51,23 @@ src/
   cli/
     review.js
     index.js
-  desktop/
+  electron/
     main/
       index.js
+      index.cjs
       review-window.js
       ipc-handlers.js
     preload/
-      index.js
+      review-preload.js
     renderer/
-      review.html
-      review-app.js
-      review.css
+      index.html
+      src/
+        main.js
+        App.vue
+        components/
+        utils/
+        styles.css
+      dist/
 resources/
   binaries/
   icons/
@@ -78,8 +90,21 @@ resources/
 - 直接调用 Electron API
 - 直接创建窗口
 - 直接依赖 UI 状态
+### 4.2 `app`
 
-### 4.2 `desktop/main`
+负责：
+
+- 读取和解释配置
+- 匹配当前本地路径所属的同步任务
+- 组织 `core` 的输入参数
+- 连接 `reviewResult` 和后续 plan/apply 流程
+
+说明：
+
+- `config resolver` 属于这一层，不属于 `core`
+- 这一层是 UI/CLI 和 `core` 之间的应用编排层
+
+### 4.3 `electron/main`
 
 负责：
 
@@ -87,9 +112,16 @@ resources/
 - 解析启动参数
 - 打开 review 窗口
 - 通过 IPC 与 renderer 通信
-- 调用 core 并等待结果
+- 调用 app 层并等待结果
 
-### 4.3 `desktop/renderer`
+当前实现里：
+
+- `src/electron/main/index.js` 是 Node 入口，只负责把命令转发给 Electron
+- `src/electron/main/index.cjs` 是真正的 Electron main 入口
+
+这样做的原因不是“架构上必须有两层 main”，而是当前运行环境里需要一个稳定的 Electron 主进程入口。
+
+### 4.4 `electron/renderer`
 
 负责：
 
@@ -101,10 +133,11 @@ resources/
 建议：
 
 - renderer 使用 Vue 作为视图层
-- preload 只暴露最小 IPC bridge
+- renderer 使用 `.vue` Single File Component 结构
+- `electron/preload` 只暴露最小 IPC bridge
 - renderer 不承担任何文件系统或命令执行逻辑
 
-### 4.4 `shared`
+### 4.5 `shared`
 
 负责：
 
@@ -117,10 +150,10 @@ resources/
 
 **Core 不应知道 Electron 的存在。**
 
-正确做法是让 Core 依赖一个注入的 review hook，例如：
+正确做法是让 app 层把 review hook 注入给 Core，例如：
 
 ```js
-await syncCore(options, {
+await startSync(options, {
   reviewDiff,
 })
 ```
@@ -135,13 +168,15 @@ await syncCore(options, {
 
 ```mermaid
 flowchart TD
-  A["syncCore(options, hooks)"] --> B["buildLocalSnapshot"]
-  A --> C["buildRemoteSnapshot"]
-  B --> D["compareSnapshot"]
-  C --> D
-  D --> E["reviewDiff(diffSnapshot)"]
-  E --> F["buildSyncPlan(reviewResult)"]
-  F --> G["applySyncPlan(plan)"]
+  A["startSync(options, hooks)"] --> B["resolveSyncTask()"]
+  B --> C["syncCore(options, hooks)"]
+  C --> D["buildLocalSnapshot"]
+  C --> E["buildRemoteSnapshot"]
+  D --> F["compareSnapshot"]
+  E --> F
+  F --> G["reviewDiff(diffSnapshot)"]
+  G --> H["buildSyncPlan(reviewResult)"]
+  H --> I["applySyncPlan(plan)"]
 ```
 
 这意味着 Core 可以：
@@ -152,6 +187,46 @@ flowchart TD
 - 再继续执行
 
 这个 review 阶段既可以来自 Electron 窗口，也可以来自 CLI 交互确认。
+
+### 6.1 当前 Electron 运行链路
+
+当前桌面模式的实际启动流程是：
+
+1. 用户运行 `node ./src/electron/main/index.js ...`
+2. `src/electron/main/index.js` 读取本地安装的 Electron binary
+3. Node 入口清理不适合桌面进程继承的环境变量，例如 `ELECTRON_RUN_AS_NODE`
+4. Node 入口启动 Electron，并把参数转交给 `src/electron/main/index.cjs`
+5. `src/electron/main/index.cjs` 作为真正的 Electron main process 启动
+6. Electron main 调用 `startSync(...)`
+7. 当 Core 进入 `reviewDiff(...)` 阶段时，Electron main 创建窗口
+8. preload 暴露最小 IPC bridge
+9. renderer 通过 bridge 拉取 diff payload，渲染 Vue 界面
+10. 用户确认后，renderer 把 `reviewResult` 回传给 main
+11. main 再把 `reviewResult` 交回 app/core，继续后续流程
+
+这个 `index.js -> index.cjs` 的双层入口不是长期理论要求，而是当前为了兼容：
+
+- 仓库整体使用 ESM
+- Electron 主进程入口在当前环境里用 CommonJS 更稳定
+- 有时用户会直接用 `node ...` 启动桌面入口
+
+如果后面把整个桌面启动链整理得更干净，这一层是可以被替换或移除的。
+
+### 6.2 当前 renderer 构建链路
+
+当前 renderer 不是直接让 Electron 去执行 `.vue` 文件。
+
+实际流程是：
+
+1. `.vue`、`main.js`、`styles.css` 位于 `src/electron/renderer/src/`
+2. Vite 读取这些源文件
+3. Vite 把 `.vue` SFC 编译成浏览器可执行的 JavaScript 和 CSS
+4. 构建产物输出到 `src/electron/renderer/dist/`
+5. Electron 窗口加载 `dist/index.html`
+
+因此，当前模式下在运行桌面窗口前，确实需要先有一次 `build:renderer`。
+
+这不是 Vue 特有要求，而是因为浏览器和 Electron renderer 不能直接执行 `.vue` 源文件，必须先经过编译。
 
 ## 7. 配置层预留
 
@@ -218,34 +293,42 @@ const syncJob = {
 
 ### 8.1 `Snapshot`
 
-建议直接把它理解为下面这个契约：
+建议直接把它理解为一个真实对象示例，而不是纯类型定义：
 
 ```js
-/**
- * @typedef {object} FileEntry - Entry object for file
- * @property {string} parent - Parent path relative to the root
- * @property {number} mtimeMs - Modified time in number
- * @property {number} size - File size
- */
+const snapshot = {
+  // 本地时是绝对路径；远端时是当前远端根目录
+  root: '/Users/H/NAS/ProjectsSynced/code/app',
 
-/**
- * @typedef {object} DirEntry - Entry object for directory
- * @property {string | null} parent - Parent path relative to the root
- * @property {Map<string, ChildRef>} children - Map collection of refs to all children
- */
+  // key 永远是相对于 root 的文件路径
+  fileEntries: new Map([
+    ['src/index.js', {
+      parent: 'src',
+      size: 1280,
+      mtimeMs: 1719123456789,
+    }],
+  ]),
 
-/**
- * @typedef {object} ChildRef - Object referencing to an entry
- * @property {string} path - Path relative to the root
- * @property {boolean} isDir - Whether the entry is a directory
- */
+  // key 永远是相对于 root 的目录路径
+  dirEntries: new Map([
+    // 根节点默认必须存在
+    ['.', {
+      parent: null,
+      // children 的 key 是名字，不是完整路径
+      children: new Map([
+        ['src', { path: 'src', isDir: true }],
+        ['README.md', { path: 'README.md', isDir: false }],
+      ]),
+    }],
 
-/**
- * @typedef {object} Snapshot - Snapshot
- * @property {string} root - Absolute path of the root directory
- * @property {Map<string, FileEntry>} fileEntries - Map collection of all files
- * @property {Map<string, DirEntry>} dirEntries - Map collection of all dirs
- */
+    ['src', {
+      parent: '.',
+      children: new Map([
+        ['index.js', { path: 'src/index.js', isDir: false }],
+      ]),
+    }],
+  ]),
+}
 ```
 
 这里有几条必须写死记住的细节：
@@ -307,38 +390,54 @@ const snapshot = {
 
 ### 8.4 `DiffSnapshot`
 
-建议直接按下面这个契约理解：
-
-```js
-/** @enum {number} */
-const DiffState = Object.freeze({
-  unchanged: 0,
-  modified: 1,
-  added: 2,
-  deleted: 3,
-})
-
-/** @typedef {FileEntry & { state: DiffState }} DiffFileEntry */
-/** @typedef {DirEntry & { changes: Map<DiffState, number> }} DiffDirEntry */
-
-/**
- * @typedef {object} DiffSnapshot - Snapshot indicating the differences
- * @property {string} srcRoot - Absolute path of the source folder
- * @property {string} dstRoot - Absolute path of the dest folder
- * @property {Map<string, DiffFileEntry>} fileEntries - File collection
- * @property {Map<string, DiffDirEntry>} dirEntries - Directory collection
- */
-```
-
-对应的初始化根节点应当是：
+建议也直接按真实对象示例理解：
 
 ```js
 const diffSnapshot = {
-  srcRoot: srcRootPath,
-  dstRoot: dstRootPath,
-  fileEntries: new Map(),
+  srcRoot: '/Users/H/NAS/ProjectsSynced/code/app',
+  dstRoot: 'synology:ProjectsSynced/code/app',
+
+  // key 仍然是相对于根目录的路径
+  fileEntries: new Map([
+    ['src/index.js', {
+      parent: 'src',
+      size: 1280,
+      mtimeMs: 1719123456789,
+      state: 1, // modified
+    }],
+    ['src/new-file.js', {
+      parent: 'src',
+      size: 420,
+      mtimeMs: 1719123456799,
+      state: 2, // added
+    }],
+  ]),
+
   dirEntries: new Map([
-    ['.', { parent: null, children: new Map(), changes: new Map() }],
+    // 根节点默认必须存在
+    ['.', {
+      parent: null,
+      children: new Map([
+        ['src', { path: 'src', isDir: true }],
+      ]),
+      // changes 是目录级聚合统计，不是目录自己的单一状态
+      changes: new Map([
+        [1, 1], // modified
+        [2, 1], // added
+      ]),
+    }],
+
+    ['src', {
+      parent: '.',
+      children: new Map([
+        ['index.js', { path: 'src/index.js', isDir: false }],
+        ['new-file.js', { path: 'src/new-file.js', isDir: false }],
+      ]),
+      changes: new Map([
+        [1, 1],
+        [2, 1],
+      ]),
+    }],
   ]),
 }
 ```
@@ -367,7 +466,51 @@ const diffSnapshot = {
 - CLI 可直接把它转成文本树
 - Electron renderer 可把它转成可勾选的文件树
 
-### 8.6 整体处理顺序
+### 8.6 `ReviewResult`
+
+`ReviewResult` 是 review 阶段返回给 Core 的数据契约。
+
+它的职责是：
+
+- 表达用户是否确认继续
+- 表达哪些路径被选中
+- 为后续 `buildSyncPlan` 提供输入
+
+建议按下面这个结构固定：
+
+```js
+const reviewResult = {
+  action: 'confirm',
+  selectedPaths: [
+    'src/index.js',
+    'src/utils/format.js',
+  ],
+}
+```
+
+最少应满足这些约束：
+
+- `action` 至少支持 `confirm` 和 `cancel`
+- `selectedPaths` 中的路径必须是“相对于当前 diff 根目录”的路径
+- `selectedPaths` 里的路径必须来自当前 `DiffSnapshot`
+- Core 不应依赖 renderer 的 checkbox 状态树，只应依赖这个精简结果
+
+如果以后需要更强的表达能力，可以演进为：
+
+```js
+const reviewResult = {
+  action: 'confirm',
+  selectedPaths: ['src/index.js'],
+  excludedPaths: ['dist/app.js'],
+  meta: {
+    source: 'electron',
+  },
+}
+```
+
+但第一阶段建议保持最小结构，不要过早把 UI 细节带进契约里。
+
+### 8.7 整体处理顺序
 
 稳定的处理顺序应当是：
 

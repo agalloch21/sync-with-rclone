@@ -1,6 +1,4 @@
-import { app } from 'electron'
-import { syncCore } from '#src/core/sync-engine.js'
-import { reviewDiffInWindow } from './review-window.js'
+const { app } = require('electron')
 
 function parseArgs(argv) {
   const [, , mode, localFolderPath, remoteFolderPath] = argv
@@ -13,15 +11,19 @@ function parseArgs(argv) {
 
 app.whenReady().then(async () => {
   try {
+    const [{ startSync }, { reviewDiffInWindow }] = await Promise.all([
+      import('#src/app/start-sync.js'),
+      import('./review-window.js'),
+    ])
+
     const options = parseArgs(process.argv)
-    await syncCore(options, {
+    await startSync(options, {
       reviewDiff: reviewDiffInWindow,
     })
   }
   catch (error) {
     console.error(error)
     app.exit(1)
-    return
   }
 })
 

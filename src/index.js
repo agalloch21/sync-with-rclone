@@ -1,4 +1,4 @@
-import { syncCore } from './core/sync-engine.js'
+import { startSync } from './app/start-sync.js'
 import { reviewDiffInCli } from './cli/review.js'
 
 const args = process.argv.slice(2);
@@ -6,7 +6,7 @@ const args = process.argv.slice(2);
 // Main execution
 (async () => {
   try {
-    await syncCore({
+    await startSync({
       mode: args[0] || 'push',
       localFolderPath: args[1],
       remoteFolderPath: args[2] || ''

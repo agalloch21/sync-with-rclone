@@ -22,10 +22,11 @@
 
 ```mermaid
 flowchart LR
-  A["用户动作 + 本地路径"] --> B["加载 config"]
-  B --> C["匹配所属同步任务"]
-  C --> D["推导相对路径"]
-  D --> E["得到默认 remote 对应路径 或 当前任务的 remote 目录树"]
+  A["用户动作 + 本地路径"] --> B["Shell"]
+  B --> C["App: 加载 config"]
+  C --> D["App: 匹配所属同步任务"]
+  D --> E["App: 推导相对路径"]
+  E --> F["App: 得到默认 remote 对应路径 或 当前任务的 remote 目录树"]
 ```
 
 配置解析的职责：
@@ -47,15 +48,16 @@ flowchart LR
 sequenceDiagram
   participant U as 用户
   participant OS as 系统
-  participant M as Electron Main
-  participant G as Config Resolver
+  participant M as Electron Shell
+  participant A as App Resolver
   participant C as Core
   participant R as Renderer
 
   U->>OS: 右键点击 Push
   OS->>M: 传入本地目录路径
-  M->>G: 加载 config 并解析同步任务
-  M->>C: 发起 push 模式同步
+  M->>A: 请求发起 push
+  A->>A: 加载 config 并解析同步任务
+  A->>C: 发起 push 模式同步
   C->>C: 扫描本地并应用 ignore
   C->>C: 扫描远端
   C->>C: 计算 diffSnapshot
@@ -73,15 +75,16 @@ sequenceDiagram
 sequenceDiagram
   participant U as 用户
   participant OS as 系统
-  participant M as Electron Main
-  participant G as Config Resolver
+  participant M as Electron Shell
+  participant A as App Resolver
   participant C as Core
   participant R as Renderer
 
   U->>OS: 右键点击 Pull
   OS->>M: 传入本地目录路径
-  M->>G: 加载 config 并解析同步任务
-  M->>C: 发起 pull 模式同步
+  M->>A: 请求发起 pull
+  A->>A: 加载 config 并解析同步任务
+  A->>C: 发起 pull 模式同步
   C->>C: 扫描远端
   C->>C: 扫描本地
   C->>C: 计算 diffSnapshot
@@ -109,20 +112,21 @@ sequenceDiagram
 sequenceDiagram
   participant U as 用户
   participant OS as 系统
-  participant M as Electron Main
-  participant G as Config Resolver
+  participant M as Electron Shell
+  participant A as App Resolver
   participant T as Remote Tree Picker
   participant C as Core
   participant R as Renderer
 
   U->>OS: 右键点击 Push To...
   OS->>M: 传入本地目录路径
-  M->>G: 加载 config 并匹配所属同步任务
-  M->>T: 读取该任务对应的 remote 目录树
+  M->>A: 请求发起 push to
+  A->>A: 加载 config 并匹配所属同步任务
+  A->>T: 读取该任务对应的 remote 目录树
   T->>U: 展示任务内 remote 目录树
   U->>T: 选择目标目录
-  T-->>M: 返回选中的 remote 目录
-  M->>C: 发起 push 模式同步
+  T-->>A: 返回选中的 remote 目录
+  A->>C: 发起 push 模式同步
   C->>C: 扫描本地并应用 ignore
   C->>C: 扫描选中 remote 目录
   C->>C: 计算 diffSnapshot
@@ -140,20 +144,21 @@ sequenceDiagram
 sequenceDiagram
   participant U as 用户
   participant OS as 系统
-  participant M as Electron Main
-  participant G as Config Resolver
+  participant M as Electron Shell
+  participant A as App Resolver
   participant T as Remote Tree Picker
   participant C as Core
   participant R as Renderer
 
   U->>OS: 右键点击 Pull From...
   OS->>M: 传入本地目录路径
-  M->>G: 加载 config 并匹配所属同步任务
-  M->>T: 读取该任务对应的 remote 目录树
+  M->>A: 请求发起 pull from
+  A->>A: 加载 config 并匹配所属同步任务
+  A->>T: 读取该任务对应的 remote 目录树
   T->>U: 展示任务内 remote 目录树
   U->>T: 选择来源目录
-  T-->>M: 返回选中的 remote 目录
-  M->>C: 发起 pull 模式同步
+  T-->>A: 返回选中的 remote 目录
+  A->>C: 发起 pull 模式同步
   C->>C: 扫描选中 remote 目录
   C->>C: 扫描本地并应用 ignore
   C->>C: 计算 diffSnapshot
@@ -180,11 +185,11 @@ review 是整个产品的关键暂停点。
 
 ```mermaid
 flowchart LR
-  A["Core 产出 diffSnapshot"] --> B["Desktop Main 序列化数据"]
+  A["Core 产出 diffSnapshot"] --> B["Electron Shell 序列化数据"]
   B --> C["Vue Renderer 展示树"]
   C --> D["用户勾选"]
   D --> E["Renderer 返回选择结果"]
-  E --> F["Desktop Main 恢复 Core 流程"]
+  E --> F["Electron Shell / App 恢复 Core 流程"]
 ```
 
 CLI 下对应的模型是：
@@ -213,15 +218,20 @@ Core 不应该直接把内部 `Map` 结构裸传给 UI 作为长期协议。
 
 Renderer 不要把整个 UI 状态原样回传。
 
-建议回传精简的 review 结果，例如：
+建议回传精简的 `reviewResult`，例如：
 
 ```js
 {
-  approved: true,
-  selectedPaths: ['src/index.js', 'docs/readme.md'],
-  excludedPaths: ['node_modules']
+  action: 'confirm',
+  selectedPaths: ['src/index.js', 'docs/readme.md']
 }
 ```
+
+约束是：
+
+- `action` 表示用户是否确认继续
+- `selectedPaths` 必须是相对于当前 diff 根目录的路径
+- 不要把 renderer 内部的展开状态、选中状态树、组件局部状态原样回传给 Core
 
 ## 9. CLI 兼容流程
 

@@ -21,6 +21,7 @@
 - 同步前必须先看差异，再决定执行什么
 - Core 必须能脱离 Electron 独立运行
 - Electron 只作为桌面外壳、交互层和安装包入口
+- UI / CLI 和 Core 之间应存在独立的 app/orchestrator 层
 - Electron renderer 采用 Vue 实现，避免把 UI 写死在 main 进程字符串里
 - CLI 路径也需要 review 确认，而不是跳过确认
 - config 系统是关键底座之一，要承载同步任务、路径映射和额外 ignore patterns

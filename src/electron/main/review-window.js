@@ -5,7 +5,7 @@ import { createRequire } from 'node:module'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
-const reviewEntryPath = path.join(__dirname, '../renderer/dist/index.html')
+const reviewEntryPath = path.join(__dirname, '../renderer/dist/review.html')
 
 export async function reviewDiffInWindow(diffSnapshot) {
   const { BrowserWindow, ipcMain } = require('electron')

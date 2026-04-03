@@ -1,6 +1,7 @@
 import { syncCore } from '#src/core/sync-engine.js'
 import { applySyncPlan } from '#src/core/apply-sync-plan.js'
 import { loadConfig } from './load-config.js'
+import { resolveLocalDirectoryPath } from './path-utils.js'
 import { getRuntimePaths } from './runtime-paths.js'
 import { resolveSyncTask } from './resolve-sync-task.js'
 
@@ -17,18 +18,20 @@ import { resolveSyncTask } from './resolve-sync-task.js'
 export async function startSync(options, hooks = {}) {
   const runtimePaths = getRuntimePaths()
   const config = await loadConfig()
-  const resolvedTask = resolveSyncTask(options.localFolderPath, config, options.remoteFolderPath)
+  const localFolderPath = resolveLocalDirectoryPath(options.localFolderPath)
+  const resolvedTask = resolveSyncTask(localFolderPath, config, options.remoteFolderPath)
 
   const resolvedOptions = resolvedTask
     ? {
         ...options,
-        localFolderPath: options.localFolderPath,
+        localFolderPath,
         remoteFolderPath: resolvedTask.remoteFolderPath,
         extraIgnorePatterns: resolvedTask.extraIgnorePatterns,
         runtimePaths,
       }
     : {
         ...options,
+        localFolderPath,
         runtimePaths,
       }
 

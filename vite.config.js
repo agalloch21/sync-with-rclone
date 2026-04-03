@@ -11,7 +11,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        review: path.resolve('src/electron/renderer/index.html'),
+        review: path.resolve('src/electron/renderer/review.html'),
         progress: path.resolve('src/electron/renderer/progress.html'),
       },
     },

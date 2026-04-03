@@ -2,7 +2,6 @@ import { buildLocalSnapshot } from './build-local-snapshot.js'
 import { buildRemoteSnapshot } from './build-remote-snapshot.js'
 import { buildSyncPlan } from './build-sync-plan.js'
 import { compareSnapshot } from './compare-snapshot.js'
-import { resolvePath } from './path-resolver.js'
 
 /**
  * @typedef {object} Options
@@ -39,7 +38,7 @@ function normalizeOptions(options) {
 
   return {
     mode: options.mode,
-    localFolderPath: resolvePath(options.localFolderPath),
+    localFolderPath: options.localFolderPath,
     remoteFolderPath: options.remoteFolderPath,
     extraIgnorePatterns: Array.isArray(options.extraIgnorePatterns) ? options.extraIgnorePatterns : [],
     runtimePaths: options.runtimePaths || undefined,

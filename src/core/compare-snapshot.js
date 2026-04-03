@@ -4,6 +4,8 @@
 import path from 'node:path'
 import { createEmptyDiffSnapshot, DiffState } from '#src/types/snapshot.js'
 
+const MTIME_TOLERANCE_MS = 1
+
 // function compareDirectory(dirPath, srcSnapshot, dstSnapshot, diffSnapshot) {
 //   for (const [, srcEntryRef] of srcSnapshot.get(dirPath).children) {
 //     const entryPath = srcEntryRef.path
@@ -55,6 +57,13 @@ import { createEmptyDiffSnapshot, DiffState } from '#src/types/snapshot.js'
 export function compareSnapshot(srcSnapshot, dstSnapshot) {
   const diffSnapshot = createEmptyDiffSnapshot(srcSnapshot.root, dstSnapshot.root)
 
+  function filesAreEquivalent(srcFileEntry, dstFileEntry) {
+    if (srcFileEntry.size !== dstFileEntry.size)
+      return false
+
+    return Math.abs(srcFileEntry.mtimeMs - dstFileEntry.mtimeMs) <= MTIME_TOLERANCE_MS
+  }
+
   function incrementChangeCount(dirPath, state) {
     let currentDirPath = dirPath
     while (currentDirPath) {
@@ -92,11 +101,15 @@ export function compareSnapshot(srcSnapshot, dstSnapshot) {
           parent: parentPath,
           children: new Map(),
           changes: new Map(),
+          state,
         })
         diffSnapshot.dirEntries.get(parentPath).children.set(path.posix.basename(entryPath), {
           path: entryPath,
           isDir: true,
         })
+      }
+      else {
+        diffSnapshot.dirEntries.get(entryPath).state = state
       }
       //   incrementChangeCount(entryPath, state)  // Don't count dir-type changes
       return
@@ -129,7 +142,7 @@ export function compareSnapshot(srcSnapshot, dstSnapshot) {
       continue
     }
 
-    if (srcFileEntry.size !== dstFileEntry.size || srcFileEntry.mtimeMs !== dstFileEntry.mtimeMs)
+    if (!filesAreEquivalent(srcFileEntry, dstFileEntry))
       pushDiffEntry(entryPath, false, DiffState.modified, srcFileEntry.size, srcFileEntry.mtimeMs)
   }
 

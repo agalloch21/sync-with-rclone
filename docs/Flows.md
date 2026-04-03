@@ -27,6 +27,7 @@ flowchart LR
   C --> D["App: 匹配所属同步任务"]
   D --> E["App: 推导相对路径"]
   E --> F["App: 得到默认 remote 对应路径 或 当前任务的 remote 目录树"]
+  F --> G["App: 生成 runtime paths"]
 ```
 
 配置解析的职责：
@@ -45,6 +46,16 @@ flowchart LR
 - Linux/其他: `~/.config/sync-with-rclone/config.json`
 
 也可以通过环境变量 `CONFIG_PATH` 指向自定义路径。
+
+当前 runtime paths 还会统一导出：
+
+- app directory
+- app config path
+- rclone config path
+- log directory
+- bundled rclone binary path
+
+因此 apply 阶段调用 `rclone` 时，应显式使用 app 层提供的 `rcloneConfigPath`。
 
 这里最后一步的含义是：
 
@@ -76,6 +87,8 @@ sequenceDiagram
   U->>R: 勾选并确认
   R-->>M: 返回筛选结果
   M->>C: 继续执行同步
+  M->>U: 显示执行进度
+  M->>U: 显示执行结果提示
 ```
 
 ## 5. `Pull` 流程
@@ -103,6 +116,8 @@ sequenceDiagram
   U->>R: 勾选并确认
   R-->>M: 返回筛选结果
   M->>C: 继续执行同步
+  M->>U: 显示执行进度
+  M->>U: 显示执行结果提示
 ```
 
 ## 6. `Push To...` / `Pull From...` 流程补充
@@ -198,7 +213,8 @@ flowchart LR
   B --> C["Vue Renderer 展示树"]
   C --> D["用户勾选"]
   D --> E["Renderer 返回选择结果"]
-  E --> F["Electron Shell / App 恢复 Core 流程"]
+  E --> F["Core 生成 SyncPlan"]
+  F --> G["Electron Shell / App 恢复后续流程"]
 ```
 
 CLI 下对应的模型是：
@@ -236,11 +252,47 @@ Renderer 不要把整个 UI 状态原样回传。
 }
 ```
 
+如果用户取消，则应返回：
+
+```js
+{
+  action: 'cancel',
+  selectedPaths: []
+}
+```
+
 约束是：
 
 - `action` 表示用户是否确认继续
 - `selectedPaths` 必须是相对于当前 diff 根目录的路径
 - 不要把 renderer 内部的展开状态、选中状态树、组件局部状态原样回传给 Core
+- 用户取消应作为正常流程返回，而不是抛成执行错误
+
+### Core -> Apply
+
+review 结束后，Core 不应直接跳到执行命令，而应先生成 `SyncPlan`。
+
+也就是：
+
+- `DiffSnapshot` 回答“有哪些差异”
+- `ReviewResult` 回答“用户允许哪些路径继续”
+- `SyncPlan` 回答“接下来具体执行哪些操作”
+- 如果 `ReviewResult.action === 'cancel'`，则 `SyncPlan` 应为空计划
+
+当前 apply 的执行策略应是：
+
+- `copy` / `delete` 优先批量执行，避免每个文件都单独起一次 `rclone`
+- `mkdir` / `rmdir` 保持逐目录执行，确保空目录和顺序语义清楚
+- 所有 `rclone` 命令都应显式带上 app 层提供的 `rcloneConfigPath`
+- `copy` 阶段应尽量保留文件时间和 metadata
+- 如果 review 被取消，则 apply 阶段应直接返回空结果
+- 执行进度窗口应至少显示几百毫秒，避免快速任务只闪一下
+
+当前 apply 的执行策略应是：
+
+- `copy` / `delete` 优先批量执行，避免每个文件都单独起一次 `rclone`
+- `mkdir` / `rmdir` 保持逐目录执行，确保空目录和顺序语义清楚
+- 所有 `rclone` 命令都应显式带上 app 层提供的 `rcloneConfigPath`
 
 ## 9. CLI 兼容流程
 

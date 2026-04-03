@@ -68,7 +68,7 @@ export async function reviewDiffInWindow(diffSnapshot) {
         return
       settled = true
       cleanup()
-      reject(new Error('Diff review cancelled by user'))
+      resolve({ action: 'cancel', selectedPaths: [] })
       reviewWindow.close()
     })
 
@@ -81,7 +81,7 @@ export async function reviewDiffInWindow(diffSnapshot) {
         return
       settled = true
       cleanup()
-      reject(new Error('Diff review window closed before confirmation'))
+      resolve({ action: 'cancel', selectedPaths: [] })
     })
 
     reviewWindow.loadFile(reviewEntryPath)

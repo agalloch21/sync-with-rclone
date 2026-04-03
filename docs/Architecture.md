@@ -38,6 +38,7 @@ src/
     constants.js
     load-config.js
     path-utils.js
+    runtime-paths.js
     start-sync.js
     resolve-sync-task.js
     review-contracts.js
@@ -114,6 +115,8 @@ resources/
 - Electron 生命周期
 - 解析启动参数
 - 打开 review 窗口
+- 打开执行进度窗口
+- 显示执行结果提示
 - 通过 IPC 与 renderer 通信
 - 调用 app 层并等待结果
 
@@ -172,14 +175,15 @@ await startSync(options, {
 ```mermaid
 flowchart TD
   A["startSync(options, hooks)"] --> B["resolveSyncTask()"]
-  B --> C["syncCore(options, hooks)"]
-  C --> D["buildLocalSnapshot"]
-  C --> E["buildRemoteSnapshot"]
-  D --> F["compareSnapshot"]
-  E --> F
-  F --> G["reviewDiff(diffSnapshot)"]
-  G --> H["buildSyncPlan(reviewResult)"]
-  H --> I["applySyncPlan(plan)"]
+  B --> C["getRuntimePaths()"]
+  C --> D["syncCore(options, hooks)"]
+  D --> E["buildLocalSnapshot"]
+  D --> F["buildRemoteSnapshot"]
+  E --> G["compareSnapshot"]
+  F --> G
+  G --> H["reviewDiff(diffSnapshot)"]
+  H --> I["buildSyncPlan(reviewResult)"]
+  I --> J["applySyncPlan(plan)"]
 ```
 
 这意味着 Core 可以：
@@ -187,7 +191,7 @@ flowchart TD
 - 先计算 diff
 - 暂停等待 review
 - 接收用户筛选结果
-- 再继续执行
+- 再生成计划并执行
 
 这个 review 阶段既可以来自 Electron 窗口，也可以来自 CLI 交互确认。
 
@@ -240,6 +244,7 @@ flowchart TD
 - `src/app/constants.js`
 - `src/app/load-config.js`
 - `src/app/path-utils.js`
+- `src/app/runtime-paths.js`
 - `src/app/resolve-sync-task.js`
 
 默认配置路径当前是：
@@ -249,6 +254,16 @@ flowchart TD
 - Linux/其他: `~/.config/sync-with-rclone/config.json`
 
 也可以通过环境变量 `CONFIG_PATH` 覆盖。
+
+当前 runtime paths 也会由 app 层统一导出，包括：
+
+- app directory
+- app config path
+- rclone config path
+- log directory
+- bundled rclone binary path
+
+这意味着远端扫描阶段和后续 apply 阶段在调用 `rclone` 时，都不应依赖 `rclone` 默认配置目录，而应显式使用 app 层提供的 `rcloneConfigPath`。
 
 配置层负责：
 
@@ -438,6 +453,7 @@ const diffSnapshot = {
       children: new Map([
         ['src', { path: 'src', isDir: true }],
       ]),
+      state: 0, // unchanged
       // changes 是目录级聚合统计，不是目录自己的单一状态
       changes: new Map([
         [1, 1], // modified
@@ -451,6 +467,7 @@ const diffSnapshot = {
         ['index.js', { path: 'src/index.js', isDir: false }],
         ['new-file.js', { path: 'src/new-file.js', isDir: false }],
       ]),
+      state: 0, // unchanged
       changes: new Map([
         [1, 1],
         [2, 1],
@@ -465,7 +482,11 @@ const diffSnapshot = {
 - `fileEntries` 和 `dirEntries` 的 key 仍然都是“相对于根目录”的路径
 - `dirEntries.get('.')` 永远表示 diff 树的根节点
 - `DiffFileEntry.state` 表示单个文件的状态
+- `DiffDirEntry.state` 只表示“目录本身”的状态，主要用于目录被新增或删除的情况
 - `DiffDirEntry.changes` 是目录级聚合统计，不是目录本身的单一状态
+- 一个目录可以同时满足：
+  - `state === unchanged`
+  - 但 `changes` 里仍然有 `modified / added / deleted`
 - 目录是否显示为“有变化”，取决于它下面聚合出来的 `changes`
 
 它的意义不是“执行计划”，而是 review 和 plan 之间的中间层。
@@ -483,6 +504,12 @@ const diffSnapshot = {
 - Core 可继续基于它生成 plan
 - CLI 可直接把它转成文本树
 - Electron renderer 可把它转成可勾选的文件树
+
+稳定规则：
+
+- 文件比较不能要求 `mtimeMs` 完全逐小数位相等
+- 对于时间精度不同导致的小于约 1ms 的差异，应视为未修改
+- 否则文件即使刚刚同步完成，也可能在下一次 compare 时被误判为 `modified`
 
 ### 8.6 `ReviewResult`
 
@@ -506,12 +533,22 @@ const reviewResult = {
 }
 ```
 
+如果用户取消，则应返回：
+
+```js
+const reviewResult = {
+  action: 'cancel',
+  selectedPaths: [],
+}
+```
+
 最少应满足这些约束：
 
 - `action` 至少支持 `confirm` 和 `cancel`
 - `selectedPaths` 中的路径必须是“相对于当前 diff 根目录”的路径
 - `selectedPaths` 里的路径必须来自当前 `DiffSnapshot`
 - Core 不应依赖 renderer 的 checkbox 状态树，只应依赖这个精简结果
+- 用户取消不是执行错误，而是一个正常分支
 
 如果以后需要更强的表达能力，可以演进为：
 
@@ -528,7 +565,59 @@ const reviewResult = {
 
 但第一阶段建议保持最小结构，不要过早把 UI 细节带进契约里。
 
-### 8.7 整体处理顺序
+### 8.7 `SyncPlan`
+
+`SyncPlan` 是 `DiffSnapshot` 与 `ReviewResult` 合并后的结果。
+
+它的职责是：
+
+- 把差异状态转成后续 apply 阶段可执行的操作列表
+- 让后续执行层不需要理解 UI 选择状态
+- 为执行层保留“先建目录、再复制、再删除文件、最后删目录”的顺序
+
+当前建议的最小结构是：
+
+```js
+const syncPlan = {
+  action: 'confirm',
+  operations: [
+    { type: 'mkdir', path: 'added' },
+    { type: 'copy', path: 'added/added.txt' },
+    { type: 'copy', path: 'modified/modified.txt' },
+    { type: 'delete', path: 'deleted/deleted.txt' },
+    { type: 'rmdir', path: 'deleted' },
+  ],
+}
+```
+
+如果 review 被取消，则应得到空计划：
+
+```js
+const syncPlan = {
+  action: 'cancel',
+  operations: [],
+}
+```
+
+约束是：
+
+- `operations` 的路径仍然是相对于当前 diff 根目录的路径
+- `copy` 表示从 source 覆盖或创建到 destination
+- `delete` 表示从 destination 删除文件
+- `mkdir` / `rmdir` 表示目录级操作
+- `SyncPlan` 不应携带 UI 组件状态，只应携带执行所需的信息
+- `SyncPlan` 应把“用户取消”保留为正常控制流，而不是抛成异常
+
+当前 apply 阶段的稳定策略应当是：
+
+- `copy` / `delete` 尽量批量执行，而不是每个文件单独起一个 `rclone` 进程
+- `mkdir` / `rmdir` 仍按目录逐条执行，以保留空目录语义和执行顺序
+- 调用 `rclone` 时，应显式使用 app 层提供的 `rcloneConfigPath`
+- `copy` 阶段应尽量保留文件时间和 metadata，避免同步后再次对比仍全部落成 `modified`
+- 如果 review 被取消，则 apply 阶段应得到空执行结果，而不是抛出执行异常
+- 进度窗口应至少可见几百毫秒，避免快速同步时一闪而过
+
+### 8.8 整体处理顺序
 
 稳定的处理顺序应当是：
 

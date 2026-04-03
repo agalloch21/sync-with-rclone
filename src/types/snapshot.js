@@ -116,7 +116,7 @@ export function getDiffStateStr(state) {
 }
 
 /** @typedef {FileEntry & { state: DiffState }} DiffFileEntry */
-/** @typedef {DirEntry & { changes: Map<DiffState, number> }} DiffDirEntry */
+/** @typedef {DirEntry & { changes: Map<DiffState, number>, state?: DiffState }} DiffDirEntry */
 
 /**
  * @typedef {object} DiffSnapshot - Snapshot indicating the differences
@@ -140,7 +140,7 @@ export function createEmptyDiffSnapshot(srcRootPath, dstRootPath) {
     dstRoot: dstRootPath,
     fileEntries: new Map(),
     dirEntries: new Map([
-      ['.', { parent: null, children: new Map(), changes: new Map() }],
+      ['.', { parent: null, children: new Map(), changes: new Map(), state: DiffState.unchanged }],
     ]),
   }
   return snapshot

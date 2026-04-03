@@ -9,5 +9,11 @@ export default defineConfig({
   build: {
     outDir: path.resolve('src/electron/renderer/dist'),
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        review: path.resolve('src/electron/renderer/index.html'),
+        progress: path.resolve('src/electron/renderer/progress.html'),
+      },
+    },
   },
 })

@@ -1,5 +1,6 @@
 import { buildLocalSnapshot } from './build-local-snapshot.js'
 import { buildRemoteSnapshot } from './build-remote-snapshot.js'
+import { buildSyncPlan } from './build-sync-plan.js'
 import { compareSnapshot } from './compare-snapshot.js'
 import { resolvePath } from './path-resolver.js'
 
@@ -9,6 +10,7 @@ import { resolvePath } from './path-resolver.js'
  * @property {string} localFolderPath
  * @property {string} remoteFolderPath
  * @property {string[]} [extraIgnorePatterns]
+ * @property {object} [runtimePaths]
  */
 
 /**
@@ -40,13 +42,28 @@ function normalizeOptions(options) {
     localFolderPath: resolvePath(options.localFolderPath),
     remoteFolderPath: options.remoteFolderPath,
     extraIgnorePatterns: Array.isArray(options.extraIgnorePatterns) ? options.extraIgnorePatterns : [],
+    runtimePaths: options.runtimePaths || undefined,
   }
+}
+
+function collectAllChangedPaths(diffSnapshot) {
+  const paths = []
+
+  for (const entryPath of diffSnapshot.dirEntries.keys()) {
+    if (entryPath !== '.')
+      paths.push(entryPath)
+  }
+
+  for (const entryPath of diffSnapshot.fileEntries.keys())
+    paths.push(entryPath)
+
+  return paths
 }
 
 async function acceptDiffByDefault(diffSnapshot) {
   return {
-    action: 'accept',
-    diffSnapshot,
+    action: 'confirm',
+    selectedPaths: collectAllChangedPaths(diffSnapshot),
   }
 }
 
@@ -64,7 +81,9 @@ export async function syncCore(options, hooks = {}) {
     true,
     normalizedOptions.extraIgnorePatterns,
   )
-  const remoteSnapshot = await buildRemoteSnapshot(normalizedOptions.remoteFolderPath)
+  const remoteSnapshot = await buildRemoteSnapshot(normalizedOptions.remoteFolderPath, {
+    runtimePaths: normalizedOptions.runtimePaths,
+  })
 
   const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot
   const destSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
@@ -80,10 +99,12 @@ export async function syncCore(options, hooks = {}) {
 
   const reviewDiff = hooks.reviewDiff || acceptDiffByDefault
   const reviewResult = await reviewDiff(diffSnapshot, context)
+  const syncPlan = buildSyncPlan(diffSnapshot, reviewResult)
 
   return {
     ...context,
     diffSnapshot,
     reviewResult,
+    syncPlan,
   }
 }

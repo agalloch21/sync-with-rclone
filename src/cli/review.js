@@ -70,8 +70,12 @@ export async function reviewDiffInCli(diffSnapshot) {
         }
       }
 
-      if (answer === '' || answer === 'n' || answer === 'no')
-        throw new Error('Diff review cancelled by user')
+      if (answer === '' || answer === 'n' || answer === 'no') {
+        return {
+          action: 'cancel',
+          selectedPaths: [],
+        }
+      }
     }
   }
   finally {

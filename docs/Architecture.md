@@ -1,741 +1,371 @@
-# sync-with-rclone 架构设计
+# sync-with-rclone 当前方案
 
-## 1. 架构目标
+## 1. 当前总结构
 
-这个项目必须同时满足两件事：
+当前方案由四层组成：
 
-- 可以作为桌面应用运行
-- 核心同步逻辑可以独立于 Electron 运行
+- `shell`
+- `app`
+- `core`
+- `rclone`
 
-因此，系统必须分层。
-
-## 2. 总体分层
 
 ```mermaid
-flowchart LR
-  A["系统右键菜单 / CLI"] --> B["Shell Layer"]
-  B --> C["App Orchestrator"]
-  C --> D["Core Sync Engine"]
-  D --> E["Snapshot Builders"]
-  D --> F["Diff / Plan / Apply"]
-  B --> G["Review UI"]
-  G --> B
+sequenceDiagram
+  participant U as 用户 / 系统右键菜单
+  participant S as CLI / Electron Shell
+  participant A as App Layer
+  participant C as Core
+  participant RC as rclone Process
+
+  U->>S: 触发动作并传入路径
+  S->>A: 请求开始同步
+  A->>C: 提供明确的同步输入
+  C->>RC: 扫描远端 / 执行同步
+  RC-->>C: 返回结果
+  C-->>A: 返回 diff / plan / apply result
+  A-->>S: 返回可展示结果
 ```
 
-分层原则：
+这张图想表达的是：
 
-- `core` 只做业务和执行
-- `app` 负责配置解析、任务编排和 review 协调
-- `electron` 只做窗口与 IPC
-- `cli` 只做命令行 shell
-- 跨层数据契约应尽量放在最靠近实际使用方的位置，避免为了抽象而强行增加目录层级
+- `electron` 是当前桌面壳层
+- `cli` 是当前保留的命令行壳层
+- `app` 是 shell 和 `core` 之间的编排层
+- `core` 会调用外部 `rclone` 进程
 
-## 3. 推荐目录结构
+
+## 2. 目录职责
 
 ```text
-src/
-  app/
-    constants.js
-    load-config.js
-    path-utils.js
-    runtime-paths.js
-    start-sync.js
-    resolve-sync-task.js
-    review-contracts.js
-  core/
-    build-local-snapshot.js
-    build-remote-snapshot.js
-    compare-snapshot.js
-    build-sync-plan.js
-    apply-sync-plan.js
-    rclone-runtime.js
-    serialize-diff-snapshot.js
-    sync-engine.js
-  cli/
-    review.js
-    index.js
-  electron/
-    main/
-      index.js
-      index.cjs
-      review-window.js
-      progress-window.js
-    preload/
-      progress-preload.cjs
-      review-preload.cjs
-    renderer/
-      review.html
-      progress.html
-      src/
-        review-main.js
-        ReviewApp.vue
-        progress-main.js
-        ProgressApp.vue
-        components/
-        utils/
-        styles.css
-      dist/
-build/
-  installer.nsh
-  verify-win-assets.js
-resources/
-  binaries/
-  icons/
+src/           // 运行时代码
+  app/         // 配置读取、路径规范化、同步任务解析、runtime paths、主流程编排
+  cli/         // CLI入口、终端review、终端输出，可独立承接主流程
+  core/        // Snapshot、Diff、SyncPlan、Apply、rclone 执行封装
+  electron/    // 当前桌面主壳层，包含 main、preload、renderer、review/progress 窗口
+build/         // 打包脚本、安装器脚本、资源校验脚本
+resources/     // bundled binaries、图标等静态资源
+templates/     // 默认配置模板
+```
+**层级边界:**
+- core 不读取 Electron API，不解析配置文件
+- app 负责把 shell 的输入整理成 core 的输入
+- electron 负责桌面壳层和窗口，不直接承担同步业务
+- cli 负责命令行壳层和终端交互
+
+
+## 3. Electron、Vite、Renderer、Core 的关系
+
+当前需要重点理解的是桌面运行链路：
+
+```mermaid
+sequenceDiagram
+  participant OS as 操作系统 / 右键菜单
+  participant EM as Electron Main
+  participant PL as Preload
+  participant RD as Renderer
+  participant APP as App Layer
+  participant CORE as Core
+  participant RC as rclone Process
+
+  OS->>EM: 启动 Electron 并传入动作与路径
+  EM->>APP: 调用 startSync(...)
+  APP->>CORE: 调用 syncCore(...)
+  CORE->>EM: 请求 reviewDiff(...)
+  EM->>PL: 注入 bridge
+  PL->>RD: 暴露最小 API
+  RD-->>EM: 返回 ReviewResult
+  EM->>APP: 恢复主流程
+  APP->>CORE: 继续 build plan / apply
+  CORE->>RC: 调用 rclone
+  RC-->>CORE: 返回执行结果
+  CORE-->>APP: 返回结果
+  APP-->>EM: 返回结果
 ```
 
-## 4. 模块职责
+需要特别记住：
 
-### 4.1 `core`
+- `Renderer` 不直接调用 `core`
+- `Renderer` 通过 `preload` 暴露的 bridge 与 `Electron Main` 通信
+- `Electron Main` 再去调用 `app`
+- `app` 再去调用 `core`
+- `core` 再去调用外部 `rclone` 进程
+- `Vite` 的作用不是参与运行时通信，而是把 renderer 源码编译成 Electron 可加载的页面
+- `CLI` 不是为了测试临时补出来的旁路，而是当前架构下的独立 shell 入口
+- `CLI` 的存在也使 core 更容易独立运行、测试和排查
 
-负责：
+## 4. 关键数据契约
 
-- 扫描本地目录
-- 扫描远端目录
-- 计算差异
-- 构建执行计划
-- 应用执行计划
+### 4.1 `Snapshot`
 
-禁止：
+```js
+/**
+ * @typedef {object} FileEntry
+ * @property {string} parent - Parent path relative to the root
+ * @property {number} mtimeMs - Modified time in number
+ * @property {number} size - File size
+ */
 
-- 直接调用 Electron API
-- 直接创建窗口
-- 直接依赖 UI 状态
-### 4.2 `app`
+/**
+ * @typedef {object} DirEntry
+ * @property {string | null} parent - Parent path relative to the root
+ * @property {Map<string, ChildRef>} children - Map collection of refs to all children
+ */
 
-负责：
+/**
+ * @typedef {object} ChildRef
+ * @property {string} path - Path relative to the root
+ * @property {boolean} isDir - Whether the entry is a directory
+ */
 
-- 读取和解释配置
-- 匹配当前本地路径所属的同步任务
-- 组织 `core` 的输入参数
-- 连接 `reviewResult` 和后续 plan/apply 流程
+/**
+ * @typedef {object} Snapshot
+ * @property {string} root - Absolute path of the root directory
+ * @property {Map<string, FileEntry>} fileEntries - Map collection of all files
+ * @property {Map<string, DirEntry>} dirEntries - Map collection of all dirs
+ */
+```
 
 说明：
 
-- `config resolver` 属于这一层，不属于 `core`
-- 这一层是 UI/CLI 和 `core` 之间的应用编排层
+- `Snapshot` 是扫描结果的正式结构定义
+- `root` 是绝对路径
+- `fileEntries` 和 `dirEntries` 都以“相对于根的路径”为 key
+- `dirEntries` 中默认必须有 `'.'`
+- `children` 的 key 是名字
+- `ChildRef.path` 是相对于根的完整路径
 
-### 4.3 `electron/main`
-
-负责：
-
-- Electron 生命周期
-- 解析启动参数
-- 打开 review 窗口
-- 打开执行进度窗口
-- 显示执行结果提示
-- 通过 IPC 与 renderer 通信
-- 调用 app 层并等待结果
-- 作为安装后桌面可执行文件的真实入口
-
-当前实现里：
-
-- `src/electron/main/index.js` 是 Node 入口，只负责把命令转发给 Electron
-- `src/electron/main/index.cjs` 是真正的 Electron main 入口
-
-这样做的原因不是“架构上必须有两层 main”，而是当前运行环境里需要一个稳定的 Electron 主进程入口。
-
-### 4.4 `electron/renderer`
-
-负责：
-
-- 差异树展示
-- 用户勾选和确认
-- 执行进度展示
-- 执行结果展示
-- 结果回传
-- 使用 Vue 组织窗口 UI
-
-建议：
-
-- renderer 使用 Vue 作为视图层
-- renderer 使用 `.vue` Single File Component 结构
-- `electron/preload` 只暴露最小 IPC bridge
-- renderer 不承担任何文件系统或命令执行逻辑
-
-## 5. Core 与 Electron 的边界
-
-最重要的边界是：
-
-**Core 不应知道 Electron 的存在。**
-
-正确做法是让 app 层把 review hook 注入给 Core，例如：
+示例：
 
 ```js
-await startSync(options, {
-  reviewDiff,
-})
+{
+  root: "/project/root",
+  dirEntries: {
+    ".": {
+      parent: null,
+      children: {
+        "src": { path: "src", isDir: true },
+        "README.md": { path: "README.md", isDir: false }
+      }
+    },
+    "src": {
+      parent: ".",
+      children: {
+        "index.js": { path: "src/index.js", isDir: false }
+      }
+    }
+  },
+  fileEntries: {
+    "README.md": {
+      path: "README.md",
+      name: "README.md",
+      parent: ".",
+      size: 1204,
+      mtimeMs: 1711880000000
+    }
+  }
+}
 ```
 
-这样：
+### 4.2 `DiffSnapshot`
 
-- CLI 可以提供命令行 review
-- Electron 可以提供窗口 review
-- 测试可以提供 fake review
+```js
+/** @enum {number} */
+export const DiffState = Object.freeze({
+  unchanged: 0,
+  modified: 1,
+  added: 2,
+  deleted: 3,
+})
 
-## 6. 关键运行模型
+/** @typedef {FileEntry & { state: DiffState }} DiffFileEntry */
+/** @typedef {DirEntry & { changes: Map<DiffState, number>, state?: DiffState }} DiffDirEntry */
+
+/**
+ * @typedef {object} DiffSnapshot
+ * @property {string} srcRoot - Absolute path of the source folder
+ * @property {string} dstRoot - Absolute path of the dest folder
+ * @property {Map<string, DiffFileEntry>} fileEntries - File collection
+ * @property {Map<string, DiffDirEntry>} dirEntries - Directory collection
+ */
+```
+
+说明：
+
+- `DiffSnapshot` 是差异计算后的正式结构定义
+- 它同时记录源端根路径和目标端根路径
+- `fileEntries` 保存文件级差异
+- `dirEntries` 保存目录级差异和子树统计
+- `dirEntry.state` 表示目录自身状态
+- `dirEntry.changes` 表示目录子树聚合后的统计
+- 文件是否 `modified` 不只看时间戳精确相等，当前实现包含时间容差
+
+示例：
+
+```js
+{
+  srcRoot: "/local/project",
+  dstRoot: "remote:project",
+  dirEntries: {
+    ".": {
+      parent: null,
+      state: DiffState.modified,
+      changes: new Map([
+        [DiffState.added, 2],
+        [DiffState.modified, 1],
+        [DiffState.deleted, 0],
+      ]),
+      children: {
+        "README.md": { path: "README.md", isDir: false }
+      }
+    }
+  },
+  fileEntries: {
+    "README.md": {
+      parent: ".",
+      size: 1204,
+      mtimeMs: 1711880000000,
+      state: DiffState.modified,
+      src: { size: 1204, mtimeMs: 1711880000000 },
+      dst: { size: 1204, mtimeMs: 1711880000001 }
+    }
+  }
+}
+```
+
+### 4.3 `ReviewResult`
+
+```js
+/**
+ * @typedef {'confirm' | 'cancel'} ReviewAction
+ */
+
+/**
+ * Minimal review result contract returned from CLI or Electron review.
+ *
+ * @typedef {object} ReviewResult
+ * @property {ReviewAction} action
+ * @property {string[]} [selectedPaths]
+ */
+```
+
+说明：
+
+- `ReviewResult` 是 review 阶段返回给主流程的正式结构定义
+- 它只表达结果，不表达 UI 细节
+- `action = confirm` 表示继续
+- `action = cancel` 表示正常取消，不是执行异常
+- `selectedPaths` 是相对于当前 diff 根的路径集合
+
+示例：
+
+```js
+{
+  action: "confirm",
+  selectedPaths: [
+    "README.md",
+    "src/index.js"
+  ]
+}
+```
+
+### 4.4 `SyncPlan`
+
+```js
+{
+  mkdir: ["docs"],
+  copy: ["README.md", "src/index.js"],
+  delete: ["old.txt"],
+  rmdir: ["empty-dir"]
+}
+
+// 说明:
+// - 这里表达的是明确的执行意图，而不是 UI 状态
+```
+
+示例含义：
+
+- `SyncPlan` 是 apply 阶段的直接输入
+- 它把“要做什么”压缩成明确的动作集合
+- `applySyncPlan(...)` 会根据它去执行 mkdir、copy、delete、rmdir
+
+## 5. 数据契约在主要模块间的流转
 
 ```mermaid
-flowchart TD
-  A["startSync(options, hooks)"] --> B["resolveSyncTask()"]
-  B --> C["getRuntimePaths()"]
-  C --> D["syncCore(options, hooks)"]
-  D --> E["buildLocalSnapshot"]
-  D --> F["buildRemoteSnapshot"]
-  E --> G["compareSnapshot"]
-  F --> G
-  G --> H["reviewDiff(diffSnapshot)"]
-  H --> I["buildSyncPlan(reviewResult)"]
-  I --> J["applySyncPlan(plan)"]
+sequenceDiagram
+  participant APP as App
+  participant CORE as Core
+  participant REVIEW as Review UI / CLI
+  participant APPLY as Apply
+
+  APP->>CORE: 输入明确的同步参数
+  CORE->>CORE: buildLocalSnapshot(...)
+  CORE->>CORE: buildRemoteSnapshot(...)
+  CORE->>CORE: compareSnapshot(...)
+  CORE-->>REVIEW: DiffSnapshot
+  REVIEW-->>CORE: ReviewResult
+  CORE->>CORE: buildSyncPlan(...)
+  CORE-->>APPLY: SyncPlan
 ```
 
-这意味着 Core 可以：
+## 6. 打包与安装
 
-- 先计算 diff
-- 暂停等待 review
-- 接收用户筛选结果
-- 再生成计划并执行
+### 6.1 打包步骤
 
-这个 review 阶段既可以来自 Electron 窗口，也可以来自 CLI 交互确认。
+1. Vite 先构建 renderer 页面
+2. electron-builder 收集 Electron main、preload、renderer 构建产物
+3. 打包时附带 resources/ 和 templates/
+4. Windows 下由 NSIS 生成安装器
+5. 安装器负责注册右键菜单
 
-### 6.1 当前 Electron 运行链路
+### 6.2 安装步骤
 
-当前桌面模式的实际启动流程是：
+1. 用户运行安装器
+2. 安装器写入程序文件
+3. 安装器分发 templates/ 和 bundled binaries
+4. 安装器注册右键菜单
+5. 用户后续通过右键菜单或 CLI 启动程序
 
-1. 用户运行 `node ./src/electron/main/index.js ...`
-2. `src/electron/main/index.js` 读取本地安装的 Electron binary
-3. Node 入口清理不适合桌面进程继承的环境变量，例如 `ELECTRON_RUN_AS_NODE`
-4. Node 入口启动 Electron，并把参数转交给 `src/electron/main/index.cjs`
-5. `src/electron/main/index.cjs` 作为真正的 Electron main process 启动
-6. Electron main 调用 `startSync(...)`
-7. 当 Core 进入 `reviewDiff(...)` 阶段时，Electron main 创建窗口
-8. preload 暴露最小 IPC bridge
-9. renderer 通过 bridge 拉取 diff payload，渲染 Vue 界面
-10. 用户确认后，renderer 把 `reviewResult` 回传给 main
-11. main 再把 `reviewResult` 交回 app/core，继续后续流程
 
-这个 `index.js -> index.cjs` 的双层入口不是长期理论要求，而是当前为了兼容：
+### 6.3 安装后的目录结构
 
-- 仓库整体使用 ESM
-- Electron 主进程入口在当前环境里用 CommonJS 更稳定
-- 有时用户会直接用 `node ...` 启动桌面入口
+Windows 当前应按两类目录理解：
 
-如果后面把整个桌面启动链整理得更干净，这一层是可以被替换或移除的。
+安装目录（例如 %LOCALAPPDATA%/Programs/sync-with-rclone/）:
+  sync-with-rclone.exe
+  resources/
+    app.asar
+    binaries/
+    templates/
 
-### 6.2 当前 renderer 构建链路
+app data 目录（例如 %APPDATA%/sync-with-rclone/）:
+  %APPDATA%/sync-with-rclone/
+    config.json
+    rclone.conf
+    logs/
 
-当前 renderer 不是直接让 Electron 去执行 `.vue` 文件。
+含义是：
 
-实际流程是：
+- 程序本体安装在安装目录
+- 程序运行时读取的配置位于 app data 目录
+- `rclone` 二进制来自安装目录下的 bundled resources
 
-1. `.vue`、`main.js`、`styles.css` 位于 `src/electron/renderer/src/`
-2. Vite 读取这些源文件
-3. Vite 把 `.vue` SFC 编译成浏览器可执行的 JavaScript 和 CSS
-4. 构建产物输出到 `src/electron/renderer/dist/`
-5. Electron 窗口加载 `dist/review.html` 或 `dist/progress.html`
+## 7. 当前打包和运行结论
 
-因此，当前模式下在运行桌面窗口前，确实需要先有一次 `build:renderer`。
+当前 renderer 的构建方式是：
 
-这不是 Vue 特有要求，而是因为浏览器和 Electron renderer 不能直接执行 `.vue` 源文件，必须先经过编译。
+- 使用 Vite 构建
+- 由 Vite 把 `.vue` 源码编译成 Electron 可加载页面
+- Electron 加载的是构建产物，而不是直接执行 `.vue`
 
-## 7. 配置层
+当前打包方式是：
 
-配置系统应作为独立能力，而不是散落在入口逻辑里。
+- 使用 `electron-builder`
+- Windows 安装器使用 `NSIS`
+- 安装器负责注册右键菜单
+- 安装产物包含 bundled `rclone` 和配置模板
 
-当前已经落地的 app/config 文件包括：
+当前尚未视为稳定事实的部分是：
 
-- `src/app/constants.js`
-- `src/app/load-config.js`
-- `src/app/path-utils.js`
-- `src/app/runtime-paths.js`
-- `src/app/resolve-sync-task.js`
-
-默认配置路径当前是：
-
-- macOS: `~/Library/Application Support/sync-with-rclone/config.json`
-- Windows: `%APPDATA%/sync-with-rclone/config.json`
-- Linux/其他: `~/.config/sync-with-rclone/config.json`
-
-也可以通过环境变量 `CONFIG_PATH` 覆盖。
-
-当前 runtime paths 也会由 app 层统一导出，包括：
-
-- app directory
-- app config path
-- rclone config path
-- log directory
-- bundled rclone binary path
-
-这意味着远端扫描阶段和后续 apply 阶段在调用 `rclone` 时，都不应依赖 `rclone` 默认配置目录，而应显式使用 app 层提供的 `rcloneConfigPath`。
-
-当前稳定现状：
-
-- 程序默认从 app data 目录读取 `config.json` 与 `rclone.conf`
-- 模板文件会随安装产物一起分发
-- “安装阶段自动把模板复制到 app data 路径”目前还不能视为已稳定实现
-
-配置层负责：
-
-- 读取同步任务定义
-- 根据用户点击的本地路径匹配所属任务
-- 解析本地相对路径和 remote 对应路径
-- 保证本地路径和 remote 路径始终在同一个同步任务内
-- 提供额外 ignore patterns
-- 为 `push / pull / push to / pull from` 提供任务内路径解析能力
-
-当前实现里，如果配置文件不存在：
-
-- app 层会返回 `null`
-- 此时仍允许沿用显式传入的 `remoteFolderPath`
-- 这是一种兼容当前开发阶段的 fallback，不代表最终产品一定保留这个行为
-
-### 7.1 `syncJob` 配置结构
-
-`syncJob` 是配置层里最关键的数据单元，配置解析必须满足这些硬约束：
-
-- 一个 `syncJob` 表达的是一个固定的“本地根目录 <-> 远端根目录”关系
-- 用户当前选中的本地路径必须先匹配到某个 `syncJob`
-- 默认 remote 路径来自 `rcloneRemote + remoteBasePath + 相对路径`
-- `Push To...` 和 `Pull From...` 只能在当前 `syncJob` 对应的 remote 目录树内部选目录
-- 不允许跨 `syncJob` 同步
-
-例如：
-
-```js
-const syncJob = {
-  name: 'ProjectsSynced',
-  rcloneRemote: 'synology',
-  localBasePath: '/Users/H/NAS/ProjectsSynced',
-  remoteBasePath: 'ProjectsSynced',
-  ignorePatterns: [],
-}
-```
-
-如果用户当前选中本地目录：
-
-```js
-'/Users/H/NAS/ProjectsSynced/code/app'
-```
-
-那么它在这个任务中的相对路径是：
-
-```js
-'code/app'
-```
-
-默认对应的 remote 目录应解析为：
-
-```js
-'synology:ProjectsSynced/code/app'
-```
-
-## 8. 核心数据结构与处理流程
-
-这部分信息属于“即使将来重写实现，也仍然成立”的系统知识，因此应保留在架构文档里，而不是仅存在于代码中。
-
-### 8.1 `Snapshot`
-
-建议直接把它理解为一个真实对象示例，而不是纯类型定义：
-
-```js
-const snapshot = {
-  // 本地时是绝对路径；远端时是当前远端根目录
-  root: '/Users/H/NAS/ProjectsSynced/code/app',
-
-  // key 永远是相对于 root 的文件路径
-  fileEntries: new Map([
-    ['src/index.js', {
-      parent: 'src',
-      size: 1280,
-      mtimeMs: 1719123456789,
-    }],
-  ]),
-
-  // key 永远是相对于 root 的目录路径
-  dirEntries: new Map([
-    // 根节点默认必须存在
-    ['.', {
-      parent: null,
-      // children 的 key 是名字，不是完整路径
-      children: new Map([
-        ['src', { path: 'src', isDir: true }],
-        ['README.md', { path: 'README.md', isDir: false }],
-      ]),
-    }],
-
-    ['src', {
-      parent: '.',
-      children: new Map([
-        ['index.js', { path: 'src/index.js', isDir: false }],
-      ]),
-    }],
-  ]),
-}
-```
-
-这里有几条必须写死记住的细节：
-
-- `root` 是绝对路径或远端根路径，是整棵树的参照系
-- `fileEntries` 的 key 是“相对于 `root` 的路径”，例如 `src/index.js`
-- `dirEntries` 的 key 也是“相对于 `root` 的路径”，例如 `src` 或 `.`
-- `dirEntries` 默认就必须有一个 `'.'` 元素，表示根目录节点
-- `children` 的 key 不是完整路径，而是子项的名字，例如 `index.js` 或 `src`
-- `ChildRef.path` 存的是“相对于 `root` 的完整路径”，不是名字
-- `parent` 存的是父目录相对于 `root` 的路径
-
-初始化根节点时，应该是这样的：
-
-```js
-const snapshot = {
-  root: rootAbsPath,
-  fileEntries: new Map(),
-  dirEntries: new Map([
-    ['.', { parent: null, children: new Map() }],
-  ]),
-}
-```
-
-这几个细节如果弄错，通常不会立刻在类型层暴露，但会直接导致：
-
-- 父子关系挂错
-- diff 统计错误
-- 路径拼接错误
-- UI 树渲染异常
-- 删除或筛选逻辑跑偏
-
-### 8.2 `buildLocalSnapshot`
-
-`buildLocalSnapshot` 的职责是：
-
-- 从本地文件系统扫描目录
-- 应用 `.gitignore` 风格规则
-- 应用全局和任务级额外 ignore patterns
-- 产出标准化 `Snapshot`
-
-它的关键特点是：
-
-- 本地扫描是受 ignore 规则影响的
-- 它服务的不是“完整镜像本地目录”，而是“产出准备参与同步判断的本地视图”
-
-### 8.3 `buildRemoteSnapshot`
-
-`buildRemoteSnapshot` 的职责是：
-
-- 通过 `rclone` 读取远端目录树
-- 把远端条目转成和本地一致的 `Snapshot` 结构
-
-它的关键特点是：
-
-- 远端扫描是通过 `rclone` 完成的
-- 不再应用`.gitignore`规则
-- 它的输出必须与本地快照结构兼容，这样 diff 才能共用同一套逻辑
-
-### 8.4 `DiffSnapshot`
-
-建议也直接按真实对象示例理解：
-
-```js
-const diffSnapshot = {
-  srcRoot: '/Users/H/NAS/ProjectsSynced/code/app',
-  dstRoot: 'synology:ProjectsSynced/code/app',
-
-  // key 仍然是相对于根目录的路径
-  fileEntries: new Map([
-    ['src/index.js', {
-      parent: 'src',
-      size: 1280,
-      mtimeMs: 1719123456789,
-      state: 1, // modified
-    }],
-    ['src/new-file.js', {
-      parent: 'src',
-      size: 420,
-      mtimeMs: 1719123456799,
-      state: 2, // added
-    }],
-  ]),
-
-  dirEntries: new Map([
-    // 根节点默认必须存在
-    ['.', {
-      parent: null,
-      children: new Map([
-        ['src', { path: 'src', isDir: true }],
-      ]),
-      state: 0, // unchanged
-      // changes 是目录级聚合统计，不是目录自己的单一状态
-      changes: new Map([
-        [1, 1], // modified
-        [2, 1], // added
-      ]),
-    }],
-
-    ['src', {
-      parent: '.',
-      children: new Map([
-        ['index.js', { path: 'src/index.js', isDir: false }],
-        ['new-file.js', { path: 'src/new-file.js', isDir: false }],
-      ]),
-      state: 0, // unchanged
-      changes: new Map([
-        [1, 1],
-        [2, 1],
-      ]),
-    }],
-  ]),
-}
-```
-
-这里同样有几个关键细节：
-
-- `fileEntries` 和 `dirEntries` 的 key 仍然都是“相对于根目录”的路径
-- `dirEntries.get('.')` 永远表示 diff 树的根节点
-- `DiffFileEntry.state` 表示单个文件的状态
-- `DiffDirEntry.state` 只表示“目录本身”的状态，主要用于目录被新增或删除的情况
-- `DiffDirEntry.changes` 是目录级聚合统计，不是目录本身的单一状态
-- 一个目录可以同时满足：
-  - `state === unchanged`
-  - 但 `changes` 里仍然有 `modified / added / deleted`
-- 目录是否显示为“有变化”，取决于它下面聚合出来的 `changes`
-
-它的意义不是“执行计划”，而是 review 和 plan 之间的中间层。
-
-### 8.5 `compareSnapshot`
-
-`compareSnapshot` 的职责是：
-
-- 接收一个源快照和一个目标快照
-- 判断路径在两侧的存在性和差异
-- 输出可供 review 使用的 `DiffSnapshot`
-
-它的输出要满足：
-
-- Core 可继续基于它生成 plan
-- CLI 可直接把它转成文本树
-- Electron renderer 可把它转成可勾选的文件树
-
-稳定规则：
-
-- 文件比较不能要求 `mtimeMs` 完全逐小数位相等
-- 对于时间精度不同导致的小于约 1ms 的差异，应视为未修改
-- 否则文件即使刚刚同步完成，也可能在下一次 compare 时被误判为 `modified`
-
-### 8.6 `ReviewResult`
-
-`ReviewResult` 是 review 阶段返回给 Core 的数据契约。
-
-它的职责是：
-
-- 表达用户是否确认继续
-- 表达哪些路径被选中
-- 为后续 `buildSyncPlan` 提供输入
-
-建议按下面这个结构固定：
-
-```js
-const reviewResult = {
-  action: 'confirm',
-  selectedPaths: [
-    'src/index.js',
-    'src/utils/format.js',
-  ],
-}
-```
-
-如果用户取消，则应返回：
-
-```js
-const reviewResult = {
-  action: 'cancel',
-  selectedPaths: [],
-}
-```
-
-最少应满足这些约束：
-
-- `action` 至少支持 `confirm` 和 `cancel`
-- `selectedPaths` 中的路径必须是“相对于当前 diff 根目录”的路径
-- `selectedPaths` 里的路径必须来自当前 `DiffSnapshot`
-- Core 不应依赖 renderer 的 checkbox 状态树，只应依赖这个精简结果
-- 用户取消不是执行错误，而是一个正常分支
-
-如果以后需要更强的表达能力，可以演进为：
-
-```js
-const reviewResult = {
-  action: 'confirm',
-  selectedPaths: ['src/index.js'],
-  excludedPaths: ['dist/app.js'],
-  meta: {
-    source: 'electron',
-  },
-}
-```
-
-但第一阶段建议保持最小结构，不要过早把 UI 细节带进契约里。
-
-### 8.7 `SyncPlan`
-
-`SyncPlan` 是 `DiffSnapshot` 与 `ReviewResult` 合并后的结果。
-
-它的职责是：
-
-- 把差异状态转成后续 apply 阶段可执行的操作列表
-- 让后续执行层不需要理解 UI 选择状态
-- 为执行层保留“先建目录、再复制、再删除文件、最后删目录”的顺序
-
-当前建议的最小结构是：
-
-```js
-const syncPlan = {
-  action: 'confirm',
-  operations: [
-    { type: 'mkdir', path: 'added' },
-    { type: 'copy', path: 'added/added.txt' },
-    { type: 'copy', path: 'modified/modified.txt' },
-    { type: 'delete', path: 'deleted/deleted.txt' },
-    { type: 'rmdir', path: 'deleted' },
-  ],
-}
-```
-
-如果 review 被取消，则应得到空计划：
-
-```js
-const syncPlan = {
-  action: 'cancel',
-  operations: [],
-}
-```
-
-约束是：
-
-- `operations` 的路径仍然是相对于当前 diff 根目录的路径
-- `copy` 表示从 source 覆盖或创建到 destination
-- `delete` 表示从 destination 删除文件
-- `mkdir` / `rmdir` 表示目录级操作
-- `SyncPlan` 不应携带 UI 组件状态，只应携带执行所需的信息
-- `SyncPlan` 应把“用户取消”保留为正常控制流，而不是抛成异常
-
-当前 apply 阶段的稳定策略应当是：
-
-- `copy` / `delete` 尽量批量执行，而不是每个文件单独起一个 `rclone` 进程
-- `mkdir` / `rmdir` 仍按目录逐条执行，以保留空目录语义和执行顺序
-- 调用 `rclone` 时，应显式使用 app 层提供的 `rcloneConfigPath`
-- `copy` 阶段应尽量保留文件时间和 metadata，避免同步后再次对比仍全部落成 `modified`
-- 如果 review 被取消，则 apply 阶段应得到空执行结果，而不是抛出执行异常
-- 进度窗口应至少可见几百毫秒，避免快速同步时一闪而过
-
-### 8.8 整体处理顺序
-
-稳定的处理顺序应当是：
-
-1. 解析 config，确定当前 `syncJob`
-2. 构建本地 `Snapshot`
-3. 构建远端 `Snapshot`
-4. 通过 `compareSnapshot` 产出 `DiffSnapshot`
-5. 进入 review
-6. 根据 review 结果生成执行计划
-7. 执行同步
-## 9. 打包依赖策略
-
-### `rclone`
-
-建议随应用一起打包。
-
-原因：
-
-- 是核心依赖
-- 需要版本可控
-- 不应要求用户额外安装
-
-### `git`
-
-第一阶段不要作为强依赖打包。
-
-建议策略：
-
-- 能不用就不用
-- 若未来确实需要执行 `git`，优先检测系统安装
-- 只有当系统依赖明显不可接受时，再考虑打包便携版本
-
-## 10. 安装包架构要求
-
-安装包应负责：
-- 创建应用文件夹并安装程序文件
-- 安装 Electron 应用本体
-- 安装内置 `rclone`
-- 注册右键菜单
-- 分发配置模板
-
-运行时应负责：
-- 从 app data 目录读取`sync-with-rclone`配置文件
-- 读取路径映射
-- 在执行rclone命令时, 指定使用 app data 目录中的`rclone`配置文件
-- 写日志
-- 接收安装器注册的右键菜单参数
-- 把动作类型和目录路径传给桌面入口
-
-### 10.1 打包与安装骨架
-
-当前打包层应遵守这些稳定规则：
-
-- 第一阶段优先打通 Windows 安装包
-- 打包器负责把 Electron 应用本体、bundled `rclone`、配置模板一起放入安装产物
-- 打包后的桌面可执行文件仍然是 Electron 应用入口，不需要额外包装一个新的业务可执行文件
-- 右键菜单注册不应直接调用 core，而应调用安装后的 Electron 可执行文件
-- 右键菜单命令至少要把：
-  - 动作类型
-  - 当前目录路径
-  传给桌面入口
-
-当前实现骨架采用：
-
-- `electron-builder`
-- Windows `nsis`
-- `build/installer.nsh` 负责写入和移除右键菜单注册表项
-- `build/verify-win-assets.js` 负责在打包前校验 Windows 所需二进制和模板文件
-
-### 10.2 资源打包规则
-
-安装产物中至少应包含：
-
-- Electron 应用本体
-- renderer 构建产物
-- `resources/binaries` 中的 bundled `rclone`
-- `templates` 中的配置模板
-
-约束：
-
-- runtime paths 解析应同时兼容开发环境和打包环境
-- 开发环境缺省从项目内 `resources/` 读取 bundled `rclone`
-- 打包环境优先从安装产物的 `Resources` 目录读取 bundled `rclone`
-- 第一阶段模板初始化仍应视为“目标行为”，在实现稳定之前不应写成已完成事实
-
-### 10.3 Windows 右键菜单注册规则
-
-Windows 安装器应注册目录级右键菜单。
-
-稳定规则：
-
-- 注册位置应覆盖：
-  - `Directory\\shell`
-  - `Directory\\Background\\shell`
-- 菜单命令应把目录路径作为参数传给安装后的桌面可执行文件
-- 卸载时必须同步移除这些注册项
-- 右键菜单注册属于安装器职责，不属于 core、app 或 renderer
-
-## 11. 第一阶段已知限制
-
-- 第一阶段没有配置管理页
-- 直接双击桌面可执行文件时，不应视为已经具备正式主界面
-- 当前主入口仍是右键菜单触发
-- 在安装与卸载链路完全稳定前，不应把“覆盖安装”和“自动初始化配置”写成已完成能力
-
-## 12. 当前架构约束
-
-后续编码时必须坚持：
-
-- 不要把窗口逻辑塞回 `src/core`
-- 不要把路径映射写死在原型代码里
-- 不要让 renderer 直接碰系统命令执行
-- 重任务始终在 Node / Electron main 一侧执行
+- 安装阶段自动初始化 app data 中的配置文件
+- 覆盖安装 / 卸载链路

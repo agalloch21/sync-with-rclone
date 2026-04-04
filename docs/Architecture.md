@@ -28,7 +28,7 @@ flowchart LR
 - `app` 负责配置解析、任务编排和 review 协调
 - `electron` 只做窗口与 IPC
 - `cli` 只做命令行 shell
-- `shared` 只放双方共享的数据契约
+- 跨层数据契约应尽量放在最靠近实际使用方的位置，避免为了抽象而强行增加目录层级
 
 ## 3. 推荐目录结构
 
@@ -48,10 +48,9 @@ src/
     compare-snapshot.js
     build-sync-plan.js
     apply-sync-plan.js
+    rclone-runtime.js
+    serialize-diff-snapshot.js
     sync-engine.js
-  shared/
-    diff-serializer.js
-    ipc-contracts.js
   cli/
     review.js
     index.js
@@ -60,18 +59,25 @@ src/
       index.js
       index.cjs
       review-window.js
-      ipc-handlers.js
+      progress-window.js
     preload/
+      progress-preload.cjs
       review-preload.cjs
     renderer/
-      index.html
+      review.html
+      progress.html
       src/
-        main.js
-        App.vue
+        review-main.js
+        ReviewApp.vue
+        progress-main.js
+        ProgressApp.vue
         components/
         utils/
         styles.css
       dist/
+build/
+  installer.nsh
+  verify-win-assets.js
 resources/
   binaries/
   icons/
@@ -119,6 +125,7 @@ resources/
 - 显示执行结果提示
 - 通过 IPC 与 renderer 通信
 - 调用 app 层并等待结果
+- 作为安装后桌面可执行文件的真实入口
 
 当前实现里：
 
@@ -133,6 +140,8 @@ resources/
 
 - 差异树展示
 - 用户勾选和确认
+- 执行进度展示
+- 执行结果展示
 - 结果回传
 - 使用 Vue 组织窗口 UI
 
@@ -142,13 +151,6 @@ resources/
 - renderer 使用 `.vue` Single File Component 结构
 - `electron/preload` 只暴露最小 IPC bridge
 - renderer 不承担任何文件系统或命令执行逻辑
-
-### 4.5 `shared`
-
-负责：
-
-- 可序列化 diff 结构
-- IPC 输入输出契约
 
 ## 5. Core 与 Electron 的边界
 
@@ -229,7 +231,7 @@ flowchart TD
 2. Vite 读取这些源文件
 3. Vite 把 `.vue` SFC 编译成浏览器可执行的 JavaScript 和 CSS
 4. 构建产物输出到 `src/electron/renderer/dist/`
-5. Electron 窗口加载 `dist/index.html`
+5. Electron 窗口加载 `dist/review.html` 或 `dist/progress.html`
 
 因此，当前模式下在运行桌面窗口前，确实需要先有一次 `build:renderer`。
 
@@ -264,6 +266,12 @@ flowchart TD
 - bundled rclone binary path
 
 这意味着远端扫描阶段和后续 apply 阶段在调用 `rclone` 时，都不应依赖 `rclone` 默认配置目录，而应显式使用 app 层提供的 `rcloneConfigPath`。
+
+当前稳定现状：
+
+- 程序默认从 app data 目录读取 `config.json` 与 `rclone.conf`
+- 模板文件会随安装产物一起分发
+- “安装阶段自动把模板复制到 app data 路径”目前还不能视为已稳定实现
 
 配置层负责：
 
@@ -653,20 +661,77 @@ const syncPlan = {
 ## 10. 安装包架构要求
 
 安装包应负责：
-- 创建应用文件夹, 所有程序和配置都保存在此目录
+- 创建应用文件夹并安装程序文件
 - 安装 Electron 应用本体
 - 安装内置 `rclone`
 - 注册右键菜单
-- 初始化`sync-with-rclone`的配置文件
-- 初始化`rclone`的配置文件
+- 分发配置模板
 
 运行时应负责：
-- 读取`sync-with-rclone`配置文件
+- 从 app data 目录读取`sync-with-rclone`配置文件
 - 读取路径映射
-- 在执行rclone命令时, 指定使用安装时创建的`rclone`的配置文件
+- 在执行rclone命令时, 指定使用 app data 目录中的`rclone`配置文件
 - 写日志
+- 接收安装器注册的右键菜单参数
+- 把动作类型和目录路径传给桌面入口
 
-## 11. 当前架构约束
+### 10.1 打包与安装骨架
+
+当前打包层应遵守这些稳定规则：
+
+- 第一阶段优先打通 Windows 安装包
+- 打包器负责把 Electron 应用本体、bundled `rclone`、配置模板一起放入安装产物
+- 打包后的桌面可执行文件仍然是 Electron 应用入口，不需要额外包装一个新的业务可执行文件
+- 右键菜单注册不应直接调用 core，而应调用安装后的 Electron 可执行文件
+- 右键菜单命令至少要把：
+  - 动作类型
+  - 当前目录路径
+  传给桌面入口
+
+当前实现骨架采用：
+
+- `electron-builder`
+- Windows `nsis`
+- `build/installer.nsh` 负责写入和移除右键菜单注册表项
+- `build/verify-win-assets.js` 负责在打包前校验 Windows 所需二进制和模板文件
+
+### 10.2 资源打包规则
+
+安装产物中至少应包含：
+
+- Electron 应用本体
+- renderer 构建产物
+- `resources/binaries` 中的 bundled `rclone`
+- `templates` 中的配置模板
+
+约束：
+
+- runtime paths 解析应同时兼容开发环境和打包环境
+- 开发环境缺省从项目内 `resources/` 读取 bundled `rclone`
+- 打包环境优先从安装产物的 `Resources` 目录读取 bundled `rclone`
+- 第一阶段模板初始化仍应视为“目标行为”，在实现稳定之前不应写成已完成事实
+
+### 10.3 Windows 右键菜单注册规则
+
+Windows 安装器应注册目录级右键菜单。
+
+稳定规则：
+
+- 注册位置应覆盖：
+  - `Directory\\shell`
+  - `Directory\\Background\\shell`
+- 菜单命令应把目录路径作为参数传给安装后的桌面可执行文件
+- 卸载时必须同步移除这些注册项
+- 右键菜单注册属于安装器职责，不属于 core、app 或 renderer
+
+## 11. 第一阶段已知限制
+
+- 第一阶段没有配置管理页
+- 直接双击桌面可执行文件时，不应视为已经具备正式主界面
+- 当前主入口仍是右键菜单触发
+- 在安装与卸载链路完全稳定前，不应把“覆盖安装”和“自动初始化配置”写成已完成能力
+
+## 12. 当前架构约束
 
 后续编码时必须坚持：
 

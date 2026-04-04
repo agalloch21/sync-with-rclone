@@ -32,6 +32,8 @@ function getBundledRcloneFileName() {
     return 'rclone-osx-arm64'
   if (process.platform === 'darwin' && process.arch === 'x64')
     return 'rclone-osx-amd64'
+  if (process.platform === 'win32' && process.arch === 'x64')
+    return 'rclone-windows-amd64.exe'
   if (process.platform === 'linux' && process.arch === 'x64')
     return 'rclone-linux-amd64'
 

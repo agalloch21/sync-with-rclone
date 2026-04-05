@@ -1,15 +1,12 @@
 import { startSync } from '#src/app/start-sync.js'
+import { parseSyncArgs } from '#src/app/parse-sync-args.js'
 import { reviewDiffInCli } from './review.js'
 
-const args = process.argv.slice(2)
+const options = parseSyncArgs(process.argv.slice(2))
 
 ;(async () => {
   try {
-    await startSync({
-      mode: args[0] || 'push',
-      localFolderPath: args[1],
-      remoteFolderPath: args[2] || '',
-    }, {
+    await startSync(options, {
       reviewDiff: reviewDiffInCli,
     })
   }

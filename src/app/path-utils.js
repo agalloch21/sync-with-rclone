@@ -26,8 +26,7 @@ export function resolveLocalDirectoryPath(inputPath) {
     throw new Error('Path can not be empty')
 
   const expandedPath = expandHomeDir(inputPath)
-  const normalizedPath = normalizeLocalPath(expandedPath)
-  const absolutePath = path.posix.resolve(normalizedPath)
+  const absolutePath = normalizeLocalPath(path.resolve(expandedPath))
 
   let stat = null
   try {

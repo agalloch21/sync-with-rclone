@@ -3,33 +3,12 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { APP_NAME } from '#src/app/constants.js'
 import { getDefaultConfigPath, loadConfig } from '#src/app/load-config.js'
+import { getDefaultAppDirectory } from '#src/app/runtime-paths.js'
 
 test('getDefaultConfigPath uses the application name constant', () => {
-  const homeDir = os.homedir().replaceAll(path.sep, path.posix.sep)
-
-  if (process.platform === 'darwin') {
-    assert.equal(
-      getDefaultConfigPath(),
-      path.posix.join(homeDir, `Library/Application Support/${APP_NAME}/config.json`),
-    )
-    return
-  }
-
-  if (process.platform === 'win32') {
-    const appData = process.env.APPDATA?.replaceAll(path.sep, path.posix.sep)
-    const expectedPath = appData
-      ? path.posix.join(appData, `${APP_NAME}/config.json`)
-      : path.posix.join(homeDir, `AppData/Roaming/${APP_NAME}/config.json`)
-    assert.equal(getDefaultConfigPath(), expectedPath)
-    return
-  }
-
-  assert.equal(
-    getDefaultConfigPath(),
-    path.posix.join(homeDir, `.config/${APP_NAME}/config.json`),
-  )
+  const expectedPath = path.posix.join(getDefaultAppDirectory(), 'config', 'config.json')
+  assert.equal(getDefaultConfigPath(), expectedPath)
 })
 
 test('loadConfig reads and normalizes sync config', async () => {
@@ -61,4 +40,23 @@ test('loadConfig reads and normalizes sync config', async () => {
 test('loadConfig returns null when config file does not exist', async () => {
   const config = await loadConfig('/tmp/sync-with-rclone/does-not-exist.json')
   assert.equal(config, null)
+})
+
+test('loadConfig defaults to APP_ROOT_PATH config subdirectory', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-app-root-'))
+  const configDir = path.join(tempDir, 'config')
+  const configPath = path.join(configDir, 'config.json')
+
+  await fs.mkdir(configDir, { recursive: true })
+  await fs.writeFile(configPath, JSON.stringify({
+    syncJobs: [],
+  }, null, 2))
+
+  process.env.APP_ROOT_PATH = tempDir
+  delete process.env.CONFIG_PATH
+
+  const config = await loadConfig()
+  assert.equal(config.path, configPath.replaceAll(path.sep, path.posix.sep))
+
+  delete process.env.APP_ROOT_PATH
 })

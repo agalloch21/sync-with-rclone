@@ -1,26 +1,16 @@
 import fs from 'node:fs/promises'
-import os from 'node:os'
 import path from 'node:path'
-import { APP_NAME } from './constants.js'
+import { getDefaultAppDirectory } from './runtime-paths.js'
 
 function normalizeLocalPath(inputPath) {
   return inputPath.replaceAll(path.sep, path.posix.sep)
 }
 
 function getDefaultConfigPath() {
-  const homeDir = os.homedir().replaceAll(path.sep, path.posix.sep)
-
-  if (process.platform === 'darwin')
-    return path.posix.join(homeDir, `Library/Application Support/${APP_NAME}/config.json`)
-
-  if (process.platform === 'win32') {
-    const appData = process.env.APPDATA?.replaceAll(path.sep, path.posix.sep)
-    return appData
-      ? path.posix.join(appData, `${APP_NAME}/config.json`)
-      : path.posix.join(homeDir, `AppData/Roaming/${APP_NAME}/config.json`)
-  }
-
-  return path.posix.join(homeDir, `.config/${APP_NAME}/config.json`)
+  const appDirectory = process.env.APP_ROOT_PATH
+    ? process.env.APP_ROOT_PATH.replaceAll(path.sep, path.posix.sep)
+    : getDefaultAppDirectory()
+  return path.posix.join(appDirectory, 'config', 'config.json')
 }
 
 function normalizeConfig(rawConfig) {

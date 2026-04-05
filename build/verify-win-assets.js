@@ -6,6 +6,8 @@ const requiredFiles = [
   'templates/config.json.win.example',
   'templates/rclone.conf.win.example',
   'build/windows-installer.ps1',
+  'src/electron/renderer/dist/review.html',
+  'src/electron/renderer/dist/progress.html',
 ]
 
 const missingFiles = requiredFiles.filter(filePath => !fs.existsSync(path.resolve(filePath)))

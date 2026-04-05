@@ -15,8 +15,8 @@
     "dev:renderer": "vite --host 127.0.0.1 --strictPort",
     "dev:desktop": "node build/dev-electron.js",
     "verify:win-assets": "node build/verify-win-assets.js",
-    "predist:win": "npm run verify:win-assets",
-    "prepack:win": "npm run verify:win-assets",
+    "predist:win": "npm run build:renderer && npm run verify:win-assets",
+    "prepack:win": "npm run build:renderer && npm run verify:win-assets",
     "dist:win": "electron-builder --win nsis --x64",
     "pack:win": "electron-builder --win dir --x64",
     "start": "node src/cli/index.js",
@@ -58,7 +58,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "perMachine": false,
+      "perMachine": true,
       "include": "build/installer.nsh",
       "runAfterFinish": false
     }

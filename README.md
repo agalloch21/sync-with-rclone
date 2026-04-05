@@ -52,6 +52,9 @@ npm start
 node src/cli/index.js
 
 #如果需要直接带参数运行，可参考主流程的调用方式，例如：
+node ./src/cli/index.js --mode=push --local=<local-path> --remote=<remote-path>
+
+# Backward-compatible positional form:
 node ./src/cli/index.js push <local-path> <remote-path>
 ```
 
@@ -64,6 +67,9 @@ npm run desktop
 electron .
 
 #如果需要按实际同步动作传入参数，可直接运行桌面入口，例如：
+node ./src/electron/main/index.js --mode=push --local=<local-path> --remote=<remote-path>
+
+# Backward-compatible positional form:
 node ./src/electron/main/index.js push <local-path> <remote-path>
 ```
 

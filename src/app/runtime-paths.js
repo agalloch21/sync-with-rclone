@@ -1,8 +1,6 @@
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { APP_NAME } from './constants.js'
 
 function normalizePath(inputPath) {
   return inputPath.replaceAll(path.sep, path.posix.sep)
@@ -13,18 +11,24 @@ function getProjectRootPath() {
   return normalizePath(path.resolve(path.dirname(currentFilePath), '../..'))
 }
 
+function getBundledInstallDirectory() {
+  if (!process.resourcesPath)
+    return ''
+
+  const resourcesDirectory = normalizePath(process.resourcesPath)
+  const appAsarPath = path.posix.join(resourcesDirectory, 'app.asar')
+  if (!fs.existsSync(appAsarPath))
+    return ''
+
+  return normalizePath(path.posix.dirname(resourcesDirectory))
+}
+
 export function getDefaultAppDirectory() {
-  const homeDir = normalizePath(os.homedir())
+  const bundledInstallDirectory = getBundledInstallDirectory()
+  if (bundledInstallDirectory)
+    return bundledInstallDirectory
 
-  if (process.platform === 'darwin')
-    return path.posix.join(homeDir, `Library/Application Support/${APP_NAME}`)
-
-  if (process.platform === 'win32') {
-    const appData = process.env.APPDATA ? normalizePath(process.env.APPDATA) : ''
-    return appData || path.posix.join(homeDir, `AppData/Roaming/${APP_NAME}`)
-  }
-
-  return path.posix.join(homeDir, `.config/${APP_NAME}`)
+  return getProjectRootPath()
 }
 
 function getBundledRcloneFileName() {
@@ -62,14 +66,16 @@ function resolveResourcesDirectory(bundledRcloneName) {
 
 export function getRuntimePaths() {
   const appDirectory = normalizePath(process.env.APP_ROOT_PATH || getDefaultAppDirectory())
-  const configPath = normalizePath(process.env.CONFIG_PATH || path.posix.join(appDirectory, 'config.json'))
-  const rcloneConfigPath = normalizePath(process.env.RCLONE_CONFIG_PATH || path.posix.join(appDirectory, 'rclone.conf'))
+  const configDirectory = normalizePath(path.posix.join(appDirectory, 'config'))
+  const configPath = normalizePath(process.env.CONFIG_PATH || path.posix.join(configDirectory, 'config.json'))
+  const rcloneConfigPath = normalizePath(process.env.RCLONE_CONFIG_PATH || path.posix.join(configDirectory, 'rclone.conf'))
   const logDirectory = normalizePath(path.posix.join(appDirectory, 'logs'))
   const bundledRcloneName = getBundledRcloneFileName()
   const resourcesDirectory = normalizePath(resolveResourcesDirectory(bundledRcloneName))
 
   return {
     appDirectory,
+    configDirectory,
     configPath,
     rcloneConfigPath,
     logDirectory,

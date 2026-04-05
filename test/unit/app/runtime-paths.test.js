@@ -1,28 +1,14 @@
 import assert from 'node:assert/strict'
-import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { APP_NAME } from '#src/app/constants.js'
 import { getDefaultAppDirectory, getRuntimePaths } from '#src/app/runtime-paths.js'
 
-test('getDefaultAppDirectory uses the application name constant', () => {
-  const homeDir = os.homedir().replaceAll(path.sep, path.posix.sep)
+test('getDefaultAppDirectory defaults to the project root when running unpackaged', () => {
+  const defaultAppDirectory = getDefaultAppDirectory()
 
-  if (process.platform === 'darwin') {
-    assert.equal(getDefaultAppDirectory(), path.posix.join(homeDir, `Library/Application Support/${APP_NAME}`))
-    return
-  }
-
-  if (process.platform === 'win32') {
-    const appData = process.env.APPDATA?.replaceAll(path.sep, path.posix.sep) || ''
-    assert.equal(
-      getDefaultAppDirectory(),
-      appData || path.posix.join(homeDir, `AppData/Roaming/${APP_NAME}`),
-    )
-    return
-  }
-
-  assert.equal(getDefaultAppDirectory(), path.posix.join(homeDir, `.config/${APP_NAME}`))
+  assert.equal(defaultAppDirectory.endsWith('/sync-with-rclone'), true)
+  assert.equal(defaultAppDirectory.includes('/AppData/Roaming/'), false)
+  assert.equal(defaultAppDirectory.includes('/.config/'), false)
 })
 
 test('getRuntimePaths derives app config, rclone config and logs from the app directory', () => {
@@ -32,8 +18,9 @@ test('getRuntimePaths derives app config, rclone config and logs from the app di
 
   const runtimePaths = getRuntimePaths()
   assert.equal(runtimePaths.appDirectory, '/tmp/sync-with-rclone-app')
-  assert.equal(runtimePaths.configPath, '/tmp/sync-with-rclone-app/config.json')
-  assert.equal(runtimePaths.rcloneConfigPath, '/tmp/sync-with-rclone-app/rclone.conf')
+  assert.equal(runtimePaths.configDirectory, '/tmp/sync-with-rclone-app/config')
+  assert.equal(runtimePaths.configPath, '/tmp/sync-with-rclone-app/config/config.json')
+  assert.equal(runtimePaths.rcloneConfigPath, '/tmp/sync-with-rclone-app/config/rclone.conf')
   assert.equal(runtimePaths.logDirectory, '/tmp/sync-with-rclone-app/logs')
 
   delete process.env.APP_ROOT_PATH

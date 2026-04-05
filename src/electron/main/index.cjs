@@ -1,24 +1,16 @@
 const { app, dialog } = require('electron')
 let isSyncInProgress = false
 
-function parseArgs(argv) {
-  const [, , mode, localFolderPath, remoteFolderPath] = argv
-  return {
-    mode: mode || 'push',
-    localFolderPath,
-    remoteFolderPath,
-  }
-}
-
 app.whenReady().then(async () => {
   try {
-    const [{ startSync }, { reviewDiffInWindow }, { createProgressWindowController }] = await Promise.all([
+    const [{ startSync }, { parseSyncArgs }, { reviewDiffInWindow }, { createProgressWindowController }] = await Promise.all([
       import('#src/app/start-sync.js'),
+      import('#src/app/parse-sync-args.js'),
       import('./review-window.js'),
       import('./progress-window.js'),
     ])
 
-    const options = parseArgs(process.argv)
+    const options = parseSyncArgs(process.argv.slice(2))
     let progressWindow = null
 
     isSyncInProgress = true

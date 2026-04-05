@@ -81,6 +81,7 @@ waitForPort(VITE_PORT, VITE_HOST)
       stdio: 'inherit',
       env: {
         ...process.env,
+        APP_ROOT_PATH: path.resolve('.'),
         ELECTRON_RENDERER_DEV_SERVER_URL: DEV_SERVER_URL,
         DEBUG_ELECTRON: process.env.DEBUG_ELECTRON || '1',
       },

@@ -1,10 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { normalizeLocalPath } from './path-utils.js'
 import { getRuntimePaths } from './runtime-paths.js'
-
-function normalizeLocalPath(inputPath) {
-  return inputPath.replaceAll(path.sep, path.posix.sep)
-}
 
 function getDefaultConfigPath() {
   return getRuntimePaths().configPath
@@ -40,7 +37,7 @@ function normalizeConfig(rawConfig) {
   }
 }
 
-export async function loadConfig(configPath = process.env.CONFIG_PATH || getDefaultConfigPath()) {
+export async function loadConfig(configPath = getDefaultConfigPath()) {
   try {
     const content = await fs.readFile(configPath, 'utf8')
     const rawConfig = JSON.parse(content)

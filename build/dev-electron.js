@@ -86,7 +86,6 @@ waitForPort(VITE_PORT, VITE_HOST)
   .then(() => {
     const childEnv = {
       ...process.env,
-      APP_ROOT_PATH: path.resolve('.'),
       ELECTRON_RENDERER_DEV_SERVER_URL: DEV_SERVER_URL,
       DEBUG_ELECTRON: process.env.DEBUG_ELECTRON || '1',
     }
@@ -96,7 +95,6 @@ waitForPort(VITE_PORT, VITE_HOST)
     electronProcess = spawn(electronBinary, [electronMainEntry, ...forwardedArgs], {
       stdio: 'inherit',
       env: childEnv,
-      cwd: projectRoot,
     })
 
     electronProcess.on('exit', (code) => {

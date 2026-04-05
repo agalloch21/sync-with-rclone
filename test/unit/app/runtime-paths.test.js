@@ -13,6 +13,7 @@ test('getDefaultAppDirectory defaults to the project root when running unpackage
 
 test('getRuntimePaths derives app config, rclone config and logs from the app directory', () => {
   process.env.APP_ROOT_PATH = '/tmp/sync-with-rclone-app'
+  delete process.env.CONFIG_DIRECTORY
   delete process.env.CONFIG_PATH
   delete process.env.RCLONE_CONFIG_PATH
 
@@ -24,6 +25,23 @@ test('getRuntimePaths derives app config, rclone config and logs from the app di
   assert.equal(runtimePaths.logDirectory, '/tmp/sync-with-rclone-app/logs')
 
   delete process.env.APP_ROOT_PATH
+})
+
+test('getRuntimePaths allows overriding the config directory independently', () => {
+  process.env.APP_ROOT_PATH = '/tmp/sync-with-rclone-app'
+  process.env.CONFIG_DIRECTORY = '/tmp/sync-with-rclone-config'
+  delete process.env.CONFIG_PATH
+  delete process.env.RCLONE_CONFIG_PATH
+
+  const runtimePaths = getRuntimePaths()
+  assert.equal(runtimePaths.appDirectory, '/tmp/sync-with-rclone-app')
+  assert.equal(runtimePaths.configDirectory, '/tmp/sync-with-rclone-config')
+  assert.equal(runtimePaths.configPath, '/tmp/sync-with-rclone-config/config.json')
+  assert.equal(runtimePaths.rcloneConfigPath, '/tmp/sync-with-rclone-config/rclone.conf')
+  assert.equal(runtimePaths.logDirectory, '/tmp/sync-with-rclone-app/logs')
+
+  delete process.env.APP_ROOT_PATH
+  delete process.env.CONFIG_DIRECTORY
 })
 
 test('getRuntimePaths falls back to project resources when Electron resources do not contain bundled rclone', () => {

@@ -66,7 +66,7 @@ function resolveResourcesDirectory(bundledRcloneName) {
 
 export function getRuntimePaths() {
   const appDirectory = normalizePath(process.env.APP_ROOT_PATH || getDefaultAppDirectory())
-  const configDirectory = normalizePath(path.posix.join(appDirectory, 'config'))
+  const configDirectory = normalizePath(process.env.CONFIG_DIRECTORY || path.posix.join(appDirectory, 'config'))
   const configPath = normalizePath(process.env.CONFIG_PATH || path.posix.join(configDirectory, 'config.json'))
   const rcloneConfigPath = normalizePath(process.env.RCLONE_CONFIG_PATH || path.posix.join(configDirectory, 'rclone.conf'))
   const logDirectory = normalizePath(path.posix.join(appDirectory, 'logs'))

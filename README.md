@@ -116,6 +116,48 @@ C:/Program Files/sync-with-rclone/config/
 # mac
 待添加
 ```
+
+### config.json 字段说明
+
+```json
+{
+  "globalIgnorePatterns": [
+    ".DS_Store",
+    "Thumbs.db"
+  ],
+  "syncJobs": [
+    {
+      "name": "ProjectsSynced",
+      "rcloneRemote": "synology",
+      "localBasePath": "D:/ProjectsSynced",
+      "remoteBasePath": "ProjectsSynced",
+      "ignorePatterns": []
+    }
+  ]
+}
+```
+
+- `globalIgnorePatterns`: 全局忽略规则，作用于所有同步任务，规则语法按 `.gitignore` 风格理解。
+- `syncJobs`: 同步任务列表。每次从某个本地目录发起同步时，程序会从这里找出匹配的任务。
+- `syncJobs[].name`: 任务名称，用于标识这组同步关系，当前主要用于可读性和后续扩展。
+- `syncJobs[].rcloneRemote`: `rclone.conf` 中定义的 remote 名称，例如 `synology`。
+- `syncJobs[].localBasePath`: 本地根目录。当前右键触发的目录必须落在这个目录下，程序才会认为它属于该任务。
+- `syncJobs[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology:ProjectsSynced` 这样的根路径。
+- `syncJobs[].ignorePatterns`: 只对当前任务生效的额外忽略规则，会和 `globalIgnorePatterns` 合并。
+
+路径匹配规则：
+
+- 如果触发目录是 `localBasePath` 本身，则默认同步到对应的远端根目录。
+- 如果触发目录是 `localBasePath` 的子目录，则会把相对子路径追加到远端根目录后面。
+- 多个 `syncJobs` 同时命中时，当前实现会优先选择 `localBasePath` 更长、更具体的那一项。
+
+### 环境变量
+
+- `DEBUG`: CLI 失败时输出 stack，方便排查。
+- `CONFIG_DIRECTORY`: 覆盖默认配置目录。适合测试时临时挂一套 `config.json` 和 `rclone.conf`。
+- `CONFIG_PATH`: 直接指定 `config.json` 的完整路径。
+- `RCLONE_CONFIG_PATH`: 直接指定 `rclone.conf` 的完整路径。
+
 ---
 
 ## 如何打包

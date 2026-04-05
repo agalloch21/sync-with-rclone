@@ -52,7 +52,9 @@ onMounted(async () => {
 <template>
   <div v-if="errorMessage" class="layout">
     <div class="header">
-      <h1 class="title">Review Sync Differences</h1>
+      <h1 class="title">
+        Review Sync Differences
+      </h1>
     </div>
     <div class="content">
       <div class="error-panel">
@@ -63,7 +65,9 @@ onMounted(async () => {
 
   <div v-else-if="payload" class="layout">
     <div class="header">
-      <h1 class="title">Review Sync Differences</h1>
+      <h1 class="title">
+        Review Sync Differences
+      </h1>
       <div class="roots">
         Source: {{ payload.srcRoot }}<br>
         Destination: {{ payload.dstRoot }}
@@ -107,7 +111,9 @@ onMounted(async () => {
 
   <div v-else class="layout">
     <div class="header">
-      <h1 class="title">Review Sync Differences</h1>
+      <h1 class="title">
+        Review Sync Differences
+      </h1>
     </div>
     <div class="content">
       <div class="empty">

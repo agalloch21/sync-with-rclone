@@ -69,6 +69,23 @@ node ./src/electron/main/index.js push <local-path> <remote-path>
 
 这条命令会由 Node 入口转交给 Electron，再进入桌面链路。
 
+### 5. 使用开发模式实时预览 renderer
+如果你正在调整 `ReviewApp.vue`、`TreeNode.vue` 或 renderer 样式，推荐直接使用开发模式。
+
+```bash
+npm run dev:desktop
+```
+
+这条命令会：
+
+- 启动 Vite dev server
+- 等待 dev server 就绪后自动启动 Electron
+- 让 `review.html` 和 `progress.html` 在开发时改走 Vite 页面
+
+这样保存 `src/electron/renderer/src/*.vue` 或 `src/electron/renderer/src/styles.css` 后，窗口会自动刷新，能实时看到变化。
+
+如果需要查看 renderer 调试信息，开发模式会默认打开 Electron DevTools。
+
 ---
 
 ## 配置文件

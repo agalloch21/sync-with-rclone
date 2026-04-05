@@ -2,10 +2,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { serializeDiffSnapshot } from '#src/core/serialize-diff-snapshot.js'
 import { createRequire } from 'node:module'
+import { loadRendererPage } from './renderer-entry.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
-const reviewEntryPath = path.join(__dirname, '../renderer/dist/review.html')
 
 export async function reviewDiffInWindow(diffSnapshot) {
   const { BrowserWindow, ipcMain } = require('electron')
@@ -84,7 +84,7 @@ export async function reviewDiffInWindow(diffSnapshot) {
       resolve({ action: 'cancel', selectedPaths: [] })
     })
 
-    reviewWindow.loadFile(reviewEntryPath)
+    loadRendererPage(reviewWindow, 'review')
       .catch((error) => {
         if (settled)
           return

@@ -1,7 +1,7 @@
 {
   "name": "sync-with-rclone",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "Project-folder sync tool with rclone, diff review, and selective apply.",
   "author": "",
   "license": "ISC",
@@ -12,6 +12,8 @@
   "main": "src/electron/main/index.cjs",
   "scripts": {
     "build:renderer": "vite build",
+    "dev:renderer": "vite --host 127.0.0.1 --strictPort",
+    "dev:desktop": "node build/dev-electron.js",
     "verify:win-assets": "node build/verify-win-assets.js",
     "predist:win": "npm run verify:win-assets",
     "prepack:win": "npm run verify:win-assets",
@@ -41,6 +43,10 @@
       {
         "from": "templates",
         "to": "templates"
+      },
+      {
+        "from": "build/windows-installer.ps1",
+        "to": "scripts/windows-installer.ps1"
       }
     ],
     "win": {
@@ -57,16 +63,16 @@
       "runAfterFinish": false
     }
   },
+  "dependencies": {
+    "ignore": "^7.0.5",
+    "vue": "^3.5.22"
+  },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.1",
     "@antfu/eslint-config": "^7.7.3",
+    "@vitejs/plugin-vue": "^6.0.1",
     "electron": "^41.1.0",
     "electron-builder": "^26.0.12",
     "eslint": "^10.1.0",
     "vite": "^7.1.7"
-  },
-  "dependencies": {
-    "ignore": "^7.0.5",
-    "vue": "^3.5.22"
   }
 }

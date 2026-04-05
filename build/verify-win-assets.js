@@ -5,6 +5,7 @@ const requiredFiles = [
   'resources/binaries/rclone-windows-amd64.exe',
   'templates/config.json.win.example',
   'templates/rclone.conf.win.example',
+  'build/windows-installer.ps1',
 ]
 
 const missingFiles = requiredFiles.filter(filePath => !fs.existsSync(path.resolve(filePath)))

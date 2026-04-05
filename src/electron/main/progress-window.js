@@ -1,10 +1,10 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
+import { loadRendererPage } from './renderer-entry.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
-const progressEntryPath = path.join(__dirname, '../renderer/dist/progress.html')
 const MIN_PROGRESS_WINDOW_VISIBLE_MS = 600
 
 function summarizePhase(phase) {
@@ -59,7 +59,7 @@ export function createProgressWindowController() {
     progressWindow.show()
   })
 
-  progressWindow.loadFile(progressEntryPath)
+  loadRendererPage(progressWindow, 'progress')
     .catch((error) => {
       if (!isClosing)
         console.error(error)

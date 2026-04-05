@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url'
 
 const execFileAsync = promisify(execFile)
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const currentFilePath = fileURLToPath(import.meta.url)
+const projectRoot = path.resolve(path.dirname(currentFilePath), '../..')
 const sourcePngPath = path.join(projectRoot, 'logo.png')
 const installDirectory = path.join(projectRoot, 'scripts', 'install')
 const macIconsetDirectory = path.join(os.tmpdir(), `sync-with-rclone.iconset.${process.pid}`)
@@ -50,8 +51,83 @@ function makeDirectoryEntry(size, pngLength, offset) {
   return entry
 }
 
-async function resizePng(sourcePath, targetPath, size) {
+function escapeForPowerShellSingleQuotedString(value) {
+  return value.replaceAll("'", "''")
+}
+
+export function getResizeToolForPlatform(platform = process.platform) {
+  if (platform === 'darwin')
+    return 'sips'
+
+  if (platform === 'win32')
+    return 'powershell'
+
+  return null
+}
+
+async function resizePngWithSips(sourcePath, targetPath, size) {
   await execFileAsync('sips', ['-z', String(size), String(size), sourcePath, '--out', targetPath])
+}
+
+async function resizePngWithWindowsPowerShell(sourcePath, targetPath, size) {
+  const escapedSourcePath = escapeForPowerShellSingleQuotedString(sourcePath)
+  const escapedTargetPath = escapeForPowerShellSingleQuotedString(targetPath)
+  const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Drawing
+$sourcePath = '${escapedSourcePath}'
+$targetPath = '${escapedTargetPath}'
+$size = ${size}
+$source = [System.Drawing.Image]::FromFile($sourcePath)
+try {
+  $bitmap = New-Object System.Drawing.Bitmap($size, $size)
+  try {
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    try {
+      $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+      $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+      $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+      $graphics.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+      $graphics.DrawImage($source, 0, 0, $size, $size)
+      $bitmap.Save($targetPath, [System.Drawing.Imaging.ImageFormat]::Png)
+    }
+    finally {
+      $graphics.Dispose()
+    }
+  }
+  finally {
+    $bitmap.Dispose()
+  }
+}
+finally {
+  $source.Dispose()
+}
+`
+
+  await execFileAsync('powershell.exe', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-Command',
+    script,
+  ])
+
+  await fs.access(targetPath)
+}
+
+export async function resizePng(sourcePath, targetPath, size, platform = process.platform) {
+  const resizeTool = getResizeToolForPlatform(platform)
+
+  if (resizeTool === 'sips') {
+    await resizePngWithSips(sourcePath, targetPath, size)
+    return
+  }
+
+  if (resizeTool === 'powershell') {
+    await resizePngWithWindowsPowerShell(sourcePath, targetPath, size)
+    return
+  }
+
+  throw new Error(`No PNG resize tool configured for platform: ${platform}`)
 }
 
 async function generateMacIcon() {
@@ -120,7 +196,9 @@ async function main() {
   await generateWindowsIcon()
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exit(1)
-})
+if (process.argv[1] && path.resolve(process.argv[1]) === currentFilePath) {
+  main().catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
+}

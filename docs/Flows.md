@@ -248,7 +248,8 @@ sequenceDiagram
 
 - 右键菜单注册已经接入安装器脚本
 - review / progress / result 这条 Electron 链已打通
-- 配置默认读取 app data 路径
+- 配置默认读取安装目录下的 `config/`
+- 打包后的 argv 会优先按 `--mode`、`--local`、`--remote` 解析，避免额外参数导致位置漂移
 
 当前不应写成既成事实的内容：
 

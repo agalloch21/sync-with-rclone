@@ -9,7 +9,8 @@ param(
     [string]$InstallDir = "",
 
     [Parameter(Mandatory = $false)]
-    [string]$AppDataDir = "",
+    [Alias("AppDataDir")]
+    [string]$ConfigDir = "",
 
     [Parameter(Mandatory = $false)]
     [string]$ExecutablePath = "",
@@ -92,8 +93,8 @@ function Invoke-ElevatedSelf {
         $argumentList += @('-InstallDir', $InstallDir)
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($AppDataDir)) {
-        $argumentList += @('-AppDataDir', $AppDataDir)
+    if (-not [string]::IsNullOrWhiteSpace($ConfigDir)) {
+        $argumentList += @('-ConfigDir', $ConfigDir)
     }
 
     if (-not [string]::IsNullOrWhiteSpace($ExecutablePath)) {
@@ -295,15 +296,15 @@ try {
         "install" {
             Write-InstallerLog "ps1 install: begin"
             Write-InstallerLog "ps1 install: InstallDir=$InstallDir"
-            Write-InstallerLog "ps1 install: AppDataDir=$AppDataDir"
+            Write-InstallerLog "ps1 install: ConfigDir=$ConfigDir"
             Write-InstallerLog "ps1 install: ResourcesDir=$ResourcesDir"
-            Ensure-Directory -Path $AppDataDir
-            Restore-ConfigDirectory -DestinationDir $AppDataDir
+            Ensure-Directory -Path $ConfigDir
+            Restore-ConfigDirectory -DestinationDir $ConfigDir
 
             $configTemplate = Join-Path $ResourcesDir "templates\config.json.win.example"
             $rcloneTemplate = Join-Path $ResourcesDir "templates\rclone.conf.win.example"
-            $configPath = Join-Path $AppDataDir "config.json"
-            $rcloneConfigPath = Join-Path $AppDataDir "rclone.conf"
+            $configPath = Join-Path $ConfigDir "config.json"
+            $rcloneConfigPath = Join-Path $ConfigDir "rclone.conf"
 
             Write-InstallerLog "ps1 install: config template=$configTemplate"
             Write-InstallerLog "ps1 install: rclone template=$rcloneTemplate"

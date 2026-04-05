@@ -26,7 +26,7 @@ export function resolveLocalDirectoryPath(inputPath) {
     throw new Error('Path can not be empty')
 
   const expandedPath = expandHomeDir(inputPath)
-  const absolutePath = normalizeLocalPath(path.resolve(expandedPath))
+  const absolutePath = trimTrailingSlash(normalizeLocalPath(path.resolve(expandedPath)))
 
   let stat = null
   try {
@@ -45,7 +45,7 @@ export function resolveLocalDirectoryPath(inputPath) {
 }
 
 export function trimTrailingSlash(inputPath) {
-  if (inputPath === '/')
+  if (inputPath === '/' || /^[A-Za-z]:\/$/.test(inputPath))
     return inputPath
 
   return inputPath.replace(/\/+$/, '')

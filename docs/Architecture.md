@@ -322,33 +322,34 @@ sequenceDiagram
 
 1. 用户运行安装器
 2. 安装器写入程序文件
-3. 安装器分发 templates/ 和 bundled binaries
-4. 安装器注册右键菜单
-5. 用户后续通过右键菜单或 CLI 启动程序
+3. 安装器把默认 `config.json` / `rclone.conf` 初始化到安装目录下的 `config/`
+4. 安装器分发 templates/ 和 bundled binaries
+5. 安装器注册右键菜单
+6. 用户后续通过右键菜单或 CLI 启动程序
 
 
 ### 6.3 安装后的目录结构
 
-Windows 当前应按两类目录理解：
+Windows 当前安装后的目录结构可按下面理解：
 
-安装目录（例如 %LOCALAPPDATA%/Programs/sync-with-rclone/）:
+安装目录（管理员安装时通常是 `C:/Program Files/sync-with-rclone/`）:
   sync-with-rclone.exe
+  config/
+    config.json
+    rclone.conf
+  logs/
   resources/
     app.asar
     binaries/
     templates/
 
-app data 目录（例如 %APPDATA%/sync-with-rclone/）:
-  %APPDATA%/sync-with-rclone/
-    config.json
-    rclone.conf
-    logs/
-
 含义是：
 
 - 程序本体安装在安装目录
-- 程序运行时读取的配置位于 app data 目录
+- 程序运行时读取的配置默认位于安装目录下的 `config/`
+- 日志默认位于安装目录下的 `logs/`
 - `rclone` 二进制来自安装目录下的 bundled resources
+- Windows 右键菜单调用时使用命名参数 `--mode` 和 `--local`，避免打包后的额外 argv 干扰参数定位
 
 ## 7. 当前打包和运行结论
 
@@ -367,5 +368,5 @@ app data 目录（例如 %APPDATA%/sync-with-rclone/）:
 
 当前尚未视为稳定事实的部分是：
 
-- 安装阶段自动初始化 app data 中的配置文件
+- 安装阶段自动初始化安装目录 `config/` 的细节
 - 覆盖安装 / 卸载链路

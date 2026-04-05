@@ -58,6 +58,9 @@ node ./src/cli/index.js --mode=push --local=<local-path> --remote=<remote-path>
 node ./src/cli/index.js push <local-path> <remote-path>
 ```
 
+当前推荐使用带名字的参数。
+Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv，主流程现在会优先解析 `--mode`、`--local`、`--remote`，避免因为参数位置漂移而取错值。
+
 ### 4. 使用 Electron 运行
 Electron 是当前桌面主入口，用于右键菜单、review 窗口、progress 窗口等桌面交互
 
@@ -105,7 +108,10 @@ npm run dev:desktop
 
 ```bash
 # windows
-%APPDATA%/sync-with-rclone/
+<安装目录>/config/
+
+# 例如默认管理员安装后常见为
+C:/Program Files/sync-with-rclone/config/
 
 # mac
 待添加
@@ -130,8 +136,8 @@ npm run dist:win
 ```bash
 # windows
 # 程序目录
-%LOCALAPPDATA%/Programs/sync-with-rclone/
+默认管理员安装通常为 C:/Program Files/sync-with-rclone/
 # 配置目录
-%APPDATA%/sync-with-rclone/
+<安装目录>/config/
 ```
 安装后即可在右键菜单里看到Push/Pull选项

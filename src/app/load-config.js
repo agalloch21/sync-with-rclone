@@ -1,16 +1,13 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { getDefaultAppDirectory } from './runtime-paths.js'
+import { getRuntimePaths } from './runtime-paths.js'
 
 function normalizeLocalPath(inputPath) {
   return inputPath.replaceAll(path.sep, path.posix.sep)
 }
 
 function getDefaultConfigPath() {
-  const appDirectory = process.env.APP_ROOT_PATH
-    ? process.env.APP_ROOT_PATH.replaceAll(path.sep, path.posix.sep)
-    : getDefaultAppDirectory()
-  return path.posix.join(appDirectory, 'config', 'config.json')
+  return getRuntimePaths().configPath
 }
 
 function normalizeConfig(rawConfig) {

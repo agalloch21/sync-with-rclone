@@ -1,6 +1,6 @@
 !define WIN_HELPER_SCRIPT_PATH "$INSTDIR\\resources\\scripts\\windows-installer.ps1"
 !define WIN_APP_EXE "$INSTDIR\\sync-with-rclone.exe"
-!define WIN_APP_DATA_DIR "$INSTDIR\\config"
+!define WIN_CONFIG_DIR "$INSTDIR\\config"
 !define WIN_POWERSHELL_EXE "$SYSDIR\\WindowsPowerShell\\v1.0\\powershell.exe"
 
 !macro customInit
@@ -49,7 +49,7 @@ install_helper_missing:
   Abort "Missing Windows installer helper script: ${WIN_HELPER_SCRIPT_PATH}"
 
 install_helper_run:
-  nsExec::Exec `"${WIN_POWERSHELL_EXE}" -NoProfile -ExecutionPolicy Bypass -Command "& '${WIN_HELPER_SCRIPT_PATH}' -Action install -InstallDir '$INSTDIR' -AppDataDir '${WIN_APP_DATA_DIR}' -ExecutablePath '${WIN_APP_EXE}' -ResourcesDir '$INSTDIR\resources'; exit $$LASTEXITCODE"`
+  nsExec::Exec `"${WIN_POWERSHELL_EXE}" -NoProfile -ExecutionPolicy Bypass -Command "& '${WIN_HELPER_SCRIPT_PATH}' -Action install -InstallDir '$INSTDIR' -ConfigDir '${WIN_CONFIG_DIR}' -ExecutablePath '${WIN_APP_EXE}' -ResourcesDir '$INSTDIR\resources'; exit $$LASTEXITCODE"`
   Pop $R0
 
   StrCmp $R0 0 install_helper_ok install_helper_failed

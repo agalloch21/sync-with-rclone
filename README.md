@@ -118,7 +118,7 @@ npm run dev:desktop
 C:/Program Files/sync-with-rclone/config/
 
 # mac
-待添加
+~/Library/Application Support/sync-with-rclone/config/
 ```
 
 ### config.json 字段说明
@@ -170,12 +170,21 @@ C:/Program Files/sync-with-rclone/config/
 ```bash
 # windows
 npm run dist:win
+
+# mac
+npm run dist:mac
 ```
 ---
 
 ## 如何安装
 
-运行 `dist/` 下生成的 NSIS 安装包即可。
+Windows 运行 `dist/` 下生成的 NSIS 安装包即可。
+
+mac 目前会生成 `.dmg` 和 `.zip`。把 `.app` 拖进 `Applications` 后，先手动启动一次应用：
+
+- 首次启动会自动创建 `~/Library/Application Support/sync-with-rclone/config/`
+- 同时会自动注册 Finder 右键 Quick Actions
+- 如果 Finder 里暂时没显示右键菜单，通常重新登录一次 macOS 会刷新出来
 
 安装目录
 
@@ -185,5 +194,11 @@ npm run dist:win
 默认管理员安装通常为 C:/Program Files/sync-with-rclone/
 # 配置目录
 <安装目录>/config/
+
+# mac
+# 程序目录
+/Applications/sync-with-rclone.app
+# 配置目录
+~/Library/Application Support/sync-with-rclone/config/
 ```
-安装后即可在右键菜单里看到Push/Pull选项
+安装后即可在右键菜单里看到 `Push` / `Pull` / `Open Config` 选项

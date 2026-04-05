@@ -1,5 +1,10 @@
-const { app, dialog } = require('electron')
+const { app, dialog, shell } = require('electron')
+const { ensureMacAppSupport } = require('./macos-install.cjs')
 let isSyncInProgress = false
+
+function shouldHandleMacSetup(options) {
+  return process.platform === 'darwin' && app.isPackaged && !options.localFolderPath
+}
 
 app.whenReady().then(async () => {
   try {
@@ -11,6 +16,32 @@ app.whenReady().then(async () => {
     ])
 
     const options = parseSyncArgs(process.argv.slice(2))
+
+    if (shouldHandleMacSetup(options)) {
+      const setup = await ensureMacAppSupport(app.getVersion())
+      const detail = [
+        `Config: ${setup.configPath}`,
+        `Quick Actions: ${setup.contextMenuInstalled ? 'installed or refreshed' : 'already up to date'}`,
+        setup.configCreated ? 'Created config.json from template.' : 'Reused existing config.json.',
+        setup.rcloneTemplateCreated ? 'Created rclone.conf template.' : 'Reused existing rclone.conf.',
+      ].join('\n')
+      const { response } = await dialog.showMessageBox({
+        type: 'info',
+        title: 'sync-with-rclone',
+        message: 'macOS setup is ready',
+        detail,
+        buttons: ['Open Config', 'Close'],
+        defaultId: 0,
+        cancelId: 1,
+      })
+
+      if (response === 0)
+        await shell.openPath(setup.configPath)
+
+      app.quit()
+      return
+    }
+
     let progressWindow = null
 
     isSyncInProgress = true

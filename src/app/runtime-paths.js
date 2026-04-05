@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -23,7 +24,22 @@ function getBundledInstallDirectory() {
   return normalizePath(path.posix.dirname(resourcesDirectory))
 }
 
+function getBundledMacAppSupportDirectory() {
+  if (process.platform !== 'darwin')
+    return ''
+
+  const bundledInstallDirectory = getBundledInstallDirectory()
+  if (!bundledInstallDirectory)
+    return ''
+
+  return normalizePath(path.join(os.homedir(), 'Library', 'Application Support', 'sync-with-rclone'))
+}
+
 export function getDefaultAppDirectory() {
+  const bundledMacAppSupportDirectory = getBundledMacAppSupportDirectory()
+  if (bundledMacAppSupportDirectory)
+    return bundledMacAppSupportDirectory
+
   const bundledInstallDirectory = getBundledInstallDirectory()
   if (bundledInstallDirectory)
     return bundledInstallDirectory

@@ -211,11 +211,13 @@ function Register-ContextMenu {
 
     $directoryKey = "HKCU:\Software\Classes\Directory\shell\sync-with-rclone"
     $backgroundKey = "HKCU:\Software\Classes\Directory\Background\shell\sync-with-rclone"
+    $iconValue = $ExePath
 
     foreach ($rootKey in @($directoryKey, $backgroundKey)) {
         New-Item -Path $rootKey -Force | Out-Null
         New-ItemProperty -Path $rootKey -Name "MUIVerb" -Value "sync-with-rclone" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $rootKey -Name "SubCommands" -Value ([string]::Empty) -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $rootKey -Name "Icon" -Value $iconValue -PropertyType String -Force | Out-Null
     }
 
     $targets = @(
@@ -238,6 +240,7 @@ function Register-ContextMenu {
 
             New-Item -Path $menuKey -Force | Out-Null
             New-ItemProperty -Path $menuKey -Name "MUIVerb" -Value $label -PropertyType String -Force | Out-Null
+            New-ItemProperty -Path $menuKey -Name "Icon" -Value $iconValue -PropertyType String -Force | Out-Null
             New-Item -Path $commandKey -Force | Out-Null
             Set-ItemProperty -Path $commandKey -Name "(default)" -Value $command -Force
         }

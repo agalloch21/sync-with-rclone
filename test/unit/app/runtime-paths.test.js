@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { getDefaultAppDirectory, getRuntimePaths } from '#src/app/runtime-paths.js'
@@ -53,4 +55,19 @@ test('getRuntimePaths falls back to project resources when Electron resources do
   assert.equal(runtimePaths.bundledRclonePath.includes('/resources/binaries/'), true)
 
   process.resourcesPath = previousResourcesPath
+})
+
+test('getDefaultAppDirectory uses Application Support for packaged mac builds', { skip: process.platform !== 'darwin' }, () => {
+  const resourcesDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'swr-mac-runtime-'))
+  const appAsarPath = path.join(resourcesDirectory, 'app.asar')
+  fs.writeFileSync(appAsarPath, '')
+
+  const previousResourcesPath = process.resourcesPath
+  process.resourcesPath = resourcesDirectory
+
+  const defaultAppDirectory = getDefaultAppDirectory()
+  assert.equal(defaultAppDirectory, `${process.env.HOME}/Library/Application Support/sync-with-rclone`)
+
+  process.resourcesPath = previousResourcesPath
+  fs.rmSync(resourcesDirectory, { recursive: true, force: true })
 })

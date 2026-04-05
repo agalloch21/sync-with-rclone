@@ -47,32 +47,36 @@ npm run build:renderer
 CLI 是当前保留的命令行壳层，可独立承接主流程，也方便测试和排查
 
 ```bash
-npm start
+npm run start:cli
 # 或
 node src/cli/index.js
 
 #如果需要直接带参数运行，可参考主流程的调用方式，例如：
 node ./src/cli/index.js --mode=push --local=<local-path> --remote=<remote-path>
 
-# Backward-compatible positional form:
-node ./src/cli/index.js push <local-path> <remote-path>
+# 如果你想跳过 config.json，直接按显式 local/remote 运行：
+node ./src/cli/index.js --ignore-config --mode=push --local=<local-path> --remote=<remote-path>
+
+# 简写版
+node ./src/cli/index.js [--ignore-config] push <local-path> <remote-path>
 ```
 
 当前推荐使用带名字的参数。
 Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv，主流程现在会优先解析 `--mode`、`--local`、`--remote`，避免因为参数位置漂移而取错值。
 
+
 ### 4. 使用 Electron 运行
 Electron 是当前桌面主入口，用于右键菜单、review 窗口、progress 窗口等桌面交互
 
 ```bash
-npm run desktop
+npm run start:desktop
 # 或
 electron .
 
 #如果需要按实际同步动作传入参数，可直接运行桌面入口，例如：
 node ./src/electron/main/index.js --mode=push --local=<local-path> --remote=<remote-path>
 
-# Backward-compatible positional form:
+# 简写版
 node ./src/electron/main/index.js push <local-path> <remote-path>
 ```
 
@@ -142,7 +146,7 @@ C:/Program Files/sync-with-rclone/config/
 - `syncJobs[].name`: 任务名称，用于标识这组同步关系，当前主要用于可读性和后续扩展。
 - `syncJobs[].rcloneRemote`: `rclone.conf` 中定义的 remote 名称，例如 `synology`。
 - `syncJobs[].localBasePath`: 本地根目录。当前右键触发的目录必须落在这个目录下，程序才会认为它属于该任务。
-- `syncJobs[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology:ProjectsSynced` 这样的根路径。
+- `syncJobs[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology:ProjectsSynced` 这样的根路径；如果想直接同步到 remote 根目录，可以写成空字符串 `""`。
 - `syncJobs[].ignorePatterns`: 只对当前任务生效的额外忽略规则，会和 `globalIgnorePatterns` 合并。
 
 路径匹配规则：

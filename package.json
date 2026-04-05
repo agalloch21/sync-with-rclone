@@ -13,14 +13,14 @@
   "scripts": {
     "build:renderer": "vite build",
     "dev:renderer": "vite --host 127.0.0.1 --strictPort",
-    "dev:desktop": "node build/dev-electron.js",
-    "verify:win-assets": "node build/verify-win-assets.js",
+    "dev:desktop": "node scripts/dev/dev-electron.js",
+    "verify:win-assets": "node scripts/build/verify-win-assets.js",
     "predist:win": "npm run build:renderer && npm run verify:win-assets",
     "prepack:win": "npm run build:renderer && npm run verify:win-assets",
     "dist:win": "electron-builder --win nsis --x64",
     "pack:win": "electron-builder --win dir --x64",
-    "start": "node src/cli/index.js",
-    "desktop": "electron .",
+    "start:cli": "node src/cli/index.js",
+    "start:desktop": "electron .",
     "test": "node --test"
   },
   "build": {
@@ -28,7 +28,7 @@
     "productName": "sync-with-rclone",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
-      "buildResources": "build",
+      "buildResources": "scripts/install",
       "output": "dist"
     },
     "files": [
@@ -45,7 +45,7 @@
         "to": "templates"
       },
       {
-        "from": "build/windows-installer.ps1",
+        "from": "scripts/install/windows-installer.ps1",
         "to": "scripts/windows-installer.ps1"
       }
     ],
@@ -59,7 +59,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": true,
-      "include": "build/installer.nsh",
+      "include": "scripts/install/installer.nsh",
       "runAfterFinish": false
     }
   },

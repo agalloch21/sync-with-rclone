@@ -5,7 +5,7 @@ const requiredFiles = [
   'resources/binaries/rclone-windows-amd64.exe',
   'templates/config.json.win.example',
   'templates/rclone.conf.win.example',
-  'build/windows-installer.ps1',
+  'scripts/install/windows-installer.ps1',
   'src/electron/renderer/dist/review.html',
   'src/electron/renderer/dist/progress.html',
 ]

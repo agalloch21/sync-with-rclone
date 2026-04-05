@@ -43,7 +43,10 @@ src/           // 运行时代码
   cli/         // CLI入口、终端review、终端输出，可独立承接主流程
   core/        // Snapshot、Diff、SyncPlan、Apply、rclone 执行封装
   electron/    // 当前桌面主壳层，包含 main、preload、renderer、review/progress 窗口
-build/         // 打包脚本、安装器脚本、资源校验脚本
+scripts/       // 非运行时代码
+  dev/         // 开发启动脚本
+  build/       // 打包校验、产物准备脚本
+  install/     // 安装器脚本、安装辅助脚本
 resources/     // bundled binaries、图标等静态资源
 templates/     // 默认配置模板
 ```

@@ -9,17 +9,22 @@ import { resolveSyncTask } from './resolve-sync-task.js'
  * Application-layer orchestration entry.
  * Shells provide options and a review implementation.
  *
- * @param {import('#src/core/sync-engine.js').Options} options
+ * @param {import('#src/core/sync-engine.js').Options & { ignoreConfig?: boolean }} options
  * @param {{
  *   reviewDiff?: (diffSnapshot: import('#src/types/snapshot.js').DiffSnapshot, context: unknown) => Promise<import('#src/app/review-contracts.js').ReviewResult | unknown>
  *   onApplyEvent?: (event: object) => Promise<void> | void
  * }} [hooks]
  */
 export async function startSync(options, hooks = {}) {
+  const { ignoreConfig = false } = options
   const runtimePaths = getRuntimePaths()
-  const config = await loadConfig(runtimePaths.configPath)
+  const config = ignoreConfig ? null : await loadConfig(runtimePaths.configPath)
   const localFolderPath = resolveLocalDirectoryPath(options.localFolderPath)
-  const resolvedTask = resolveSyncTask(localFolderPath, config, options.remoteFolderPath)
+  const resolvedTask = ignoreConfig ? null : resolveSyncTask(localFolderPath, config, options.remoteFolderPath)
+
+  if (ignoreConfig && !options.remoteFolderPath) {
+    throw new Error('remoteFolderPath is required when ignoreConfig is enabled')
+  }
 
   const resolvedOptions = resolvedTask
     ? {
@@ -32,6 +37,7 @@ export async function startSync(options, hooks = {}) {
     : {
         ...options,
         localFolderPath,
+        remoteFolderPath: options.remoteFolderPath,
         runtimePaths,
       }
 

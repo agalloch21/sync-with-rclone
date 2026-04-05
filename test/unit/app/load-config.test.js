@@ -37,6 +37,26 @@ test('loadConfig reads and normalizes sync config', async () => {
   assert.ok(path.isAbsolute(config.syncJobs[0].localBasePath))
 })
 
+test('loadConfig allows an empty remoteBasePath for syncing to the remote root', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-root-'))
+  const configPath = path.join(tempDir, 'config.json')
+
+  await fs.writeFile(configPath, JSON.stringify({
+    syncJobs: [
+      {
+        name: 'Projects',
+        rcloneRemote: 'synology',
+        localBasePath: './test/fixtures/local',
+        remoteBasePath: '',
+        ignorePatterns: [],
+      },
+    ],
+  }, null, 2))
+
+  const config = await loadConfig(configPath)
+  assert.equal(config.syncJobs[0].remoteBasePath, '')
+})
+
 test('loadConfig returns null when config file does not exist', async () => {
   const config = await loadConfig('/tmp/sync-with-rclone/does-not-exist.json')
   assert.equal(config, null)

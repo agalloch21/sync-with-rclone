@@ -23,7 +23,7 @@ function normalizeConfig(rawConfig) {
         throw new Error(`syncJobs[${index}].rcloneRemote is required`)
       if (!job?.localBasePath)
         throw new Error(`syncJobs[${index}].localBasePath is required`)
-      if (!job?.remoteBasePath)
+      if (!Object.hasOwn(job ?? {}, 'remoteBasePath'))
         throw new Error(`syncJobs[${index}].remoteBasePath is required`)
 
       return {

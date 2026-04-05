@@ -1,4 +1,5 @@
 const SYNC_MODES = new Set(['push', 'pull'])
+const FALSEY_OPTION_VALUES = new Set(['0', 'false', 'no', 'off'])
 
 function readOptionValue(token, argv, index) {
   const equalIndex = token.indexOf('=')
@@ -17,6 +18,7 @@ export function parseSyncArgs(argv = []) {
     mode: '',
     localFolderPath: '',
     remoteFolderPath: '',
+    ignoreConfig: false,
   }
   const positionalArgs = []
 
@@ -46,6 +48,18 @@ export function parseSyncArgs(argv = []) {
       continue
     }
 
+    if (token === '--ignore-config' || token === '--ignoreConfig') {
+      options.ignoreConfig = true
+      continue
+    }
+
+    if (token.startsWith('--ignore-config=') || token.startsWith('--ignoreConfig=')) {
+      const result = readOptionValue(token, argv, index)
+      options.ignoreConfig = !FALSEY_OPTION_VALUES.has(result.value.toLowerCase())
+      index = result.nextIndex
+      continue
+    }
+
     positionalArgs.push(token)
   }
 
@@ -66,5 +80,6 @@ export function parseSyncArgs(argv = []) {
     mode: options.mode || 'push',
     localFolderPath: options.localFolderPath,
     remoteFolderPath: options.remoteFolderPath,
+    ignoreConfig: options.ignoreConfig,
   }
 }

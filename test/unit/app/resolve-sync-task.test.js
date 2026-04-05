@@ -55,3 +55,24 @@ test('resolveSyncTask throws when no sync job matches the local path', () => {
 
   assert.throws(() => resolveSyncTask('test/fixtures/scan/nested', config))
 })
+
+test('resolveSyncTask allows syncing to the remote root when remoteBasePath is empty', () => {
+  const config = {
+    globalIgnorePatterns: [],
+    syncJobs: [
+      {
+        name: 'ProjectsSynced',
+        rcloneRemote: 'synology',
+        localBasePath: path.resolve('test/fixtures/local/compare-push').replaceAll(path.sep, path.posix.sep),
+        remoteBasePath: '',
+        ignorePatterns: [],
+      },
+    ],
+  }
+
+  const result = resolveSyncTask('test/fixtures/local/compare-push', config)
+
+  assert.equal(result.relativePath, '.')
+  assert.equal(result.defaultRemoteFolderPath, 'synology:')
+  assert.equal(result.remoteFolderPath, 'synology:')
+})

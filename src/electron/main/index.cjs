@@ -19,9 +19,19 @@ app.whenReady().then(async () => {
 
     if (shouldHandleMacSetup(options)) {
       const setup = await ensureMacAppSupport(app.getVersion())
+      if (!setup.hasSetupChanges) {
+        app.quit()
+        return
+      }
+
+      if (!setup.shouldShowSetupDialog) {
+        app.quit()
+        return
+      }
+
       const detail = [
         `Config: ${setup.configPath}`,
-        `Quick Actions: ${setup.contextMenuInstalled ? 'installed or refreshed' : 'already up to date'}`,
+        `Quick Actions: ${setup.contextMenuInstalled ? 'installed or refreshed' : setup.contextMenuAlreadyInstalled ? 'already available' : 'not installed'}`,
         setup.configCreated ? 'Created config.json from template.' : 'Reused existing config.json.',
         setup.rcloneTemplateCreated ? 'Created rclone.conf template.' : 'Reused existing rclone.conf.',
       ].join('\n')

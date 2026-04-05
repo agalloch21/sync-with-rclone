@@ -7,6 +7,12 @@ const APP_SUPPORT_DIRECTORY = path.join(os.homedir(), 'Library', 'Application Su
 const CONFIG_DIRECTORY = path.join(APP_SUPPORT_DIRECTORY, 'config')
 const LOG_DIRECTORY = path.join(APP_SUPPORT_DIRECTORY, 'logs')
 const CONTEXT_MENU_STATE_PATH = path.join(APP_SUPPORT_DIRECTORY, 'context-menu-state.json')
+const SERVICES_DIRECTORY = path.join(os.homedir(), 'Library', 'Services')
+const EXPECTED_WORKFLOWS = [
+  'Sync with Rclone - 1 Push.workflow',
+  'Sync with Rclone - 2 Pull.workflow',
+  'Sync with Rclone - 3 Open Config.workflow',
+]
 
 function getTemplatePath(name) {
   return path.join(process.resourcesPath, 'templates', name)
@@ -95,6 +101,20 @@ async function shouldInstallContextMenu(version) {
   return JSON.stringify(previousState) !== JSON.stringify(currentState)
 }
 
+async function hasInstalledContextMenuWorkflows() {
+  try {
+    await Promise.all(
+      EXPECTED_WORKFLOWS.map(async (workflowName) => {
+        await fs.access(path.join(SERVICES_DIRECTORY, workflowName))
+      }),
+    )
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
 async function markContextMenuInstalled(version) {
   await writeContextMenuState({
     executablePath: process.execPath,
@@ -123,19 +143,27 @@ async function ensureMacAppSupport(version) {
   )
 
   let contextMenuInstalled = false
-  if (await shouldInstallContextMenu(version)) {
+  const shouldRefreshContextMenu = await shouldInstallContextMenu(version)
+  if (shouldRefreshContextMenu) {
     await installContextMenu()
     await markContextMenuInstalled(version)
     contextMenuInstalled = true
   }
+
+  const contextMenuAlreadyInstalled = contextMenuInstalled || await hasInstalledContextMenuWorkflows()
+  const hasSetupChanges = configCreated || rcloneTemplateCreated || contextMenuInstalled
+  const shouldShowSetupDialog = configCreated
 
   return {
     appSupportDirectory: APP_SUPPORT_DIRECTORY,
     configDirectory: CONFIG_DIRECTORY,
     configPath: path.join(CONFIG_DIRECTORY, 'config.json'),
     configCreated,
+    contextMenuAlreadyInstalled,
     contextMenuInstalled,
+    hasSetupChanges,
     rcloneTemplateCreated,
+    shouldShowSetupDialog,
   }
 }
 

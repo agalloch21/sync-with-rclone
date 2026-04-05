@@ -24,6 +24,8 @@
     "pack:win": "electron-builder --win dir --x64",
     "dist:mac": "electron-builder --mac dmg zip",
     "pack:mac": "electron-builder --mac dir",
+    "dist:pkg": "electron-builder --mac pkg",
+    "pack:pkg": "electron-builder --mac pkg",
     "start:cli": "node src/cli/index.js",
     "start:desktop": "electron .",
     "test": "node --test"
@@ -68,12 +70,23 @@
       "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
       "icon": "scripts/install/icon.png"
     },
+    "dmg": {
+      "icon": "scripts/install/icon.png"
+    },
     "win": {
       "target": [
         "nsis"
       ],
       "executableName": "sync-with-rclone",
       "icon": "scripts/install/icon.ico"
+    },
+    "pkg": {
+      "scripts": "pkg-scripts",
+      "installLocation": "/Applications",
+      "allowAnywhere": false,
+      "allowCurrentUserHome": false,
+      "allowRootDirectory": true,
+      "isRelocatable": false
     },
     "nsis": {
       "oneClick": false,

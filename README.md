@@ -171,8 +171,11 @@ C:/Program Files/sync-with-rclone/config/
 # windows
 npm run dist:win
 
-# mac
+# mac dmg + zip
 npm run dist:mac
+
+# mac pkg
+npm run dist:pkg
 ```
 ---
 
@@ -180,11 +183,25 @@ npm run dist:mac
 
 Windows 运行 `dist/` 下生成的 NSIS 安装包即可。
 
-mac 目前会生成 `.dmg` 和 `.zip`。把 `.app` 拖进 `Applications` 后，先手动启动一次应用：
+mac 有两种安装方式。
+
+`dmg`
+
+把 `.app` 拖进 `Applications` 后，先手动启动一次应用：
 
 - 首次启动会自动创建 `~/Library/Application Support/sync-with-rclone/config/`
 - 同时会自动注册 Finder 右键 Quick Actions
 - 如果 Finder 里暂时没显示右键菜单，通常重新登录一次 macOS 会刷新出来
+
+`pkg`
+
+运行 `.pkg` 安装器后，程序会安装到 `/Applications/sync-with-rclone.app`，并在安装阶段尽量提前完成：
+
+- 创建 `~/Library/Application Support/sync-with-rclone/config/`
+- 准备 `config.json` 和 `rclone.conf` 模板
+- 注册 Finder 右键 Quick Actions
+
+如果安装阶段没有完整做完，首次启动仍然会做一次兜底初始化。
 
 安装目录
 

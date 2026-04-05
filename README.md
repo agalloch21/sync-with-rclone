@@ -174,8 +174,14 @@ npm run dist:win
 # mac dmg + zip
 npm run dist:mac
 
+# mac dmg + zip (x64)
+npm run dist:mac:x64
+
 # mac pkg
 npm run dist:pkg
+
+# mac pkg (x64)
+npm run dist:pkg:x64
 ```
 ---
 

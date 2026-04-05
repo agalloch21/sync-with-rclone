@@ -22,10 +22,14 @@
     "prepack:mac": "npm run build:icons && npm run build:renderer",
     "dist:win": "electron-builder --win nsis --x64",
     "pack:win": "electron-builder --win dir --x64",
-    "dist:mac": "electron-builder --mac dmg zip",
-    "pack:mac": "electron-builder --mac dir",
-    "dist:pkg": "electron-builder --mac pkg",
-    "pack:pkg": "electron-builder --mac pkg",
+    "dist:mac": "node scripts/build/build-mac.js dmg,zip arm64",
+    "dist:mac:x64": "node scripts/build/build-mac.js dmg,zip x64",
+    "pack:mac": "node scripts/build/build-mac.js dir arm64",
+    "pack:mac:x64": "node scripts/build/build-mac.js dir x64",
+    "dist:pkg": "node scripts/build/build-mac.js pkg arm64",
+    "dist:pkg:x64": "node scripts/build/build-mac.js pkg x64",
+    "pack:pkg": "node scripts/build/build-mac.js pkg arm64",
+    "pack:pkg:x64": "node scripts/build/build-mac.js pkg x64",
     "start:cli": "node src/cli/index.js",
     "start:desktop": "electron .",
     "test": "node --test"
@@ -44,10 +48,6 @@
       "package.json"
     ],
     "extraResources": [
-      {
-        "from": "resources/binaries",
-        "to": "binaries"
-      },
       {
         "from": "templates",
         "to": "templates"
@@ -78,7 +78,16 @@
         "nsis"
       ],
       "executableName": "sync-with-rclone",
-      "icon": "scripts/install/icon.ico"
+      "icon": "scripts/install/icon.ico",
+      "extraResources": [
+        {
+          "from": "resources/binaries",
+          "to": "binaries",
+          "filter": [
+            "rclone-windows-amd64.exe"
+          ]
+        }
+      ]
     },
     "pkg": {
       "scripts": "pkg-scripts",

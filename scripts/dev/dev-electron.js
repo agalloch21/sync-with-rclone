@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const currentDirPath = path.dirname(fileURLToPath(import.meta.url))
-const projectRoot = path.resolve(currentDirPath, '..')
+const projectRoot = path.resolve(currentDirPath, '../..')
 
 const VITE_PORT = 5173
 const VITE_HOST = '127.0.0.1'

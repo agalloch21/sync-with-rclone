@@ -1,5 +1,6 @@
 const { app, dialog, shell } = require('electron')
 const { ensureMacAppSupport } = require('./macos-install.cjs')
+
 let isSyncInProgress = false
 
 function shouldHandleMacSetup(options) {
@@ -66,12 +67,12 @@ app.whenReady().then(async () => {
 
     if (result.applyResult?.action === 'cancel') {
       console.log('Sync cancelled by user')
-      await dialog.showMessageBox({
-        type: 'info',
-        title: 'Sync Cancelled',
-        message: 'Sync cancelled',
-        detail: 'No apply operations were executed.',
-      })
+      // await dialog.showMessageBox({
+      //   type: 'info',
+      //   title: 'Sync Cancelled',
+      //   message: 'Sync cancelled',
+      //   detail: 'No apply operations were executed.',
+      // })
     }
     else {
       console.log(`Sync finished with ${result.applyResult?.phases?.length || 0} phase(s)`)

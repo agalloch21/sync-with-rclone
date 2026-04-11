@@ -27,7 +27,7 @@ function onToggle(event) {
 
 <template>
   <li class="tree-item">
-    <details v-if="node.type === 'directory'" open>
+    <details v-if="node.type === 'directory'" closed>
       <summary class="row">
         <label class="node-toggle">
           <input
@@ -37,11 +37,11 @@ function onToggle(event) {
           >
           <span class="name">{{ node.name }}/</span>
         </label>
-        <span class="folder-badges">
+        <!-- <span class="folder-badges">
           <span v-if="node.changes.modified" class="folder-badge">modified {{ node.changes.modified }}</span>
           <span v-if="node.changes.added" class="folder-badge">added {{ node.changes.added }}</span>
           <span v-if="node.changes.deleted" class="folder-badge">deleted {{ node.changes.deleted }}</span>
-        </span>
+        </span> -->
       </summary>
 
       <ul class="tree-list">

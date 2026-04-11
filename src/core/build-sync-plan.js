@@ -8,12 +8,30 @@ function isPathSelected(entryPath, selectedPathSet) {
   return false
 }
 
+function collectAllPaths(diffSnapshot) {
+  const paths = []
+
+  for (const entryPath of diffSnapshot.dirEntries.keys()) {
+    if (entryPath !== '.')
+      paths.push(entryPath)
+  }
+
+  for (const entryPath of diffSnapshot.fileEntries.keys())
+    paths.push(entryPath)
+
+  return paths
+}
+
 export function buildSyncPlan(diffSnapshot, reviewResult) {
   if (!reviewResult || reviewResult.action !== 'confirm') {
     return {
       action: 'cancel',
       operations: [],
     }
+  }
+
+  if (!reviewResult.selectedPaths) {
+    reviewResult.selectedPaths = collectAllPaths(diffSnapshot)
   }
 
   const selectedPathSet = new Set(reviewResult.selectedPaths || [])

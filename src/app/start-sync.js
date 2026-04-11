@@ -1,9 +1,9 @@
-import { syncCore } from '#src/core/sync-engine.js'
 import { applySyncPlan } from '#src/core/apply-sync-plan.js'
+import { syncCore } from '#src/core/sync-engine.js'
 import { loadConfig } from './load-config.js'
 import { resolveLocalDirectoryPath } from './path-utils.js'
-import { getRuntimePaths } from './runtime-paths.js'
 import { resolveSyncTask } from './resolve-sync-task.js'
+import { getRuntimePaths } from './runtime-paths.js'
 
 /**
  * Application-layer orchestration entry.
@@ -41,14 +41,17 @@ export async function startSync(options, hooks = {}) {
         runtimePaths,
       }
 
+  hooks.onEvent = (event) => {
+    console.log(event)
+  }
+
   const result = await syncCore(resolvedOptions, hooks)
-  const applyResult = await applySyncPlan(result.syncPlan, result.options, {
-    onEvent: hooks.onApplyEvent,
-  })
+  // const applyResult = await applySyncPlan(result.syncPlan, result.options, {
+  //   onEvent: hooks.onApplyEvent,
+  // })
 
   return {
     ...result,
-    applyResult,
     runtimePaths,
     config,
     resolvedTask,

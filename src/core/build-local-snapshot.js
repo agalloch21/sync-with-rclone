@@ -88,12 +88,12 @@ function checkIgnore(filters, entryPath, isDir) {
  * @param {Filter[]} filterStack
  * @param {snapshot} snapshot
  */
-async function walkDir(dirPath, filterStack, snapshot, applyIgnore = true) {
+async function walkDir(dirPath, filterStack, snapshot) {
   const entrieNames = await fs.readdir(path.posix.join(snapshot.root, dirPath))
 
   // Load local ignore file if exists
   let filters = filterStack
-  if (applyIgnore && entrieNames.includes(PATTERN_FILE)) {
+  if (entrieNames.includes(PATTERN_FILE)) {
     const patterns = await readPatterns(path.posix.resolve(snapshot.root, dirPath, PATTERN_FILE))
     filters = filterStack.concat({
       dirPath,
@@ -112,7 +112,7 @@ async function walkDir(dirPath, filterStack, snapshot, applyIgnore = true) {
       continue
 
     const isDir = stat.isDirectory()
-    if (applyIgnore && checkIgnore(filters, path.posix.join(entryPath), isDir))
+    if (checkIgnore(filters, path.posix.join(entryPath), isDir))
       continue
 
     pushEntryToSnapshot(snapshot, entryPath, isDir, stat.size, stat.mtimeMs)
@@ -129,7 +129,7 @@ async function walkDir(dirPath, filterStack, snapshot, applyIgnore = true) {
  * @param {string} rootAbsPath - absolute path
  * @return {Snapshot}
  */
-export async function buildLocalSnapshot(rootAbsPath, applyIgnore = true, extraPatterns = []) {
+export async function buildLocalSnapshot(rootAbsPath, extraPatterns = []) {
   if (!path.isAbsolute(rootAbsPath)) {
     throw new Error(`Input must be an absolute path. ${rootAbsPath}`)
   }
@@ -148,7 +148,7 @@ export async function buildLocalSnapshot(rootAbsPath, applyIgnore = true, extraP
   // Create initial filter
   /** @type {Filter[]} */
   const filterStack = []
-  if (applyIgnore && extraPatterns && extraPatterns?.length > 0) {
+  if (extraPatterns && extraPatterns?.length > 0) {
     filterStack.push({
       dirPath: '.',
       patterns: extraPatterns,
@@ -159,7 +159,7 @@ export async function buildLocalSnapshot(rootAbsPath, applyIgnore = true, extraP
   // Walk through the directory
   const rootStat = await fs.stat(rootAbsPath)
   if (rootStat.isDirectory()) {
-    await walkDir('.', filterStack, snapshot, applyIgnore)
+    await walkDir('.', filterStack, snapshot)
   }
   else if (rootStat.isFile()) {
     // todo: push to file list

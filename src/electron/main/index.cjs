@@ -57,11 +57,11 @@ app.whenReady().then(async () => {
 
     isSyncInProgress = true
     const result = await startSync(options, {
-      reviewDiff: reviewDiffInWindow,
-      onApplyEvent: (event) => {
-        progressWindow ||= createProgressWindowController()
-        progressWindow.handleEvent(event)
-      },
+      reviewPortal: reviewDiffInWindow,
+      // onApplyEvent: (event) => {
+      //   progressWindow ||= createProgressWindowController()
+      //   progressWindow.handleEvent(event)
+      // },
     })
     isSyncInProgress = false
 

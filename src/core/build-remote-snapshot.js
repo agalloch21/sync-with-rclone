@@ -63,8 +63,8 @@ function fetchDirectory(remotePath, runtimePaths = {}) {
   })
 }
 
-export async function buildRemoteSnapshot(remotePath, options = {}) {
-  const entries = await fetchDirectory(remotePath, options.runtimePaths)
+export async function buildRemoteSnapshot(remotePath, runtimePaths) {
+  const entries = await fetchDirectory(remotePath, runtimePaths)
 
   const snapshot = {
     root: remotePath,

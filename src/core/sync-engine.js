@@ -1,7 +1,9 @@
+import { applySyncPlan } from './apply-sync-plan.js'
 import { buildLocalSnapshot } from './build-local-snapshot.js'
 import { buildRemoteSnapshot } from './build-remote-snapshot.js'
 import { buildSyncPlan } from './build-sync-plan.js'
 import { compareSnapshot } from './compare-snapshot.js'
+import { createReporter, runWithReporter } from './sync-reporter.js'
 
 /**
  * @typedef {object} Options
@@ -45,27 +47,6 @@ function normalizeOptions(options) {
   }
 }
 
-function collectAllChangedPaths(diffSnapshot) {
-  const paths = []
-
-  for (const entryPath of diffSnapshot.dirEntries.keys()) {
-    if (entryPath !== '.')
-      paths.push(entryPath)
-  }
-
-  for (const entryPath of diffSnapshot.fileEntries.keys())
-    paths.push(entryPath)
-
-  return paths
-}
-
-async function acceptDiffByDefault(diffSnapshot) {
-  return {
-    action: 'confirm',
-    selectedPaths: collectAllChangedPaths(diffSnapshot),
-  }
-}
-
 /**
  * Headless sync pipeline. UI review is injected from the outside.
  *
@@ -74,36 +55,69 @@ async function acceptDiffByDefault(diffSnapshot) {
  * @param {Hooks} [hooks]
  */
 export async function syncCore(options, hooks = {}) {
-  const normalizedOptions = normalizeOptions(options)
-  const localSnapshot = await buildLocalSnapshot(
-    normalizedOptions.localFolderPath,
-    true,
-    normalizedOptions.extraIgnorePatterns,
+  const reporter = createReporter(hooks.onEvent)
+
+  const normalizedOptions = await runWithReporter(reporter, 'preparation', () => normalizeOptions(options), 'Normalizing options')
+
+  // todo: remove parameter applyIgnore
+  const localSnapshot = await runWithReporter(
+    reporter,
+    'build-local-snapshot',
+    () => buildLocalSnapshot(
+      normalizedOptions.localFolderPath,
+      true,
+      normalizedOptions.extraIgnorePatterns,
+    ),
+    'Building local snapshot',
   )
-  const remoteSnapshot = await buildRemoteSnapshot(normalizedOptions.remoteFolderPath, {
-    runtimePaths: normalizedOptions.runtimePaths,
-  })
+
+  // todo: make runtimePaths a flat parameter
+  const remoteSnapshot = await runWithReporter(
+    reporter,
+    'build-remote-snapshot',
+    () => buildRemoteSnapshot(
+      normalizedOptions.remoteFolderPath,
+      { runtimePaths: normalizedOptions.runtimePaths },
+    ),
+    'Building remote snapshot',
+  )
 
   const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot
-  const destSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
-  const diffSnapshot = compareSnapshot(srcSnapshot, destSnapshot)
+  const dstSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
+  const diffSnapshot = await runWithReporter(
+    reporter,
+    'compare-snapshot',
+    () => compareSnapshot(srcSnapshot, dstSnapshot),
+    'Comparing snapshots',
+  )
 
-  const context = {
-    options: normalizedOptions,
-    localSnapshot,
-    remoteSnapshot,
-    srcSnapshot,
-    destSnapshot,
-  }
+  const reviewResult = hooks.reviewPortal
+    ? (await runWithReporter(
+        reporter,
+        'review-differences',
+        () => hooks.reviewPortal(diffSnapshot),
+        'Preparing differences review',
+      ))
+    : { action: 'confirm' }
 
-  const reviewDiff = hooks.reviewDiff || acceptDiffByDefault
-  const reviewResult = await reviewDiff(diffSnapshot, context)
-  const syncPlan = buildSyncPlan(diffSnapshot, reviewResult)
+  const syncPlan = await runWithReporter(
+    reporter,
+    'generate-plan',
+    () => buildSyncPlan(diffSnapshot, reviewResult),
+    'Preparing operations',
+  )
+
+  const appliedResult = await runWithReporter(
+    reporter,
+    'apply-plan',
+    () => applySyncPlan(syncPlan, normalizedOptions, hooks.onProgress),
+    'Applying operations',
+  )
 
   return {
-    ...context,
     diffSnapshot,
     reviewResult,
     syncPlan,
+    appliedResult,
   }
 }

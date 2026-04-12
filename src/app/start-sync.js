@@ -41,10 +41,6 @@ export async function startSync(options, hooks = {}) {
         runtimePaths,
       }
 
-  hooks.onEvent = (event) => {
-    console.log(event)
-  }
-
   const result = await syncCore(resolvedOptions, hooks)
   // const applyResult = await applySyncPlan(result.syncPlan, result.options, {
   //   onEvent: hooks.onApplyEvent,

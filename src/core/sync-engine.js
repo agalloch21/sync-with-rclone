@@ -55,29 +55,26 @@ function normalizeOptions(options) {
  * @param {Hooks} [hooks]
  */
 export async function syncCore(options, hooks = {}) {
-  const reporter = createReporter(hooks.onEvent)
+  const reporter = createReporter(hooks.onEvent || (() => {}))
 
   const normalizedOptions = await runWithReporter(reporter, 'preparation', () => normalizeOptions(options), 'Normalizing options')
 
-  // todo: remove parameter applyIgnore
   const localSnapshot = await runWithReporter(
     reporter,
     'build-local-snapshot',
     () => buildLocalSnapshot(
       normalizedOptions.localFolderPath,
-      true,
       normalizedOptions.extraIgnorePatterns,
     ),
     'Building local snapshot',
   )
 
-  // todo: make runtimePaths a flat parameter
   const remoteSnapshot = await runWithReporter(
     reporter,
     'build-remote-snapshot',
     () => buildRemoteSnapshot(
       normalizedOptions.remoteFolderPath,
-      { runtimePaths: normalizedOptions.runtimePaths },
+      normalizedOptions.runtimePaths,
     ),
     'Building remote snapshot',
   )

@@ -11,5 +11,6 @@ export default antfu({
     'test/no-import-node-test': 'off',
     'no-control-regex': 'off',
     'node/prefer-global/process': 'off',
+    'e18e/prefer-static-regex': 'off',
   },
 })

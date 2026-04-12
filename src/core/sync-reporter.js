@@ -4,7 +4,7 @@ export function createReporter(emit = () => {}) {
       emit({ type: 'phase', phase, status: 'started', message })
     },
     done(phase, data) {
-      emit({ type: 'phase', phase, status: 'doen', data })
+      emit({ type: 'phase', phase, status: 'done', data })
     },
     progress(phase, current, total, message) {
       emit({ type: 'status', phase, status: 'running', current, total, message })
@@ -19,6 +19,7 @@ export async function runWithReporter(reporter, phase, fn, message) {
   reporter.started(phase, message)
 
   try {
+    await new Promise(resolve => setTimeout(resolve, 2000))
     const result = await fn()
     reporter.done(phase)
     return result

@@ -9,11 +9,10 @@ function shouldHandleMacSetup(options) {
 
 app.whenReady().then(async () => {
   try {
-    const [{ startSync }, { parseSyncArgs }, { reviewDiffInWindow }, { createProgressWindowController }] = await Promise.all([
+    const [{ startSync }, { parseSyncArgs }, { createSessionWindow }] = await Promise.all([
       import('#src/app/start-sync.js'),
       import('#src/app/parse-sync-args.js'),
-      import('./review-window.js'),
-      import('./progress-window.js'),
+      import('./session-window.js'),
     ])
 
     const options = parseSyncArgs(process.argv.slice(2))
@@ -53,11 +52,18 @@ app.whenReady().then(async () => {
       return
     }
 
-    let progressWindow = null
+    // 创建window
+    const sessionWindowHooks = createSessionWindow()
+    // 创建一个Event Handeler(这里的信息怎么传给Renderer?)
+    // 运行syncCore, 传入reviewPortal(职责:进入review, 接收diffSnapshot), 传入Event Handler
+    // 根据传回的stage来决定html的显示
+    // syncCore运行到review时, 会暂停. 此时显示review Difference
+    // 用户选择完后, (怎么回传选择结果?)
 
     isSyncInProgress = true
     const result = await startSync(options, {
-      reviewPortal: reviewDiffInWindow,
+      reviewPortal: sessionWindowHooks.reviewDiffInWindow,
+      onEvent: sessionWindowHooks.onEventHandler,
       // onApplyEvent: (event) => {
       //   progressWindow ||= createProgressWindowController()
       //   progressWindow.handleEvent(event)
@@ -84,7 +90,7 @@ app.whenReady().then(async () => {
       })
     }
 
-    await progressWindow?.close()
+    await sessionWindowHooks.closeWindow()
     app.quit()
   }
   catch (error) {

@@ -1,6 +1,11 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import TreeNode from './components/TreeNode.vue'
+
+const { t, locale } = useI18n()
+locale.value = 'zh-CN'
+console.log(t('review.title'))
 
 const state = ref(null)
 const errorMessage = ref('')
@@ -67,6 +72,7 @@ function confirm() {
 
 <template>
   <div class="fixed bottom-0 right-0 w-1/2 h-1/2 text-xs overflow-auto">
+    <div>{{ $t('review.title') }}</div>
     <pre>{{ JSON.stringify(state, null, 4) }}</pre>
   </div>
   <div v-if="errorMessage" class="layout">

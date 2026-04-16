@@ -187,10 +187,16 @@ export function createSessionWindow(options) {
     ipcMain.removeListener(channels.confirmSync, handleConfirm)
   }
 
-  async function closeWindow() {
+  function closeWindow() {
+    if (isClosing)
+      return
+
     isClosing = true
-    handleCancel()
-    await sessionWindow?.close()
+    cleanup()
+    if (pendingReview)
+      handleCancel()
+    if (!sessionWindow.isDestroyed())
+      sessionWindow?.close()
   }
 
   sessionWindow.on('closed', () => {

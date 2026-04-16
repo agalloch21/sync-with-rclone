@@ -80,7 +80,7 @@ app.whenReady().then(async () => {
       })
     }
 
-    await sessionWindowHooks.closeWindow()
+    sessionWindowHooks.closeWindow()
     app.quit()
   }
   catch (error) {

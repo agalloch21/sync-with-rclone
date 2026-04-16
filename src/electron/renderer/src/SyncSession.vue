@@ -66,9 +66,9 @@ function confirm() {
 </script>
 
 <template>
-  <!-- <div>
+  <div class="fixed bottom-0 right-0 w-1/2 h-1/2 text-xs overflow-auto">
     <pre>{{ JSON.stringify(state, null, 4) }}</pre>
-  </div> -->
+  </div>
   <div v-if="errorMessage" class="layout">
     <div class="header">
       <h1 class="title">

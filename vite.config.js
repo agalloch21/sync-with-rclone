@@ -1,9 +1,10 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
 import path from 'node:path'
+import tailwindcss from '@tailwindcss/vite'
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   root: path.resolve('src/electron/renderer'),
   base: './',
   build: {
@@ -11,8 +12,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        review: path.resolve('src/electron/renderer/review.html'),
-        progress: path.resolve('src/electron/renderer/progress.html'),
+        syncSession: path.resolve('src/electron/renderer/sync-session.html'),
       },
     },
   },

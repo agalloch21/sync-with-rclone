@@ -7,10 +7,10 @@ export function createReporter(emit = () => {}) {
       emit({ type: 'phase', phase, status: 'done', data })
     },
     progress(phase, current, total, message) {
-      emit({ type: 'status', phase, status: 'running', current, total, message })
+      emit({ type: 'progress', phase, status: 'running', current, total, message })
     },
     error(phase, error) {
-      emit({ type: 'status', phase, status: 'failed', message: error.message })
+      emit({ type: 'error', phase, status: 'failed', message: error.message })
     },
   }
 }

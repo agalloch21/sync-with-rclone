@@ -1,19 +1,24 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
+const encoded = process.argv.find(arg => arg.startsWith('{"channelPrefix"'))
+const channels = encoded ? JSON.parse(encoded) : null
+
 contextBridge.exposeInMainWorld('syncSession', {
-  onEvent(callback) {
-    ipcRenderer.on('progress', callback)
+  // notification
+  onReceiveProgressEvent(callback) {
+    const listener = (_, state) => callback(state)
+    ipcRenderer.on(channels.progressEvent, listener)
+    return () => ipcRenderer.removeListener(channels.progressEvent, listener)
   },
-  onReceiveDifferences(callback) {
-    ipcRenderer.on('differences', callback)
+  // handler
+  getState() {
+    return ipcRenderer.invoke(channels.getState)
   },
-  getDifferences() {
-    return ipcRenderer.involke('get-differences')
-  },
-  confirmSync(payload) {
-    ipcRenderer.send('confirm-sync', payload)
+  // event
+  confirmSync(selectedPaths) {
+    ipcRenderer.send(channels.confirmSync, { selectedPaths })
   },
   cancelSync() {
-    ipcRenderer.send('cancel-sync')
+    ipcRenderer.send(channels.cancelSync)
   },
 })

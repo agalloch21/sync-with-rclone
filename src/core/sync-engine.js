@@ -3,6 +3,7 @@ import { buildLocalSnapshot } from './build-local-snapshot.js'
 import { buildRemoteSnapshot } from './build-remote-snapshot.js'
 import { buildSyncPlan } from './build-sync-plan.js'
 import { compareSnapshot } from './compare-snapshot.js'
+import { PHASES } from './phases.js'
 import { createReporter, runWithReporter } from './sync-reporter.js'
 
 /**
@@ -57,11 +58,11 @@ function normalizeOptions(options) {
 export async function syncCore(options, hooks = {}) {
   const reporter = createReporter(hooks.onEvent || (() => {}))
 
-  const normalizedOptions = await runWithReporter(reporter, 'preparation', () => normalizeOptions(options), 'Normalizing options')
+  const normalizedOptions = await runWithReporter(reporter, PHASES.PREPARATION, () => normalizeOptions(options), 'Normalizing options')
 
   const localSnapshot = await runWithReporter(
     reporter,
-    'build-local-snapshot',
+    PHASES.BUILD_LOCAL_SNAPSHOT,
     () => buildLocalSnapshot(
       normalizedOptions.localFolderPath,
       normalizedOptions.extraIgnorePatterns,
@@ -71,7 +72,7 @@ export async function syncCore(options, hooks = {}) {
 
   const remoteSnapshot = await runWithReporter(
     reporter,
-    'build-remote-snapshot',
+    PHASES.BUILD_REMOTE_SNAPSHOT,
     () => buildRemoteSnapshot(
       normalizedOptions.remoteFolderPath,
       normalizedOptions.runtimePaths,
@@ -83,7 +84,7 @@ export async function syncCore(options, hooks = {}) {
   const dstSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
   const diffSnapshot = await runWithReporter(
     reporter,
-    'compare-snapshot',
+    PHASES.COMPARE_SNAPSHOT,
     () => compareSnapshot(srcSnapshot, dstSnapshot),
     'Comparing snapshots',
   )
@@ -91,7 +92,7 @@ export async function syncCore(options, hooks = {}) {
   const reviewResult = hooks.reviewPortal
     ? (await runWithReporter(
         reporter,
-        'review-differences',
+        PHASES.REVIEW_DIFFERENCES,
         () => hooks.reviewPortal(diffSnapshot),
         'Preparing differences review',
       ))
@@ -99,14 +100,14 @@ export async function syncCore(options, hooks = {}) {
 
   const syncPlan = await runWithReporter(
     reporter,
-    'generate-plan',
+    PHASES.GENERATE_PLAN,
     () => buildSyncPlan(diffSnapshot, reviewResult),
     'Preparing operations',
   )
 
   const appliedResult = await runWithReporter(
     reporter,
-    'apply-plan',
+    PHASES.APPLY_PLAN,
     () => applySyncPlan(syncPlan, normalizedOptions, hooks.onProgress),
     'Applying operations',
   )

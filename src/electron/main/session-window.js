@@ -1,6 +1,8 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { serializeDiffSnapshot } from '#src/core/serialize-diff-snapshot.js'
+import { getStepForPhase, STEPS } from './session-workflow.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -33,93 +35,198 @@ function loadRendererPage(browserWindow, pageName) {
     : browserWindow.loadFile(target.value)
 }
 
-export function createSessionWindow() {
+export function createSessionWindow(options) {
   const { BrowserWindow, ipcMain } = require('electron')
+  const channelPrefix = `sync-session:${Date.now()}:${Math.random().toString(16).slice(2)}`
+  const channels = {
+    channelPrefix,
+    // notification
+    progressEvent: `${channelPrefix}:progress-event`,
+    // handler
+    getState: `${channelPrefix}:get-state`,
+    // event
+    confirmSync: `${channelPrefix}:confirm-sync`,
+    cancelSync: `${channelPrefix}:cancel-sync`,
+
+  }
+
+  let state = {
+    context: {
+      mode: options.mode,
+      localFolderPath: options.localFolderPath,
+      remoteFolderPath: options.remoteFolderPath,
+      ignoreConfig: options.ignoreConfig,
+    },
+    step: '',
+    phase: {
+      name: '',
+      status: '',
+      message: '',
+    },
+    progress: {
+      current: 0,
+      total: 0,
+      message: '',
+    },
+    review: {
+      summary: {
+        added: 0,
+        modified: 0,
+        deleted: 0,
+      },
+      tree: [],
+    },
+    error: {
+      message: '',
+      detail: '',
+    },
+  }
+
+  let isClosing = false
+  let pendingReview = null
 
   const sessionWindow = new BrowserWindow({
-    width: 560,
-    height: 320,
+    width: 600,
+    height: 600,
     minWidth: 500,
-    minHeight: 280,
+    minHeight: 500,
     autoHideMenuBar: true,
     show: false,
     title: 'Sync Progress',
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/session-preload.cjs'),
-    //   additionalArguments: [JSON.stringify(channels)],
+      additionalArguments: [JSON.stringify(channels)],
     },
   })
 
-  function onEventHandler(event) {
-    sessionWindow.webContents.send('progress', JSON.stringify(event))
+  function sendProgressToRenderer(nextState) {
+    state = {
+      ...state,
+      ...nextState,
+    }
+
+    if (!sessionWindow.isDestroyed())
+      sessionWindow.webContents.send(channels.progressEvent, nextState)
   }
 
-  let sendBackResult = null
-  let sendBackError = null
+  function onEventFromCore(event) {
+    const nextState = {
+      phase: {
+        name: event.phase,
+        status: event.status,
+      },
+    }
+
+    if (event.type === 'phase') {
+      if (event.message)
+        nextState.phase.message = event.message
+
+      if (event.status === 'started') {
+        nextState.step = getStepForPhase(nextState.phase.name)
+      }
+    }
+    else if (event.type === 'progress') {
+      nextState.progress = {}
+      nextState.progress.current = event.current
+      nextState.progress.total = event.total
+      nextState.progress.message = event.message
+    }
+    else if (event.type === 'error') {
+      nextState.error = {}
+      nextState.error.message = event.message
+    }
+
+    sendProgressToRenderer(nextState)
+  }
+
   async function reviewDiffInWindow(diffSnapshot) {
-    const colors = ['red', 'blue', 'green', 'yellow']
-    sessionWindow.webContents.send('differences', JSON.stringify(colors))
+    const payload = serializeDiffSnapshot(diffSnapshot)
+
+    sendProgressToRenderer({ review: payload })
 
     return new Promise((resolve, reject) => {
-      sendBackResult = (action, payload) => {
-        if (action === 'confirm') {
-          return resolve({ action: 'confirm', selectedPaths: JSON.parse(payload) })
-        }
-        else if (action === 'cancel') {
-          return resolve({ action: 'cancel', selectedPaths: [] })
-        }
-      }
-      sendBackError = (error) => {
-        return reject(error)
+      pendingReview = {
+        resolve,
+        reject,
       }
     })
   }
 
-  ipcMain.handle('get-differences', () => {
-    const colors = ['red', 'blue', 'green', 'yellow']
-    return JSON.stringify(colors)
-  })
+  function settlePendingReview(result, { useReject = false } = {}) {
+    if (!pendingReview)
+      return
 
-  ipcMain.on('cancel-sync', () => {
-    sendBackResult && sendBackResult('cancel')
-  })
+    const { resolve, reject } = pendingReview
+    pendingReview = null
 
-  ipcMain.on('confirm-sync', (event, payload) => {
-    sendBackResult && sendBackResult('confirm', payload)
-  })
+    if (useReject) {
+      reject(result)
+    }
+    else {
+      resolve(result)
+    }
+  }
+
+  function handleCancel() {
+    settlePendingReview({ action: 'cancel', selectedPaths: [] })
+  }
+
+  function handleConfirm(_event, payload) {
+    const selectedPaths = Array.isArray(payload?.selectedPaths) ? payload.selectedPaths : []
+    settlePendingReview({ action: 'confirm', selectedPaths })
+  }
+
+  ipcMain.handle(channels.getState, () => state)
+  ipcMain.on(channels.cancelSync, handleCancel)
+  ipcMain.on(channels.confirmSync, handleConfirm)
+
+  const cleanup = () => {
+    ipcMain.removeHandler(channels.getState)
+    ipcMain.removeListener(channels.cancelSync, handleCancel)
+    ipcMain.removeListener(channels.confirmSync, handleConfirm)
+  }
 
   async function closeWindow() {
+    isClosing = true
+    handleCancel()
     await sessionWindow?.close()
   }
 
-  //   const cleanup = () => {
-  //     ipcMain.removeHandler(channels.getState)
-  //   }
-  //   sessionWindow.on('closed', cleanup)
+  sessionWindow.on('closed', () => {
+    cleanup()
+    if (!isClosing && pendingReview) {
+      handleCancel()
+    }
+  })
+
   sessionWindow.once('ready-to-show', () => {
     sessionWindow.show()
   })
 
+  sessionWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {
+    console.log(`[renderer:${level}] ${message} (${sourceId}:${line})`)
+  })
+
+  sessionWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription, validatedURL) => {
+    console.error(`Renderer failed to load: ${errorCode} ${errorDescription} ${validatedURL}`)
+  })
+
+  sessionWindow.webContents.on('render-process-gone', (_, details) => {
+    console.error(`Renderer process gone: ${details.reason}`)
+  })
+
   loadRendererPage(sessionWindow, 'sync-session')
     .catch((error) => {
-    //   if (!isClosing)
-    //     console.error(error)
+      if (pendingReview) {
+        settlePendingReview(error, { useReject: true })
+      }
     })
   if (process.env.DEBUG_ELECTRON === '1')
     sessionWindow.webContents.openDevTools({ mode: 'detach' })
 
-  //   function publish(nextState) {
-  //     state = {
-  //       ...state,
-  //       ...nextState,
-  //     }
-
-  //     if (!progressWindow.isDestroyed())
-  //       progressWindow.webContents.send(channels.update, state)
-  //   }
   return {
-    onEventHandler,
+    onEventFromCore,
     reviewDiffInWindow,
     closeWindow,
   }

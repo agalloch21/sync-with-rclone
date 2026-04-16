@@ -1,9 +1,9 @@
+import { execFile } from 'node:child_process'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 
@@ -52,7 +52,7 @@ function makeDirectoryEntry(size, pngLength, offset) {
 }
 
 function escapeForPowerShellSingleQuotedString(value) {
-  return value.replaceAll("'", "''")
+  return value.replaceAll('\'', '\'\'')
 }
 
 export function getResizeToolForPlatform(platform = process.platform) {

@@ -15,11 +15,12 @@
     "dev:renderer": "vite --host 127.0.0.1 --strictPort",
     "dev:desktop": "node scripts/dev/dev-electron.js",
     "build:icons": "node scripts/build/generate-icons.js",
-    "verify:win-assets": "node scripts/build/verify-win-assets.js",
-    "predist:win": "npm run build:icons && npm run build:renderer && npm run verify:win-assets",
-    "prepack:win": "npm run build:icons && npm run build:renderer && npm run verify:win-assets",
-    "predist:mac": "npm run build:icons && npm run build:renderer",
-    "prepack:mac": "npm run build:icons && npm run build:renderer",
+    "verify:assets": "node scripts/build/verify-assets.js",
+    "verify:build": "node scripts/build/verify-build.js",
+    "predist:win": "npm run verify:assets -- win && npm run build:renderer && npm run verify:build",
+    "prepack:win": "npm run verify:assets -- win && npm run build:renderer && npm run verify:build",
+    "predist:mac": "npm run verify:assets -- mac && npm run build:renderer",
+    "prepack:mac": "npm run verify:assets -- mac && npm run build:renderer",
     "dist:win": "electron-builder --win nsis --x64",
     "pack:win": "electron-builder --win dir --x64",
     "dist:mac": "node scripts/build/build-mac.js dmg,zip arm64",
@@ -39,7 +40,6 @@
     "productName": "sync-with-rclone",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
-      "buildResources": "scripts/install",
       "output": "dist"
     },
     "electronDist": "node_modules/electron/dist",
@@ -49,7 +49,7 @@
     ],
     "extraResources": [
       {
-        "from": "templates",
+        "from": "resources/templates",
         "to": "templates"
       },
       {
@@ -90,7 +90,7 @@
       ]
     },
     "pkg": {
-      "scripts": "pkg-scripts",
+      "scripts": "scripts/install/pkg-scripts",
       "installLocation": "/Applications",
       "allowAnywhere": false,
       "allowCurrentUserHome": false,

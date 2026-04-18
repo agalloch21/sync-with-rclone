@@ -1,11 +1,13 @@
 <script setup>
+import { STEPS } from '#src/electron/main/session-steps.js'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import TreeNode from './components/TreeNode.vue'
+import Content from './components/Content.vue'
+import Context from './components/Context.vue'
+import Header from './components/Header.vue'
 
 const { t, locale } = useI18n()
-locale.value = 'zh-CN'
-console.log(t('review.title'))
+locale.value = 'en'
 
 const state = ref(null)
 const errorMessage = ref('')
@@ -75,82 +77,31 @@ function confirm() {
     <div>{{ $t('review.title') }}</div>
     <pre>{{ JSON.stringify(state, null, 4) }}</pre>
   </div>
-  <div v-if="errorMessage" class="layout">
-    <div class="header">
-      <h1 class="title">
-        Sync Session
-      </h1>
-    </div>
-    <div class="content">
-      <div class="error-panel">
-        Failed to initialize session renderer: {{ errorMessage }}
+  <div class="flex flex-col h-dvh min-h-0 overflow-hidden bg-white border-2 border-white">
+    <header class="header-dock w-full h-14 bg-[#E5EEFF] content-center">
+      <Header :state="state" />
+    </header>
+    <main class="main-dock min-h-0 flex-1 overflow-hidden">
+      <div
+        class="main-stage h-full relative
+      before:content-[''] before:absolute before:left-0 before:right-0 before:top-[25%] before:bottom-[25%] before:bg-[#254CE4] before:opacity-20 before:blur-[100px]
+        flex flex-col"
+      >
+        <div class="context-dock h-30 bg-[#F8F9FF] flex flex-col justify-center items-center">
+          <Context :state="state" />
+        </div>
+        <div class="separator w-full h-px bg-linear-to-r from-[#81B5F680] via-[#81B5F6FF] to-[#81B5F680] opacity-30" />
+        <div class="content-dock">
+          <Content :state="state" />
+        </div>
       </div>
-    </div>
-  </div>
-
-  <div v-else-if="state?.screen === 'review' && reviewPayload" class="layout">
-    <div class="header">
-      <h1 class="title">
-        Review Sync Differences
-      </h1>
-      <div class="roots">
-        Source: {{ reviewPayload.srcRoot }}<br>
-        Destination: {{ reviewPayload.dstRoot }}
-      </div>
-      <div class="summary">
-        <span class="pill modified">Modified {{ reviewPayload.summary.modified }}</span>
-        <span class="pill added">Added {{ reviewPayload.summary.added }}</span>
-        <span class="pill deleted">Deleted {{ reviewPayload.summary.deleted }}</span>
-      </div>
-    </div>
-
-    <div class="content">
-      <div v-if="reviewPayload.tree.length === 0" class="empty">
-        No differences found.
-      </div>
-
-      <ul v-else class="tree-list root">
-        <TreeNode
-          v-for="node in reviewPayload.tree"
-          :key="node.path"
-          :node="node"
-          :selection="selection"
-        />
-      </ul>
-    </div>
-
-    <div class="footer">
-      <div class="selection">
-        {{ selectedCount }} item(s) selected
-      </div>
-      <div class="actions">
-        <button class="button" @click="cancel">
-          Cancel
-        </button>
-        <button class="button primary" @click="confirm">
-          Confirm
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div v-else class="layout progress-layout">
-    <div class="header">
-      <h1 class="title">
-        Sync Progress
-      </h1>
-      <div class="roots">
-        {{ progressPhase || 'Preparing sync session' }}
-      </div>
-    </div>
-
-    <div class="content progress-content">
-      <div class="progress-meta">
-        {{ progressStatus }}
-      </div>
-      <div class="progress-current">
-        {{ progressMessage }}
-      </div>
-    </div>
+    </main>
+    <footer class="footer-dock w-full h-16 bg-[#EFF4FF]" />
   </div>
 </template>
+
+<style scoped>
+.header-dock{
+    -webkit-app-region: drag;
+}
+</style>

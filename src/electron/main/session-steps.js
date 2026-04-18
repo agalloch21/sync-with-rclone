@@ -19,7 +19,7 @@ export const STEP_META = {
   [STEPS.SYNC]: {
     index: 3,
     keyPrefix: `step.${STEPS.SYNC}.`,
-    phases: [PHASES.GENERATE_PLAN, PHASES.GENERATE_PLAN],
+    phases: [PHASES.GENERATE_PLAN, PHASES.APPLY_PLAN],
   },
 }
 

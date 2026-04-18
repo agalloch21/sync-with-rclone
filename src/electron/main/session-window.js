@@ -2,7 +2,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { serializeDiffSnapshot } from '#src/core/serialize-diff-snapshot.js'
-import { getStepForPhase, STEPS } from './session-workflow.js'
+import { getStepForPhase, STEPS } from './session-steps.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -91,8 +91,9 @@ export function createSessionWindow(options) {
     minWidth: 500,
     minHeight: 500,
     autoHideMenuBar: true,
+    frame: false,
     show: false,
-    title: 'Sync Progress',
+    title: 'Sync Session',
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/session-preload.cjs'),

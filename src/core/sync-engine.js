@@ -13,6 +13,7 @@ import { createReporter, runWithReporter } from './sync-reporter.js'
  * @property {string} remoteFolderPath
  * @property {string[]} [extraIgnorePatterns]
  * @property {object} [runtimePaths]
+ * @property {boolean} bypassConfig
  */
 
 /**

@@ -52,10 +52,10 @@ export function createSessionWindow(options) {
 
   let state = {
     context: {
-      mode: options.mode,
-      localFolderPath: options.localFolderPath,
-      remoteFolderPath: options.remoteFolderPath,
-      ignoreConfig: options.ignoreConfig,
+      mode: '',
+      localFolderPath: '',
+      remoteFolderPath: '',
+      bypassConfig: false,
     },
     step: '',
     phase: {
@@ -100,6 +100,15 @@ export function createSessionWindow(options) {
       additionalArguments: [JSON.stringify(channels)],
     },
   })
+
+  function updateOptions(options) {
+    state.context = {
+      mode: options.mode,
+      localFolderPath: options.localFolderPath,
+      remoteFolderPath: options.remoteFolderPath,
+      bypassConfig: options.bypassConfig,
+    }
+  }
 
   function sendProgressToRenderer(nextState) {
     state = {
@@ -236,5 +245,6 @@ export function createSessionWindow(options) {
     onEventFromCore,
     reviewDiffInWindow,
     closeWindow,
+    updateOptions,
   }
 }

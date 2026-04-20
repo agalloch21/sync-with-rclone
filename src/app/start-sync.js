@@ -5,25 +5,15 @@ import { resolveLocalDirectoryPath } from './path-utils.js'
 import { resolveSyncTask } from './resolve-sync-task.js'
 import { getRuntimePaths } from './runtime-paths.js'
 
-/**
- * Application-layer orchestration entry.
- * Shells provide options and a review implementation.
- *
- * @param {import('#src/core/sync-engine.js').Options & { ignoreConfig?: boolean }} options
- * @param {{
- *   reviewDiff?: (diffSnapshot: import('#src/types/snapshot.js').DiffSnapshot, context: unknown) => Promise<import('#src/app/review-contracts.js').ReviewResult | unknown>
- *   onApplyEvent?: (event: object) => Promise<void> | void
- * }} [hooks]
- */
 export async function startSync(options, hooks = {}) {
-  const { ignoreConfig = false } = options
+  const { bypassConfig = false } = options
   const runtimePaths = getRuntimePaths()
-  const config = ignoreConfig ? null : await loadConfig(runtimePaths.configPath)
+  const config = bypassConfig ? null : await loadConfig(runtimePaths.configPath)
   const localFolderPath = resolveLocalDirectoryPath(options.localFolderPath)
-  const resolvedTask = ignoreConfig ? null : resolveSyncTask(localFolderPath, config, options.remoteFolderPath)
+  const resolvedTask = bypassConfig ? null : resolveSyncTask(localFolderPath, config, options.remoteFolderPath)
 
-  if (ignoreConfig && !options.remoteFolderPath) {
-    throw new Error('remoteFolderPath is required when ignoreConfig is enabled')
+  if (bypassConfig && !options.remoteFolderPath) {
+    throw new Error('remoteFolderPath is required when bypassConfig is enabled')
   }
 
   const resolvedOptions = resolvedTask
@@ -40,6 +30,8 @@ export async function startSync(options, hooks = {}) {
         remoteFolderPath: options.remoteFolderPath,
         runtimePaths,
       }
+
+  hooks.onOptionsResolved(resolvedOptions)
 
   const result = await syncCore(resolvedOptions, hooks)
   // const applyResult = await applySyncPlan(result.syncPlan, result.options, {

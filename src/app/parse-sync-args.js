@@ -18,7 +18,7 @@ export function parseSyncArgs(argv = []) {
     mode: '',
     localFolderPath: '',
     remoteFolderPath: '',
-    ignoreConfig: false,
+    bypassConfig: false,
   }
   const positionalArgs = []
 
@@ -48,14 +48,14 @@ export function parseSyncArgs(argv = []) {
       continue
     }
 
-    if (token === '--ignore-config' || token === '--ignoreConfig') {
-      options.ignoreConfig = true
+    if (token === '--bypass-config' || token === '--bypassConfig') {
+      options.bypassConfig = true
       continue
     }
 
-    if (token.startsWith('--ignore-config=') || token.startsWith('--ignoreConfig=')) {
+    if (token.startsWith('--bypass-config=') || token.startsWith('--bypassConfig=')) {
       const result = readOptionValue(token, argv, index)
-      options.ignoreConfig = !FALSEY_OPTION_VALUES.has(result.value.toLowerCase())
+      options.bypassConfig = !FALSEY_OPTION_VALUES.has(result.value.toLowerCase())
       index = result.nextIndex
       continue
     }
@@ -80,6 +80,6 @@ export function parseSyncArgs(argv = []) {
     mode: options.mode || 'push',
     localFolderPath: options.localFolderPath,
     remoteFolderPath: options.remoteFolderPath,
-    ignoreConfig: options.ignoreConfig,
+    bypassConfig: options.bypassConfig,
   }
 }

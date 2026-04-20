@@ -52,12 +52,13 @@ app.whenReady().then(async () => {
       return
     }
 
-    const sessionWindowHooks = createSessionWindow(options)
+    const sessionWindowHooks = createSessionWindow()
 
     isSyncInProgress = true
     const result = await startSync(options, {
       reviewPortal: sessionWindowHooks.reviewDiffInWindow,
       onEvent: sessionWindowHooks.onEventFromCore,
+      onOptionsResolved: sessionWindowHooks.updateOptions,
     })
     isSyncInProgress = false
 

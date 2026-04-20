@@ -55,10 +55,10 @@ node src/cli/index.js
 node ./src/cli/index.js --mode=push --local=<local-path> --remote=<remote-path>
 
 # 如果你想跳过 config.json，直接按显式 local/remote 运行：
-node ./src/cli/index.js --ignore-config --mode=push --local=<local-path> --remote=<remote-path>
+node ./src/cli/index.js --bypass-config --mode=push --local=<local-path> --remote=<remote-path>
 
 # 简写版
-node ./src/cli/index.js [--ignore-config] push <local-path> <remote-path>
+node ./src/cli/index.js [--bypass-config] push <local-path> <remote-path>
 ```
 
 当前推荐使用带名字的参数。

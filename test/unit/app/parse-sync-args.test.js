@@ -13,7 +13,7 @@ test('parseSyncArgs supports named arguments with equals syntax', () => {
     mode: 'push',
     localFolderPath: 'test/fixtures/local/compare-push',
     remoteFolderPath: 'fake-remote:compare-push',
-    ignoreConfig: false,
+    bypassConfig: false,
   })
 })
 
@@ -29,7 +29,7 @@ test('parseSyncArgs supports named arguments with separate values', () => {
     mode: 'pull',
     localFolderPath: 'test/fixtures/local/compare-push',
     remoteFolderPath: '',
-    ignoreConfig: false,
+    bypassConfig: false,
   })
 })
 
@@ -44,7 +44,7 @@ test('parseSyncArgs falls back to positional arguments for backward compatibilit
     mode: 'push',
     localFolderPath: 'test/fixtures/local/compare-push',
     remoteFolderPath: 'fake-remote:compare-push',
-    ignoreConfig: false,
+    bypassConfig: false,
   })
 })
 
@@ -62,7 +62,7 @@ test('parseSyncArgs ignores packaged runtime argv noise before the sync command'
     mode: 'push',
     localFolderPath: 'D:/ProjectsSynced/2025.11.2_sync-with-remote/code/sync-with-rclone/test/fixtures/local/compare-push',
     remoteFolderPath: 'fake-remote:compare-push',
-    ignoreConfig: false,
+    bypassConfig: false,
   })
 })
 
@@ -81,7 +81,7 @@ test('parseSyncArgs prefers named arguments over positional noise', () => {
     mode: 'pull',
     localFolderPath: 'test/fixtures/local/compare-push',
     remoteFolderPath: 'fake-remote:compare-pull',
-    ignoreConfig: false,
+    bypassConfig: false,
   })
 })
 
@@ -97,13 +97,13 @@ test('parseSyncArgs accepts legacy named aliases used by helper scripts', () => 
     mode: 'push',
     localFolderPath: 'test/fixtures/local/compare-push',
     remoteFolderPath: 'fake-remote:compare-push',
-    ignoreConfig: false,
+    bypassConfig: false,
   })
 })
 
-test('parseSyncArgs supports ignoreConfig as a CLI flag', () => {
+test('parseSyncArgs supports bypassConfig as a CLI flag', () => {
   const result = parseSyncArgs([
-    '--ignore-config',
+    '--bypass-config',
     '--mode=push',
     '--local=test/fixtures/local/compare-push',
     '--remote=fake-remote:compare-push',
@@ -113,13 +113,13 @@ test('parseSyncArgs supports ignoreConfig as a CLI flag', () => {
     mode: 'push',
     localFolderPath: 'test/fixtures/local/compare-push',
     remoteFolderPath: 'fake-remote:compare-push',
-    ignoreConfig: true,
+    bypassConfig: true,
   })
 })
 
-test('parseSyncArgs supports disabling ignoreConfig explicitly', () => {
+test('parseSyncArgs supports disabling bypassConfig explicitly', () => {
   const result = parseSyncArgs([
-    '--ignore-config=false',
+    '--bypass-config=false',
     '--mode=push',
     '--local=test/fixtures/local/compare-push',
     '--remote=fake-remote:compare-push',
@@ -129,6 +129,6 @@ test('parseSyncArgs supports disabling ignoreConfig explicitly', () => {
     mode: 'push',
     localFolderPath: 'test/fixtures/local/compare-push',
     remoteFolderPath: 'fake-remote:compare-push',
-    ignoreConfig: false,
+    bypassConfig: false,
   })
 })

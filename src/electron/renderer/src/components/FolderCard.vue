@@ -1,8 +1,38 @@
 <script setup>
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+
 const props = defineProps({
   side: String,
   role: String,
   content: String,
+})
+
+const contentRef = ref(null)
+const contentLines = ref(1)
+
+function updateContentLines() {
+  const el = contentRef.value
+  if (!el)
+    return
+
+  const styles = window.getComputedStyle(el)
+  let lineHeight = Number.parseFloat(styles.lineHeight)
+
+  if (Number.isNaN(lineHeight)) {
+    const fontSize = Number.parseFloat(styles.fontSize) || 10
+    lineHeight = fontSize * 1.2
+  }
+
+  const availableHeight = el.clientHeight
+  contentLines.value = Math.max(1, Math.floor((availableHeight + 0.5) / lineHeight))
+}
+
+onMounted(async () => {
+  await nextTick()
+  updateContentLines()
+})
+
+onBeforeUnmount(() => {
 })
 </script>
 
@@ -14,7 +44,11 @@ const props = defineProps({
     <div class="shrink-0 text-base leading-6 font-bold text-(--text-primary) overflow-hidden text-ellipsis whitespace-nowrap ">
       {{ $t(`context.${props.role}`, '') }}
     </div>
-    <div class="flex-1 text-[0.625rem] leading-4 font-normal text-(--primary) line-clamp-2 break-all overflow-hidden ">
+    <div
+      ref="contentRef"
+      class="flex-1 text-[0.625rem] leading-4 font-normal text-(--primary) break-all min-h-0 overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical]"
+      :style="{ '-webkit-line-clamp': String(contentLines), 'line-clamp': String(contentLines) }"
+    >
       {{ props.content }}
     </div>
     <div

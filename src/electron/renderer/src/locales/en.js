@@ -21,7 +21,10 @@ export default {
 
   windowTitle: 'Sync Session',
   cancelButton: 'Cancel',
-  confirmButton: 'Confirm',
+  confirmButton: {
+    push: 'Confirm & Push',
+    pull: 'Confirm & Pull',
+  },
   context: {
     local: 'LOCAL',
     remote: 'REMOTE',

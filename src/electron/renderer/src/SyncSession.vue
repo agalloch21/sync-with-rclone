@@ -2,6 +2,8 @@
 import { STEPS } from '#src/electron/main/session-steps.js'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import CancelButton from './components/CancelButton.vue'
+import ConfirmButton from './components/ConfirmButton.vue'
 import Content from './components/Content.vue'
 import Context from './components/Context.vue'
 import Header from './components/Header.vue'
@@ -73,12 +75,12 @@ function confirm() {
 </script>
 
 <template>
-  <div class="fixed bottom-0 right-0 w-1/2 h-1/2 text-xs overflow-auto">
+  <!-- <div class="fixed bottom-0 right-0 w-1/2 h-1/2 text-xs overflow-auto">
     <div>{{ $t('review.title') }}</div>
     <pre>{{ JSON.stringify(state, null, 4) }}</pre>
-  </div>
+  </div> -->
   <div class="flex flex-col h-dvh min-h-0 overflow-hidden bg-(--surface) border-2 border-white">
-    <header class="header-dock w-full h-14 bg-(--surface-header) content-center">
+    <header class="header-dock w-full h-14 bg-(--surface-soft) content-center">
       <Header :state="state" />
     </header>
     <main class="main-dock min-h-0 flex-1 overflow-hidden">
@@ -96,7 +98,10 @@ function confirm() {
         </div>
       </div>
     </main>
-    <footer class="footer-dock w-full h-16 bg-(--surface-footer)" />
+    <footer class="footer-dock w-full h-16 bg-(--surface-footer) flex flex-row justify-end items-center gap-6 px-6 py-4">
+      <CancelButton :state="state" />
+      <ConfirmButton :state="state" />
+    </footer>
   </div>
 </template>
 

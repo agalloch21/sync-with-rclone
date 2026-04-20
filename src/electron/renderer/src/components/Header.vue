@@ -13,17 +13,17 @@ const step = computed(() => props.state?.step || '')
     <div v-for="(value, key, index) in STEPS" :key="value" class="flex flex-row items-center gap-2">
       <div
         class="w-8 rounded-xl aspect-square text-center content-center font-semibold"
-        :class="step === value ? ['bg-[#254CE4]', 'text-[#F9F6FF]'] : ['bg-[#D2E4FF]', 'text-[#00345E]', 'opacity-40']"
+        :class="step === value ? ['bg-(--primary)', 'text-(--on-primary)'] : ['bg-(--primary-soft)', 'text-(--text-primary)', 'opacity-40']"
       >
         {{ index + 1 }}
       </div>
       <div
-        class="text-[#00345E]"
+        class="text-(--text-primary)"
         :class="step === value ? ['font-extrabold'] : ['font-medium', 'opacity-40'] "
       >
         {{ $t(`${value}.title`) }}
       </div>
-      <div v-if="index !== Object.keys(STEPS).length - 1" class="bg-[#81B5F6] w-8 h-0.5" />
+      <div v-if="index !== Object.keys(STEPS).length - 1" class="bg-(--border-accent-fade) w-8 h-0.5" />
     </div>
   </div>
 </template>

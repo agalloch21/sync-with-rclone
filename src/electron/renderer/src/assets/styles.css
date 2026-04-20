@@ -2,19 +2,30 @@
 
 :root {
   color-scheme: light;
+
   /* Window main surface.
      用在整个窗口主体、主画布、最外层内容背景。 */
   --surface: #ffffff;
 
   /* Tinted top surface.
      用在 header、顶部步骤区、需要一点品牌色氛围的浅色栏。 */
+  /* 现在还不知道要用什么名字替代, 比如--surface-soft, --primary-soft, --secondary后面再说 */
   --surface-header: #e5eeff;
 
   /* Soft bottom surface.
      用在 footer、底部操作栏、收尾区域的浅底。 */
+  /* 现在还不知道要用什么名字替代, 比如--surface-soft, --primary-soft, --secondary后面再说 */
   --surface-footer: #eff4ff;
 
+  /* Represents the background color for elements that appear "above" the base background, 
+     such as cards, modals, or dropdown menus. In dark mode, these are typically slightly lighter 
+     than the base surface to simulate physical elevation and depth.
+  */
+  --surface-elevated: #ffffff;
+
   /* Muted section surface.
+     Represents a background color with reduced visual prominence, often used for subtle sections, 
+     sidebars, or disabled-like containers. It is designed to be less distracting than the primary surface color. 
      用在 main 里需要分层的小区域，比如 source/target 信息区、次级面板、静态信息块。 */
   --surface-muted: #f8f9ff;
 
@@ -22,17 +33,17 @@
      用在当前步骤、高优先级按钮、主操作图标、焦点视觉中心、发光背景核心色。 */
   --primary: #254ce4;
 
+  /* Strong readable text color.
+     用在标题、步骤文字、主要标签、卡片主信息。它是你的主文字色。 */
+  --text-primary: #00345e;
+
   /* Soft primary fill.
      用在未激活但仍属于主流程的元素，比如未完成步骤圆点、轻选中背景、弱提示块。 */
   --primary-soft: #d2e4ff;
 
-  /* Strong readable text color.
-     用在标题、步骤文字、主要标签、卡片主信息。它是你的主文字色。 */
-  --text: #00345e;
-
-  /* Text on dark/primary backgrounds.
+  /* Elements on dark/primary backgrounds.
      用在主按钮文字、激活步骤圆点里的数字、深色底上的图标/文字。 */
-  --text-on-primary: #f9f6ff;
+  --on-primary: #f9f6ff;
 
   /* Accent border / connector color.
      用在步骤连接线、强调型分隔线、轻描边、流程连通关系。 */
@@ -40,17 +51,22 @@
 
   /* Faded accent border.
      用在渐隐分隔线两端、弱边界、需要“有线但别太重”的地方。 */
-  --border-accent-fade: rgb(129 181 246 / 0.5);
+  --border-accent-fade: #81b5f630;
 
-  --bg: #F8F9FF;
-  --panel: rgba(255, 251, 245, 0.95);
-  --line: #dacdbb;
-  --text: #2f2418;
-  --muted: #7f705f;
-  --accent: #8c5e34;
-  --added: #1f7a4d;
-  --modified: #a36a1c;
-  --deleted: #b23a3a;
+
+
+  /* 提前加的一个变量, 目前只在Card的title里用到 */
+  --text-subtle: #26619D;
+
+
+
+
+
+
+
+
+
+
 }
 
 * {
@@ -61,15 +77,15 @@
   font-family: 'JetBrainsMono';
   /* Use woff2-variations for better support */
   src: url('JetBrainsMono[wght].ttf') format('woff2-variations'),
-       url('JetBrainsMono[wght].ttf') format('woff2');
+    url('JetBrainsMono[wght].ttf') format('woff2');
   /* Define the weight range supported by the file */
-  font-weight: 100 900; 
+  font-weight: 100 900;
 }
 
 body {
   margin: 0;
   font-family: "JetBrainsMono", "Menlo", monospace;
-  color: var(--text);
+  color: var(--text-primary);
   background:
     radial-gradient(circle at top left, rgba(194, 145, 76, 0.16), transparent 25%),
     linear-gradient(180deg, #faf7f1 0%, var(--bg) 100%);
@@ -174,11 +190,11 @@ input {
   margin: 8px 0;
 }
 
-details > summary {
+details>summary {
   list-style: none;
 }
 
-details > summary::-webkit-details-marker {
+details>summary::-webkit-details-marker {
   display: none;
 }
 

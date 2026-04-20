@@ -15,12 +15,12 @@ const remotePath = computed(() => props.state?.context?.remoteFolderPath || '')
   <div class="context-stage w-11/12 h-3/4 grid grid-cols-10 place-items-stretch">
     <FolderCard
       class="col-span-4"
-      :title="$t('context.local')" :hero="mode === 'push' ? $t('context.source') : $t('context.target')" :content="localPath"
+      side="local" :role="mode === 'push' ? 'source' : 'target'" :content="localPath"
     />
     <Direction class="col-span-2" :mode="mode" />
     <FolderCard
       class="col-span-4"
-      :title="$t('context.remote')" :hero="mode === 'push' ? $t('context.target') : $t('context.source')" content="remotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePathremotePath"
+      side="remote" :role="mode === 'push' ? 'target' : 'source'" :content="remotePath"
     />
   </div>
 </template>

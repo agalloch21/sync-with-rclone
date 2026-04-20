@@ -77,26 +77,26 @@ function confirm() {
     <div>{{ $t('review.title') }}</div>
     <pre>{{ JSON.stringify(state, null, 4) }}</pre>
   </div>
-  <div class="flex flex-col h-dvh min-h-0 overflow-hidden bg-white border-2 border-white">
-    <header class="header-dock w-full h-14 bg-[#E5EEFF] content-center">
+  <div class="flex flex-col h-dvh min-h-0 overflow-hidden bg-(--surface) border-2 border-white">
+    <header class="header-dock w-full h-14 bg-(--surface-header) content-center">
       <Header :state="state" />
     </header>
     <main class="main-dock min-h-0 flex-1 overflow-hidden">
       <div
         class="main-stage h-full relative
-      before:content-[''] before:absolute before:left-0 before:right-0 before:top-[25%] before:bottom-[25%] before:bg-[#254CE4] before:opacity-20 before:blur-[100px]
+      before:content-[''] before:absolute before:left-0 before:right-0 before:top-[25%] before:bottom-[25%] before:bg-(--primary) before:opacity-20 before:blur-[100px]
         flex flex-col"
       >
-        <div class="context-dock h-30 bg-[#F8F9FF] flex flex-col justify-center items-center">
+        <div class="context-dock h-30 bg-(--surface-muted) flex flex-col justify-center items-center">
           <Context :state="state" />
         </div>
-        <div class="separator w-full h-px bg-linear-to-r from-[#81B5F680] via-[#81B5F6FF] to-[#81B5F680] opacity-30" />
+        <div class="separator w-full h-px bg-linear-to-r from-[color-mix(in_srgb,var(--border-accent)_50%,transparent)] via-(--border-accent) to-[color-mix(in_srgb,var(--border-accent)_50%,transparent)] opacity-30" />
         <div class="content-dock">
           <Content :state="state" />
         </div>
       </div>
     </main>
-    <footer class="footer-dock w-full h-16 bg-[#EFF4FF]" />
+    <footer class="footer-dock w-full h-16 bg-(--surface-footer)" />
   </div>
 </template>
 

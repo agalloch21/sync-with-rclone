@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/forms";
 
 :root {
   color-scheme: light;
@@ -96,17 +97,17 @@
 body {
   margin: 0;
   font-family: "JetBrainsMono", "Menlo", monospace;
-  color: var(--text-primary);
+  /* color: var(--text-primary);
   background:
     radial-gradient(circle at top left, rgba(194, 145, 76, 0.16), transparent 25%),
-    linear-gradient(180deg, #faf7f1 0%, var(--bg) 100%);
+    linear-gradient(180deg, #faf7f1 0%, var(--bg) 100%); */
 }
 
 button,
 input {
   font: inherit;
 }
-
+/*
 .layout {
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -317,4 +318,4 @@ details>summary::-webkit-details-marker {
 .progress-current,
 .progress-count {
   color: var(--muted);
-}
+}*/

@@ -13,7 +13,11 @@ const enabled = computed(() => step.value !== STEPS.ANALYZE || phase.value !== P
 </script>
 
 <template>
-  <div v-if="enabled" class="bg-(--surface-soft) px-5 py-2 rounded text-sm font-normal text-(--text-subtle) drop-shadow-[0_4px_4px_#00000010]">
+  <div
+    v-if="enabled"
+    class="bg-(--surface-soft) px-5 py-2 rounded text-sm font-normal text-(--text-subtle) drop-shadow-[0_4px_4px_#00000010]
+  transition-transform hover:scale-105 active:translate-px"
+  >
     {{ $t('cancelButton') }}
   </div>
 </template>

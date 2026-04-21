@@ -85,8 +85,8 @@ function confirm() {
     </header>
     <main class="main-dock min-h-0 flex-1 overflow-hidden">
       <div
-        class="main-stage h-full relative
-      before:content-[''] before:absolute before:left-0 before:right-0 before:top-[25%] before:bottom-[25%] before:bg-(--primary) before:opacity-20 before:blur-[100px] before:pointer-events-none
+        class="main-stage h-full relative z-0
+      before:content-[''] before:absolute before:left-0 before:right-0 before:top-10 before:bottom-10 before:bg-(--primary) before:opacity-10 before:blur-[100px] before:pointer-events-none before:-z-1
         flex flex-col"
       >
         <div class="context-dock h-30 bg-(--surface-muted) flex flex-col justify-center items-center">

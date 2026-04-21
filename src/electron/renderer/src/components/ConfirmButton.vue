@@ -12,7 +12,11 @@ const enabled = computed(() => step.value === STEPS.REVIEW)
 </script>
 
 <template>
-  <div v-if="enabled" class="bg-(--primary) px-8 py-2 rounded text-sm font-bold text-(--on-primary) drop-shadow-[0_4px_6px_color-mix(in_srgb,var(--primary)_40%,transparent)]">
+  <div
+    v-if="enabled"
+    class="bg-(--primary) px-8 py-2 rounded text-sm font-bold text-(--on-primary) drop-shadow-[0_4px_6px_color-mix(in_srgb,var(--primary)_40%,transparent)]
+  transition-transform hover:scale-105 active:translate-px"
+  >
     {{ $t(`confirmButton.${mode}`) }}
   </div>
 </template>

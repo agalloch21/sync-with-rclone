@@ -1,6 +1,6 @@
 <script setup>
 import { STEPS } from '#src/electron/main/session-steps.js'
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CancelButton from './components/CancelButton.vue'
 import ConfirmButton from './components/ConfirmButton.vue'
@@ -15,37 +15,14 @@ const state = ref(null)
 const errorMessage = ref('')
 const selection = reactive({})
 
-const reviewPayload = computed(() => state.value?.review || null)
-const progressEvent = computed(() => state.value?.phase || null)
-const progressMessage = computed(() => progressEvent.value?.message || 'Waiting for execution...')
-const progressPhase = computed(() => progressEvent.value?.name || '')
-const progressStatus = computed(() => progressEvent.value?.status || 'idle')
-const selectedCount = computed(() => Object.values(selection).filter(Boolean).length)
-
-function visitTree(nodes, visit) {
-  for (const node of nodes) {
-    visit(node)
-    if (node.children)
-      visitTree(node.children, visit)
-  }
-}
-
-function initializeSelection(tree) {
-  for (const key of Object.keys(selection))
-    delete selection[key]
-
-  visitTree(tree, (node) => {
-    selection[node.path] = true
-  })
-}
+provide('state', state)
+provide('selection', selection)
 
 let disposeProgressListener = null
 onMounted(() => {
   window.syncSession.getState()
     .then((fullState) => {
       state.value = fullState
-      if (fullState?.review?.tree)
-        initializeSelection(fullState.review.tree)
     })
     .catch((error) => {
       errorMessage.value = error?.message || String(error)
@@ -53,8 +30,6 @@ onMounted(() => {
 
   disposeProgressListener = window.syncSession.onReceiveProgressEvent((patchState) => {
     state.value = { ...state.value, ...patchState }
-    if (patchState.review?.tree)
-      initializeSelection(patchState.review.tree)
   })
 })
 
@@ -89,18 +64,18 @@ function confirm() {
       before:content-[''] before:absolute before:left-0 before:right-0 before:top-10 before:bottom-10 before:bg-(--primary) before:opacity-10 before:blur-[100px] before:pointer-events-none before:-z-1
         flex flex-col"
       >
-        <div class="context-dock h-30 bg-(--surface-muted) flex flex-col justify-center items-center">
+        <div class="context-dock h-30 shrink-0 bg-(--surface-muted) flex flex-col justify-center items-center">
           <Context :state="state" />
         </div>
-        <div class="separator w-full h-px bg-linear-to-r from-[color-mix(in_srgb,var(--border-accent)_50%,transparent)] via-(--border-accent) to-[color-mix(in_srgb,var(--border-accent)_50%,transparent)] opacity-30" />
-        <div class="content-dock">
+        <div class="separator w-full h-px shrink-0 bg-linear-to-r from-[color-mix(in_srgb,var(--border-accent)_50%,transparent)] via-(--border-accent) to-[color-mix(in_srgb,var(--border-accent)_50%,transparent)] opacity-30" />
+        <div class="content-dock min-h-0 flex-1">
           <Content :state="state" />
         </div>
       </div>
     </main>
     <footer class="footer-dock w-full h-16 bg-(--surface-footer) flex flex-row justify-end items-center gap-6 px-6 py-4">
-      <CancelButton :state="state" />
-      <ConfirmButton :state="state" />
+      <CancelButton :state="state" @click="cancel()" />
+      <ConfirmButton :state="state" @click="confirm()" />
     </footer>
   </div>
 </template>

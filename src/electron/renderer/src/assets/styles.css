@@ -42,6 +42,8 @@
      用在未激活但仍属于主流程的元素，比如未完成步骤圆点、轻选中背景、弱提示块。 */
   --primary-soft: #d2e4ff;
 
+  --primary-hover: #1e3db3;
+
   /* Elements on dark/primary backgrounds.
      用在主按钮文字、激活步骤圆点里的数字、深色底上的图标/文字。 */
   --on-primary: #f9f6ff;
@@ -106,6 +108,10 @@ body {
 button,
 input {
   font: inherit;
+}
+
+.clickable{
+@apply transition-transform hover:scale-105 active:translate-px cursor-pointer;
 }
 /*
 .layout {

@@ -19,9 +19,9 @@ export async function runWithReporter(reporter, phase, fn, message) {
   reporter.started(phase, message)
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 2000))
     const result = await fn()
     reporter.done(phase)
+    await new Promise(resolve => setTimeout(resolve, 2000))
     return result
   }
   catch (error) {

@@ -46,12 +46,12 @@ transition: transform 0.5s ease;
 }
 .slide-fade-enter-active,
 .slide-fade-leave-active {
-  transition: all 1s ease;
+  transition: all 1s 0.5s ease;
 }
 
 .slide-fade-enter-from,
 .slide-fade-leave-to {
-  transform: translateX(2rem);
+  /* transform: translateX(2rem); */
   opacity: 0;
 }
 </style>

@@ -250,11 +250,10 @@ async function applyRmdirPhase(phase, runtimePaths, runCommand) {
   }
 }
 
-export async function applySyncPlan(syncPlan, context, hooks = {}) {
+export async function applySyncPlan(syncPlan, context, hooks) {
   const execution = buildApplyExecution(syncPlan, context)
 
   if (execution.action !== 'confirm') {
-    await hooks.onEvent?.({ type: 'cancel', execution })
     return {
       action: 'cancel',
       phases: [],

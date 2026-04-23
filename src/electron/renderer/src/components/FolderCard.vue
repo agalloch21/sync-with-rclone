@@ -39,39 +39,19 @@ function updateDisplayContent() {
     return
   }
 
-  const styles = window.getComputedStyle(el)
-  const measureEl = document.createElement('div')
-
-  measureEl.style.position = 'fixed'
-  measureEl.style.left = '-9999px'
-  measureEl.style.top = '-9999px'
-  measureEl.style.visibility = 'hidden'
-  measureEl.style.pointerEvents = 'none'
-  measureEl.style.width = `${el.clientWidth}px`
-  measureEl.style.font = styles.font
-  measureEl.style.lineHeight = styles.lineHeight
-  measureEl.style.letterSpacing = styles.letterSpacing
-  measureEl.style.whiteSpace = styles.whiteSpace
-  measureEl.style.wordBreak = styles.wordBreak
-  measureEl.style.overflowWrap = styles.overflowWrap
-
-  document.body.append(measureEl)
-
   function fitsInTwoLines(text) {
-    measureEl.textContent = text
-    return measureEl.scrollHeight <= el.clientHeight + 0.5
+    el.textContent = text
+    return el.scrollHeight <= el.clientHeight + 0.5
   }
 
   for (const candidate of getPathCandidates(content)) {
     if (fitsInTwoLines(candidate)) {
       displayContent.value = candidate
-      measureEl.remove()
       return
     }
   }
 
   displayContent.value = '...'
-  measureEl.remove()
 }
 
 onMounted(async () => {

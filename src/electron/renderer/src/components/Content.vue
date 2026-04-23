@@ -9,7 +9,8 @@ const props = defineProps({
   state: Object,
 })
 
-const step = computed(() => props.state?.step?.length > 0 ? props.state.step : '')
+// const step = computed(() => props.state?.step?.length > 0 ? props.state.step : '')
+const step = STEPS.SYNC
 </script>
 
 <template>

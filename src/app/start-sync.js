@@ -34,9 +34,6 @@ export async function startSync(options, hooks = {}) {
   hooks.onOptionsResolved(resolvedOptions)
 
   const result = await syncCore(resolvedOptions, hooks)
-  // const applyResult = await applySyncPlan(result.syncPlan, result.options, {
-  //   onEvent: hooks.onApplyEvent,
-  // })
 
   return {
     ...result,

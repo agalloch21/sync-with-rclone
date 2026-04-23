@@ -8,31 +8,91 @@ const props = defineProps({
 })
 
 const contentRef = ref(null)
-const contentLines = ref(1)
+const displayContent = ref('')
 
-function updateContentLines() {
+let resizeObserver
+
+function getPathCandidates(content) {
+  const normalized = content.replace(/[\\/]+$/, '')
+  const candidates = [normalized]
+  const segments = normalized.split(/[\\/]+/).filter(Boolean)
+  const leadingSeparator = normalized.match(/^[\\/]+/)?.[0] || ''
+  const separator = normalized.includes('\\') ? '\\' : '/'
+
+  for (let index = 1; index < segments.length; index += 1) {
+    const remainingPath = `${leadingSeparator}${segments.slice(index).join(separator)}`
+    candidates.push(`...${remainingPath}`)
+  }
+
+  candidates.push('...')
+  return [...new Set(candidates)]
+}
+
+function updateDisplayContent() {
   const el = contentRef.value
+  const content = props.content || ''
   if (!el)
     return
 
-  const styles = window.getComputedStyle(el)
-  let lineHeight = Number.parseFloat(styles.lineHeight)
-
-  if (Number.isNaN(lineHeight)) {
-    const fontSize = Number.parseFloat(styles.fontSize) || 10
-    lineHeight = fontSize * 1.2
+  if (!content) {
+    displayContent.value = ''
+    return
   }
 
-  const availableHeight = el.clientHeight
-  contentLines.value = Math.max(1, Math.floor((availableHeight + 0.5) / lineHeight))
+  const styles = window.getComputedStyle(el)
+  const measureEl = document.createElement('div')
+
+  measureEl.style.position = 'fixed'
+  measureEl.style.left = '-9999px'
+  measureEl.style.top = '-9999px'
+  measureEl.style.visibility = 'hidden'
+  measureEl.style.pointerEvents = 'none'
+  measureEl.style.width = `${el.clientWidth}px`
+  measureEl.style.font = styles.font
+  measureEl.style.lineHeight = styles.lineHeight
+  measureEl.style.letterSpacing = styles.letterSpacing
+  measureEl.style.whiteSpace = styles.whiteSpace
+  measureEl.style.wordBreak = styles.wordBreak
+  measureEl.style.overflowWrap = styles.overflowWrap
+
+  document.body.append(measureEl)
+
+  function fitsInTwoLines(text) {
+    measureEl.textContent = text
+    return measureEl.scrollHeight <= el.clientHeight + 0.5
+  }
+
+  for (const candidate of getPathCandidates(content)) {
+    if (fitsInTwoLines(candidate)) {
+      displayContent.value = candidate
+      measureEl.remove()
+      return
+    }
+  }
+
+  displayContent.value = '...'
+  measureEl.remove()
 }
 
 onMounted(async () => {
   await nextTick()
-  updateContentLines()
+  updateDisplayContent()
+
+  resizeObserver = new ResizeObserver(() => {
+    updateDisplayContent()
+  })
+
+  if (contentRef.value)
+    resizeObserver.observe(contentRef.value)
 })
 
 onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+})
+
+watch(() => props.content, async () => {
+  await nextTick()
+  updateDisplayContent()
 })
 </script>
 
@@ -46,10 +106,11 @@ onBeforeUnmount(() => {
     </div>
     <div
       ref="contentRef"
-      class="flex-1 text-[0.625rem] leading-4 font-normal text-(--primary) break-all min-h-0 overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical]"
-      :style="{ '-webkit-line-clamp': String(contentLines), 'line-clamp': String(contentLines) }"
+      class="flex-1 max-h-8 text-[0.625rem] leading-4 font-normal text-(--primary) min-h-0 break-all overflow-hidden"
+      :title="props.content"
+      :aria-label="props.content"
     >
-      {{ props.content }}
+      {{ displayContent }}
     </div>
     <div
       class="absolute top-2 right-2"

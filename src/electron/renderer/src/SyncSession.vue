@@ -2,10 +2,10 @@
 import { STEPS } from '#src/electron/main/session-steps.js'
 import { computed, onBeforeUnmount, onMounted, provide, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import CancelButton from './components/CancelButton.vue'
-import ConfirmButton from './components/ConfirmButton.vue'
+
 import Content from './components/Content.vue'
 import Context from './components/Context.vue'
+import Footer from './components/Footer.vue'
 import Header from './components/Header.vue'
 
 const { t, locale } = useI18n()
@@ -73,9 +73,8 @@ function confirm() {
         </div>
       </div>
     </main>
-    <footer class="footer-dock w-full h-16 bg-(--surface-footer) flex flex-row justify-end items-center gap-6 px-6 py-4">
-      <CancelButton :state="state" @click="cancel()" />
-      <ConfirmButton :state="state" @click="confirm()" />
+    <footer class="footer-dock w-full h-16 bg-(--surface-footer)">
+      <Footer @on-click-cancel="cancel()" @on-click-confirm="confirm()" />
     </footer>
   </div>
 </template>

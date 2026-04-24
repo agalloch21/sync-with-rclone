@@ -111,6 +111,7 @@ export function buildApplyExecution(syncPlan, context) {
   if (mkdirPaths.length > 0) {
     phases.push({
       type: 'mkdir',
+      description: 'creating directories',
       strategy: executionRoots.destinationKind === 'remote' ? 'per-path-rclone' : 'per-path-fs',
       targetKind: executionRoots.destinationKind,
       root: executionRoots.destinationRoot,
@@ -121,6 +122,7 @@ export function buildApplyExecution(syncPlan, context) {
   if (copyPaths.length > 0) {
     phases.push({
       type: 'copy',
+      description: 'copying files',
       strategy: executionRoots.sourceKind === 'remote' || executionRoots.destinationKind === 'remote'
         ? 'batch-rclone-files-from'
         : 'per-path-fs',
@@ -135,6 +137,7 @@ export function buildApplyExecution(syncPlan, context) {
   if (deletePaths.length > 0) {
     phases.push({
       type: 'delete',
+      description: 'deleting files',
       strategy: executionRoots.destinationKind === 'remote' ? 'batch-rclone-files-from' : 'per-path-fs',
       targetKind: executionRoots.destinationKind,
       root: executionRoots.destinationRoot,
@@ -145,6 +148,7 @@ export function buildApplyExecution(syncPlan, context) {
   if (rmdirPaths.length > 0) {
     phases.push({
       type: 'rmdir',
+      description: 'deleting directories',
       strategy: executionRoots.destinationKind === 'remote' ? 'per-path-rclone' : 'per-path-fs',
       targetKind: executionRoots.destinationKind,
       root: executionRoots.destinationRoot,
@@ -261,55 +265,35 @@ export async function applySyncPlan(syncPlan, context, hooks) {
   }
 
   const executionHooks = {
-    runCommand: hooks.runCommand || defaultRunCommand,
-    createBatchFile: hooks.createBatchFile || defaultCreateBatchFile,
-    removeBatchFile: hooks.removeBatchFile || defaultRemoveBatchFile,
+    runCommand: hooks.deps.runCommand || defaultRunCommand,
+    createBatchFile: hooks.deps.createBatchFile || defaultCreateBatchFile,
+    removeBatchFile: hooks.deps.removeBatchFile || defaultRemoveBatchFile,
   }
 
-  await hooks.onEvent?.({
-    type: 'start',
-    execution,
-  })
+  hooks.events.progress?.(0, execution.phases.length + 1, 'start')
 
   try {
     for (const [index, phase] of execution.phases.entries()) {
-      await hooks.onEvent?.({
-        type: 'phase-start',
-        phase,
-        phaseIndex: index,
-        phaseCount: execution.phases.length,
-      })
+      hooks.events.progress?.(index + 1, execution.phases.length + 1, phase.type)
 
-      if (phase.type === 'mkdir')
-        await applyMkdirPhase(phase, context.runtimePaths, executionHooks.runCommand)
-      else if (phase.type === 'copy')
-        await applyCopyPhase(phase, context.runtimePaths, executionHooks)
-      else if (phase.type === 'delete')
-        await applyDeletePhase(phase, context.runtimePaths, executionHooks)
-      else if (phase.type === 'rmdir')
-        await applyRmdirPhase(phase, context.runtimePaths, executionHooks.runCommand)
+      await new Promise(resolve => setTimeout(resolve, 5000))
 
-      await hooks.onEvent?.({
-        type: 'phase-complete',
-        phase,
-        phaseIndex: index,
-        phaseCount: execution.phases.length,
-      })
+      // if (phase.type === 'mkdir')
+      //   await applyMkdirPhase(phase, context.runtimePaths, executionHooks.runCommand)
+      // else if (phase.type === 'copy')
+      //   await applyCopyPhase(phase, context.runtimePaths, executionHooks)
+      // else if (phase.type === 'delete')
+      //   await applyDeletePhase(phase, context.runtimePaths, executionHooks)
+      // else if (phase.type === 'rmdir')
+      //   await applyRmdirPhase(phase, context.runtimePaths, executionHooks.runCommand)
     }
   }
   catch (error) {
-    await hooks.onEvent?.({
-      type: 'error',
-      execution,
-      message: error?.message || String(error),
-    })
+    hooks.events.error?.(error?.message || String(error))
     throw error
   }
 
-  await hooks.onEvent?.({
-    type: 'complete',
-    execution,
-  })
+  hooks.events.progress?.(execution.phases.length + 1, execution.phases.length + 1, 'complete')
 
   return {
     action: 'confirm',

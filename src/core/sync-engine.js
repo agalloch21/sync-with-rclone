@@ -109,7 +109,21 @@ export async function syncCore(options, hooks = {}) {
   const appliedResult = await runWithReporter(
     reporter,
     PHASES.APPLY_PLAN,
-    () => applySyncPlan(syncPlan, normalizedOptions, hooks.onProgress),
+    () => applySyncPlan(syncPlan, normalizedOptions, {
+      deps: {
+        runCommand: hooks.defaultRunCommand,
+        createBatchFile: hooks.defaultCreateBatchFile,
+        removeBatchFile: hooks.defaultRemoveBatchFile,
+      },
+      events: {
+        progress(current, total, message) {
+          reporter.progress(PHASES.APPLY_PLAN, current, total, message)
+        },
+        error(error) {
+          reporter.error(error)
+        },
+      },
+    }),
     'Applying operations',
   )
 

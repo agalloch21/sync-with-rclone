@@ -64,7 +64,7 @@ function initializeSelection(tree) {
 watch(() => state.value?.review, (newValue, _) => {
   if (newValue?.tree)
     initializeSelection(newValue.tree)
-})
+}, { immediate: true })
 </script>
 
 <template>

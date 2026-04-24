@@ -20,11 +20,6 @@ export default {
   [PHASES.APPLY_PLAN]: 'Applying operations',
 
   windowTitle: 'Sync Session',
-  cancelButton: 'Cancel',
-  confirmButton: {
-    push: 'Confirm & Push',
-    pull: 'Confirm & Pull',
-  },
   context: {
     local: 'LOCAL',
     remote: 'REMOTE',
@@ -32,5 +27,18 @@ export default {
     target: 'TARGET',
     push: 'PUSH TO',
     pull: 'PULL FROM',
+  },
+  cancelButton: 'Cancel',
+  confirmButton: {
+    push: 'Confirm & Push',
+    pull: 'Confirm & Pull',
+  },
+  syncPhases: {
+    start: 'start applying execution phases',
+    mkdir: 'creating directories',
+    copy: 'copying files',
+    delete: 'deleting files',
+    rmdir: 'deleting directories',
+    complete: 'complete applying execution phases',
   },
 }

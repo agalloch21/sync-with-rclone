@@ -73,12 +73,12 @@ app.whenReady().then(async () => {
     }
     else {
       console.log(`Sync finished with ${result.applyResult?.phases?.length || 0} phase(s)`)
-      await dialog.showMessageBox({
-        type: 'info',
-        title: 'Sync Completed',
-        message: 'Sync completed successfully',
-        detail: `Executed ${result.applyResult?.phases?.length || 0} phase(s).`,
-      })
+      // await dialog.showMessageBox({
+      //   type: 'info',
+      //   title: 'Sync Completed',
+      //   message: 'Sync completed successfully',
+      //   detail: `Executed ${result.applyResult?.phases?.length || 0} phase(s).`,
+      // })
     }
 
     sessionWindowHooks.closeWindow()

@@ -1,5 +1,5 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   side: String,
@@ -8,9 +8,25 @@ const props = defineProps({
 })
 
 const contentRef = ref(null)
+const tooltipRef = ref(null)
 const displayContent = ref('')
+const isTooltipVisible = ref(false)
+const tooltipX = ref(0)
+const tooltipY = ref(0)
+
+const shouldShowTooltip = computed(() => {
+  return Boolean(props.content) && displayContent.value !== (props.content || '')
+})
 
 let resizeObserver
+let tooltipTimer
+let suppressTooltipUntilContentLeave = false
+
+const TOOLTIP_OFFSET_X = 0
+const TOOLTIP_OFFSET_Y = 0
+const TOOLTIP_MARGIN = 12
+const TOOLTIP_MAX_WIDTH = 224
+const TOOLTIP_DELAY_MS = 2000
 
 function getPathCandidates(content) {
   const normalized = content.replace(/[\\/]+$/, '')
@@ -54,6 +70,83 @@ function updateDisplayContent() {
   displayContent.value = '...'
 }
 
+function updateTooltipPosition(event) {
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const tooltipWidth = Math.min(TOOLTIP_MAX_WIDTH, viewportWidth - TOOLTIP_MARGIN * 2)
+  const estimatedTooltipHeight = 80
+
+  let nextX = event.clientX + TOOLTIP_OFFSET_X
+  let nextY = event.clientY + TOOLTIP_OFFSET_Y
+
+  if (nextX + tooltipWidth > viewportWidth - TOOLTIP_MARGIN)
+    nextX = Math.max(TOOLTIP_MARGIN, event.clientX - tooltipWidth - TOOLTIP_OFFSET_X)
+
+  if (nextY + estimatedTooltipHeight > viewportHeight - TOOLTIP_MARGIN)
+    nextY = Math.max(TOOLTIP_MARGIN, event.clientY - estimatedTooltipHeight - TOOLTIP_OFFSET_Y)
+
+  tooltipX.value = nextX
+  tooltipY.value = nextY
+}
+
+function isMovingBetweenContentAndTooltip(target) {
+  if (!(target instanceof Node))
+    return false
+
+  return contentRef.value?.contains(target) || tooltipRef.value?.contains(target)
+}
+
+function scheduleTooltip(event) {
+  if (!shouldShowTooltip.value || suppressTooltipUntilContentLeave)
+    return
+
+  if (isTooltipVisible.value)
+    return
+
+  updateTooltipPosition(event)
+
+  clearTimeout(tooltipTimer)
+  tooltipTimer = setTimeout(() => {
+    isTooltipVisible.value = true
+    tooltipTimer = null
+  }, TOOLTIP_DELAY_MS)
+}
+
+function handleContentMouseMove(event) {
+  if (!isTooltipVisible.value)
+    updateTooltipPosition(event)
+}
+
+function handleContentMouseEnter(event) {
+  scheduleTooltip(event)
+}
+
+function hideTooltip() {
+  clearTimeout(tooltipTimer)
+  tooltipTimer = null
+  isTooltipVisible.value = false
+}
+
+function handleContentMouseLeave(event) {
+  suppressTooltipUntilContentLeave = false
+
+  if (isMovingBetweenContentAndTooltip(event.relatedTarget))
+    return
+
+  hideTooltip()
+}
+
+function handleTooltipMouseEnter() {
+  clearTimeout(tooltipTimer)
+  tooltipTimer = null
+  isTooltipVisible.value = true
+}
+
+function handleTooltipMouseLeave(event) {
+  suppressTooltipUntilContentLeave = true
+  hideTooltip()
+}
+
 onMounted(async () => {
   await nextTick()
   updateDisplayContent()
@@ -68,11 +161,15 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
+  clearTimeout(tooltipTimer)
+  tooltipTimer = null
 })
 
 watch(() => props.content, async () => {
   await nextTick()
   updateDisplayContent()
+  if (!shouldShowTooltip.value)
+    hideTooltip()
 })
 </script>
 
@@ -86,9 +183,11 @@ watch(() => props.content, async () => {
     </div>
     <div
       ref="contentRef"
-      class="flex-1 max-h-8 text-[0.625rem] leading-4 font-normal text-(--primary) min-h-0 break-all overflow-hidden"
-      :title="props.content"
+      class="h-8 max-h-8 text-[0.625rem] leading-4 font-normal text-(--primary) min-h-0 break-all overflow-hidden"
       :aria-label="props.content"
+      @mouseenter="handleContentMouseEnter"
+      @mousemove="handleContentMouseMove"
+      @mouseleave="handleContentMouseLeave"
     >
       {{ displayContent }}
     </div>
@@ -115,4 +214,31 @@ watch(() => props.content, async () => {
       </svg>
     </div>
   </div>
+  <Teleport to="body">
+    <Transition name="tooltip-fade">
+      <div
+        v-if="isTooltipVisible && shouldShowTooltip"
+        ref="tooltipRef"
+        class="fixed z-50 max-w-56 rounded-md border border-(--border-accent-fade) bg-(--surface-elevated) px-3 py-2 text-[0.625rem] leading-3 text-(--text-primary) shadow-lg break-all"
+        :style="{ left: `${tooltipX}px`, top: `${tooltipY}px` }"
+        @mouseenter="handleTooltipMouseEnter"
+        @mouseleave="handleTooltipMouseLeave"
+      >
+        {{ props.content }}
+      </div>
+    </Transition>
+  </Teleport>
 </template>
+
+<style scoped>
+.tooltip-fade-enter-active,
+.tooltip-fade-leave-active {
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.tooltip-fade-enter-from,
+.tooltip-fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+</style>

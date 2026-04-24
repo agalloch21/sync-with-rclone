@@ -81,7 +81,7 @@ function onToggle(event) {
       >
       <div class="information">
         <div class="icon" :class="`${node.state}`" />
-        <span class="">{{ node.name }}</span>
+        <span class="name">{{ node.name }}</span>
         <div class="meta">
           <span>{{ formatBytes(node.size) }}</span>
         </div>
@@ -133,6 +133,9 @@ input[type="checkbox"]{
 }
 .information{
 @apply ml-(--arrow-offset-to-align-with-checkbox) flex items-center gap-(--information-gap);
+}
+.name{
+user-select:text;
 }
 .meta{
   @apply ml-4 flex justify-start items-center gap-3 text-xs text-(--text-subtle);

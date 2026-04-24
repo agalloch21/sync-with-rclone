@@ -54,7 +54,7 @@ function confirm() {
     <div>{{ $t('review.title') }}</div>
     <pre>{{ JSON.stringify(state, null, 4) }}</pre>
   </div> -->
-  <div class="flex flex-col h-dvh min-h-0 overflow-hidden bg-(--surface) border-2 border-white">
+  <div class="flex flex-col h-dvh min-h-0 overflow-hidden bg-(--surface) border-2 border-white no-select no-callout">
     <header class="header-dock w-full h-14 bg-(--surface-soft) content-center">
       <Header :state="state" />
     </header>

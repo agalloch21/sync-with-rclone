@@ -1,0 +1,65 @@
+/*
+什么是 callout？
+
+你写的 -webkit-touch-callout: none; 主要针对 iOS Safari 的一种“触摸呼出 UI”——常见是：
+- 长按链接弹出操作菜单（打开/拷贝链接等）
+- 长按图片弹出“存储图像/复制”等
+- 长按某些文本区域弹出复制相关气泡
+它不是一个标准 CSS 属性（是 WebKit 前缀的私有扩展），所以行为会因 iOS/Safari 版本与元素类型而异。
+
+---
+user-select 都有哪些选项？
+
+user-select 控制用户是否能选中内容（高亮文本、复制等）。常见值：
+- none：不可选中（按钮、图标、装饰文字很常用）
+- text：可选中（正文内容区）
+- all：点击一次就选中整个元素内容（适合“一键复制”的代码块/账号等）
+- auto：默认行为（由浏览器决定）
+- contain：限制选择行为在元素内部（支持情况不如前几个常见）
+工程上你最常用的基本就这三个：none / text / all。
+
+---
+touch-action 都有哪些选项？
+
+touch-action 是 Pointer Events 体系里非常关键的属性，用来告诉浏览器：这个元素上触摸时，哪些手势默认行为（滚动/缩放等）允许浏览器接管。
+常见值（你会用到的）：
+- auto：默认（浏览器自己判断滚动/缩放等）
+- none：不允许浏览器处理任何默认触摸手势（会导致不能滚动/不能缩放，除非你自己实现）
+- manipulation：允许“基础操作”（通常意味着允许滚动，但抑制双击缩放等；不同浏览器细节略有差异，但用途就是“更像按钮”）
+- pan-x / pan-y：只允许沿某个方向滚动（非常适合：横向滑条 / 纵向列表）
+- pinch-zoom：允许捏合缩放
+组合：比如 pan-y pinch-zoom（允许纵向滚动 + 捏合缩放）
+
+记住一句口诀：
+内容区：通常 touch-action: auto（让滚动自然发生）
+控件区：通常 touch-action: manipulation 或 none（减少系统接管，保证你能收到 down/up）
+需要保留滚动的容器：pan-y 或 pan-x 最精确
+*/
+
+/* 1) 默认：装置 UI 大多数地方不应被选中 */
+.no-select { user-select: none; }
+
+/* 2) 放行：真正内容区允许选中复制 */
+.allow-select { user-select: text; }
+
+/* 3) iOS 长按 callout 控制（只对需要的元素加） */
+.no-callout { -webkit-touch-callout: none; }
+
+/* 4) 禁止拖拽图片（更稳定：img 也加 draggable=false） */
+.no-drag { -webkit-user-drag: none; user-select: none; }
+
+/* 5) 可按压控件：减少手势干扰 */
+.pressable { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* 按住类强控件（如录音键）：更强 */
+.pressable--strict { touch-action: none; }
+
+/* 6) Hover 只在真正支持 hover 的设备启用，避免手机粘 hover */
+@media (hover: hover) and (pointer: fine) {
+  .hoverable { transition: transform 120ms ease, filter 120ms ease; }
+  .hoverable:hover { filter: brightness(1.06); transform:scale(1.05) !important; }
+}
+
+/* 7) :active 作为轻量按下反馈（通用按钮足够） */
+.activeable { transition: transform 120ms ease, filter 120ms ease; }
+.activeable:active { transform: scale(0.95) !important; }

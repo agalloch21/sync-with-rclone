@@ -20,13 +20,14 @@ const shouldShowTooltip = computed(() => {
 
 let resizeObserver
 let tooltipTimer
-let suppressTooltipUntilContentLeave = false
+let tooltipHideTimer
 
 const TOOLTIP_OFFSET_X = 0
 const TOOLTIP_OFFSET_Y = 0
 const TOOLTIP_MARGIN = 12
-const TOOLTIP_MAX_WIDTH = 224
+const TOOLTIP_MAX_WIDTH_PX = 224 // max-w-56
 const TOOLTIP_DELAY_MS = 2000
+const TOOLTIP_HIDE_DELAY_MS = 80
 
 function getPathCandidates(content) {
   const normalized = content.replace(/[\\/]+$/, '')
@@ -72,37 +73,24 @@ function updateDisplayContent() {
 
 function updateTooltipPosition(event) {
   const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-  const tooltipWidth = Math.min(TOOLTIP_MAX_WIDTH, viewportWidth - TOOLTIP_MARGIN * 2)
-  const estimatedTooltipHeight = 80
+  const tooltipWidth = Math.min(TOOLTIP_MAX_WIDTH_PX, viewportWidth - TOOLTIP_MARGIN * 2)
 
   let nextX = event.clientX + TOOLTIP_OFFSET_X
-  let nextY = event.clientY + TOOLTIP_OFFSET_Y
+  const nextY = event.clientY + TOOLTIP_OFFSET_Y
 
   if (nextX + tooltipWidth > viewportWidth - TOOLTIP_MARGIN)
-    nextX = Math.max(TOOLTIP_MARGIN, event.clientX - tooltipWidth - TOOLTIP_OFFSET_X)
-
-  if (nextY + estimatedTooltipHeight > viewportHeight - TOOLTIP_MARGIN)
-    nextY = Math.max(TOOLTIP_MARGIN, event.clientY - estimatedTooltipHeight - TOOLTIP_OFFSET_Y)
+    nextX = Math.max(TOOLTIP_MARGIN, viewportWidth - TOOLTIP_MARGIN - tooltipWidth)
 
   tooltipX.value = nextX
   tooltipY.value = nextY
 }
 
-function isMovingBetweenContentAndTooltip(target) {
-  if (!(target instanceof Node))
-    return false
-
-  return contentRef.value?.contains(target) || tooltipRef.value?.contains(target)
-}
-
 function scheduleTooltip(event) {
-  if (!shouldShowTooltip.value || suppressTooltipUntilContentLeave)
+  if (!shouldShowTooltip.value || isTooltipVisible.value)
     return
 
-  if (isTooltipVisible.value)
-    return
-
+  clearTimeout(tooltipHideTimer)
+  tooltipHideTimer = null
   updateTooltipPosition(event)
 
   clearTimeout(tooltipTimer)
@@ -112,38 +100,48 @@ function scheduleTooltip(event) {
   }, TOOLTIP_DELAY_MS)
 }
 
+function hideTooltip() {
+  clearTimeout(tooltipTimer)
+  tooltipTimer = null
+  clearTimeout(tooltipHideTimer)
+  tooltipHideTimer = null
+  isTooltipVisible.value = false
+}
+
+function scheduleHideTooltip() {
+  clearTimeout(tooltipHideTimer)
+  tooltipHideTimer = setTimeout(() => {
+    isTooltipVisible.value = false
+    tooltipHideTimer = null
+  }, TOOLTIP_HIDE_DELAY_MS)
+}
+
 function handleContentMouseMove(event) {
-  if (!isTooltipVisible.value)
-    updateTooltipPosition(event)
+  if (!isTooltipVisible.value) {
+    scheduleTooltip(event)
+    return
+  }
+
+  scheduleHideTooltip()
 }
 
 function handleContentMouseEnter(event) {
   scheduleTooltip(event)
 }
 
-function hideTooltip() {
-  clearTimeout(tooltipTimer)
-  tooltipTimer = null
-  isTooltipVisible.value = false
+function handleContentMouseLeave(_event) {
+  scheduleHideTooltip()
 }
 
-function handleContentMouseLeave(event) {
-  suppressTooltipUntilContentLeave = false
-
-  if (isMovingBetweenContentAndTooltip(event.relatedTarget))
-    return
-
-  hideTooltip()
-}
-
-function handleTooltipMouseEnter() {
+function handleTooltipMouseEnter(_event) {
   clearTimeout(tooltipTimer)
   tooltipTimer = null
+  clearTimeout(tooltipHideTimer)
+  tooltipHideTimer = null
   isTooltipVisible.value = true
 }
 
-function handleTooltipMouseLeave(event) {
-  suppressTooltipUntilContentLeave = true
+function handleTooltipMouseLeave(_event) {
   hideTooltip()
 }
 
@@ -163,6 +161,8 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   clearTimeout(tooltipTimer)
   tooltipTimer = null
+  clearTimeout(tooltipHideTimer)
+  tooltipHideTimer = null
 })
 
 watch(() => props.content, async () => {
@@ -219,8 +219,8 @@ watch(() => props.content, async () => {
       <div
         v-if="isTooltipVisible && shouldShowTooltip"
         ref="tooltipRef"
-        class="fixed z-50 max-w-56 rounded-md border border-(--border-accent-fade) bg-(--surface-elevated) px-3 py-2 text-[0.625rem] leading-3 text-(--text-primary) shadow-lg break-all"
-        :style="{ left: `${tooltipX}px`, top: `${tooltipY}px` }"
+        class="fixed z-50 rounded-md border border-(--border-accent-fade) bg-(--surface-elevated) px-3 py-2 text-[0.625rem] leading-3 text-(--text-primary) shadow-lg break-all"
+        :style="{ left: `${tooltipX}px`, top: `${tooltipY}px`, maxWidth: `${TOOLTIP_MAX_WIDTH_PX}px` }"
         @mouseenter="handleTooltipMouseEnter"
         @mouseleave="handleTooltipMouseLeave"
       >

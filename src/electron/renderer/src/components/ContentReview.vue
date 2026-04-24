@@ -53,7 +53,9 @@ function initializeSelection(tree) {
   for (const key of Object.keys(selection))
     delete selection[key]
 
-  visitTree(tree, (node) => {
+  selection[tree.path] = true
+
+  visitTree(tree.children, (node) => {
     selection[node.path] = true
   })
 
@@ -68,21 +70,21 @@ watch(() => state.value?.review, (newValue, _) => {
 </script>
 
 <template>
-  <div class="tree-stage px-8 py-4">
-    <div v-if="!(state?.review?.tree)">
+  <div class="tree-stage px-4 py-4">
+    <div v-if="!(state?.review?.tree?.children)">
       Initializing trees
     </div>
-    <div v-else-if="state?.review?.tree.length === 0">
+    <div v-else-if="state?.review?.tree?.children.length === 0">
       No differences found.
     </div>
 
     <!-- tree-list root -->
     <ul v-else>
       <TreeNode
-        v-for="node in state.review.tree"
-        :key="node.path"
-        :node="node"
+        :key="state.review.tree.path"
+        :node="state.review.tree"
         :selection="selection"
+        :is-open="true"
       />
     </ul>
   </div>

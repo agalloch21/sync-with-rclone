@@ -10,6 +10,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  isOpen: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 function setNodeSelection(node, checked) {
@@ -26,9 +30,9 @@ function onToggle(event) {
 </script>
 
 <template>
-  <li class="entry-root px-6 text-(--text-primary) text-sm">
+  <li class="entry-root px-(--tree-indent) text-(--text-primary) text-sm">
     <details
-      v-if="node.type === 'directory'" closed
+      v-if="node.type === 'directory'" :open="isOpen"
       class="open:[&_>_summary_.arrow]:rotate-90 open:[&_>_summary_.meta]:invisible"
     >
       <summary class="flex items-center list-none cursor-pointer">
@@ -55,7 +59,10 @@ function onToggle(event) {
         </div>
       </summary>
 
-      <ul class="ml-(--offset-to-align-with-checkbox) border-l-(length:--left-line-w) border-(--border-accent-fade)">
+      <ul
+        class="ml-(--edge-offset-to-align-with-checkbox)
+        border-l-(length:--left-edge-w) border-(--border-accent-fade)"
+      >
         <TreeNode
           v-for="child in node.children"
           :key="child.path"
@@ -87,10 +94,16 @@ function onToggle(event) {
 <style scoped>
 @reference "tailwindcss";
 .entry-root{
---icon-w:0.75rem;
---checkbox-w:1rem;
---left-line-w:2px;
---offset-to-align-with-checkbox: calc((var(--checkbox-w) - var(--left-line-w)) * 0.5);
+  --tree-indent: calc(var(--spacing) * 3);
+--row-indent: calc(var(--spacing) * 3);
+
+--icon-w: calc(var(--spacing) * 3);
+--checkbox-w: calc(var(--spacing) * 4);
+
+--left-edge-w:2px;
+--edge-offset-to-align-with-checkbox: calc((var(--checkbox-w) - var(--left-edge-w)) * 0.5  + var(--row-indent));
+--arrow-offset-to-align-with-checkbox: calc(var(--tree-indent) + var(--row-indent) - (var(--checkbox-w) - var(--left-edge-w)) * 0.5 + (var(--checkbox-w) - var(--icon-w)) * 0.5);
+--information-gap: var(--arrow-offset-to-align-with-checkbox);
 }
 .icon{
   @apply w-(--icon-w) h-auto aspect-square;
@@ -116,10 +129,10 @@ input[type="checkbox"]{
 }
 
 .row{
-  @apply flex py-1 flex-row items-center gap-4;
+  @apply w-full flex px-(--row-indent) py-1 flex-row items-center  hover:bg-(--primary-soft) rounded-lg;
 }
 .information{
-@apply flex items-center gap-4;
+@apply ml-(--arrow-offset-to-align-with-checkbox) flex items-center gap-(--information-gap);
 }
 .meta{
   @apply ml-4 flex justify-start items-center gap-3 text-xs text-(--text-subtle);

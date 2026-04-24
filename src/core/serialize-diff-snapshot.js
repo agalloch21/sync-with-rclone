@@ -14,7 +14,7 @@ function getDirChangeSummary(dirEntry) {
   }
 }
 
-function buildTree(diffSnapshot, dirPath = '.') {
+function visitDir(diffSnapshot, dirPath) {
   const dirEntry = diffSnapshot.dirEntries.get(dirPath)
   if (!dirEntry)
     return []
@@ -33,7 +33,7 @@ function buildTree(diffSnapshot, dirPath = '.') {
           name,
           path: childRef.path,
           changes: getDirChangeSummary(childDirEntry),
-          children: buildTree(diffSnapshot, childRef.path),
+          children: visitDir(diffSnapshot, childRef.path),
         }
       }
 
@@ -47,6 +47,22 @@ function buildTree(diffSnapshot, dirPath = '.') {
         mtimeMs: fileEntry?.mtimeMs || 0,
       }
     })
+}
+
+function buildTree(diffSnapshot, dirPath = '.') {
+  const dirEntry = diffSnapshot.dirEntries.get(dirPath)
+  if (!dirEntry)
+    return []
+
+  const rootEntry = {
+    type: 'directory',
+    name: '.',
+    path: '.',
+    changes: getDirChangeSummary(dirEntry),
+    children: visitDir(diffSnapshot, '.'),
+  }
+
+  return rootEntry
 }
 
 /**

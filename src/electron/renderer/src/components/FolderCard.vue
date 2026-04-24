@@ -109,6 +109,8 @@ function hideTooltip() {
 }
 
 function scheduleHideTooltip() {
+  clearTimeout(tooltipTimer)
+  tooltipTimer = null
   clearTimeout(tooltipHideTimer)
   tooltipHideTimer = setTimeout(() => {
     isTooltipVisible.value = false
@@ -168,8 +170,6 @@ onBeforeUnmount(() => {
 watch(() => props.content, async () => {
   await nextTick()
   updateDisplayContent()
-  if (!shouldShowTooltip.value)
-    hideTooltip()
 })
 </script>
 

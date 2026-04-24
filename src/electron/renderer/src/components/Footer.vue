@@ -20,23 +20,23 @@ const confirmVisible = computed(() => step.value === STEPS.REVIEW, false)
     name="slide-fade"
     class="footer-stage flex flex-row justify-end items-center gap-6 px-6 py-4"
   >
-    <div
+    <button
       v-if="cancelVisible"
       key="cancel"
-      class="clickable bg-(--surface-soft) px-5 py-2 rounded text-sm font-normal text-(--text-subtle) drop-shadow-[0_4px_4px_#00000010]"
+      class="clickable bg-(--surface-soft) px-5 py-2 rounded text-sm font-normal text-(--text-subtle) drop-shadow-[0_4px_4px_#00000010] forcusable"
       @click="emit('onClickCancel')"
     >
       {{ $t('cancelButton') }}
-    </div>
+    </button>
 
-    <div
+    <button
       v-if="confirmVisible"
       key="confirm"
-      class="clickable bg-(--primary) px-8 py-2 rounded text-sm font-bold text-(--on-primary) drop-shadow-[0_4px_6px_color-mix(in_srgb,var(--primary)_40%,transparent)]"
+      class="clickable bg-(--primary) px-8 py-2 rounded text-sm font-bold text-(--on-primary) drop-shadow-[0_4px_6px_color-mix(in_srgb,var(--primary)_40%,transparent)] forcusable"
       @click="emit('onClickConfirm')"
     >
       {{ $t(`confirmButton.${mode}`) }}
-    </div>
+    </button>
   </TransitionGroup>
 </template>
 

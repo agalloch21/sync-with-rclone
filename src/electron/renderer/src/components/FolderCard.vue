@@ -183,7 +183,7 @@ watch(() => props.content, async () => {
     </div>
     <div
       ref="contentRef"
-      class="h-8 max-h-8 text-[0.625rem] leading-4 font-normal text-(--primary) min-h-0 break-all overflow-hidden allow-select cursor-default"
+      class="h-8 max-h-8 text-[0.625rem] leading-4 font-normal text-(--primary) min-h-0 break-all overflow-hidden allow-select"
       :aria-label="props.content"
       @mouseenter="handleContentMouseEnter"
       @mousemove="handleContentMouseMove"
@@ -220,7 +220,7 @@ watch(() => props.content, async () => {
         v-if="isTooltipVisible && shouldShowTooltip"
         ref="tooltipRef"
         :key="side"
-        class="fixed z-50 rounded-md border border-(--border-accent-fade) bg-(--surface-elevated) px-3 py-2 text-[0.625rem] leading-3 text-(--text-primary) shadow-lg break-all cursor-default"
+        class="fixed z-50 rounded-md border border-(--border-accent-fade) bg-(--surface-elevated) px-3 py-2 text-[0.625rem] leading-3 text-(--text-primary) shadow-lg break-all"
         :style="{ left: `${tooltipX}px`, top: `${tooltipY}px`, maxWidth: `${TOOLTIP_MAX_WIDTH_PX}px` }"
         @mouseenter="handleTooltipMouseEnter"
         @mouseleave="handleTooltipMouseLeave"

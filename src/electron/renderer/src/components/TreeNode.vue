@@ -35,10 +35,11 @@ function onToggle(event) {
       v-if="node.type === 'directory'" :open="isOpen"
       class="open:[&_>_summary_.arrow]:rotate-90 open:[&_>_summary_.meta]:invisible"
     >
-      <summary class="flex items-center list-none cursor-pointer">
+      <summary class="flex items-center list-none rounded-lg cursor-pointer forcusable ">
         <div class="row">
           <input
             type="checkbox"
+            class="forcusable"
             :checked="selection[node.path]"
             @change="onToggle"
           >
@@ -76,6 +77,7 @@ function onToggle(event) {
     <label v-else class="row">
       <input
         type="checkbox"
+        class="forcusable"
         :checked="selection[node.path]"
         @change="onToggle"
       >
@@ -123,7 +125,6 @@ background-size: 100% 100%;
 
 input[type="checkbox"]{
   @apply w-(--checkbox-w) aspect-square h-auto bg-(--surface-elevated) border border-(--text-primary) rounded
-        focus:ring-0 focus:ring-offset-0
         checked:bg-(--primary) checked:border-none
         relative after:content-[''] after:absolute after:-inset-y-2 after:-inset-x-4;
 }

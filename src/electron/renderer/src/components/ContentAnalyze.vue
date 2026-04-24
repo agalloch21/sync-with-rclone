@@ -30,8 +30,9 @@ const currentPhaseIndex = computed(() => {
           <div v-else-if="index === currentPhaseIndex" class="icon running" />
           <div v-else class="icon done" />
         </Transition>
-        <!-- :class="index > currentPhaseIndex ? 'waiting' : (index === currentPhaseIndex ? 'running' : 'done')" -->
-        <div>{{ $t(`${phase}`) }}</div>
+        <div class="allow-select">
+          {{ $t(`${phase}`) }}
+        </div>
       </div>
     </div>
   </div>

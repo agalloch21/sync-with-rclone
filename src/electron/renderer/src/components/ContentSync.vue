@@ -29,7 +29,7 @@ const description = computed(() => showProgress.value ? (state.value?.progress?.
       <div class="text-(--text-primary) text-sm">
         Phase {{ current }} of {{ total }} in Progress
       </div>
-      <div class="text-(--text-subtle) text-xs">
+      <div class="text-(--text-subtle) text-xs allow-select">
         {{ $t(`syncPhases.${description}`) }}
       </div>
     </div>

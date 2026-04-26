@@ -10,10 +10,13 @@ const props = defineProps({
 const contentRef = ref(null)
 const tooltipRef = ref(null)
 const displayContent = ref('')
-const isTooltipVisible = ref(false)
+const tooltipState = ref('idle')
 const tooltipX = ref(0)
 const tooltipY = ref(0)
 
+const isTooltipVisible = computed(() => {
+  return tooltipState.value === 'open' || tooltipState.value === 'cooldown'
+})
 const shouldShowTooltip = computed(() => {
   return Boolean(props.content) && displayContent.value !== (props.content || '')
 })
@@ -85,66 +88,66 @@ function updateTooltipPosition(event) {
   tooltipY.value = nextY
 }
 
-function scheduleTooltip(event) {
-  if (!shouldShowTooltip.value || isTooltipVisible.value)
-    return
-
+function clearTooltipTimers() {
+  clearTimeout(tooltipTimer)
+  tooltipTimer = null
   clearTimeout(tooltipHideTimer)
   tooltipHideTimer = null
-  updateTooltipPosition(event)
+}
 
-  clearTimeout(tooltipTimer)
+function enterIdle() {
+  clearTooltipTimers()
+  tooltipState.value = 'idle'
+}
+
+function enterArming(event) {
+  if (!shouldShowTooltip.value)
+    return
+
+  clearTooltipTimers()
+  updateTooltipPosition(event)
+  tooltipState.value = 'arming'
   tooltipTimer = setTimeout(() => {
-    isTooltipVisible.value = true
+    tooltipState.value = 'open'
     tooltipTimer = null
   }, TOOLTIP_DELAY_MS)
 }
 
-function hideTooltip() {
-  clearTimeout(tooltipTimer)
-  tooltipTimer = null
-  clearTimeout(tooltipHideTimer)
-  tooltipHideTimer = null
-  isTooltipVisible.value = false
-}
-
-function scheduleHideTooltip() {
-  clearTimeout(tooltipTimer)
-  tooltipTimer = null
-  clearTimeout(tooltipHideTimer)
+function enterCooldown() {
+  clearTooltipTimers()
+  tooltipState.value = 'cooldown'
   tooltipHideTimer = setTimeout(() => {
-    isTooltipVisible.value = false
+    tooltipState.value = 'idle'
     tooltipHideTimer = null
   }, TOOLTIP_HIDE_DELAY_MS)
 }
 
 function handleContentMouseMove(event) {
-  if (!isTooltipVisible.value) {
-    scheduleTooltip(event)
-    return
-  }
-
-  scheduleHideTooltip()
+  if (tooltipState.value === 'idle' || tooltipState.value === 'arming')
+    enterArming(event)
+  else if (tooltipState.value === 'open')
+    enterCooldown()
 }
 
 function handleContentMouseEnter(event) {
-  scheduleTooltip(event)
+  if (tooltipState.value !== 'open' && tooltipState.value !== 'cooldown')
+    enterArming(event)
 }
 
 function handleContentMouseLeave(_event) {
-  scheduleHideTooltip()
+  if (tooltipState.value === 'arming')
+    enterIdle()
+  else if (tooltipState.value === 'open' || tooltipState.value === 'cooldown')
+    enterCooldown()
 }
 
 function handleTooltipMouseEnter(_event) {
-  clearTimeout(tooltipTimer)
-  tooltipTimer = null
-  clearTimeout(tooltipHideTimer)
-  tooltipHideTimer = null
-  isTooltipVisible.value = true
+  clearTooltipTimers()
+  tooltipState.value = 'open'
 }
 
 function handleTooltipMouseLeave(_event) {
-  hideTooltip()
+  enterIdle()
 }
 
 onMounted(async () => {
@@ -161,15 +164,14 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
-  clearTimeout(tooltipTimer)
-  tooltipTimer = null
-  clearTimeout(tooltipHideTimer)
-  tooltipHideTimer = null
+  clearTooltipTimers()
 })
 
 watch(() => props.content, async () => {
   await nextTick()
   updateDisplayContent()
+  if (!shouldShowTooltip.value)
+    enterIdle()
 })
 </script>
 

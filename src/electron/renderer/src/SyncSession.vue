@@ -11,17 +11,15 @@ import Header from './components/Header.vue'
 const { t, locale } = useI18n()
 locale.value = 'en'
 
-const state = ref(null)
+const state = ref({})
 const selection = reactive({})
 
-const stateFrontEnd = ref(null)
-const errorMessage = ref('')
-const needFinalAcknowledgement = ref(false)
-const isInFinalAcknowledgement = ref(false)
+let needFinalAcknowledgement = false
+const showFinalAcknowledgement = ref(false)
 
 provide('state', state)
 provide('selection', selection)
-provide('isInFinalAcknowledgement', isInFinalAcknowledgement)
+provide('showFinalAcknowledgement', showFinalAcknowledgement)
 
 let disposeProgressListener = null
 onMounted(() => {
@@ -30,9 +28,18 @@ onMounted(() => {
       state.value = fullState
     })
     .catch((error) => {
-      cancel()
+      // normally, UI will only react based on the state passed from the Main process,
+      // unless UI encounters an errro itself
+      cancelSync()
+      disposeProgressListener?.()
+      disposeProgressListener = null
 
-      errorMessage.value = error?.message || String(error)
+      state.value.session = SESSION_STATES.ERROR
+      state.value.error = {
+        message: error?.message || String(error),
+      }
+      needFinalAcknowledgement = true
+      showFinalAcknowledgement.value = true
     })
 
   disposeProgressListener = window.syncSession.onReceiveProgressEvent((patchState) => {
@@ -42,13 +49,14 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   disposeProgressListener?.()
+  disposeProgressListener = null
 })
 
 const isSyncCoreFinished = computed(() => state.value?.session === SESSION_STATES.COMPLETED || state.value?.session === SESSION_STATES.CANCELLED || state.value?.session === SESSION_STATES.ERROR, false)
 watch(isSyncCoreFinished, (newValue, oldValue) => {
   if (newValue === true && oldValue === false) {
-    if (needFinalAcknowledgement.value) {
-      isInFinalAcknowledgement.value = true
+    if (needFinalAcknowledgement) {
+      showFinalAcknowledgement.value = true
     }
     else {
       acknowledgeAndClose()
@@ -56,19 +64,19 @@ watch(isSyncCoreFinished, (newValue, oldValue) => {
   }
 })
 
-function cancel() {
+function cancelSync() {
   if (state.value.step === STEPS.ANALYZE || state.value.step === STEPS.REVIEW) {
-    needFinalAcknowledgement.value = false
+    needFinalAcknowledgement = false
   }
   else if (state.value.step === STEPS.SYNC) {
-    needFinalAcknowledgement.value = true
+    needFinalAcknowledgement = true
   }
 
   window.syncSession.cancelSync()
 }
 
-function confirm() {
-  needFinalAcknowledgement.value = true
+function confirmSync() {
+  needFinalAcknowledgement = true
 
   const selectedPaths = Object.entries(selection)
     .filter(([, checked]) => checked)
@@ -106,7 +114,7 @@ function acknowledgeAndClose() {
       </div>
     </main>
     <footer class="footer-dock w-full h-16 bg-(--surface-footer)">
-      <Footer @on-click-cancel="cancel()" @on-click-confirm="confirm()" @on-click-close="acknowledgeAndClose()" />
+      <Footer @on-click-cancel="cancelSync()" @on-click-confirm="confirmSync()" @on-click-close="acknowledgeAndClose()" />
     </footer>
   </div>
 </template>

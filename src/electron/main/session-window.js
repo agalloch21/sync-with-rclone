@@ -91,7 +91,8 @@ export function createSessionWindow() {
 
   const cancelController = new AbortController()
   function abortSession() {
-    cancelController.abort()
+    if (!cancelController.signal.aborted)
+      cancelController.abort()
   }
 
   const sessionWindow = new BrowserWindow({
@@ -170,6 +171,10 @@ export function createSessionWindow() {
   }
 
   async function reviewDiffInWindow(diffSnapshot) {
+    if (pendingReview.settled) {
+      return createReviewResult('cancel')
+    }
+
     const nextState = {
       review: serializeDiffSnapshot(diffSnapshot),
     }
@@ -188,7 +193,7 @@ export function createSessionWindow() {
 
   async function waitForFinalAcknowledgeIfNeeded() {
     if (pendingFinalAcknowledgement.settled) {
-      return Promise.resolve()
+      return
     }
 
     return new Promise((resolve, reject) => {
@@ -196,41 +201,28 @@ export function createSessionWindow() {
     })
   }
 
-  function settlePromise(promiseObj, result = '', { useReject = false } = {}) {
-    if (!promiseObj)
-      return
-
-    const { resolve, reject } = promiseObj
-
-    if (useReject) {
-      reject?.(result)
-    }
-    else {
-      resolve?.(result)
-      promiseObj.settled = true
-    }
+  function createReviewResult(action, selectedPaths = []) {
+    return { action, selectedPaths }
   }
 
-  function settlePendingReview(result) {
-    settlePromise(pendingReview, result)
+  function settlePendingReview(action = 'cancel', selectedPaths = []) {
+    pendingReview.resolve?.(createReviewResult(action, selectedPaths))
+    pendingReview = { resolve: null, reject: null, settled: true }
   }
 
   function settleFinalAcknowledgement() {
-    settlePromise(pendingFinalAcknowledgement)
+    pendingFinalAcknowledgement.resolve?.()
+    pendingFinalAcknowledgement = { resolve: null, reject: null, settled: true }
   }
 
   function handleCancel(_event) {
-    if (state.step === STEPS.REVIEW) {
-      settlePendingReview({ action: 'cancel', selectedPaths: [] })
-    }
-    else {
-      abortSession()
-    }
+    settlePendingReview('cancel')
+    abortSession()
   }
 
   function handleConfirm(_event, payload) {
     const selectedPaths = Array.isArray(payload?.selectedPaths) ? payload.selectedPaths : []
-    settlePendingReview({ action: 'confirm', selectedPaths })
+    settlePendingReview('confirm', selectedPaths)
   }
 
   function handleClose(_event) {
@@ -248,24 +240,35 @@ export function createSessionWindow() {
     ipcMain.removeListener(channels.confirmSync, handleConfirm)
     ipcMain.removeListener(channels.closeWindow, handleClose)
   }
-
   function closeWindow() {
     if (isClosing)
       return
 
     isClosing = true
+
+    // Normal close also releases any leftover waits.
+    settlePendingReview()
+    settleFinalAcknowledgement()
     cleanup()
-    if (pendingReview)
-      handleCancel()
+
     if (!sessionWindow.isDestroyed())
-      sessionWindow?.close()
+      sessionWindow.close()
+  }
+
+  function forceFinishSession(reason) {
+    if (reason)
+      console.error(reason)
+
+    abortSession()
+    settlePendingReview()
+    settleFinalAcknowledgement()
   }
 
   sessionWindow.on('closed', () => {
     cleanup()
-    if (!isClosing && pendingReview) {
-      handleCancel()
-    }
+
+    if (!isClosing)
+      forceFinishSession(new Error('Session window was closed before sync finished.'))
   })
 
   sessionWindow.once('ready-to-show', () => {
@@ -277,19 +280,18 @@ export function createSessionWindow() {
   })
 
   sessionWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription, validatedURL) => {
-    console.error(`Renderer failed to load: ${errorCode} ${errorDescription} ${validatedURL}`)
+    forceFinishSession(new Error(`Renderer failed to load: ${errorCode} ${errorDescription} ${validatedURL}`))
   })
 
   sessionWindow.webContents.on('render-process-gone', (_, details) => {
-    console.error(`Renderer process gone: ${details.reason}`)
+    forceFinishSession(new Error(`Renderer process gone: ${details.reason}`))
   })
 
   loadRendererPage(sessionWindow, 'sync-session')
     .catch((error) => {
-      if (pendingReview) {
-        settlePendingReview(error, { useReject: true })
-      }
+      forceFinishSession(error)
     })
+
   if (process.env.DEBUG_ELECTRON === '1')
     sessionWindow.webContents.openDevTools({ mode: 'detach' })
 

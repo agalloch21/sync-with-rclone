@@ -8,6 +8,9 @@ function shouldHandleMacSetup(options) {
 }
 
 app.whenReady().then(async () => {
+  let sessionWindowHooks = null
+  let runError = null
+
   try {
     const [{ startSync }, { parseSyncArgs }, { createSessionWindow }] = await Promise.all([
       import('#src/app/start-sync.js'),
@@ -52,48 +55,56 @@ app.whenReady().then(async () => {
       return
     }
 
-    const sessionWindowHooks = createSessionWindow()
+    sessionWindowHooks = createSessionWindow()
 
     isSyncInProgress = true
-    const result = await startSync(options, {
-      reviewPortal: sessionWindowHooks.reviewDiffInWindow,
-      onEvent: sessionWindowHooks.onEventFromCore,
-      onOptionsResolved: sessionWindowHooks.updateOptions,
-    }, sessionWindowHooks.cancelSignal)
-    isSyncInProgress = false
-
-    if (result.applyResult?.action === 'cancel') {
-      console.log('Sync cancelled by user')
-      // await dialog.showMessageBox({
-      //   type: 'info',
-      //   title: 'Sync Cancelled',
-      //   message: 'Sync cancelled',
-      //   detail: 'No apply operations were executed.',
-      // })
+    try {
+      await startSync(options, {
+        reviewPortal: sessionWindowHooks.reviewDiffInWindow,
+        onEvent: sessionWindowHooks.onEventFromCore,
+        onOptionsResolved: sessionWindowHooks.updateOptions,
+      }, sessionWindowHooks.cancelSignal)
     }
-    else {
-      console.log(`Sync finished with ${result.applyResult?.phases?.length || 0} phase(s)`)
-      // await dialog.showMessageBox({
-      //   type: 'info',
-      //   title: 'Sync Completed',
-      //   message: 'Sync completed successfully',
-      //   detail: `Executed ${result.applyResult?.phases?.length || 0} phase(s).`,
-      // })
+    catch (error) {
+      runError = error
+      console.error(error)
+    }
+    finally {
+      isSyncInProgress = false
     }
 
-    await sessionWindowHooks.waitForFinalAcknowledgeIfNeeded(result)
-    sessionWindowHooks.closeWindow()
-    app.quit()
+    try {
+      await sessionWindowHooks.waitForFinalAcknowledgeIfNeeded()
+    }
+    catch (error) {
+      runError ||= error
+      console.error(error)
+    }
+    finally {
+      sessionWindowHooks.closeWindow()
+    }
+
+    if (runError)
+      app.exit(1)
+    else
+      app.quit()
   }
   catch (error) {
     isSyncInProgress = false
     console.error(error)
+
+    if (sessionWindowHooks) {
+      sessionWindowHooks.abortSession()
+      sessionWindowHooks.closeWindow()
+    }
+
     await dialog.showMessageBox({
       type: 'error',
       title: 'Sync Failed',
       message: 'Sync failed',
       detail: error?.message || String(error),
     })
+
     app.exit(1)
   }
 })

@@ -7,7 +7,7 @@ import ContentReview from './ContentReview.vue'
 import ContentSync from './ContentSync.vue'
 
 const state = inject('state')
-const isInFinalAcknowledgement = inject('isInFinalAcknowledgement')
+const showFinalAcknowledgement = inject('showFinalAcknowledgement')
 
 const step = computed(() => state.value?.step?.length > 0 ? props.state.step : '')
 </script>
@@ -15,7 +15,7 @@ const step = computed(() => state.value?.step?.length > 0 ? props.state.step : '
 <template>
   <div class="content-stage h-full overflow-auto">
     <Transition name="fade" mode="out-in">
-      <ContentFinalAcknowledgement v-if="isInFinalAcknowledgement" />
+      <ContentFinalAcknowledgement v-if="showFinalAcknowledgement" />
       <ContentAnalyze v-else-if="step === STEPS.ANALYZE" />
       <ContentReview v-else-if="step === STEPS.REVIEW" />
       <ContentSync v-else-if="step === STEPS.SYNC" />

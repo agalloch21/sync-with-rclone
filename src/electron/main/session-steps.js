@@ -1,5 +1,13 @@
 import { PHASES } from '#src/core/phases.js'
 
+export const SESSION_STATES = {
+  IDLE: 'idle',
+  RUNNING: 'running',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+  ERROR: 'error',
+}
+
 export const STEPS = {
   ANALYZE: 'analyze',
   REVIEW: 'review',
@@ -22,37 +30,6 @@ export const STEP_META = {
     phases: [PHASES.GENERATE_PLAN, PHASES.APPLY_PLAN],
   },
 }
-
-// export const PHASE_META = {
-//   [PHASES.PREPARATION]: {
-//     step: STEPS.ANALYZE,
-//     order: 1,
-//   },
-//   [PHASES.BUILD_LOCAL_SNAPSHOT]: {
-//     step: STEPS.ANALYZE,
-//     order: 2,
-//   },
-//   [PHASES.BUILD_REMOTE_SNAPSHOT]: {
-//     step: STEPS.ANALYZE,
-//     order: 3,
-//   },
-//   [PHASES.COMPARE_SNAPSHOT]: {
-//     step: STEPS.ANALYZE,
-//     order: 4,
-//   },
-//   [PHASES.REVIEW_DIFFERENCES]: {
-//     step: STEPS.REVIEW,
-//     order: 1,
-//   },
-//   [PHASES.GENERATE_PLAN]: {
-//     step: STEPS.SYNC,
-//     order: 1,
-//   },
-//   [PHASES.APPLY_PLAN]: {
-//     step: STEPS.SYNC,
-//     order: 2,
-//   },
-// }
 
 export function getStepForPhase(phase) {
   const stepEntry = Object.entries(STEP_META).find(([_key, value]) => value.phases.includes(phase))

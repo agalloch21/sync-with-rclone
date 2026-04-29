@@ -1,26 +1,24 @@
 <script setup>
-import { STEPS } from '#src/electron/main/session-steps.js'
-import { computed } from 'vue'
+import { SESSION_STATES, STEPS } from '#src/electron/main/session-steps.js'
+import { computed, inject } from 'vue'
 import ContentAnalyze from './ContentAnalyze.vue'
+import ContentFinalAcknowledgement from './ContentFinalAcknowledgement.vue'
 import ContentReview from './ContentReview.vue'
 import ContentSync from './ContentSync.vue'
 
-const props = defineProps({
-  state: Object,
-})
+const state = inject('state')
+const isInFinalAcknowledgement = inject('isInFinalAcknowledgement')
 
-const step = computed(() => props.state?.step?.length > 0 ? props.state.step : '')
+const step = computed(() => state.value?.step?.length > 0 ? props.state.step : '')
 </script>
 
 <template>
   <div class="content-stage h-full overflow-auto">
     <Transition name="fade" mode="out-in">
-      <ContentAnalyze v-if="step === STEPS.ANALYZE" />
+      <ContentFinalAcknowledgement v-if="isInFinalAcknowledgement" />
+      <ContentAnalyze v-else-if="step === STEPS.ANALYZE" />
       <ContentReview v-else-if="step === STEPS.REVIEW" />
       <ContentSync v-else-if="step === STEPS.SYNC" />
-      <div v-else>
-        Default
-      </div>
     </Transition>
   </div>
 </template>

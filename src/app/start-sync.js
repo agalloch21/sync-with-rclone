@@ -5,7 +5,7 @@ import { resolveLocalDirectoryPath } from './path-utils.js'
 import { resolveSyncTask } from './resolve-sync-task.js'
 import { getRuntimePaths } from './runtime-paths.js'
 
-export async function startSync(options, hooks = {}) {
+export async function startSync(options, hooks = {}, cancelSignal = null) {
   const { bypassConfig = false } = options
   const runtimePaths = getRuntimePaths()
   const config = bypassConfig ? null : await loadConfig(runtimePaths.configPath)
@@ -33,7 +33,7 @@ export async function startSync(options, hooks = {}) {
 
   hooks.onOptionsResolved(resolvedOptions)
 
-  const result = await syncCore(resolvedOptions, hooks)
+  const result = await syncCore(resolvedOptions, hooks, cancelSignal)
 
   return {
     ...result,

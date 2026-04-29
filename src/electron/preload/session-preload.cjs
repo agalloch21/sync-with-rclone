@@ -21,4 +21,7 @@ contextBridge.exposeInMainWorld('syncSession', {
   cancelSync() {
     ipcRenderer.send(channels.cancelSync)
   },
+  closeWindow() {
+    ipcRenderer.send(channels.closeWindow)
+  },
 })

@@ -33,6 +33,7 @@ export default {
     push: 'Confirm & Push',
     pull: 'Confirm & Pull',
   },
+  closeButton: 'Close',
   syncPhases: {
     start: 'start applying execution phases',
     mkdir: 'creating directories',

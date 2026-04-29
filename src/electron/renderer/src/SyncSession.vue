@@ -1,6 +1,6 @@
 <script setup>
-import { STEPS } from '#src/electron/main/session-steps.js'
-import { computed, onBeforeUnmount, onMounted, provide, reactive, ref } from 'vue'
+import { SESSION_STATES, STEPS } from '#src/electron/main/session-steps.js'
+import { computed, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Content from './components/Content.vue'
@@ -12,11 +12,16 @@ const { t, locale } = useI18n()
 locale.value = 'en'
 
 const state = ref(null)
-const errorMessage = ref('')
 const selection = reactive({})
+
+const stateFrontEnd = ref(null)
+const errorMessage = ref('')
+const needFinalAcknowledgement = ref(false)
+const isInFinalAcknowledgement = ref(false)
 
 provide('state', state)
 provide('selection', selection)
+provide('isInFinalAcknowledgement', isInFinalAcknowledgement)
 
 let disposeProgressListener = null
 onMounted(() => {
@@ -25,6 +30,8 @@ onMounted(() => {
       state.value = fullState
     })
     .catch((error) => {
+      cancel()
+
       errorMessage.value = error?.message || String(error)
     })
 
@@ -37,15 +44,40 @@ onBeforeUnmount(() => {
   disposeProgressListener?.()
 })
 
+const isSyncCoreFinished = computed(() => state.value?.session === SESSION_STATES.COMPLETED || state.value?.session === SESSION_STATES.CANCELLED || state.value?.session === SESSION_STATES.ERROR, false)
+watch(isSyncCoreFinished, (newValue, oldValue) => {
+  if (newValue === true && oldValue === false) {
+    if (needFinalAcknowledgement.value) {
+      isInFinalAcknowledgement.value = true
+    }
+    else {
+      acknowledgeAndClose()
+    }
+  }
+})
+
 function cancel() {
+  if (state.value.step === STEPS.ANALYZE || state.value.step === STEPS.REVIEW) {
+    needFinalAcknowledgement.value = false
+  }
+  else if (state.value.step === STEPS.SYNC) {
+    needFinalAcknowledgement.value = true
+  }
+
   window.syncSession.cancelSync()
 }
 
 function confirm() {
+  needFinalAcknowledgement.value = true
+
   const selectedPaths = Object.entries(selection)
     .filter(([, checked]) => checked)
     .map(([entryPath]) => entryPath)
   window.syncSession.confirmSync(selectedPaths)
+}
+
+function acknowledgeAndClose() {
+  window.syncSession.closeWindow()
 }
 </script>
 
@@ -74,7 +106,7 @@ function confirm() {
       </div>
     </main>
     <footer class="footer-dock w-full h-16 bg-(--surface-footer)">
-      <Footer @on-click-cancel="cancel()" @on-click-confirm="confirm()" />
+      <Footer @on-click-cancel="cancel()" @on-click-confirm="confirm()" @on-click-close="acknowledgeAndClose()" />
     </footer>
   </div>
 </template>

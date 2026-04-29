@@ -59,7 +59,7 @@ app.whenReady().then(async () => {
       reviewPortal: sessionWindowHooks.reviewDiffInWindow,
       onEvent: sessionWindowHooks.onEventFromCore,
       onOptionsResolved: sessionWindowHooks.updateOptions,
-    })
+    }, sessionWindowHooks.cancelSignal)
     isSyncInProgress = false
 
     if (result.applyResult?.action === 'cancel') {
@@ -81,6 +81,7 @@ app.whenReady().then(async () => {
       // })
     }
 
+    await sessionWindowHooks.waitForFinalAcknowledgeIfNeeded(result)
     sessionWindowHooks.closeWindow()
     app.quit()
   }

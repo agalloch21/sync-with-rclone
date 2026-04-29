@@ -7,3 +7,11 @@ export const PHASES = {
   GENERATE_PLAN: 'generate-plan',
   APPLY_PLAN: 'apply-plan',
 }
+
+export function isFirstPhase(phase) {
+  return phase === PHASES.PREPARATION
+}
+
+export function isLastPhase(phase) {
+  return phase === PHASES.APPLY_PLAN
+}

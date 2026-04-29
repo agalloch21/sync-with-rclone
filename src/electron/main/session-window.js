@@ -1,8 +1,9 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isFirstPhase, isLastPhase } from '#src/core/phases.js'
 import { serializeDiffSnapshot } from '#src/core/serialize-diff-snapshot.js'
-import { getStepForPhase, STEPS } from './session-steps.js'
+import { getStepForPhase, SESSION_STATES, STEPS } from './session-steps.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -35,7 +36,7 @@ function loadRendererPage(browserWindow, pageName) {
     : browserWindow.loadFile(target.value)
 }
 
-export function createSessionWindow(options) {
+export function createSessionWindow() {
   const { BrowserWindow, ipcMain } = require('electron')
   const channelPrefix = `sync-session:${Date.now()}:${Math.random().toString(16).slice(2)}`
   const channels = {
@@ -47,6 +48,7 @@ export function createSessionWindow(options) {
     // event
     confirmSync: `${channelPrefix}:confirm-sync`,
     cancelSync: `${channelPrefix}:cancel-sync`,
+    closeWindow: `${channelPrefix}:close-window`,
 
   }
 
@@ -57,6 +59,7 @@ export function createSessionWindow(options) {
       remoteFolderPath: '',
       bypassConfig: false,
     },
+    session: SESSION_STATES.IDLE,
     step: '',
     phase: {
       name: '',
@@ -83,7 +86,13 @@ export function createSessionWindow(options) {
   }
 
   let isClosing = false
-  let pendingReview = null
+  let pendingReview = { resolve: null, reject: null, settled: false }
+  let pendingFinalAcknowledgement = { resolve: null, reject: null, settled: false }
+
+  const cancelController = new AbortController()
+  function abortSession() {
+    cancelController.abort()
+  }
 
   const sessionWindow = new BrowserWindow({
     width: 600,
@@ -110,50 +119,64 @@ export function createSessionWindow(options) {
     }
   }
 
-  function sendProgressToRenderer(nextState) {
+  function updateState(nextState) {
     state = {
       ...state,
       ...nextState,
     }
+  }
 
+  function sendProgressToRenderer(nextState) {
     if (!sessionWindow.isDestroyed())
       sessionWindow.webContents.send(channels.progressEvent, nextState)
   }
 
   function onEventFromCore(event) {
-    const nextState = {
-      phase: {
-        name: event.phase,
-        status: event.status,
-      },
+    const nextState = {}
+    nextState.phase = {
+      name: event.phase,
+      status: event.status,
+      message: event.message,
     }
-
-    if (event.type === 'phase') {
-      if (event.message)
-        nextState.phase.message = event.message
-
-      if (event.status === 'started') {
+    switch (event.status) {
+      case 'started':
+        if (isFirstPhase(event.phase))
+          nextState.session = SESSION_STATES.RUNNING
         nextState.step = getStepForPhase(nextState.phase.name)
-      }
+        break
+      case 'done':
+        if (isLastPhase(event.phase))
+          nextState.session = SESSION_STATES.COMPLETED
+        break
+      case 'cancelled':
+        nextState.session = SESSION_STATES.CANCELLED
+        break
+      case 'failed':
+        nextState.session = SESSION_STATES.ERROR
+        nextState.error = {}
+        nextState.error.message = event.message
+        break
+      case 'running':
+        nextState.progress = {}
+        nextState.progress.current = event.current
+        nextState.progress.total = event.total
+        nextState.progress.message = event.message
+        break
     }
-    else if (event.type === 'progress') {
-      nextState.progress = {}
-      nextState.progress.current = event.current
-      nextState.progress.total = event.total
-      nextState.progress.message = event.message
-    }
-    else if (event.type === 'error') {
-      nextState.error = {}
-      nextState.error.message = event.message
-    }
+
+    updateState(nextState)
 
     sendProgressToRenderer(nextState)
   }
 
   async function reviewDiffInWindow(diffSnapshot) {
-    const payload = serializeDiffSnapshot(diffSnapshot)
+    const nextState = {
+      review: serializeDiffSnapshot(diffSnapshot),
+    }
 
-    sendProgressToRenderer({ review: payload })
+    updateState(nextState)
+
+    sendProgressToRenderer(nextState)
 
     return new Promise((resolve, reject) => {
       pendingReview = {
@@ -163,23 +186,46 @@ export function createSessionWindow(options) {
     })
   }
 
-  function settlePendingReview(result, { useReject = false } = {}) {
-    if (!pendingReview)
+  async function waitForFinalAcknowledgeIfNeeded() {
+    if (pendingFinalAcknowledgement.settled) {
+      return Promise.resolve()
+    }
+
+    return new Promise((resolve, reject) => {
+      pendingFinalAcknowledgement = { resolve, reject }
+    })
+  }
+
+  function settlePromise(promiseObj, result = '', { useReject = false } = {}) {
+    if (!promiseObj)
       return
 
-    const { resolve, reject } = pendingReview
-    pendingReview = null
+    const { resolve, reject } = promiseObj
 
     if (useReject) {
-      reject(result)
+      reject?.(result)
     }
     else {
-      resolve(result)
+      resolve?.(result)
+      promiseObj.settled = true
     }
   }
 
-  function handleCancel() {
-    settlePendingReview({ action: 'cancel', selectedPaths: [] })
+  function settlePendingReview(result) {
+    settlePromise(pendingReview, result)
+  }
+
+  function settleFinalAcknowledgement() {
+    settlePromise(pendingFinalAcknowledgement)
+  }
+
+  function handleCancel(_event) {
+    if (state.step === STEPS.REVIEW) {
+      settlePendingReview({ action: 'cancel', selectedPaths: [] })
+    }
+    else {
+      abortSession()
+    }
   }
 
   function handleConfirm(_event, payload) {
@@ -187,14 +233,20 @@ export function createSessionWindow(options) {
     settlePendingReview({ action: 'confirm', selectedPaths })
   }
 
+  function handleClose(_event) {
+    settleFinalAcknowledgement()
+  }
+
   ipcMain.handle(channels.getState, () => state)
   ipcMain.on(channels.cancelSync, handleCancel)
   ipcMain.on(channels.confirmSync, handleConfirm)
+  ipcMain.on(channels.closeWindow, handleClose)
 
   const cleanup = () => {
     ipcMain.removeHandler(channels.getState)
     ipcMain.removeListener(channels.cancelSync, handleCancel)
     ipcMain.removeListener(channels.confirmSync, handleConfirm)
+    ipcMain.removeListener(channels.closeWindow, handleClose)
   }
 
   function closeWindow() {
@@ -244,7 +296,11 @@ export function createSessionWindow(options) {
   return {
     onEventFromCore,
     reviewDiffInWindow,
-    closeWindow,
     updateOptions,
+    waitForFinalAcknowledgeIfNeeded,
+
+    closeWindow,
+    cancelSignal: cancelController.signal,
+    abortSession,
   }
 }

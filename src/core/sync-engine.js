@@ -56,10 +56,10 @@ function normalizeOptions(options) {
  * @param {Options} options
  * @param {Hooks} [hooks]
  */
-export async function syncCore(options, hooks = {}) {
+export async function syncCore(options, hooks = {}, cancelSignal = null) {
   const reporter = createReporter(hooks.onEvent || (() => {}))
 
-  const normalizedOptions = await runWithReporter(reporter, PHASES.PREPARATION, () => normalizeOptions(options), 'Normalizing options')
+  const normalizedOptions = await runWithReporter(reporter, PHASES.PREPARATION, () => normalizeOptions(options), 'Normalizing options', cancelSignal)
 
   const localSnapshot = await runWithReporter(
     reporter,
@@ -69,6 +69,7 @@ export async function syncCore(options, hooks = {}) {
       normalizedOptions.extraIgnorePatterns,
     ),
     'Building local snapshot',
+    cancelSignal,
   )
 
   const remoteSnapshot = await runWithReporter(
@@ -79,6 +80,7 @@ export async function syncCore(options, hooks = {}) {
       normalizedOptions.runtimePaths,
     ),
     'Building remote snapshot',
+    cancelSignal,
   )
 
   const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot
@@ -88,6 +90,7 @@ export async function syncCore(options, hooks = {}) {
     PHASES.COMPARE_SNAPSHOT,
     () => compareSnapshot(srcSnapshot, dstSnapshot),
     'Comparing snapshots',
+    cancelSignal,
   )
 
   const reviewResult = hooks.reviewPortal
@@ -96,6 +99,7 @@ export async function syncCore(options, hooks = {}) {
         PHASES.REVIEW_DIFFERENCES,
         () => hooks.reviewPortal(diffSnapshot),
         'Preparing differences review',
+        cancelSignal,
       ))
     : { action: 'confirm' }
 
@@ -104,6 +108,7 @@ export async function syncCore(options, hooks = {}) {
     PHASES.GENERATE_PLAN,
     () => buildSyncPlan(diffSnapshot, reviewResult),
     'Preparing operations',
+    cancelSignal,
   )
 
   const appliedResult = await runWithReporter(
@@ -119,12 +124,13 @@ export async function syncCore(options, hooks = {}) {
         progress(current, total, message) {
           reporter.progress(PHASES.APPLY_PLAN, current, total, message)
         },
-        error(error) {
-          reporter.error(error)
-        },
+        // error(error) {
+        //   reporter.error(error)
+        // },
       },
     }),
     'Applying operations',
+    cancelSignal,
   )
 
   return {

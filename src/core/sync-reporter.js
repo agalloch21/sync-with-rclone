@@ -1,31 +1,42 @@
 export function createReporter(emit = () => {}) {
   return {
     started(phase, message) {
-      emit({ type: 'phase', phase, status: 'started', message })
+      emit({ type: 'phase', phase, status: 'started', message: message || `phase [${phase}] started` })
     },
-    done(phase, data) {
-      emit({ type: 'phase', phase, status: 'done', data })
+    done(phase, message) {
+      emit({ type: 'phase', phase, status: 'done', message: message || `phase [${phase}] completed` })
     },
     progress(phase, current, total, message) {
-      emit({ type: 'progress', phase, status: 'running', current, total, message })
+      emit({ type: 'phase', phase, status: 'running', current, total, message: message || `phase [${phase}] is running` })
     },
     error(phase, error) {
-      emit({ type: 'error', phase, status: 'failed', message: error.message })
+      emit({ type: 'phase', phase, status: 'failed', message: error?.message || `phase [${phase}] failed` })
+    },
+    cancelled(phase, message) {
+      emit({ type: 'phase', phase, status: 'cancelled', message: message || `phase [${phase}] cancelled` })
     },
   }
 }
 
-export async function runWithReporter(reporter, phase, fn, message) {
+export async function runWithReporter(reporter, phase, fn, message, cancelSignal = null) {
   reporter.started(phase, message)
 
   try {
     const result = await fn()
+
     reporter.done(phase)
-    // await new Promise(resolve => setTimeout(resolve, 2000))
+
+    cancelSignal?.throwIfAborted()
+
     return result
   }
   catch (error) {
-    reporter.error(phase, error)
+    if (error === cancelSignal?.reason) {
+      reporter.cancelled(phase)
+    }
+    else {
+      reporter.error(phase, error)
+    }
     throw error
   }
 }

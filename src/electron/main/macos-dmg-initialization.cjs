@@ -1,7 +1,7 @@
-const fs = require('node:fs/promises')
-const path = require('node:path')
-const os = require('node:os')
 const { spawn } = require('node:child_process')
+const fs = require('node:fs/promises')
+const os = require('node:os')
+const path = require('node:path')
 
 const APP_SUPPORT_DIRECTORY = path.join(os.homedir(), 'Library', 'Application Support', 'sync-with-rclone')
 const CONFIG_DIRECTORY = path.join(APP_SUPPORT_DIRECTORY, 'config')
@@ -167,6 +167,45 @@ async function ensureMacAppSupport(version) {
   }
 }
 
+function shouldInitializeMacSetup(app) {
+  return process.platform === 'darwin' && app.isPackaged
+}
+
+async function initializeMacSetupIfNeeded(app, dialog, shell) {
+  if (!shouldInitializeMacSetup(app))
+    return false
+
+  const setup = await ensureMacAppSupport(app.getVersion())
+
+  if (!setup.hasSetupChanges || !setup.shouldShowSetupDialog) {
+    app.quit()
+    return true
+  }
+
+  const detail = [
+    `Config: ${setup.configPath}`,
+    `Quick Actions: ${setup.contextMenuInstalled ? 'installed or refreshed' : setup.contextMenuAlreadyInstalled ? 'already available' : 'not installed'}`,
+    setup.configCreated ? 'Created config.json from template.' : 'Reused existing config.json.',
+    setup.rcloneTemplateCreated ? 'Created rclone.conf template.' : 'Reused existing rclone.conf.',
+  ].join('\n')
+
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    title: 'sync-with-rclone',
+    message: 'macOS setup is ready',
+    detail,
+    buttons: ['Open Config', 'Close'],
+    defaultId: 0,
+    cancelId: 1,
+  })
+
+  if (response === 0)
+    await shell.openPath(setup.configPath)
+
+  app.quit()
+  return true
+}
+
 module.exports = {
-  ensureMacAppSupport,
+  initializeMacSetupIfNeeded,
 }

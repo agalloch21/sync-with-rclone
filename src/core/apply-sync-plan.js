@@ -254,7 +254,7 @@ async function applyRmdirPhase(phase, runtimePaths, runCommand) {
   }
 }
 
-export async function applySyncPlan(syncPlan, context, hooks, cancelSignal) {
+export async function applySyncPlan(syncPlan, context, runtime, cancelSignal) {
   const execution = buildApplyExecution(syncPlan, context)
 
   if (execution.action !== 'confirm') {
@@ -265,37 +265,31 @@ export async function applySyncPlan(syncPlan, context, hooks, cancelSignal) {
   }
 
   const executionHooks = {
-    runCommand: hooks.deps.runCommand || defaultRunCommand,
-    createBatchFile: hooks.deps.createBatchFile || defaultCreateBatchFile,
-    removeBatchFile: hooks.deps.removeBatchFile || defaultRemoveBatchFile,
+    runCommand: runtime?.dependents?.runCommand || defaultRunCommand,
+    createBatchFile: runtime?.dependents?.createBatchFile || defaultCreateBatchFile,
+    removeBatchFile: runtime?.dependents?.removeBatchFile || defaultRemoveBatchFile,
   }
 
-  hooks.events.progress?.(0, execution.phases.length + 1, 'start')
+  runtime?.events?.progress?.(0, execution.phases.length + 1, 'start')
 
-  // try {
   for (const [index, phase] of execution.phases.entries()) {
-    hooks.events.progress?.(index + 1, execution.phases.length + 1, phase.type)
+    runtime.events.progress?.(index + 1, execution.phases.length + 1, phase.type)
 
-    await new Promise(resolve => setTimeout(resolve, 5000))
+    // await new Promise(resolve => setTimeout(resolve, 5000))
 
-    // if (phase.type === 'mkdir')
-    //   await applyMkdirPhase(phase, context.runtimePaths, executionHooks.runCommand)
-    // else if (phase.type === 'copy')
-    //   await applyCopyPhase(phase, context.runtimePaths, executionHooks)
-    // else if (phase.type === 'delete')
-    //   await applyDeletePhase(phase, context.runtimePaths, executionHooks)
-    // else if (phase.type === 'rmdir')
-    //   await applyRmdirPhase(phase, context.runtimePaths, executionHooks.runCommand)
+    if (phase.type === 'mkdir')
+      await applyMkdirPhase(phase, context.runtimePaths, executionHooks.runCommand)
+    else if (phase.type === 'copy')
+      await applyCopyPhase(phase, context.runtimePaths, executionHooks)
+    else if (phase.type === 'delete')
+      await applyDeletePhase(phase, context.runtimePaths, executionHooks)
+    else if (phase.type === 'rmdir')
+      await applyRmdirPhase(phase, context.runtimePaths, executionHooks.runCommand)
 
     cancelSignal?.throwIfAborted()
   }
-  // }
-  // catch (error) {
-  //   hooks.events.error?.(error?.message || String(error))
-  //   throw error
-  // }
 
-  hooks.events.progress?.(execution.phases.length + 1, execution.phases.length + 1, 'complete')
+  runtime?.events?.progress?.(execution.phases.length + 1, execution.phases.length + 1, 'complete')
 
   return {
     action: 'confirm',

@@ -6,30 +6,6 @@ import { compareSnapshot } from './compare-snapshot.js'
 import { PHASES } from './phases.js'
 import { createReporter, runWithReporter } from './sync-reporter.js'
 
-/**
- * @typedef {object} Options
- * @property {'push' | 'pull'} mode
- * @property {string} localFolderPath
- * @property {string} remoteFolderPath
- * @property {string[]} [extraIgnorePatterns]
- * @property {object} [runtimePaths]
- * @property {boolean} bypassConfig
- */
-
-/**
- * @typedef {object} Hooks
- * @property {(diffSnapshot: import('#src/types/snapshot.js').DiffSnapshot, context: SyncContext) => Promise<unknown>} [reviewDiff]
- */
-
-/**
- * @typedef {object} SyncContext
- * @property {Options} options
- * @property {import('#src/types/snapshot.js').Snapshot} localSnapshot
- * @property {import('#src/types/snapshot.js').Snapshot} remoteSnapshot
- * @property {import('#src/types/snapshot.js').Snapshot} srcSnapshot
- * @property {import('#src/types/snapshot.js').Snapshot} destSnapshot
- */
-
 function normalizeOptions(options) {
   if (!options?.mode || (options.mode !== 'push' && options.mode !== 'pull'))
     throw new Error(`Invalid sync mode: ${options?.mode}`)
@@ -54,87 +30,113 @@ function normalizeOptions(options) {
  *
  * @export
  * @param {Options} options
- * @param {Hooks} [hooks]
  */
-export async function syncCore(options, hooks = {}, cancelSignal = null) {
-  const reporter = createReporter(hooks.onEvent || (() => {}))
+export async function syncCore(
+  options,
+  runtime = { events: { eventListener: null }, interactions: { reviewDiff: null }, dependents: {} },
+  cancelSignal = null,
+) {
+  const emit = runtime.events?.eventListener || (() => {})
+  const reporter = createReporter(emit)
 
-  const normalizedOptions = await runWithReporter(reporter, PHASES.PREPARATION, () => normalizeOptions(options), 'Normalizing options', cancelSignal)
-
-  const localSnapshot = await runWithReporter(
-    reporter,
-    PHASES.BUILD_LOCAL_SNAPSHOT,
-    () => buildLocalSnapshot(
-      normalizedOptions.localFolderPath,
-      normalizedOptions.extraIgnorePatterns,
-    ),
-    'Building local snapshot',
-    cancelSignal,
-  )
-
-  const remoteSnapshot = await runWithReporter(
-    reporter,
-    PHASES.BUILD_REMOTE_SNAPSHOT,
-    () => buildRemoteSnapshot(
-      normalizedOptions.remoteFolderPath,
-      normalizedOptions.runtimePaths,
+  try {
+    const normalizedOptions = await runWithReporter(
+      reporter,
+      PHASES.PREPARATION,
+      () => normalizeOptions(options),
+      'normalize the options',
       cancelSignal,
-    ),
-    'Building remote snapshot',
-    cancelSignal,
-  )
+    )
 
-  const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot
-  const dstSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
-  const diffSnapshot = await runWithReporter(
-    reporter,
-    PHASES.COMPARE_SNAPSHOT,
-    () => compareSnapshot(srcSnapshot, dstSnapshot),
-    'Comparing snapshots',
-    cancelSignal,
-  )
+    const localSnapshot = await runWithReporter(
+      reporter,
+      PHASES.BUILD_LOCAL_SNAPSHOT,
+      () => buildLocalSnapshot(
+        normalizedOptions.localFolderPath,
+        normalizedOptions.extraIgnorePatterns,
+      ),
+      'Building local snapshot',
+      cancelSignal,
+    )
 
-  const reviewResult = hooks.reviewPortal
-    ? (await runWithReporter(
-        reporter,
-        PHASES.REVIEW_DIFFERENCES,
-        () => hooks.reviewPortal(diffSnapshot),
-        'Preparing differences review',
+    const remoteSnapshot = await runWithReporter(
+      reporter,
+      PHASES.BUILD_REMOTE_SNAPSHOT,
+      () => buildRemoteSnapshot(
+        normalizedOptions.remoteFolderPath,
+        normalizedOptions.runtimePaths,
         cancelSignal,
-      ))
-    : { action: 'confirm' }
+      ),
+      'Building remote snapshot',
+      cancelSignal,
+    )
 
-  const syncPlan = await runWithReporter(
-    reporter,
-    PHASES.GENERATE_PLAN,
-    () => buildSyncPlan(diffSnapshot, reviewResult),
-    'Preparing operations',
-    cancelSignal,
-  )
+    const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot
+    const dstSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
+    const diffSnapshot = await runWithReporter(
+      reporter,
+      PHASES.COMPARE_SNAPSHOT,
+      () => compareSnapshot(srcSnapshot, dstSnapshot),
+      'Comparing snapshots',
+      cancelSignal,
+    )
 
-  const appliedResult = await runWithReporter(
-    reporter,
-    PHASES.APPLY_PLAN,
-    () => applySyncPlan(syncPlan, normalizedOptions, {
-      deps: {
-        runCommand: hooks.defaultRunCommand,
-        createBatchFile: hooks.defaultCreateBatchFile,
-        removeBatchFile: hooks.defaultRemoveBatchFile,
-      },
-      events: {
-        progress(current, total, message) {
-          reporter.progress(PHASES.APPLY_PLAN, current, total, message)
+    const reviewResult = runtime.interactions?.reviewDiff
+      ? (await runWithReporter(
+          reporter,
+          PHASES.REVIEW_DIFFERENCES,
+          () => runtime.interactions?.reviewDiff(diffSnapshot),
+          'Preparing differences review',
+          cancelSignal,
+        ))
+      : { action: 'confirm' }
+
+    if (reviewResult.action === 'cancel') {
+      return {
+        result: 'cancelled',
+        reason: 'review-cancelled',
+        summary: diffSnapshot.dirEntries['.'].changes,
+      }
+    }
+
+    const syncPlan = await runWithReporter(
+      reporter,
+      PHASES.GENERATE_PLAN,
+      () => buildSyncPlan(diffSnapshot, reviewResult),
+      'Preparing operations',
+      cancelSignal,
+    )
+
+    const appliedResult = await runWithReporter(
+      reporter,
+      PHASES.APPLY_PLAN,
+      () => applySyncPlan(syncPlan, normalizedOptions, {
+        dependents: runtime.dependents,
+        events: {
+          progress: (current, total, message) => reporter.progress(PHASES.APPLY_PLAN, current, total, message),
         },
-      },
-    }, cancelSignal),
-    'Applying operations',
-    cancelSignal,
-  )
+      }, cancelSignal),
+      'Applying operations',
+      cancelSignal,
+    )
 
-  return {
-    diffSnapshot,
-    reviewResult,
-    syncPlan,
-    appliedResult,
+    return {
+      result: 'completed',
+      summary: diffSnapshot.dirEntries['.'].changes,
+      // todo: 把operations里填入已经执行过的操作, syncPlan.operations里只是大phase
+      operations: syncPlan.operations,
+    }
+  }
+  catch (error) {
+    if (cancelSignal?.aborted || error === cancelSignal?.reason) {
+      return {
+        result: 'cancelled',
+        reason: 'abort-signal',
+        // todo: 把operations里填入已经执行过的操作
+        operations: [],
+      }
+    }
+
+    throw error
   }
 }

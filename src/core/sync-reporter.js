@@ -31,7 +31,7 @@ export async function runWithReporter(reporter, phase, fn, message, cancelSignal
     return result
   }
   catch (error) {
-    if (error === cancelSignal?.reason) {
+    if (cancelSignal?.aborted || error === cancelSignal?.reason) {
       reporter.cancelled(phase)
     }
     else {

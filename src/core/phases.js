@@ -8,6 +8,14 @@ export const PHASES = {
   APPLY_PLAN: 'apply-plan',
 }
 
+export const PHASE_STATUS = {
+  STARTED: 'started',
+  DONE: 'done',
+  RUNNING: 'running',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+}
+
 export function isFirstPhase(phase) {
   return phase === PHASES.PREPARATION
 }

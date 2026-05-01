@@ -16,11 +16,11 @@ function isWithinRemoteRoot(remotePath, remoteRoot) {
   return remotePath === remoteRoot || remotePath.startsWith(`${remoteRoot}/`)
 }
 
-export function resolveSyncTask(localFolderPath, config, explicitRemoteFolderPath = '') {
+export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPath = '') {
   if (!config)
     return null
 
-  const normalizedLocalPath = normalizeLocalPath(path.resolve(localFolderPath))
+  const normalizedLocalPath = normalizeLocalPath(path.posix.resolve(localFolderPath))
   const candidates = config.syncJobs
     .filter((syncJob) => {
       const localRoot = trimTrailingSlash(syncJob.localBasePath)
@@ -41,9 +41,9 @@ export function resolveSyncTask(localFolderPath, config, explicitRemoteFolderPat
   }
 
   return {
-    syncJob,
+    matchedJob: syncJob,
     relativePath,
-    defaultRemoteFolderPath,
+    localFolderPath,
     remoteFolderPath: explicitRemoteFolderPath || defaultRemoteFolderPath,
     extraIgnorePatterns: [
       ...config.globalIgnorePatterns,

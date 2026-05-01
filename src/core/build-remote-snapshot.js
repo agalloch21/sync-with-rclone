@@ -19,7 +19,9 @@ function getDefaultBundledRclonePath() {
   return 'rclone'
 }
 
-function fetchDirectory(remotePath, runtimePaths = {}) {
+function fetchDirectory(remotePath, runtimePaths = {}, cancelSignal = null) {
+  cancelSignal?.throwIfAborted()
+
   const execPath = getRcloneExecutable({
     ...runtimePaths,
     bundledRclonePath: runtimePaths.bundledRclonePath || getDefaultBundledRclonePath(),
@@ -35,8 +37,32 @@ function fetchDirectory(remotePath, runtimePaths = {}) {
     const child = spawn(execPath, args)
     child.stdout.setEncoding('utf8')
 
+    let settled = false
     let resultString = ''
     let stderrString = ''
+
+    function settle(fn, value) {
+      if (settled)
+        return
+
+      settled = true
+      cancelSignal?.removeEventListener('abort', handleAbort)
+      fn(value)
+    }
+
+    function handleAbort() {
+      child.kill('SIGTERM')
+      settle(reject, cancelSignal.reason)
+    }
+
+    if (cancelSignal) {
+      if (cancelSignal.aborted) {
+        settle(reject, cancelSignal.reason)
+        return
+      }
+
+      cancelSignal.addEventListener('abort', handleAbort, { once: true })
+    }
 
     child.stderr.on('data', (data) => {
       stderrString += data.toString()
@@ -46,25 +72,33 @@ function fetchDirectory(remotePath, runtimePaths = {}) {
       resultString += chunk.toString()
     })
 
+    child.on('error', (error) => {
+      settle(reject, error)
+    })
+
     child.on('close', (code) => {
+      if (settled)
+        return
+
       if (code !== 0) {
         const stderrSummary = stderrString.trim()
-        return reject(new Error(`Failed when executing rclone. Error code: ${code}${stderrSummary ? `. ${stderrSummary}` : ''}`))
+        settle(reject, new Error(`Failed when executing rclone. Error code: ${code}${stderrSummary ? `. ${stderrSummary}` : ''}`))
+        return
       }
 
       try {
         const allFiles = JSON.parse(resultString)
-        resolve(allFiles)
+        settle(resolve, allFiles)
       }
       catch (err) {
-        reject(new Error(`Failed to parse JSON:${err.message}`))
+        settle(reject, new Error(`Failed to parse JSON:${err.message}`))
       }
     })
   })
 }
 
-export async function buildRemoteSnapshot(remotePath, runtimePaths) {
-  const entries = await fetchDirectory(remotePath, runtimePaths)
+export async function buildRemoteSnapshot(remotePath, runtimePaths, cancelSignal = null) {
+  const entries = await fetchDirectory(remotePath, runtimePaths, cancelSignal)
 
   const snapshot = {
     root: remotePath,

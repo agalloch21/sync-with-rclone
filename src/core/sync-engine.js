@@ -78,6 +78,7 @@ export async function syncCore(options, hooks = {}, cancelSignal = null) {
     () => buildRemoteSnapshot(
       normalizedOptions.remoteFolderPath,
       normalizedOptions.runtimePaths,
+      cancelSignal,
     ),
     'Building remote snapshot',
     cancelSignal,

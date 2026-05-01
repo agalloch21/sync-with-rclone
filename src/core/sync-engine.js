@@ -124,11 +124,8 @@ export async function syncCore(options, hooks = {}, cancelSignal = null) {
         progress(current, total, message) {
           reporter.progress(PHASES.APPLY_PLAN, current, total, message)
         },
-        // error(error) {
-        //   reporter.error(error)
-        // },
       },
-    }),
+    }, cancelSignal),
     'Applying operations',
     cancelSignal,
   )

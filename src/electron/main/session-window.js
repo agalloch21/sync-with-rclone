@@ -1,9 +1,9 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isFirstPhase, isLastPhase } from '#src/core/phases.js'
+import { isLastPhase } from '#src/core/phases.js'
 import { serializeDiffSnapshot } from '#src/core/serialize-diff-snapshot.js'
-import { getStepForPhase, SESSION_STATES, STEPS } from './session-steps.js'
+import { getStepForPhase, STEPS } from './session-steps.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -52,15 +52,15 @@ export function createSessionWindow() {
 
   }
 
-  let state = {
+  let uiState = {
     context: {
       mode: '',
       localFolderPath: '',
       remoteFolderPath: '',
       bypassConfig: false,
     },
-    session: SESSION_STATES.IDLE,
     step: '',
+    final: null,
     phase: {
       name: '',
       status: '',
@@ -79,15 +79,13 @@ export function createSessionWindow() {
       },
       tree: [],
     },
-    error: {
-      message: '',
-      detail: '',
-    },
   }
 
   let isClosing = false
-  let pendingReview = { resolve: null, reject: null, settled: false }
-  let pendingFinalAcknowledgement = { resolve: null, reject: null, settled: false }
+  let pendingReview = null
+  let pendingFinalAcknowledgement = null
+  let finalAcknowledgementSettled = false
+  let isSessionSealed = false
 
   const cancelController = new AbortController()
   function abortSession() {
@@ -112,24 +110,108 @@ export function createSessionWindow() {
   })
 
   function updateOptions(options) {
-    state.context = {
+    const context = {
       mode: options.mode,
       localFolderPath: options.localFolderPath,
       remoteFolderPath: options.remoteFolderPath,
       bypassConfig: options.bypassConfig,
     }
+    patchUiState({ context })
   }
 
-  function updateState(nextState) {
-    state = {
-      ...state,
-      ...nextState,
+  function patchUiState(patch, { notify = true } = {}) {
+    uiState = {
+      ...uiState,
+      ...patch,
     }
+
+    if (notify && !sessionWindow.isDestroyed())
+      sessionWindow.webContents.send(channels.progressEvent, patch)
   }
 
-  function sendProgressToRenderer(nextState) {
-    if (!sessionWindow.isDestroyed())
-      sessionWindow.webContents.send(channels.progressEvent, nextState)
+  function createReviewResult(action, selectedPaths = []) {
+    return { action, selectedPaths }
+  }
+
+  function settlePendingReview(action = 'cancel', selectedPaths = []) {
+    if (!pendingReview)
+      return
+
+    const { resolve } = pendingReview
+    pendingReview = null
+    resolve(createReviewResult(action, selectedPaths))
+  }
+
+  function settleFinalAcknowledgement() {
+    finalAcknowledgementSettled = true
+
+    if (!pendingFinalAcknowledgement)
+      return
+
+    const { resolve } = pendingFinalAcknowledgement
+    pendingFinalAcknowledgement = null
+    resolve()
+  }
+
+  function completeSession(extraPatch = {}) {
+    if (isSessionSealed)
+      return
+
+    sealSession()
+    patchUiState({
+      ...extraPatch,
+      final: {
+        kind: 'completed',
+      },
+    })
+  }
+
+  function cancelSession(extraPatch = {}) {
+    if (isSessionSealed)
+      return
+
+    sealSession()
+    abortSession()
+    settlePendingReview('cancel')
+    patchUiState({
+      ...extraPatch,
+      final: {
+        kind: 'cancelled',
+      },
+    })
+  }
+
+  function failSession(error, extraPatch = {}) {
+    if (isSessionSealed)
+      return
+
+    sealSession()
+    settlePendingReview('cancel')
+    patchUiState({
+      ...extraPatch,
+      final: {
+        kind: 'error',
+        message: error?.message || String(error),
+        detail: error?.stack || '',
+      },
+    })
+  }
+
+  function abandonSession(reason) {
+    if (reason)
+      console.error(reason)
+
+    if (!isSessionSealed) {
+      sealSession()
+      abortSession()
+      settlePendingReview('cancel')
+    }
+
+    settleFinalAcknowledgement()
+  }
+
+  function sealSession() {
+    isSessionSealed = true
   }
 
   function onEventFromCore(event) {
@@ -139,85 +221,68 @@ export function createSessionWindow() {
       status: event.status,
       message: event.message,
     }
+
     switch (event.status) {
       case 'started':
-        if (isFirstPhase(event.phase))
-          nextState.session = SESSION_STATES.RUNNING
         nextState.step = getStepForPhase(nextState.phase.name)
-        break
-      case 'done':
-        if (isLastPhase(event.phase))
-          nextState.session = SESSION_STATES.COMPLETED
-        break
-      case 'cancelled':
-        nextState.session = SESSION_STATES.CANCELLED
-        break
-      case 'failed':
-        nextState.session = SESSION_STATES.ERROR
-        nextState.error = {}
-        nextState.error.message = event.message
+        patchUiState(nextState)
         break
       case 'running':
         nextState.progress = {}
         nextState.progress.current = event.current
         nextState.progress.total = event.total
         nextState.progress.message = event.message
+        patchUiState(nextState)
+        break
+      case 'done':
+        if (isLastPhase(event.phase)) {
+          completeSession(nextState)
+        }
+        else {
+          patchUiState(nextState)
+        }
+        break
+      case 'cancelled':
+        cancelSession(nextState)
+        break
+      case 'failed':
+        failSession(event.message, nextState)
         break
     }
-
-    updateState(nextState)
-
-    sendProgressToRenderer(nextState)
   }
 
   async function reviewDiffInWindow(diffSnapshot) {
-    if (pendingReview.settled) {
+    if (isSessionSealed || cancelController.signal.aborted)
       return createReviewResult('cancel')
-    }
 
-    const nextState = {
+    patchUiState({
+      step: STEPS.REVIEW,
       review: serializeDiffSnapshot(diffSnapshot),
-    }
-
-    updateState(nextState)
-
-    sendProgressToRenderer(nextState)
+    })
 
     return new Promise((resolve, reject) => {
-      pendingReview = {
-        resolve,
-        reject,
-      }
+      pendingReview = { resolve, reject }
     })
   }
 
   async function waitForFinalAcknowledgeIfNeeded() {
-    if (pendingFinalAcknowledgement.settled) {
-      return
-    }
+    if (finalAcknowledgementSettled)
+      return Promise.resolve()
 
-    return new Promise((resolve, reject) => {
-      pendingFinalAcknowledgement = { resolve, reject }
+    if (pendingFinalAcknowledgement)
+      return pendingFinalAcknowledgement.promise
+
+    let resolve
+    const promise = new Promise((innerResolve) => {
+      resolve = innerResolve
     })
-  }
 
-  function createReviewResult(action, selectedPaths = []) {
-    return { action, selectedPaths }
-  }
-
-  function settlePendingReview(action = 'cancel', selectedPaths = []) {
-    pendingReview.resolve?.(createReviewResult(action, selectedPaths))
-    pendingReview = { resolve: null, reject: null, settled: true }
-  }
-
-  function settleFinalAcknowledgement() {
-    pendingFinalAcknowledgement.resolve?.()
-    pendingFinalAcknowledgement = { resolve: null, reject: null, settled: true }
+    pendingFinalAcknowledgement = { promise, resolve }
+    return promise
   }
 
   function handleCancel(_event) {
-    settlePendingReview('cancel')
-    abortSession()
+    cancelSession()
   }
 
   function handleConfirm(_event, payload) {
@@ -229,7 +294,7 @@ export function createSessionWindow() {
     settleFinalAcknowledgement()
   }
 
-  ipcMain.handle(channels.getState, () => state)
+  ipcMain.handle(channels.getState, () => uiState)
   ipcMain.on(channels.cancelSync, handleCancel)
   ipcMain.on(channels.confirmSync, handleConfirm)
   ipcMain.on(channels.closeWindow, handleClose)
@@ -244,31 +309,22 @@ export function createSessionWindow() {
     if (isClosing)
       return
 
-    isClosing = true
+    sealSession()
 
-    // Normal close also releases any leftover waits.
-    settlePendingReview()
-    settleFinalAcknowledgement()
+    isClosing = true
     cleanup()
+    settlePendingReview('cancel')
+    settleFinalAcknowledgement()
 
     if (!sessionWindow.isDestroyed())
       sessionWindow.close()
-  }
-
-  function forceFinishSession(reason) {
-    if (reason)
-      console.error(reason)
-
-    abortSession()
-    settlePendingReview()
-    settleFinalAcknowledgement()
   }
 
   sessionWindow.on('closed', () => {
     cleanup()
 
     if (!isClosing)
-      forceFinishSession(new Error('Session window was closed before sync finished.'))
+      abandonSession(new Error('Session window was closed before session cleanup.'))
   })
 
   sessionWindow.once('ready-to-show', () => {
@@ -280,16 +336,16 @@ export function createSessionWindow() {
   })
 
   sessionWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription, validatedURL) => {
-    forceFinishSession(new Error(`Renderer failed to load: ${errorCode} ${errorDescription} ${validatedURL}`))
+    abandonSession(new Error(`Renderer failed to load: ${errorCode} ${errorDescription} ${validatedURL}`))
   })
 
   sessionWindow.webContents.on('render-process-gone', (_, details) => {
-    forceFinishSession(new Error(`Renderer process gone: ${details.reason}`))
+    abandonSession(new Error(`Renderer process gone: ${details.reason}`))
   })
 
   loadRendererPage(sessionWindow, 'sync-session')
     .catch((error) => {
-      forceFinishSession(error)
+      abandonSession(error)
     })
 
   if (process.env.DEBUG_ELECTRON === '1')

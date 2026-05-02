@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isLastPhase } from '#src/core/phases.js'
+import { SESSION_EVENT } from '#src/app/sync-session-contract.js'
 import { serializeDiffSnapshot } from '#src/core/serialize-diff-snapshot.js'
 import { getStepForPhase, STEPS } from './session-steps.js'
 
@@ -45,7 +45,6 @@ export function createSessionWindow() {
     progressEvent: `${channelPrefix}:progress-event`,
     // handler
     getState: `${channelPrefix}:get-state`,
-    // event
     confirmSync: `${channelPrefix}:confirm-sync`,
     cancelSync: `${channelPrefix}:cancel-sync`,
     closeWindow: `${channelPrefix}:close-window`,
@@ -61,11 +60,8 @@ export function createSessionWindow() {
     },
     step: '',
     final: null,
-    phase: {
-      name: '',
-      status: '',
-      message: '',
-    },
+    phase: '',
+    message: '',
     progress: {
       current: 0,
       total: 0,
@@ -84,7 +80,6 @@ export function createSessionWindow() {
   let isClosing = false
   let pendingReview = null
   let pendingFinalAcknowledgement = null
-  let finalAcknowledgementSettled = false
   let isSessionSealed = false
 
   const cancelController = new AbortController()
@@ -108,16 +103,6 @@ export function createSessionWindow() {
       additionalArguments: [JSON.stringify(channels)],
     },
   })
-
-  function updateOptions(options) {
-    const context = {
-      mode: options.mode,
-      localFolderPath: options.localFolderPath,
-      remoteFolderPath: options.remoteFolderPath,
-      bypassConfig: options.bypassConfig,
-    }
-    patchUiState({ context })
-  }
 
   function patchUiState(patch, { notify = true } = {}) {
     uiState = {
@@ -143,8 +128,6 @@ export function createSessionWindow() {
   }
 
   function settleFinalAcknowledgement() {
-    finalAcknowledgementSettled = true
-
     if (!pendingFinalAcknowledgement)
       return
 
@@ -153,106 +136,53 @@ export function createSessionWindow() {
     resolve()
   }
 
-  function completeSession(extraPatch = {}) {
-    if (isSessionSealed)
-      return
-
-    sealSession()
-    patchUiState({
-      ...extraPatch,
-      final: {
-        kind: 'completed',
-      },
-    })
-  }
-
-  function cancelSession(extraPatch = {}) {
-    if (isSessionSealed)
-      return
-
-    sealSession()
+  function cancelSession() {
     abortSession()
     settlePendingReview('cancel')
-    patchUiState({
-      ...extraPatch,
-      final: {
-        kind: 'cancelled',
-      },
-    })
-  }
-
-  function failSession(error, extraPatch = {}) {
-    if (isSessionSealed)
-      return
-
-    sealSession()
-    settlePendingReview('cancel')
-    patchUiState({
-      ...extraPatch,
-      final: {
-        kind: 'error',
-        message: error?.message || String(error),
-        detail: error?.stack || '',
-      },
-    })
+    settleFinalAcknowledgement()
   }
 
   function abandonSession(reason) {
+    if (isSessionSealed)
+      return
+
     if (reason)
       console.error(reason)
 
-    if (!isSessionSealed) {
-      sealSession()
-      abortSession()
-      settlePendingReview('cancel')
-    }
-
-    settleFinalAcknowledgement()
+    cancelSession()
+    sealSession()
   }
 
   function sealSession() {
     isSessionSealed = true
   }
 
-  function onEventFromCore(event) {
-    const nextState = {}
-    nextState.phase = {
-      name: event.phase,
-      status: event.status,
-      message: event.message,
+  function onEventFromMain(event) {
+    if (event.type === SESSION_EVENT.STARTED || event.type === SESSION_EVENT.RESULT) {
+      // will use showFinalAcknowledgement() to receive result
+      return
     }
 
-    switch (event.status) {
-      case 'started':
-        nextState.step = getStepForPhase(nextState.phase.name)
-        patchUiState(nextState)
-        break
-      case 'running':
-        nextState.progress = {}
-        nextState.progress.current = event.current
-        nextState.progress.total = event.total
-        nextState.progress.message = event.message
-        patchUiState(nextState)
-        break
-      case 'done':
-        if (isLastPhase(event.phase)) {
-          completeSession(nextState)
-        }
-        else {
-          patchUiState(nextState)
-        }
-        break
-      case 'cancelled':
-        cancelSession(nextState)
-        break
-      case 'failed':
-        failSession(event.message, nextState)
-        break
+    let nextState = null
+
+    if (event.type === SESSION_EVENT.CONTEXT_RESOLVED) {
+      nextState = { context: event.context }
     }
+    else if (event.type === SESSION_EVENT.PROGRESS) {
+      nextState = {
+        step: getStepForPhase(event.phase),
+        phase: event.phase,
+        message: event.message,
+        progress: event.progress || null,
+      }
+    }
+
+    if (nextState)
+      patchUiState(nextState)
   }
 
   async function reviewDiffInWindow(diffSnapshot) {
-    if (isSessionSealed || cancelController.signal.aborted)
+    if (isSessionSealed)
       return createReviewResult('cancel')
 
     patchUiState({
@@ -265,51 +195,58 @@ export function createSessionWindow() {
     })
   }
 
-  async function waitForFinalAcknowledgeIfNeeded() {
-    if (finalAcknowledgementSettled)
-      return Promise.resolve()
+  async function showFinalAcknowledgement(finalResult) {
+    if (isSessionSealed)
+      return
 
-    if (pendingFinalAcknowledgement)
-      return pendingFinalAcknowledgement.promise
-
-    let resolve
-    const promise = new Promise((innerResolve) => {
-      resolve = innerResolve
+    patchUiState({
+      final: finalResult,
     })
 
-    pendingFinalAcknowledgement = { promise, resolve }
-    return promise
+    return new Promise((resolve, reject) => {
+      pendingFinalAcknowledgement = { resolve, reject }
+    })
   }
 
   function handleCancel(_event) {
+    if (pendingReview) {
+      settlePendingReview('cancel')
+      return { success: true, action: 'review-cancelled' }
+    }
+
     cancelSession()
+    return { success: true, action: 'sync-cancel-requested' }
   }
 
   function handleConfirm(_event, payload) {
+    if (!pendingReview)
+      return { success: false, action: 'ignored', reason: 'no-pending-review' }
+
     const selectedPaths = Array.isArray(payload?.selectedPaths) ? payload.selectedPaths : []
     settlePendingReview('confirm', selectedPaths)
+    return { success: true, action: 'review-confirmed' }
   }
 
   function handleClose(_event) {
     settleFinalAcknowledgement()
+    return { success: true, action: 'final-acknowledged' }
   }
 
   ipcMain.handle(channels.getState, () => uiState)
-  ipcMain.on(channels.cancelSync, handleCancel)
-  ipcMain.on(channels.confirmSync, handleConfirm)
-  ipcMain.on(channels.closeWindow, handleClose)
+  ipcMain.handle(channels.cancelSync, handleCancel)
+  ipcMain.handle(channels.confirmSync, handleConfirm)
+  ipcMain.handle(channels.closeWindow, handleClose)
 
   const cleanup = () => {
     ipcMain.removeHandler(channels.getState)
-    ipcMain.removeListener(channels.cancelSync, handleCancel)
-    ipcMain.removeListener(channels.confirmSync, handleConfirm)
-    ipcMain.removeListener(channels.closeWindow, handleClose)
+    ipcMain.removeHandler(channels.cancelSync, handleCancel)
+    ipcMain.removeHandler(channels.confirmSync, handleConfirm)
+    ipcMain.removeHandler(channels.closeWindow, handleClose)
   }
+
   function closeWindow() {
     if (isClosing)
       return
-
-    sealSession()
 
     isClosing = true
     cleanup()
@@ -352,10 +289,9 @@ export function createSessionWindow() {
     sessionWindow.webContents.openDevTools({ mode: 'detach' })
 
   return {
-    onEventFromCore,
+    onEventFromMain,
     reviewDiffInWindow,
-    updateOptions,
-    waitForFinalAcknowledgeIfNeeded,
+    showFinalAcknowledgement,
 
     closeWindow,
     cancelSignal: cancelController.signal,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { compareSnapshot } from '#src/core/compare-snapshot.js'
-import { createEmptySnapshot } from '#src/types/snapshot.js'
+import { createEmptySnapshot } from '#src/core/snapshot.js'
 
 test('compareSnapshot treats sub-millisecond mtime differences as unchanged when size is equal', () => {
   const srcSnapshot = createEmptySnapshot('/src-root')
@@ -44,4 +44,3 @@ test('compareSnapshot still marks files as modified when size differs', () => {
   const diffSnapshot = compareSnapshot(srcSnapshot, dstSnapshot)
   assert.equal(diffSnapshot.fileEntries.get('file.txt')?.state, 1)
 })
-

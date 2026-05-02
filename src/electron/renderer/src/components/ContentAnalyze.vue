@@ -10,12 +10,11 @@ const currentPhaseIndex = computed(() => {
   }
 
   if (state.value.step === STEPS.ANALYZE) {
-    return STEP_META[STEPS.ANALYZE]?.phases.findIndex(phase => phase === state.value.phase.name)
+    return STEP_META[STEPS.ANALYZE]?.phases.findIndex(phase => phase === state.value.phase)
   }
 
   return STEP_META[STEPS.ANALYZE]?.phases?.length
 })
-// const currentPhaseIndex = 2
 </script>
 
 <template>

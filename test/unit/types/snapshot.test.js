@@ -5,7 +5,7 @@ import test from 'node:test'
  * 这个测试不做运行时类型检查。
  * 目标只是固定住 Snapshot 在项目里的“数据长相”，让后续模块按同一结构组织数据。
  *
- * @type {import('#src/types/snapshot.js').Snapshot}
+ * @type {import('#src/core/snapshot.js').Snapshot}
  */
 const snapshotSample = {
   root: '/demo/root',

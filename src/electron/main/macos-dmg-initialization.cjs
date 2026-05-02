@@ -167,12 +167,12 @@ async function ensureMacAppSupport(version) {
   }
 }
 
-function shouldInitializeMacSetup(app) {
-  return process.platform === 'darwin' && app.isPackaged
+function shouldInitializeMacSetup(app, localFolderPath) {
+  return process.platform === 'darwin' && app.isPackaged && !localFolderPath
 }
 
-async function initializeMacSetupIfNeeded(app, dialog, shell) {
-  if (!shouldInitializeMacSetup(app))
+async function initializeMacSetupIfNeeded(app, dialog, shell, localFolderPath) {
+  if (!shouldInitializeMacSetup(app, localFolderPath))
     return false
 
   const setup = await ensureMacAppSupport(app.getVersion())

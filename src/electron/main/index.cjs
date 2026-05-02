@@ -1,4 +1,5 @@
 const { app, dialog } = require('electron')
+// const { initializeMacSetupIfNeeded } = require('./macos-dmg-initialization.cjs')
 
 let isSyncInProgress = false
 
@@ -28,22 +29,37 @@ async function main() {
   let sessionWindowHooks = null
   let runError = null
 
-  const [{ startSync }, { parseSyncArgs }, { createSessionWindow }] = await Promise.all([
+  const [{ startSync }, { parseSyncArgs }, { createSessionWindow }, { SYNC_RESULT, PHASES }] = await Promise.all([
     import('#src/app/start-sync.js'),
     import('#src/app/parse-sync-args.js'),
     import('./session-window.js'),
+    import('#src/core/contract.js'),
   ])
 
   const options = parseSyncArgs(process.argv.slice(2))
 
+  // DMG first-launch setup used to run here when no localFolderPath was passed.
+  // PKG install now owns setup/config bootstrap, so normal launches go straight
+  // into the sync session. Re-enable macos-dmg-initialization.cjs only if DMG
+  // first-launch support returns.
+  // if (await initializeMacSetupIfNeeded(app, dialog, shell, options.localFolderPath))
+  // return
+
   sessionWindowHooks = createSessionWindow()
 
   isSyncInProgress = true
+  let syncResult = null
   try {
-    const syncResult = await startSync(options, {
-      events: { eventListener: sessionWindowHooks.onEventFromCore },
+    syncResult = await startSync(options, {
+      events: { eventListener: sessionWindowHooks.onEventFromMain },
       interactions: { reviewDiff: sessionWindowHooks.reviewDiffInWindow },
     }, sessionWindowHooks.cancelSignal)
+
+    if (syncResult.result === SYNC_RESULT.COMPLETED
+      || syncResult.result === SYNC_RESULT.FAILED
+      || (syncResult.result === SYNC_RESULT.CANCELLED && (syncResult.phase === PHASES.APPLY_PLAN || syncResult.phase === PHASES.GENERATE_PLAN))) {
+      await sessionWindowHooks.showFinalAcknowledgement(syncResult)
+    }
   }
   catch (error) {
     runError = error
@@ -51,20 +67,10 @@ async function main() {
   }
   finally {
     isSyncInProgress = false
-  }
-
-  try {
-    await sessionWindowHooks.waitForFinalAcknowledgeIfNeeded()
-  }
-  catch (error) {
-    runError ||= error
-    console.error(error)
-  }
-  finally {
     sessionWindowHooks.closeWindow()
   }
 
-  if (runError)
+  if (runError || syncResult?.result === SYNC_RESULT.FAILED)
     app.exit(1)
   else
     app.quit()

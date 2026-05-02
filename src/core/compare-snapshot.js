@@ -1,8 +1,8 @@
-/** @typedef {import('#src/types/snapshot.js').Snapshot} Snapshot */
-/** @typedef {import('#src/types/snapshot.js').DiffSnapshot} DiffSnapshot */
+/** @typedef {import('#src/core/snapshot.js').Snapshot} Snapshot */
+/** @typedef {import('#src/core/snapshot.js').DiffSnapshot} DiffSnapshot */
 
 import path from 'node:path'
-import { createEmptyDiffSnapshot, DiffState } from '#src/types/snapshot.js'
+import { createEmptyDiffSnapshot, DiffState } from '#src/core/snapshot.js'
 
 const MTIME_TOLERANCE_MS = 1
 

@@ -1,4 +1,4 @@
-import { PHASES } from '#src/core/phases.js'
+import { PHASES } from '#src/core/contract.js'
 import { STEPS } from '#src/electron/main/session-steps.js'
 
 export default {

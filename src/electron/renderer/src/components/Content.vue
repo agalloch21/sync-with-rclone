@@ -1,5 +1,5 @@
 <script setup>
-import { SESSION_STATES, STEPS } from '#src/electron/main/session-steps.js'
+import { STEPS } from '#src/electron/main/session-steps.js'
 import { computed, inject } from 'vue'
 import ContentAnalyze from './ContentAnalyze.vue'
 import ContentFinalAcknowledgement from './ContentFinalAcknowledgement.vue'
@@ -9,7 +9,7 @@ import ContentSync from './ContentSync.vue'
 const state = inject('state')
 const showFinalAcknowledgement = inject('showFinalAcknowledgement')
 
-const step = computed(() => state.value?.step?.length > 0 ? props.state.step : '')
+const step = computed(() => state.value?.step?.length > 0 ? state.value?.step : '')
 </script>
 
 <template>

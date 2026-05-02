@@ -273,7 +273,7 @@ export async function applySyncPlan(syncPlan, context, runtime, cancelSignal) {
   runtime?.events?.progress?.(0, execution.phases.length + 1, 'start')
 
   for (const [index, phase] of execution.phases.entries()) {
-    runtime.events.progress?.(index + 1, execution.phases.length + 1, phase.type)
+    runtime?.events?.progress?.(index + 1, execution.phases.length + 1, phase.type)
 
     // await new Promise(resolve => setTimeout(resolve, 5000))
 

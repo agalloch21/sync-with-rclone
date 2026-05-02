@@ -1,4 +1,4 @@
-/** @typedef {import('#src/types/snapshot.js').DiffSnapshot} DiffSnapshot */
+/** @typedef {import('#src/core/snapshot.js').DiffSnapshot} DiffSnapshot */
 
 const DIFF_STATE_LABELS = {
   1: 'modified',

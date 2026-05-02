@@ -4,7 +4,7 @@ import { computed, inject } from 'vue'
 
 const state = inject('state')
 
-const phase = computed(() => state.value?.step === STEPS.SYNC ? (state.value?.phase?.name || '') : '')
+const phase = computed(() => state.value?.step === STEPS.SYNC ? (state.value?.phase || '') : '')
 const showProgress = computed(() => phase.value === STEP_META[STEPS.SYNC].phases[1])
 const current = computed(() => showProgress.value ? (state.value?.progress?.current || 0) : 0)
 const total = computed(() => showProgress.value ? (state.value?.progress?.total || 0) : 0)

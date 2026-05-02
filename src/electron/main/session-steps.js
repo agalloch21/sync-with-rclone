@@ -1,4 +1,4 @@
-import { PHASES } from '#src/core/phases.js'
+import { PHASES } from '#src/core/contract.js'
 
 export const SESSION_STATES = {
   IDLE: 'idle',

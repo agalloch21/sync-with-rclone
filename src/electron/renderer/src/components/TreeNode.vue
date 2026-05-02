@@ -17,6 +17,7 @@ const props = defineProps({
 })
 
 function setNodeSelection(node, checked) {
+  // eslint-disable-next-line vue/no-mutating-props
   props.selection[node.path] = checked
   if (node.children) {
     for (const child of node.children)

@@ -1,21 +1,21 @@
 <script setup>
-import { SESSION_STATES, STEPS } from '#src/electron/main/session-steps.js'
+import { SYNC_RESULT } from '#src/core/contract.js'
+import { STEPS } from '#src/electron/main/session-steps.js'
 import { computed, inject } from 'vue'
 
 const state = inject('state')
 
-const session = computed(() => state.value?.session)
-const step = computed(() => state.value?.step)
+const result = computed(() => state.value?.final?.result)
 </script>
 
 <template>
-  <div v-if="session === SESSION_STATES.COMPLETED">
+  <div v-if="result === SYNC_RESULT.COMPLETED">
     completed
   </div>
-  <div v-else-if="session === SESSION_STATES.CANCELLED && step === STEPS.SYNC">
+  <div v-else-if="result === SYNC_RESULT.CANCELLED">
     cancelled
   </div>
-  <div v-else-if="session === SESSION_STATES.ERROR">
+  <div v-else-if="result === SYNC_RESULT.FAILED">
     error
   </div>
 </template>

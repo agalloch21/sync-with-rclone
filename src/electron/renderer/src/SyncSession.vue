@@ -14,8 +14,9 @@ locale.value = 'en'
 const state = ref({})
 const selection = reactive({})
 
-let needFinalAcknowledgement = false
-const showFinalAcknowledgement = ref(false)
+const showFinalAcknowledgement = computed(() => {
+  return Boolean(state.value?.final)
+})
 
 provide('state', state)
 provide('selection', selection)
@@ -34,12 +35,11 @@ onMounted(() => {
       disposeProgressListener?.()
       disposeProgressListener = null
 
-      state.value.session = SESSION_STATES.ERROR
-      state.value.error = {
+      state.value.final = {
+        result: 'failed',
         message: error?.message || String(error),
+        requiresAcknowledgement: true,
       }
-      needFinalAcknowledgement = true
-      showFinalAcknowledgement.value = true
     })
 
   disposeProgressListener = window.syncSession.onReceiveProgressEvent((patchState) => {
@@ -52,40 +52,35 @@ onBeforeUnmount(() => {
   disposeProgressListener = null
 })
 
-const isSyncCoreFinished = computed(() => state.value?.session === SESSION_STATES.COMPLETED || state.value?.session === SESSION_STATES.CANCELLED || state.value?.session === SESSION_STATES.ERROR, false)
-watch(isSyncCoreFinished, (newValue, oldValue) => {
-  if (newValue === true && oldValue === false) {
-    if (needFinalAcknowledgement) {
-      showFinalAcknowledgement.value = true
-    }
-    else {
-      acknowledgeAndClose()
-    }
+const pendingCommand = ref(null)
+async function invokeCommand(name, ipcCommand) {
+  if (pendingCommand.value)
+    return
+
+  pendingCommand.value = name
+  try {
+    await ipcCommand()
   }
-})
+  finally {
+    pendingCommand.value = null
+    // todo: 显示错误, 兜底退出. 和getState一致
+  }
+}
 
 function cancelSync() {
-  if (state.value.step === STEPS.ANALYZE || state.value.step === STEPS.REVIEW) {
-    needFinalAcknowledgement = false
-  }
-  else if (state.value.step === STEPS.SYNC) {
-    needFinalAcknowledgement = true
-  }
-
-  window.syncSession.cancelSync()
+  invokeCommand('cancel', () => window.syncSession.cancelSync())
 }
 
 function confirmSync() {
-  needFinalAcknowledgement = true
-
   const selectedPaths = Object.entries(selection)
     .filter(([, checked]) => checked)
     .map(([entryPath]) => entryPath)
-  window.syncSession.confirmSync(selectedPaths)
+
+  invokeCommand('confirm', () => window.syncSession.confirmSync(selectedPaths))
 }
 
 function acknowledgeAndClose() {
-  window.syncSession.closeWindow()
+  invokeCommand('close', () => window.syncSession.closeWindow())
 }
 </script>
 
@@ -114,7 +109,10 @@ function acknowledgeAndClose() {
       </div>
     </main>
     <footer class="footer-dock w-full h-16 bg-(--surface-footer)">
-      <Footer @on-click-cancel="cancelSync()" @on-click-confirm="confirmSync()" @on-click-close="acknowledgeAndClose()" />
+      <Footer
+        :has-pending-command="Boolean(pendingCommand)"
+        @on-click-cancel="cancelSync()" @on-click-confirm="confirmSync()" @on-click-close="acknowledgeAndClose()"
+      />
     </footer>
   </div>
 </template>

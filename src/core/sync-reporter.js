@@ -1,19 +1,21 @@
+import { PHASE_EVENT } from './contract.js'
+
 export function createReporter(emit = () => {}) {
   return {
     started(phase, message) {
-      emit({ type: 'phase', phase, status: 'started', message: message || `phase [${phase}] started` })
+      emit({ type: PHASE_EVENT.STARTED, phase, message: message || `phase [${phase}] started` })
     },
     done(phase, message) {
-      emit({ type: 'phase', phase, status: 'done', message: message || `phase [${phase}] completed` })
+      emit({ type: PHASE_EVENT.DONE, phase, message: message || `phase [${phase}] completed` })
     },
     progress(phase, current, total, message) {
-      emit({ type: 'phase', phase, status: 'running', current, total, message: message || `phase [${phase}] is running` })
+      emit({ type: PHASE_EVENT.PROGRESS, phase, current, total, message: message || `phase [${phase}] is running` })
     },
     error(phase, error) {
-      emit({ type: 'phase', phase, status: 'failed', message: error?.message || `phase [${phase}] failed` })
+      emit({ type: PHASE_EVENT.FAILED, phase, message: error?.message || `phase [${phase}] failed` })
     },
     cancelled(phase, message) {
-      emit({ type: 'phase', phase, status: 'cancelled', message: message || `phase [${phase}] cancelled` })
+      emit({ type: PHASE_EVENT.CANCELLED, phase, message: message || `phase [${phase}] cancelled` })
     },
   }
 }

@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-/** @typedef {import('#src/types/snapshot.js').Snapshot} Snapshot */
-import { pushEntryToSnapshot } from '#src/types/snapshot.js'
+/** @typedef {import('#src/core/snapshot.js').Snapshot} Snapshot */
+import { pushEntryToSnapshot } from '#src/core/snapshot.js'
 import { buildRcloneArgs, getRcloneExecutable } from './rclone-runtime.js'
 
 function getDefaultBundledRclonePath() {

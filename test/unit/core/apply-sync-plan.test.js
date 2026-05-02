@@ -29,6 +29,7 @@ test('buildApplyExecution groups remote push operations into phased execution', 
     phases: [
       {
         type: 'mkdir',
+        description: 'creating directories',
         strategy: 'per-path-rclone',
         targetKind: 'remote',
         root: 'synology:ProjectsSynced/app',
@@ -36,6 +37,7 @@ test('buildApplyExecution groups remote push operations into phased execution', 
       },
       {
         type: 'copy',
+        description: 'copying files',
         strategy: 'batch-rclone-files-from',
         sourceKind: 'local',
         destinationKind: 'remote',
@@ -45,6 +47,7 @@ test('buildApplyExecution groups remote push operations into phased execution', 
       },
       {
         type: 'delete',
+        description: 'deleting files',
         strategy: 'batch-rclone-files-from',
         targetKind: 'remote',
         root: 'synology:ProjectsSynced/app',
@@ -52,6 +55,7 @@ test('buildApplyExecution groups remote push operations into phased execution', 
       },
       {
         type: 'rmdir',
+        description: 'deleting directories',
         strategy: 'per-path-rclone',
         targetKind: 'remote',
         root: 'synology:ProjectsSynced/app',
@@ -85,15 +89,17 @@ test('applySyncPlan uses batched rclone commands for copy and delete phases', as
       bundledRclonePath: '/app/bin/rclone',
     },
   }, {
-    runCommand: async (command, args) => {
-      commands.push({ command, args })
+    dependents: {
+      runCommand: async (command, args) => {
+        commands.push({ command, args })
+      },
+      createBatchFile: async (paths) => {
+        const filePath = `/tmp/mock-batch-${batchFiles.length}.txt`
+        batchFiles.push({ filePath, paths })
+        return filePath
+      },
+      removeBatchFile: async () => {},
     },
-    createBatchFile: async (paths) => {
-      const filePath = `/tmp/mock-batch-${batchFiles.length}.txt`
-      batchFiles.push({ filePath, paths })
-      return filePath
-    },
-    removeBatchFile: async () => {},
   })
 
   assert.equal(result.action, 'confirm')
@@ -162,22 +168,20 @@ test('applySyncPlan reports apply lifecycle events in execution order', async ()
       bundledRclonePath: '/app/bin/rclone',
     },
   }, {
-    onEvent: async event => events.push({
-      type: event.type,
-      phaseType: event.phase?.type || '',
-      phaseIndex: typeof event.phaseIndex === 'number' ? event.phaseIndex : -1,
-    }),
-    runCommand: async () => {},
-    createBatchFile: async () => '/tmp/mock-batch.txt',
-    removeBatchFile: async () => {},
+    events: {
+      progress: (current, total, message) => events.push({ current, total, message }),
+    },
+    dependents: {
+      runCommand: async () => {},
+      createBatchFile: async () => '/tmp/mock-batch.txt',
+      removeBatchFile: async () => {},
+    },
   })
 
   assert.deepEqual(events, [
-    { type: 'start', phaseType: '', phaseIndex: -1 },
-    { type: 'phase-start', phaseType: 'mkdir', phaseIndex: 0 },
-    { type: 'phase-complete', phaseType: 'mkdir', phaseIndex: 0 },
-    { type: 'phase-start', phaseType: 'copy', phaseIndex: 1 },
-    { type: 'phase-complete', phaseType: 'copy', phaseIndex: 1 },
-    { type: 'complete', phaseType: '', phaseIndex: -1 },
+    { current: 0, total: 3, message: 'start' },
+    { current: 1, total: 3, message: 'mkdir' },
+    { current: 2, total: 3, message: 'copy' },
+    { current: 3, total: 3, message: 'complete' },
   ])
 })

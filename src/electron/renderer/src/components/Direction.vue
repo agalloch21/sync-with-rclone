@@ -20,7 +20,7 @@ const props = defineProps({
       </svg>
     </div>
     <div class="text-xs text-(--primary) font-bold overflow-hidden text-clip whitespace-nowrap">
-      {{ $t(`context.${props.mode}`, '-') }}
+      {{ props.mode?.length > 0 ? $t(`context.${props.mode}`) : '-' }}
     </div>
   </div>
 </template>

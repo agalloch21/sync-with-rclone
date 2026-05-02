@@ -14,14 +14,13 @@ contextBridge.exposeInMainWorld('syncSession', {
   getState() {
     return ipcRenderer.invoke(channels.getState)
   },
-  // event
   confirmSync(selectedPaths) {
-    ipcRenderer.send(channels.confirmSync, { selectedPaths })
+    return ipcRenderer.invoke(channels.confirmSync, { selectedPaths })
   },
   cancelSync() {
-    ipcRenderer.send(channels.cancelSync)
+    return ipcRenderer.invoke(channels.cancelSync)
   },
   closeWindow() {
-    ipcRenderer.send(channels.closeWindow)
+    return ipcRenderer.invoke(channels.closeWindow)
   },
 })

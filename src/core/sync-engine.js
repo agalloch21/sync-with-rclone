@@ -3,8 +3,31 @@ import { buildLocalSnapshot } from './build-local-snapshot.js'
 import { buildRemoteSnapshot } from './build-remote-snapshot.js'
 import { buildSyncPlan } from './build-sync-plan.js'
 import { compareSnapshot } from './compare-snapshot.js'
-import { PHASES } from './phases.js'
+import { PHASES, REVIEW_ACTION, SYNC_CANCEL_REASON, SYNC_RESULT } from './contract.js'
 import { createReporter, runWithReporter } from './sync-reporter.js'
+
+function assertRuntimeContract(runtime) {
+  if (!runtime || typeof runtime !== 'object')
+    throw new TypeError('syncCore runtime must be an object')
+
+  const eventListener = runtime.events?.eventListener
+  if (eventListener && typeof eventListener !== 'function')
+    throw new TypeError('syncCore runtime.events.eventListener must be a function')
+
+  const reviewDiff = runtime.interactions?.reviewDiff
+  if (reviewDiff && typeof reviewDiff !== 'function')
+    throw new TypeError('syncCore runtime.interactions.reviewDiff must be a function')
+
+  const dependents = runtime.dependents || {}
+  if (dependents.runCommand && typeof dependents.runCommand !== 'function')
+    throw new TypeError('syncCore runtime.dependents.runCommand must be a function')
+
+  if (dependents.createBatchFile && typeof dependents.createBatchFile !== 'function')
+    throw new TypeError('syncCore runtime.dependents.createBatchFile must be a function')
+
+  if (dependents.removeBatchFile && typeof dependents.removeBatchFile !== 'function')
+    throw new TypeError('syncCore runtime.dependents.removeBatchFile must be a function')
+}
 
 function normalizeOptions(options) {
   if (!options?.mode || (options.mode !== 'push' && options.mode !== 'pull'))
@@ -25,6 +48,14 @@ function normalizeOptions(options) {
   }
 }
 
+function getDiffSummary(diffSnapshot) {
+  return diffSnapshot?.dirEntries?.['.']?.changes || {
+    added: 0,
+    modified: 0,
+    deleted: 0,
+  }
+}
+
 /**
  * Headless sync pipeline. UI review is injected from the outside.
  *
@@ -36,31 +67,34 @@ export async function syncCore(
   runtime = { events: { eventListener: null }, interactions: { reviewDiff: null }, dependents: {} },
   cancelSignal = null,
 ) {
+  assertRuntimeContract(runtime)
+
   const emit = runtime.events?.eventListener || (() => {})
   const reporter = createReporter(emit)
+  let currentPhase = null
+
+  function runPhase(phase, fn, message) {
+    currentPhase = phase
+    return runWithReporter(reporter, phase, fn, message, cancelSignal)
+  }
 
   try {
-    const normalizedOptions = await runWithReporter(
-      reporter,
+    const normalizedOptions = await runPhase(
       PHASES.PREPARATION,
       () => normalizeOptions(options),
       'normalize the options',
-      cancelSignal,
     )
 
-    const localSnapshot = await runWithReporter(
-      reporter,
+    const localSnapshot = await runPhase(
       PHASES.BUILD_LOCAL_SNAPSHOT,
       () => buildLocalSnapshot(
         normalizedOptions.localFolderPath,
         normalizedOptions.extraIgnorePatterns,
       ),
       'Building local snapshot',
-      cancelSignal,
     )
 
-    const remoteSnapshot = await runWithReporter(
-      reporter,
+    const remoteSnapshot = await runPhase(
       PHASES.BUILD_REMOTE_SNAPSHOT,
       () => buildRemoteSnapshot(
         normalizedOptions.remoteFolderPath,
@@ -68,47 +102,40 @@ export async function syncCore(
         cancelSignal,
       ),
       'Building remote snapshot',
-      cancelSignal,
     )
 
     const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot
     const dstSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
-    const diffSnapshot = await runWithReporter(
-      reporter,
+    const diffSnapshot = await runPhase(
       PHASES.COMPARE_SNAPSHOT,
       () => compareSnapshot(srcSnapshot, dstSnapshot),
       'Comparing snapshots',
-      cancelSignal,
     )
 
     const reviewResult = runtime.interactions?.reviewDiff
-      ? (await runWithReporter(
-          reporter,
+      ? (await runPhase(
           PHASES.REVIEW_DIFFERENCES,
           () => runtime.interactions?.reviewDiff(diffSnapshot),
           'Preparing differences review',
-          cancelSignal,
         ))
-      : { action: 'confirm' }
+      : { action: REVIEW_ACTION.CONFIRM }
 
-    if (reviewResult.action === 'cancel') {
+    if (reviewResult.action === REVIEW_ACTION.CANCEL) {
       return {
-        result: 'cancelled',
-        reason: 'review-cancelled',
-        summary: diffSnapshot.dirEntries['.'].changes,
+        result: SYNC_RESULT.CANCELLED,
+        reason: SYNC_CANCEL_REASON.REVIEW_CANCELLED,
+        phase: currentPhase,
+        summary: getDiffSummary(diffSnapshot),
       }
     }
 
-    const syncPlan = await runWithReporter(
-      reporter,
+    const syncPlan = await runPhase(
       PHASES.GENERATE_PLAN,
       () => buildSyncPlan(diffSnapshot, reviewResult),
       'Preparing operations',
-      cancelSignal,
     )
 
-    const appliedResult = await runWithReporter(
-      reporter,
+    await runPhase(
       PHASES.APPLY_PLAN,
       () => applySyncPlan(syncPlan, normalizedOptions, {
         dependents: runtime.dependents,
@@ -117,26 +144,31 @@ export async function syncCore(
         },
       }, cancelSignal),
       'Applying operations',
-      cancelSignal,
     )
 
     return {
-      result: 'completed',
-      summary: diffSnapshot.dirEntries['.'].changes,
+      result: SYNC_RESULT.COMPLETED,
+      summary: getDiffSummary(diffSnapshot),
       // todo: 把operations里填入已经执行过的操作, syncPlan.operations里只是大phase
       operations: syncPlan.operations,
     }
   }
   catch (error) {
-    if (cancelSignal?.aborted || error === cancelSignal?.reason) {
+    if (error === cancelSignal?.reason) {
       return {
-        result: 'cancelled',
-        reason: 'abort-signal',
+        result: SYNC_RESULT.CANCELLED,
+        reason: SYNC_CANCEL_REASON.ABORT_SIGNAL,
+        phase: currentPhase,
         // todo: 把operations里填入已经执行过的操作
         operations: [],
       }
     }
 
-    throw error
+    return {
+      result: SYNC_RESULT.FAILED,
+      phase: currentPhase,
+      message: error?.message || String(error),
+      error,
+    }
   }
 }

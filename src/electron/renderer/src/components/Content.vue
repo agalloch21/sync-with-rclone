@@ -6,6 +6,7 @@ import ContentFinalAcknowledgement from './ContentFinalAcknowledgement.vue'
 import ContentReview from './ContentReview.vue'
 import ContentSync from './ContentSync.vue'
 
+defineEmits(['autoClose'])
 const state = inject('state')
 const showFinalAcknowledgement = inject('showFinalAcknowledgement')
 
@@ -13,9 +14,17 @@ const step = computed(() => state.value?.step?.length > 0 ? state.value?.step : 
 </script>
 
 <template>
-  <div class="content-stage h-full overflow-auto">
+  <div
+    class="content-stage h-full overflow-auto
+    [&::-webkit-scrollbar]:w-1
+     [&::-webkit-scrollbar-track]:invisible
+     [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--primary)_40%,transparent)]
+     [&::-webkit-scrollbar-thumb]:rounded-full
+     [&::-webkit-scrollbar-thumb]:invisible
+     hover:[&::-webkit-scrollbar-thumb]:visible"
+  >
     <Transition name="fade" mode="out-in">
-      <ContentFinalAcknowledgement v-if="showFinalAcknowledgement" />
+      <ContentFinalAcknowledgement v-if="showFinalAcknowledgement" @auto-close="$emit('autoClose')" />
       <ContentAnalyze v-else-if="step === STEPS.ANALYZE" />
       <ContentReview v-else-if="step === STEPS.REVIEW" />
       <ContentSync v-else-if="step === STEPS.SYNC" />
@@ -24,6 +33,7 @@ const step = computed(() => state.value?.step?.length > 0 ? state.value?.step : 
 </template>
 
 <style scoped>
+@reference "tailwindcss";
 /* Active states define the duration and easing */
 .fade-enter-active,
 .fade-leave-active {

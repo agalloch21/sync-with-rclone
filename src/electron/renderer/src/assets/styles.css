@@ -67,6 +67,18 @@
   /* Faded accent border.
      用在渐隐分隔线两端、弱边界、需要“有线但别太重”的地方。 */
   --border-accent-fade: #81b5f630;
+
+  /* semantic */
+  --success: #3F9D14;
+  --warning: #FF9D00;
+  --danger: #EF0606;
+  /* --success-soft: #eaf6ea;
+  --warning: #c48a1b;
+  --warning-soft: #fff6df;
+  --danger: #c43d3d;
+  --danger-soft: #fdeaea;
+  --info: #2563eb;
+  --info-soft: #e9f1ff; */
 }
 
 * {

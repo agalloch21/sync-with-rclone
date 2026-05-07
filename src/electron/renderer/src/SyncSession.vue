@@ -104,7 +104,7 @@ function acknowledgeAndClose() {
         </div>
         <div class="separator w-full h-px shrink-0 bg-linear-to-r from-[color-mix(in_srgb,var(--border-accent)_50%,transparent)] via-(--border-accent) to-[color-mix(in_srgb,var(--border-accent)_50%,transparent)] opacity-30" />
         <div class="content-dock min-h-0 flex-1">
-          <Content :state="state" />
+          <Content :state="state" @auto-close="acknowledgeAndClose" />
         </div>
       </div>
     </main>

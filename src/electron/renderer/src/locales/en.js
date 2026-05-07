@@ -1,4 +1,4 @@
-import { PHASES } from '#src/core/contract.js'
+import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { STEPS } from '#src/electron/main/session-steps.js'
 
 export default {
@@ -41,5 +41,19 @@ export default {
     delete: 'deleting files',
     rmdir: 'deleting directories',
     complete: 'complete applying execution phases',
+  },
+  result: {
+    [SYNC_RESULT.COMPLETED]: {
+      title: 'Finished',
+      message: 'The window will be closed in <u>#</u> seconds.',
+    },
+    [SYNC_RESULT.CANCELLED]: {
+      title: 'Cancelled',
+      message: '',
+    },
+    [SYNC_RESULT.FAILED]: {
+      title: 'Error',
+      message: '',
+    },
   },
 }

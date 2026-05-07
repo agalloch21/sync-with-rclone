@@ -8,22 +8,25 @@ sequenceDiagram
   participant S as Shell
   participant A as App
   participant C as Core
-  participant R as Review UI
-  participant X as Apply
+  participant W as Sync Session UI
 
   U->>S: 触发 Push / Pull / Push To... / Pull From...
   S->>A: 传入动作类型和本地路径
-  A->>A: 读取配置并解析本次同步范围
-  A->>C: 发起扫描
+  A->>A: 读取配置并解析本次同步上下文
+  A-->>S: emit session.context-resolved
+  S->>W: 展示当前同步上下文
+  A->>C: 调用 syncCore(...)
   C->>C: 生成 DiffSnapshot
-  C-->>S: 请求 review
-  S->>R: 打开差异确认界面
-  R->>U: 展示差异树
-  U->>R: 勾选并确认/取消
-  R-->>S: 返回 ReviewResult
-  S->>C: 恢复执行
-  C->>X: 生成并执行 SyncPlan
-  X-->>U: 展示进度与结果
+  C-->>S: interaction.reviewDiff(diffSnapshot)
+  S->>W: 切换到 review step
+  W->>U: 展示差异树
+  U->>W: 勾选并确认/取消
+  W-->>S: 返回 ReviewResult
+  S-->>C: 恢复执行
+  C->>C: 生成并执行 SyncPlan
+  C-->>A: 返回 SyncCoreResult
+  A-->>S: 返回 SyncSessionResult
+  S->>W: 按需展示 final acknowledgement
 ```
 
 这张图的用途是先帮助人理解全貌。
@@ -75,7 +78,7 @@ sequenceDiagram
   participant S as Shell
   participant A as App
   participant C as Core
-  participant R as Review UI
+  participant W as Sync Session UI
 
   U->>S: 触发 Push
   S->>A: 传入本地路径
@@ -83,12 +86,12 @@ sequenceDiagram
   A->>C: 发起 Push
   C->>C: 扫描本地与远端
   C->>C: 生成 DiffSnapshot
-  C-->>S: 请求 review
-  S->>R: 打开 review
-  R->>U: 展示差异树
-  U->>R: 勾选并确认/取消
-  R-->>S: 返回 ReviewResult
-  S->>C: 恢复执行
+  C-->>S: interaction.reviewDiff(diffSnapshot)
+  S->>W: 展示 review step
+  W->>U: 展示差异树
+  U->>W: 勾选并确认/取消
+  W-->>S: 返回 ReviewResult
+  S-->>C: 恢复执行
   C->>C: 生成并执行 SyncPlan
 ```
 
@@ -105,7 +108,7 @@ sequenceDiagram
   participant S as Shell
   participant A as App
   participant C as Core
-  participant R as Review UI
+  participant W as Sync Session UI
 
   U->>S: 触发 Pull
   S->>A: 传入本地路径
@@ -113,12 +116,12 @@ sequenceDiagram
   A->>C: 发起 Pull
   C->>C: 扫描远端与本地
   C->>C: 生成 DiffSnapshot
-  C-->>S: 请求 review
-  S->>R: 打开 review
-  R->>U: 展示差异树
-  U->>R: 勾选并确认/取消
-  R-->>S: 返回 ReviewResult
-  S->>C: 恢复执行
+  C-->>S: interaction.reviewDiff(diffSnapshot)
+  S->>W: 展示 review step
+  W->>U: 展示差异树
+  U->>W: 勾选并确认/取消
+  W-->>S: 返回 ReviewResult
+  S-->>C: 恢复执行
   C->>C: 生成并执行 SyncPlan
 ```
 
@@ -136,7 +139,7 @@ sequenceDiagram
   participant A as App
   participant T as 远端目录选择
   participant C as Core
-  participant R as Review UI
+  participant W as Sync Session UI
 
   U->>S: 触发 Push To...
   S->>A: 传入本地路径
@@ -148,12 +151,12 @@ sequenceDiagram
   A->>C: 发起 Push
   C->>C: 扫描本地与选中远端
   C->>C: 生成 DiffSnapshot
-  C-->>S: 请求 review
-  S->>R: 打开 review
-  R->>U: 展示差异树
-  U->>R: 勾选并确认/取消
-  R-->>S: 返回 ReviewResult
-  S->>C: 恢复执行
+  C-->>S: interaction.reviewDiff(diffSnapshot)
+  S->>W: 展示 review step
+  W->>U: 展示差异树
+  U->>W: 勾选并确认/取消
+  W-->>S: 返回 ReviewResult
+  S-->>C: 恢复执行
   C->>C: 生成并执行 SyncPlan
 ```
 
@@ -171,7 +174,7 @@ sequenceDiagram
   participant A as App
   participant T as 远端目录选择
   participant C as Core
-  participant R as Review UI
+  participant W as Sync Session UI
 
   U->>S: 触发 Pull From...
   S->>A: 传入本地路径
@@ -183,12 +186,12 @@ sequenceDiagram
   A->>C: 发起 Pull
   C->>C: 扫描选中远端与本地
   C->>C: 生成 DiffSnapshot
-  C-->>S: 请求 review
-  S->>R: 打开 review
-  R->>U: 展示差异树
-  U->>R: 勾选并确认/取消
-  R-->>S: 返回 ReviewResult
-  S->>C: 恢复执行
+  C-->>S: interaction.reviewDiff(diffSnapshot)
+  S->>W: 展示 review step
+  W->>U: 展示差异树
+  U->>W: 勾选并确认/取消
+  W-->>S: 返回 ReviewResult
+  S-->>C: 恢复执行
   C->>C: 生成并执行 SyncPlan
 ```
 
@@ -202,21 +205,30 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant C as Core
-  participant S as Shell
+  participant S as Electron Main / CLI
   participant P as Preload
   participant R as Renderer
   participant U as 用户
 
-  C-->>S: 请求 reviewDiff(diffSnapshot)
-  S->>R: 创建 review 窗口
+  C-->>S: interaction.reviewDiff(diffSnapshot)
+  S->>R: 更新 sync-session 为 review step
   S->>P: 初始化 preload
   P->>R: 暴露 bridge
   S->>R: 传入差异数据
   R->>U: 展示差异树
   U->>R: 勾选并确认/取消
-  R-->>S: 返回 ReviewResult
+  R-->>S: invoke confirm/cancel
+  S-->>R: 返回 handler 结果
+  S-->>S: settle pending review
   S-->>C: 恢复后续流程
 ```
+
+这一步的职责边界是：
+
+- `syncCore` 只知道它需要一个 `ReviewResult`
+- Electron Main 把 `reviewDiff` 适配成 sync-session 窗口里的 review step
+- Renderer 负责按钮 pending 和重复点击防护
+- Main 以 `pendingReview` 作为是否处于 review 等待点的权威状态
 
 ## 9. Apply 流程
 
@@ -242,12 +254,41 @@ sequenceDiagram
 - `mkdir` / `rmdir` 逐目录执行
 - `rclone` 调用显式指定配置路径
 
-## 10. 当前阶段限制
+## 10. Session result 与 final acknowledgement 流程
+
+```mermaid
+sequenceDiagram
+  participant E as Electron Main
+  participant A as App
+  participant C as Core
+  participant R as Renderer
+
+  E->>A: startSync(options, runtime)
+  A->>C: syncCore(coreOptions, coreRuntime)
+  C-->>A: SyncCoreResult
+  A-->>E: SyncSessionResult
+  E->>E: 判断是否需要 final acknowledgement
+  alt 需要 final acknowledgement
+    E->>R: showFinalAcknowledgement(result)
+    R-->>E: close acknowledgement
+  else 不需要 final acknowledgement
+    E->>E: closeWindow()
+  end
+```
+
+这里的结论是：
+
+- `SyncSessionResult` 是 Electron Main 推进 final 流程和退出码判断的依据
+- `SESSION_EVENT.RESULT` 只是观察事件，不作为 final 流程的控制点
+- cancelled 是正常运行结果；failed 会导致桌面入口以失败码退出
+- review 阶段取消可以直接收尾；进入执行阶段后的取消可按策略展示 final acknowledgement
+
+## 11. 当前阶段限制
 
 当前流程文档只把这些写成已成立事实：
 
 - 右键菜单注册已经接入安装器脚本
-- review / progress / result 这条 Electron 链已打通
+- sync-session Electron 链已打通
 - 配置默认读取安装目录下的 `config/`
 - 打包后的 argv 会优先按 `--mode`、`--local`、`--remote` 解析，避免额外参数导致位置漂移
 

@@ -23,7 +23,7 @@ sequenceDiagram
   A->>C: 提供明确的同步输入
   C->>RC: 扫描远端 / 执行同步
   RC-->>C: 返回结果
-  C-->>A: 返回 diff / plan / apply result
+  C-->>A: 返回 completed / cancelled / failed 结果
   A-->>S: 返回可展示结果
 ```
 
@@ -42,7 +42,7 @@ src/           // 运行时代码
   app/         // 配置读取、路径规范化、同步任务解析、runtime paths、主流程编排
   cli/         // CLI入口、终端review、终端输出，可独立承接主流程
   core/        // Snapshot、Diff、SyncPlan、Apply、rclone 执行封装
-  electron/    // 当前桌面主壳层，包含 main、preload、renderer、review/progress 窗口
+  electron/    // 当前桌面主壳层，包含 main、preload、renderer、sync-session 窗口
 scripts/       // 非运行时代码
   dev/         // 开发启动脚本
   build/       // 打包校验、产物准备脚本
@@ -74,7 +74,7 @@ sequenceDiagram
   OS->>EM: 启动 Electron 并传入动作与路径
   EM->>APP: 调用 startSync(...)
   APP->>CORE: 调用 syncCore(...)
-  CORE->>EM: 请求 reviewDiff(...)
+  CORE->>EM: 通过 interaction 请求 reviewDiff(...)
   EM->>PL: 注入 bridge
   PL->>RD: 暴露最小 API
   RD-->>EM: 返回 ReviewResult
@@ -82,8 +82,10 @@ sequenceDiagram
   APP->>CORE: 继续 build plan / apply
   CORE->>RC: 调用 rclone
   RC-->>CORE: 返回执行结果
-  CORE-->>APP: 返回结果
-  APP-->>EM: 返回结果
+  CORE-->>APP: 返回 SyncCoreResult
+  APP-->>EM: 返回 SyncSessionResult
+  EM->>RD: 展示 final acknowledgement
+  RD-->>EM: acknowledge close
 ```
 
 需要特别记住：
@@ -96,6 +98,8 @@ sequenceDiagram
 - `Vite` 的作用不是参与运行时通信，而是把 renderer 源码编译成 Electron 可加载的页面
 - `CLI` 不是为了测试临时补出来的旁路，而是当前架构下的独立 shell 入口
 - `CLI` 的存在也使 core 更容易独立运行、测试和排查
+- `Electron Main` 使用 `startSync(...)` 的返回值推进 final 流程，不依赖 `session.result` event 推进控制流
+- `Renderer` 负责按钮 pending 和重复点击防护；`Electron Main` 负责窗口生命周期和同步取消适配
 
 ## 4. 关键数据契约
 
@@ -292,24 +296,88 @@ export const DiffState = Object.freeze({
 - 它把“要做什么”压缩成明确的动作集合
 - `applySyncPlan(...)` 会根据它去执行 mkdir、copy、delete、rmdir
 
+### 4.5 `SyncCoreRuntime`
+
+```js
+{
+  events: {
+    eventListener(event) {}
+  },
+  interactions: {
+    reviewDiff(diffSnapshot) {}
+  },
+  dependents: {
+    runCommand(command, args) {},
+    createBatchFile(paths) {},
+    removeBatchFile(filePath) {}
+  }
+}
+```
+
+说明：
+
+- `events.eventListener` 是观察流，用于进度、日志和 UI 展示，不推进主流程
+- `interactions.reviewDiff` 是业务等待点，`syncCore` 必须等待它返回 `ReviewResult` 才能继续
+- `dependents` 是外部执行能力注入，主要用于测试和替换 rclone / batch file 相关能力
+- `syncCore` 会 emit phase 级事件，事件类型定义在 `src/core/contract.js` 的 `PHASE_EVENT`
+- `syncCore` 返回 `SyncCoreResult`，结果值定义在 `SYNC_RESULT`
+
+### 4.6 `SyncSessionRuntime`
+
+```js
+{
+  events: {
+    eventListener(event) {}
+  },
+  interactions: {
+    reviewDiff(diffSnapshot) {}
+  },
+  dependents: {
+    runCommand(command, args) {},
+    createBatchFile(paths) {},
+    removeBatchFile(filePath) {}
+  }
+}
+```
+
+说明：
+
+- `startSync` 是 app 层 session runner
+- `startSync` 负责读取配置、解析同步任务、生成 `SyncSessionContext`
+- `startSync` 把 core phase event 转换成 `SESSION_EVENT.PROGRESS`
+- `startSync` 返回 `SyncSessionResult`
+- `startSync` 会 emit `SESSION_EVENT.RESULT` 作为观察事件，但 Electron final 流程由返回值驱动
+
 ## 5. 数据契约在主要模块间的流转
 
 ```mermaid
 sequenceDiagram
   participant APP as App
   participant CORE as Core
-  participant REVIEW as Review UI / CLI
+  participant SHELL as CLI / Electron Main
   participant APPLY as Apply
 
-  APP->>CORE: 输入明确的同步参数
+  APP->>CORE: SyncCoreOptions + SyncCoreRuntime
+  APP-->>SHELL: emit session.context-resolved
   CORE->>CORE: buildLocalSnapshot(...)
+  CORE-->>APP: emit phase event
   CORE->>CORE: buildRemoteSnapshot(...)
+  CORE-->>APP: emit phase event
   CORE->>CORE: compareSnapshot(...)
-  CORE-->>REVIEW: DiffSnapshot
-  REVIEW-->>CORE: ReviewResult
+  CORE-->>SHELL: interaction.reviewDiff(DiffSnapshot)
+  SHELL-->>CORE: ReviewResult
   CORE->>CORE: buildSyncPlan(...)
   CORE-->>APPLY: SyncPlan
+  APPLY-->>CORE: applied result
+  CORE-->>APP: SyncCoreResult
+  APP-->>SHELL: SyncSessionResult
 ```
+
+运行时通道按职责区分：
+
+- `return` 是控制流。`startSync(...)` 的返回值决定 Electron 是否展示 final、进程退出码和后续收尾。
+- `events.eventListener` 是观察流。它用于展示 context、phase progress 和调试，不作为流程推进条件。
+- `interactions.reviewDiff` 是业务等待点。它是 core 在 review 阶段继续执行所需的外部输入。
 
 ## 6. 打包与安装
 
@@ -368,8 +436,10 @@ Windows 当前安装后的目录结构可按下面理解：
 - Windows 安装器使用 `NSIS`
 - 安装器负责注册右键菜单
 - 安装产物包含 bundled `rclone` 和配置模板
+- mac 当前主要安装链路是 `pkg`，配置目录和 Finder Quick Actions 初始化由安装阶段承担
+- `dmg` / `zip` 产物当前只作为开发验证和手动安装产物，不作为主要安装初始化链路
 
 当前尚未视为稳定事实的部分是：
 
-- 安装阶段自动初始化安装目录 `config/` 的细节
+- Windows 安装阶段自动初始化安装目录 `config/` 的细节
 - 覆盖安装 / 卸载链路

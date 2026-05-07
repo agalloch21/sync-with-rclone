@@ -66,7 +66,7 @@ Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv�
 
 
 ### 4. 使用 Electron 运行
-Electron 是当前桌面主入口，用于右键菜单、review 窗口、progress 窗口等桌面交互
+Electron 是当前桌面主入口，用于右键菜单、sync-session 窗口等桌面交互
 
 ```bash
 npm run start:desktop
@@ -83,7 +83,7 @@ node ./src/electron/main/index.js push <local-path> <remote-path>
 这条命令会由 Node 入口转交给 Electron，再进入桌面链路。
 
 ### 5. 使用开发模式实时预览 renderer
-如果你正在调整 `ReviewApp.vue`、`TreeNode.vue` 或 renderer 样式，推荐直接使用开发模式。
+如果你正在调整 `SyncSession.vue`、`TreeNode.vue` 或 renderer 样式，推荐直接使用开发模式。
 
 ```bash
 npm run dev:desktop
@@ -93,7 +93,7 @@ npm run dev:desktop
 
 - 启动 Vite dev server
 - 等待 dev server 就绪后自动启动 Electron
-- 让 `review.html` 和 `progress.html` 在开发时改走 Vite 页面
+- 让 sync-session renderer 在开发时改走 Vite 页面
 
 这样保存 `src/electron/renderer/src/*.vue` 或 `src/electron/renderer/src/styles.css` 后，窗口会自动刷新，能实时看到变化。
 
@@ -189,25 +189,15 @@ npm run dist:pkg:x64
 
 Windows 运行 `dist/` 下生成的 NSIS 安装包即可。
 
-mac 有两种安装方式。
+mac 当前推荐使用 `pkg` 安装。
 
-`dmg`
-
-把 `.app` 拖进 `Applications` 后，先手动启动一次应用：
-
-- 首次启动会自动创建 `~/Library/Application Support/sync-with-rclone/config/`
-- 同时会自动注册 Finder 右键 Quick Actions
-- 如果 Finder 里暂时没显示右键菜单，通常重新登录一次 macOS 会刷新出来
-
-`pkg`
-
-运行 `.pkg` 安装器后，程序会安装到 `/Applications/sync-with-rclone.app`，并在安装阶段尽量提前完成：
+运行 `.pkg` 安装器后，程序会安装到 `/Applications/sync-with-rclone.app`，并在安装阶段完成：
 
 - 创建 `~/Library/Application Support/sync-with-rclone/config/`
 - 准备 `config.json` 和 `rclone.conf` 模板
 - 注册 Finder 右键 Quick Actions
 
-如果安装阶段没有完整做完，首次启动仍然会做一次兜底初始化。
+`dmg` / `zip` 产物仍可用于开发验证和手动安装，但当前不作为主要安装初始化链路。使用这类产物时，需要手动确认配置目录和 Finder Quick Actions 已经准备好。
 
 安装目录
 

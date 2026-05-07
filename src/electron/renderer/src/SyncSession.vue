@@ -13,6 +13,7 @@ locale.value = 'en'
 
 const state = ref({})
 const selection = reactive({})
+const partialSelection = reactive({})
 
 const showFinalAcknowledgement = computed(() => {
   return Boolean(state.value?.final)
@@ -20,6 +21,7 @@ const showFinalAcknowledgement = computed(() => {
 
 provide('state', state)
 provide('selection', selection)
+provide('partialSelection', partialSelection)
 provide('showFinalAcknowledgement', showFinalAcknowledgement)
 
 let disposeProgressListener = null

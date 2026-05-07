@@ -10,15 +10,25 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  partialSelection: {
+    type: Object,
+    required: true,
+  },
   isOpen: {
     type: Boolean,
     default: false,
   },
 })
 
+const emit = defineEmits(['selection-change'])
+
 function setNodeSelection(node, checked) {
   // eslint-disable-next-line vue/no-mutating-props
   props.selection[node.path] = checked
+  if (node.type === 'directory') {
+    // eslint-disable-next-line vue/no-mutating-props
+    props.partialSelection[node.path] = false
+  }
   if (node.children) {
     for (const child of node.children)
       setNodeSelection(child, checked)
@@ -27,6 +37,7 @@ function setNodeSelection(node, checked) {
 
 function onToggle(event) {
   setNodeSelection(props.node, event.target.checked)
+  emit('selection-change')
 }
 </script>
 
@@ -42,6 +53,7 @@ function onToggle(event) {
             type="checkbox"
             class="forcusable"
             :checked="selection[node.path]"
+            :indeterminate.prop="partialSelection[node.path]"
             @change="onToggle"
           >
           <div class="information">
@@ -70,6 +82,8 @@ function onToggle(event) {
           :key="child.path"
           :node="child"
           :selection="selection"
+          :partial-selection="partialSelection"
+          @selection-change="emit('selection-change')"
         />
       </ul>
     </details>
@@ -80,6 +94,7 @@ function onToggle(event) {
         type="checkbox"
         class="forcusable"
         :checked="selection[node.path]"
+        :indeterminate.prop="false"
         @change="onToggle"
       >
       <div class="information">

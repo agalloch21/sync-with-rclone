@@ -1,9 +1,10 @@
 <script setup>
-import { computed, inject, watch } from 'vue'
+import { inject, watch } from 'vue'
 import TreeNode from './TreeNode.vue'
 
 const state = inject('state')
 const selection = inject('selection')
+const partialSelection = inject('partialSelection')
 
 /*
 // SELECTION STRUCTURE:
@@ -53,14 +54,57 @@ function initializeSelection(tree) {
   for (const key of Object.keys(selection))
     delete selection[key]
 
+  for (const key of Object.keys(partialSelection))
+    delete partialSelection[key]
+
   selection[tree.path] = true
 
   visitTree(tree.children, (node) => {
     selection[node.path] = true
+    if (node.type === 'directory')
+      partialSelection[node.path] = false
   })
+  partialSelection[tree.path] = false
+}
 
-  console.log(tree)
-  console.log(selection)
+function recalculateSelection(node) {
+  if (node.type !== 'directory')
+    return selection[node.path] ? 'checked' : 'unchecked'
+
+  if (!node.children?.length) {
+    partialSelection[node.path] = false
+    return selection[node.path] ? 'checked' : 'unchecked'
+  }
+
+  let hasChecked = false
+  let hasUnchecked = false
+
+  for (const child of node.children) {
+    const childState = recalculateSelection(child)
+    if (childState === 'checked') {
+      hasChecked = true
+    }
+    else if (childState === 'partial') {
+      hasChecked = true
+      hasUnchecked = true
+    }
+    else {
+      hasUnchecked = true
+    }
+  }
+
+  selection[node.path] = hasChecked && !hasUnchecked
+  partialSelection[node.path] = hasChecked && hasUnchecked
+
+  if (partialSelection[node.path])
+    return 'partial'
+
+  return selection[node.path] ? 'checked' : 'unchecked'
+}
+
+function onSelectionChange() {
+  if (state.value?.review?.tree)
+    recalculateSelection(state.value.review.tree)
 }
 
 watch(() => state.value?.review, (newValue, _) => {
@@ -84,7 +128,9 @@ watch(() => state.value?.review, (newValue, _) => {
         :key="state.review.tree.path"
         :node="state.review.tree"
         :selection="selection"
+        :partial-selection="partialSelection"
         :is-open="true"
+        @selection-change="onSelectionChange"
       />
     </ul>
   </div>

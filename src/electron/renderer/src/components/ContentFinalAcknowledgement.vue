@@ -11,6 +11,17 @@ const { t } = useI18n()
 const state = inject('state')
 
 const result = computed(() => state.value?.final?.result)
+const translatedErrorMessage = computed(() => {
+  const final = state.value?.final
+  const errorCode = final?.errorCode
+
+  if (!errorCode)
+    return final?.message || ''
+
+  const key = `errors['${errorCode}']`
+  const translated = t(key, final?.errorDetails || {})
+  return translated === key ? (final?.message || '') : translated
+})
 const waitSecond = ref(5)
 watch(result, () => {
   if (result?.value === SYNC_RESULT.COMPLETED) {
@@ -31,7 +42,7 @@ const messageHtml = computed(() => {
     return 'some phases have been executed'
   }
   else if (result.value === SYNC_RESULT.FAILED) {
-    return state.value?.final?.message?.split(/\r?\n/)
+    return translatedErrorMessage.value.split(/\r?\n/)
       .filter(line => line.trim() !== '')
       .map(line => `<p>${line}</p>`)
       .join('')

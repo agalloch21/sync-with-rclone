@@ -81,6 +81,8 @@ export const SESSION_EVENT = {
  * @typedef {object} SessionFailedEvent
  * @property {'session.failed'} type
  * @property {string} message
+ * @property {string} [errorCode]
+ * @property {object} [errorDetails]
  * @property {unknown} [error]
  */
 
@@ -107,6 +109,8 @@ export const SESSION_EVENT = {
  * @typedef {object} SyncSessionFailedResult
  * @property {'failed'} result
  * @property {string} message
+ * @property {string} [errorCode]
+ * @property {object} [errorDetails]
  * @property {SyncSessionContext | null} context
  * @property {unknown} error
  */

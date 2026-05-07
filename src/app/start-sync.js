@@ -1,5 +1,7 @@
 import { PHASE_EVENT, SYNC_RESULT } from '#src/core/contract.js'
 import { syncCore } from '#src/core/sync-engine.js'
+import { getErrorCode, getErrorDetails } from './app-errors.js'
+import { ensureRemoteFolderExists } from './ensure-remote-folder.js'
 import { loadConfig } from './load-config.js'
 import { resolveLocalDirectoryPath } from './path-utils.js'
 import { resolveSyncTask } from './resolve-sync-task.js'
@@ -33,27 +35,39 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
   assertRuntimeContract(runtime)
 
   const emit = runtime.events?.eventListener || (() => {})
-  let resolvedContext = null
+
+  const resolvedContext = {
+    mode: options.mode,
+    localFolderPath: options.localFolderPath,
+    remoteFolderPath: options.remoteFolderPath,
+    extraIgnorePatterns: [],
+  }
 
   try {
     emit({ type: SESSION_EVENT.STARTED })
 
     const { bypassConfig = false } = options
-    const runtimePaths = getRuntimePaths()
-    const config = bypassConfig ? null : await loadConfig(runtimePaths.configPath)
-    const localFolderPath = resolveLocalDirectoryPath(options.localFolderPath)
-    const resolvedTask = bypassConfig ? null : resolveSyncTask(config, localFolderPath, options.remoteFolderPath)
-
     if (bypassConfig && !options.remoteFolderPath) {
       throw new Error('remoteFolderPath is required when bypassConfig is enabled')
     }
 
-    resolvedContext = {
-      mode: options.mode,
-      localFolderPath,
-      remoteFolderPath: resolvedTask ? resolvedTask.remoteFolderPath : options.remoteFolderPath,
-      extraIgnorePatterns: resolvedTask ? resolvedTask.extraIgnorePatterns : [],
+    const runtimePaths = getRuntimePaths()
+    const config = bypassConfig ? null : await loadConfig(runtimePaths.configPath)
+
+    const resolvedTask = bypassConfig ? null : resolveSyncTask(config, options.localFolderPath, options.remoteFolderPath)
+    resolvedContext.localFolderPath = resolvedTask ? resolvedTask.localFolderPath : resolveLocalDirectoryPath(options.localFolderPath)
+    resolvedContext.remoteFolderPath = resolvedTask ? resolvedTask.remoteFolderPath : options.remoteFolderPath
+    resolvedContext.extraIgnorePatterns = resolvedTask ? resolvedTask.extraIgnorePatterns : []
+
+    if (resolvedTask && resolvedContext.mode === 'push') {
+      await ensureRemoteFolderExists(
+        resolvedContext.remoteFolderPath,
+        runtimePaths,
+        runtime,
+        cancelSignal,
+      )
     }
+
     emit({
       type: SESSION_EVENT.CONTEXT_RESOLVED,
       context: resolvedContext,
@@ -87,6 +101,10 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
       context: resolvedContext,
       ...coreResult,
     }
+    if (sessionResult.result === SYNC_RESULT.FAILED) {
+      sessionResult.errorCode = getErrorCode(sessionResult.error)
+      sessionResult.errorDetails = getErrorDetails(sessionResult.error)
+    }
 
     emit({ type: SESSION_EVENT.RESULT, ...sessionResult })
 
@@ -96,6 +114,8 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
     const sessionResult = {
       result: SYNC_RESULT.FAILED,
       message: error?.message || String(error),
+      errorCode: getErrorCode(error),
+      errorDetails: getErrorDetails(error),
       context: resolvedContext,
       error,
     }

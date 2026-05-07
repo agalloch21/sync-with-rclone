@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
+import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { resolveSyncTask } from '#src/app/resolve-sync-task.js'
 
 function createConfig() {
@@ -23,6 +24,7 @@ test('resolveSyncTask matches the correct sync job and computes the default remo
   const result = resolveSyncTask(config, 'test/fixtures/local/compare-push')
 
   assert.equal(result.matchedJob.name, 'ProjectsSynced')
+  assert.equal(result.localFolderPath, path.resolve('test/fixtures/local/compare-push').replaceAll(path.sep, path.posix.sep))
   assert.equal(result.relativePath, 'compare-push')
   assert.equal(result.remoteFolderPath, 'synology:ProjectsSynced/compare-push')
   assert.deepEqual(result.extraIgnorePatterns, ['.DS_Store', 'node_modules/'])
@@ -46,13 +48,19 @@ test('resolveSyncTask rejects explicit remote paths outside the current sync job
     config,
     'test/fixtures/local/compare-push',
     'synology:AnotherRoot/custom-target',
-  ))
+  ), {
+    name: 'AppError',
+    code: APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_JOB,
+  })
 })
 
 test('resolveSyncTask throws when no sync job matches the local path', () => {
   const config = createConfig()
 
-  assert.throws(() => resolveSyncTask(config, 'test/fixtures/scan/nested'))
+  assert.throws(() => resolveSyncTask(config, 'test/fixtures/scan/nested'), {
+    name: 'AppError',
+    code: APP_ERROR_CODE.CONFIG_NO_MATCHING_SYNC_JOB,
+  })
 })
 
 test('resolveSyncTask allows syncing to the remote root when remoteBasePath is empty', () => {

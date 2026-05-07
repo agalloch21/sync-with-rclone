@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { getDefaultConfigPath, loadConfig } from '#src/app/load-config.js'
 import { getDefaultAppDirectory } from '#src/app/runtime-paths.js'
 
@@ -60,6 +61,21 @@ test('loadConfig allows an empty remoteBasePath for syncing to the remote root',
 test('loadConfig returns null when config file does not exist', async () => {
   const config = await loadConfig('/tmp/sync-with-rclone/does-not-exist.json')
   assert.equal(config, null)
+})
+
+test('loadConfig wraps invalid config errors with a stable error code', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-invalid-'))
+  const configPath = path.join(tempDir, 'config.json')
+
+  await fs.writeFile(configPath, JSON.stringify({ syncJobs: {} }, null, 2))
+
+  await assert.rejects(
+    () => loadConfig(configPath),
+    {
+      name: 'AppError',
+      code: APP_ERROR_CODE.CONFIG_LOAD_FAILED,
+    },
+  )
 })
 
 test('loadConfig defaults to APP_ROOT_PATH config subdirectory', async () => {

@@ -5,7 +5,7 @@ import { computed } from 'vue'
 const props = defineProps({
   state: Object,
 })
-const step = computed(() => props.state?.step || '')
+const step = computed(() => props.state?.step || STEPS.ANALYZE)
 </script>
 
 <template>

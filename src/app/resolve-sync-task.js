@@ -1,5 +1,6 @@
 import path from 'node:path'
-import { normalizeLocalPath, trimTrailingSlash } from './path-utils.js'
+import { APP_ERROR_CODE, AppError } from './app-errors.js'
+import { resolveLocalDirectoryPath, trimTrailingSlash } from './path-utils.js'
 
 function buildRemoteRoot(syncJob) {
   return `${syncJob.rcloneRemote}:${trimTrailingSlash(syncJob.remoteBasePath)}`
@@ -20,7 +21,7 @@ export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPat
   if (!config)
     return null
 
-  const normalizedLocalPath = normalizeLocalPath(path.posix.resolve(localFolderPath))
+  const normalizedLocalPath = resolveLocalDirectoryPath(localFolderPath)
   const candidates = config.syncJobs
     .filter((syncJob) => {
       const localRoot = trimTrailingSlash(syncJob.localBasePath)
@@ -30,20 +31,24 @@ export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPat
 
   const syncJob = candidates[0]
   if (!syncJob)
-    throw new Error(`No syncJob matches local path: ${normalizedLocalPath}`)
+    throw new AppError(APP_ERROR_CODE.CONFIG_NO_MATCHING_SYNC_JOB, `No syncJob matches local path: ${normalizedLocalPath}`, { path: normalizedLocalPath })
 
   const relativePath = path.posix.relative(syncJob.localBasePath, normalizedLocalPath) || '.'
   const remoteRoot = buildRemoteRoot(syncJob)
   const defaultRemoteFolderPath = joinRemotePath(remoteRoot, relativePath)
 
   if (explicitRemoteFolderPath && !isWithinRemoteRoot(explicitRemoteFolderPath, remoteRoot)) {
-    throw new Error(`Remote path must stay within syncJob '${syncJob.name}': ${explicitRemoteFolderPath}`)
+    throw new AppError(
+      APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_JOB,
+      `Remote path must stay within syncJob '${syncJob.name}': ${explicitRemoteFolderPath}`,
+      { syncJobName: syncJob.name, remotePath: explicitRemoteFolderPath, remoteRoot },
+    )
   }
 
   return {
     matchedJob: syncJob,
+    localFolderPath: normalizedLocalPath,
     relativePath,
-    localFolderPath,
     remoteFolderPath: explicitRemoteFolderPath || defaultRemoteFolderPath,
     extraIgnorePatterns: [
       ...config.globalIgnorePatterns,

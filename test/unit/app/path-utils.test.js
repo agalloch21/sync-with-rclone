@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { expandHomeDir, resolveLocalDirectoryPath } from '#src/app/path-utils.js'
 
 test('expandHomeDir expands ~ to the user home directory', () => {
@@ -11,7 +12,10 @@ test('expandHomeDir expands ~ to the user home directory', () => {
 })
 
 test('resolveLocalDirectoryPath validates and resolves local directory input', () => {
-  assert.throws(() => resolveLocalDirectoryPath(''))
+  assert.throws(() => resolveLocalDirectoryPath(''), {
+    name: 'AppError',
+    code: APP_ERROR_CODE.PATH_EMPTY,
+  })
 
   const pwdPath = path.resolve('./')
   const targetPath = path.resolve('test/fixtures/local/nested').replaceAll(path.sep, path.posix.sep)
@@ -20,8 +24,14 @@ test('resolveLocalDirectoryPath validates and resolves local directory input', (
   assert.equal(resolveLocalDirectoryPath(`${relativePath}/`), targetPath)
   assert.equal(resolveLocalDirectoryPath(`${relativePath}\\`), targetPath)
 
-  assert.throws(() => resolveLocalDirectoryPath(path.resolve('test/fixtures/path-not-exsit')))
-  assert.throws(() => resolveLocalDirectoryPath(path.resolve('test/fixtures/local/basic/.gitignore')))
+  assert.throws(() => resolveLocalDirectoryPath(path.resolve('test/fixtures/path-not-exsit')), {
+    name: 'AppError',
+    code: APP_ERROR_CODE.PATH_NOT_FOUND,
+  })
+  assert.throws(() => resolveLocalDirectoryPath(path.resolve('test/fixtures/local/basic/.gitignore')), {
+    name: 'AppError',
+    code: APP_ERROR_CODE.PATH_NOT_DIRECTORY,
+  })
 })
 
 test('resolveLocalDirectoryPath preserves absolute Windows-style paths', () => {
@@ -31,4 +41,3 @@ test('resolveLocalDirectoryPath preserves absolute Windows-style paths', () => {
     absoluteWindowsPath.replaceAll(path.sep, path.posix.sep),
   )
 })
-

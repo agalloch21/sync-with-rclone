@@ -10,7 +10,7 @@ ACTION="${1:-install}"
 INSTALL_DIR="${2:-$HOME/.sync-with-rclone}"
 CONFIG_DIRECTORY="${SYNC_WITH_RCLONE_CONFIG_DIR:-$INSTALL_DIR/config}"
 CONFIG_PATH="${SYNC_WITH_RCLONE_CONFIG_PATH:-$CONFIG_DIRECTORY/config.json}"
-LOG_DIRECTORY="${SYNC_WITH_RCLONE_LOG_DIR:-$HOME/Library/Logs/sync-with-rclone}"
+LOG_DIRECTORY="${SYNC_WITH_RCLONE_LOG_DIR:-$INSTALL_DIR/logs}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -212,7 +212,7 @@ if [ -z "\${RCLONE_CONFIG:-}" ]; then
 fi
 
 # Log file for debugging
-LOG_FILE="\$HOME/Library/Logs/sync-with-rclone/quick-actions.log"
+LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
 mkdir -p "\$(dirname "\$LOG_FILE")"
 
 # Debug: log environment
@@ -271,12 +271,11 @@ EXIT_CODE=\$?
 
 if [ \$EXIT_CODE -ne 0 ]; then
     echo "\$(date '+%Y-%m-%d %H:%M:%S') - Sync failed with exit code \$EXIT_CODE" >> "\$LOG_FILE"
-    osascript -e "display dialog \"Sync failed. Check log at: \$LOG_FILE\" buttons {\"OK\"} default button \"OK\" with icon stop"
 else
     echo "\$(date '+%Y-%m-%d %H:%M:%S') - Sync completed successfully" >> "\$LOG_FILE"
 fi
 
-exit \$EXIT_CODE</string>
+exit 0</string>
 					<key>CheckedForUserDefaultShell</key>
 					<true/>
 					<key>inputMethod</key>
@@ -442,7 +441,7 @@ if [ -z "\${HOME:-}" ]; then
 fi
 
 # Log file for errors
-LOG_FILE="\$HOME/Library/Logs/sync-with-rclone/quick-actions.log"
+LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
 mkdir -p "\$(dirname "\$LOG_FILE")"
 
 # Handle folder path
@@ -460,10 +459,10 @@ FOLDER_PATH=\$(cd "\$FOLDER_PATH" &amp;&amp; pwd)
 EXIT_CODE=\$?
 
 if [ \$EXIT_CODE -ne 0 ]; then
-    osascript -e "display dialog \"Sync failed. Check log at: \$LOG_FILE\" buttons {\"OK\"} default button \"OK\" with icon stop"
+    echo "\$(date '+%Y-%m-%d %H:%M:%S') - Sync failed with exit code \$EXIT_CODE" >> "\$LOG_FILE"
 fi
 
-exit \$EXIT_CODE</string>
+exit 0</string>
 					<key>CheckedForUserDefaultShell</key>
 					<true/>
 					<key>inputMethod</key>
@@ -844,7 +843,7 @@ if [ -z "${HOME:-}" ]; then
     export HOME=~
 fi
 
-LOG_FILE="$HOME/Library/Logs/sync-with-rclone/quick-actions.log"
+LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
 mkdir -p "$(dirname "$LOG_FILE")"
 
 FOLDER_PATH="$1"
@@ -903,7 +902,7 @@ if [ -z "${HOME:-}" ]; then
     export HOME=~
 fi
 
-LOG_FILE="$HOME/Library/Logs/sync-with-rclone/quick-actions.log"
+LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
 mkdir -p "$(dirname "$LOG_FILE")"
 
 FOLDER_PATH="$1"

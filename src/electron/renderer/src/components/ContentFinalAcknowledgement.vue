@@ -11,6 +11,7 @@ const { t } = useI18n()
 const state = inject('state')
 
 const result = computed(() => state.value?.final?.result)
+const logPath = computed(() => state.value?.final?.logPath || '')
 const translatedErrorMessage = computed(() => {
   const final = state.value?.final
   const errorCode = final?.errorCode
@@ -42,10 +43,12 @@ const messageHtml = computed(() => {
     return 'some phases have been executed'
   }
   else if (result.value === SYNC_RESULT.FAILED) {
-    return translatedErrorMessage.value.split(/\r?\n/)
+    const lines = translatedErrorMessage.value.split(/\r?\n/)
       .filter(line => line.trim() !== '')
       .map(line => `<p>${line}</p>`)
-      .join('')
+    if (logPath.value)
+      lines.push(`<p>${t('result.failed.logPath', { path: logPath.value })}</p>`)
+    return lines.join('')
   }
   return ''
 })

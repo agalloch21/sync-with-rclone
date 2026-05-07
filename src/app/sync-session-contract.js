@@ -111,6 +111,7 @@ export const SESSION_EVENT = {
  * @property {string} message
  * @property {string} [errorCode]
  * @property {object} [errorDetails]
+ * @property {string} [logPath]
  * @property {SyncSessionContext | null} context
  * @property {unknown} error
  */

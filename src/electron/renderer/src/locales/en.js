@@ -55,6 +55,7 @@ export default {
     [SYNC_RESULT.FAILED]: {
       title: 'Error',
       message: '',
+      logPath: 'Log: {path}',
     },
   },
   errors: {

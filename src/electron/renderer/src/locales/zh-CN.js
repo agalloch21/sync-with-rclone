@@ -8,6 +8,11 @@ export default {
   review: {
     title: '检查同步差异',
   },
+  result: {
+    failed: {
+      logPath: '日志：{path}',
+    },
+  },
   errors: {
     [APP_ERROR_CODE.UNKNOWN]: '发生未知错误。',
     [APP_ERROR_CODE.PATH_EMPTY]: '路径不能为空。',

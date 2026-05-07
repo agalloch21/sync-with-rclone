@@ -1,5 +1,5 @@
-import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
+import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { STEPS } from '#src/electron/main/session-steps.js'
 
 export default {
@@ -46,7 +46,7 @@ export default {
   result: {
     [SYNC_RESULT.COMPLETED]: {
       title: 'Finished',
-      message: 'The window will be closed in <u>#</u> seconds.',
+      message: 'The window will be closed in {count} seconds.',
     },
     [SYNC_RESULT.CANCELLED]: {
       title: 'Cancelled',
@@ -55,7 +55,7 @@ export default {
     [SYNC_RESULT.FAILED]: {
       title: 'Error',
       message: '',
-      logPath: 'Log: {path}',
+      logPath: 'For more information, Please check the log at {path}',
     },
   },
   errors: {

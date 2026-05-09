@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { PHASE_EVENT, SYNC_RESULT } from '#src/core/contract.js'
 import { syncCore } from '#src/core/sync-engine.js'
 import { getErrorCode, getErrorDetails } from './app-errors.js'
@@ -25,10 +26,21 @@ function assertRuntimeContract(runtime) {
     throw new TypeError('startSync runtime.dependents.runCommand must be a function')
 }
 
+function enrichFailedSessionResult(sessionResult, error, runtimePaths) {
+  sessionResult.errorCode = getErrorCode(error)
+  sessionResult.errorDetails = getErrorDetails(error)
+
+  if (runtimePaths?.logDirectory)
+    sessionResult.logPath = path.posix.join(runtimePaths.logDirectory, 'quick-actions.log')
+
+  return sessionResult
+}
+
 export async function startSync(options, runtime = {}, cancelSignal = null) {
   assertRuntimeContract(runtime)
 
   const emit = runtime.events?.eventListener || (() => {})
+  let runtimePaths = null
 
   const resolvedContext = {
     mode: options.mode,
@@ -45,7 +57,7 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
       throw new Error('remoteFolderPath is required when bypassConfig is enabled')
     }
 
-    const runtimePaths = getRuntimePaths()
+    runtimePaths = getRuntimePaths()
     const config = bypassConfig ? null : await loadConfig(runtimePaths.configPath)
 
     const resolvedTask = bypassConfig ? null : resolveSyncTask(config, options.localFolderPath, options.remoteFolderPath)
@@ -66,59 +78,68 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
       type: SESSION_EVENT.CONTEXT_RESOLVED,
       context: resolvedContext,
     })
+  }
+  catch (error) {
+    const sessionResult = enrichFailedSessionResult({
+      result: SYNC_RESULT.FAILED,
+      message: error?.message || String(error),
+      context: resolvedContext,
+      error,
+    }, error, runtimePaths)
+    emit({ type: SESSION_EVENT.RESULT, ...sessionResult })
 
-    const resolvedOptions = {
-      ...resolvedContext,
-      runtimePaths,
-    }
+    return sessionResult
+  }
 
-    function coreEventToSessionEvent(event) {
-      if (event.type === PHASE_EVENT.FAILED || event.type === PHASE_EVENT.CANCELLED || event.type === PHASE_EVENT.DONE)
-        return
+  const resolvedOptions = {
+    ...resolvedContext,
+    runtimePaths,
+  }
 
-      emit({
-        type: SESSION_EVENT.PROGRESS,
-        phase: event.phase,
-        message: event.message,
-        progress: event.progress || (
-          (event.current !== undefined && event.total !== undefined)
-            ? { phase: { current: event.current, total: event.total, message: event.message }, transfer: null }
-            : null
-        ),
-      })
-    }
+  function coreEventToSessionEvent(event) {
+    if (event.type === PHASE_EVENT.FAILED || event.type === PHASE_EVENT.CANCELLED || event.type === PHASE_EVENT.DONE)
+      return
 
-    // Core Function
-    const coreResult = await syncCore(resolvedOptions, {
+    emit({
+      type: SESSION_EVENT.PROGRESS,
+      phase: event.phase,
+      message: event.message,
+      progress: event.progress || (
+        (event.current !== undefined && event.total !== undefined)
+          ? { phase: { current: event.current, total: event.total, message: event.message }, transfer: null }
+          : null
+      ),
+    })
+  }
+
+  let coreResult = null
+  try {
+    coreResult = await syncCore(resolvedOptions, {
       events: { eventListener: coreEventToSessionEvent },
       interactions: { reviewDiff: runtime.interactions?.reviewDiff },
       dependents: runtime.dependents,
     }, cancelSignal)
-
-    const sessionResult = {
-      context: resolvedContext,
-      ...coreResult,
-    }
-    if (sessionResult.result === SYNC_RESULT.FAILED) {
-      sessionResult.errorCode = getErrorCode(sessionResult.error)
-      sessionResult.errorDetails = getErrorDetails(sessionResult.error)
-    }
-
-    emit({ type: SESSION_EVENT.RESULT, ...sessionResult })
-
-    return sessionResult
   }
   catch (error) {
-    const sessionResult = {
+    const sessionResult = enrichFailedSessionResult({
       result: SYNC_RESULT.FAILED,
       message: error?.message || String(error),
-      errorCode: getErrorCode(error),
-      errorDetails: getErrorDetails(error),
       context: resolvedContext,
       error,
-    }
+    }, error, runtimePaths)
     emit({ type: SESSION_EVENT.RESULT, ...sessionResult })
 
     return sessionResult
   }
+
+  const sessionResult = {
+    context: resolvedContext,
+    ...coreResult,
+  }
+  if (sessionResult.result === SYNC_RESULT.FAILED)
+    enrichFailedSessionResult(sessionResult, sessionResult.error, runtimePaths)
+
+  emit({ type: SESSION_EVENT.RESULT, ...sessionResult })
+
+  return sessionResult
 }

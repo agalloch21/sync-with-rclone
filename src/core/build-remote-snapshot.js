@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 /** @typedef {import('#src/core/snapshot.js').Snapshot} Snapshot */
-import { pushEntryToSnapshot } from '#src/core/snapshot.js'
+import { addFileToSnapshot, createEmptySnapshot, sortFilesByPath } from '#src/core/snapshot.js'
 import { buildRcloneArgs, getRcloneExecutable } from './rclone-runtime.js'
 
 function getDefaultBundledRclonePath() {
@@ -100,19 +100,15 @@ function fetchDirectory(remotePath, runtimePaths = {}, cancelSignal = null) {
 export async function buildRemoteSnapshot(remotePath, runtimePaths, cancelSignal = null) {
   const entries = await fetchDirectory(remotePath, runtimePaths, cancelSignal)
 
-  const snapshot = {
-    root: remotePath,
-    fileEntries: new Map(),
-    dirEntries: new Map([
-      ['.', { parent: null, children: new Map() }],
-    ]),
-  }
+  const snapshot = createEmptySnapshot(remotePath)
 
   for (const entry of entries) {
     // entry sample:
     // {"Path":"app/app.vue","Name":"app.vue","Size":76,"ModTime":"2026-03-18T18:22:17Z","IsDir":false},
-    pushEntryToSnapshot(snapshot, entry.Path, entry.IsDir, entry.Size, Date.parse(entry.ModTime))
+    if (!entry.IsDir)
+      addFileToSnapshot(snapshot, entry.Path, entry.Size, Date.parse(entry.ModTime))
   }
 
+  sortFilesByPath(snapshot.files)
   return snapshot
 }

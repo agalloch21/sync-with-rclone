@@ -4,69 +4,55 @@ import test from 'node:test'
 
 import { buildLocalSnapshot } from '#src/core/build-local-snapshot.js'
 
-test('test buildLocalSnapshot: format validation', async () => {
-  // root, fileEntries, dirEntries
-  let rootPath = path.posix.resolve('test/fixtures/local/basic')
-  let snapshot = await buildLocalSnapshot(rootPath)
+function filePaths(snapshot) {
+  return snapshot.files.map(file => file.path)
+}
 
-  assert.ok(path.posix.isAbsolute(snapshot.root) === true)
-  assert.ok(snapshot.dirEntries?.size > 0)
-  assert.ok(snapshot.fileEntries?.size > 0)
+test('buildLocalSnapshot emits a serializable file-only snapshot', async () => {
+  const rootPath = path.posix.resolve('test/fixtures/local/nested')
+  const snapshot = await buildLocalSnapshot(rootPath)
 
-  // proper relationship
-  rootPath = path.posix.resolve('test/fixtures/local/nested')
-  snapshot = await buildLocalSnapshot(rootPath)
-  assert.ok(snapshot.dirEntries.get('.').children.has('folder-a') === true)
-  assert.ok(snapshot.dirEntries.get('folder-a').children.has('a.txt') === true)
-  assert.ok(snapshot.dirEntries.get('deeper-nested').children.has('nested-a.txt') === true)
-
-  // empty folder
-  rootPath = path.posix.resolve('test/fixtures/local/empty')
-  snapshot = await buildLocalSnapshot(rootPath)
-  assert.ok(snapshot.fileEntries.size === 0)
-  assert.ok(snapshot.dirEntries.get('.').children.size === 0)
-
-  // no .gitignore folder
-  rootPath = path.posix.resolve('test/fixtures/local/noignore')
-  snapshot = await buildLocalSnapshot(rootPath)
-  assert.ok(snapshot.dirEntries.get('.').children.has('node_modules'))
-  assert.ok(snapshot.dirEntries.get('node_modules').children.has('index.txt'))
+  assert.ok(path.posix.isAbsolute(snapshot.root))
+  assert.ok(Array.isArray(snapshot.files))
+  assert.ok(filePaths(snapshot).includes('folder-a/a.txt'))
+  assert.ok(filePaths(snapshot).includes('deeper-nested/nested-a.txt'))
+  assert.equal('dirEntries' in snapshot, false)
+  assert.equal('fileEntries' in snapshot, false)
+  assert.doesNotThrow(() => JSON.stringify(snapshot))
 })
 
-test('test buildLocalSnapshot: result validation', async () => {
-  // filter normal
+test('buildLocalSnapshot omits empty directories', async () => {
+  const rootPath = path.posix.resolve('test/fixtures/local/empty')
+  const snapshot = await buildLocalSnapshot(rootPath)
+
+  assert.deepEqual(snapshot.files, [])
+})
+
+test('buildLocalSnapshot preserves ignored-directory pruning', async () => {
   let rootPath = path.posix.resolve('test/fixtures/local/basic')
   let snapshot = await buildLocalSnapshot(rootPath)
 
-  assert.ok(snapshot.dirEntries.has('node_modules') === false)
-  assert.ok(snapshot.dirEntries.has('node_modules/module-a') === false)
-  assert.ok(snapshot.dirEntries.get('.').children.has('node_modules') === false)
+  assert.equal(filePaths(snapshot).some(filePath => filePath.startsWith('node_modules/')), false)
 
-  // filter nested
-  rootPath = path.posix.resolve('test/fixtures/local/nested')
-  snapshot = await buildLocalSnapshot(rootPath)
-
-  assert.ok(snapshot.dirEntries.has('deeper-nested/folder-a') === false)
-  assert.ok(snapshot.dirEntries.has('deeper-nested/folder-b') === false)
-  assert.ok(snapshot.dirEntries.has('folder-a') === true)
-  assert.ok(snapshot.fileEntries.has('folder-a/a.txt') === true)
-
-  // no .gitignore file
   rootPath = path.posix.resolve('test/fixtures/local/noignore')
   snapshot = await buildLocalSnapshot(rootPath)
 
-  assert.ok(snapshot.fileEntries.has('node_modules/index.txt'))
-  assert.ok(snapshot.dirEntries.get('.').children.has('node_modules'))
+  assert.ok(filePaths(snapshot).includes('node_modules/index.txt'))
+})
 
-  // negate
+test('buildLocalSnapshot applies nested ignore and negation patterns', async () => {
+  let rootPath = path.posix.resolve('test/fixtures/local/nested')
+  let snapshot = await buildLocalSnapshot(rootPath)
+
+  assert.equal(filePaths(snapshot).some(filePath => filePath.startsWith('deeper-nested/folder-a/')), false)
+  assert.equal(filePaths(snapshot).some(filePath => filePath.startsWith('deeper-nested/folder-b/')), false)
+  assert.ok(filePaths(snapshot).includes('folder-a/a.txt'))
+
   rootPath = path.posix.resolve('test/fixtures/local/negate')
   snapshot = await buildLocalSnapshot(rootPath)
 
-  assert.ok(snapshot.fileEntries.has('.env.simple') === false)
-  assert.ok(snapshot.fileEntries.has('.env.example') === true)
-  assert.ok(snapshot.fileEntries.has('.yarn/yarn-file') === false)
-  assert.ok(snapshot.fileEntries.has('.yarn/patches/patch-file') === true)
-
-  // return false due to the node-ignore bug
-//   assert.ok(snapshot.fileEntries.has('nested-negate/folder-a/nested-folder-a-file') === true)
+  assert.equal(filePaths(snapshot).includes('.env.simple'), false)
+  assert.ok(filePaths(snapshot).includes('.env.example'))
+  assert.equal(filePaths(snapshot).includes('.yarn/yarn-file'), false)
+  assert.ok(filePaths(snapshot).includes('.yarn/patches/patch-file'))
 })

@@ -11,4 +11,3 @@ export function buildRcloneArgs(runtimePaths = {}, commandArgs = []) {
   args.push(...commandArgs)
   return args
 }
-

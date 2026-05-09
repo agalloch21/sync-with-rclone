@@ -10,8 +10,12 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  partialSelection: {
-    type: Object,
+  getSelectionState: {
+    type: Function,
+    required: true,
+  },
+  setNodeSelection: {
+    type: Function,
     required: true,
   },
   isOpen: {
@@ -20,24 +24,8 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['selection-change'])
-
-function setNodeSelection(node, checked) {
-  // eslint-disable-next-line vue/no-mutating-props
-  props.selection[node.path] = checked
-  if (node.type === 'directory') {
-    // eslint-disable-next-line vue/no-mutating-props
-    props.partialSelection[node.path] = false
-  }
-  if (node.children) {
-    for (const child of node.children)
-      setNodeSelection(child, checked)
-  }
-}
-
 function onToggle(event) {
-  setNodeSelection(props.node, event.target.checked)
-  emit('selection-change')
+  props.setNodeSelection(props.node, event.target.checked)
 }
 </script>
 
@@ -52,8 +40,8 @@ function onToggle(event) {
           <input
             type="checkbox"
             class="forcusable"
-            :checked="selection[node.path]"
-            :indeterminate.prop="partialSelection[node.path]"
+            :checked="getSelectionState(node) === 'checked'"
+            :indeterminate.prop="getSelectionState(node) === 'partial'"
             @change="onToggle"
           >
           <div class="information">
@@ -82,8 +70,8 @@ function onToggle(event) {
           :key="child.path"
           :node="child"
           :selection="selection"
-          :partial-selection="partialSelection"
-          @selection-change="emit('selection-change')"
+          :get-selection-state="getSelectionState"
+          :set-node-selection="setNodeSelection"
         />
       </ul>
     </details>
@@ -93,7 +81,7 @@ function onToggle(event) {
       <input
         type="checkbox"
         class="forcusable"
-        :checked="selection[node.path]"
+        :checked="getSelectionState(node) === 'checked'"
         :indeterminate.prop="false"
         @change="onToggle"
       >

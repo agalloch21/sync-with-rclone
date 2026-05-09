@@ -1,6 +1,5 @@
 <script setup>
-import { SESSION_STATES, STEPS } from '#src/electron/main/session-steps.js'
-import { computed, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Content from './components/Content.vue'
@@ -8,12 +7,11 @@ import Context from './components/Context.vue'
 import Footer from './components/Footer.vue'
 import Header from './components/Header.vue'
 
-const { t, locale } = useI18n()
+const { locale } = useI18n()
 locale.value = 'en'
 
 const state = ref({})
 const selection = reactive({})
-const partialSelection = reactive({})
 
 const showFinalAcknowledgement = computed(() => {
   return Boolean(state.value?.final)
@@ -21,7 +19,6 @@ const showFinalAcknowledgement = computed(() => {
 
 provide('state', state)
 provide('selection', selection)
-provide('partialSelection', partialSelection)
 provide('showFinalAcknowledgement', showFinalAcknowledgement)
 
 let disposeProgressListener = null

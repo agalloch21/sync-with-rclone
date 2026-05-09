@@ -1,5 +1,5 @@
-import readline from 'node:readline/promises'
 import { stdin as input, stdout as output } from 'node:process'
+import readline from 'node:readline/promises'
 import { serializeDiffSnapshot } from '#src/core/serialize-diff-snapshot.js'
 
 function renderTreeLines(nodes, depth = 0) {
@@ -38,7 +38,7 @@ function collectSelectedPaths(nodes) {
 
 export async function reviewDiffInCli(diffSnapshot) {
   const payload = serializeDiffSnapshot(diffSnapshot)
-  const treeLines = renderTreeLines(payload.tree)
+  const treeLines = renderTreeLines(payload.tree.children)
 
   output.write(`\nSync review\n`)
   output.write(`Source: ${payload.srcRoot}\n`)
@@ -54,7 +54,7 @@ export async function reviewDiffInCli(diffSnapshot) {
     output.write(`\nNon-interactive terminal detected. Continuing with all diff entries.\n`)
     return {
       action: 'confirm',
-      selectedPaths: collectSelectedPaths(payload.tree),
+      selectedPaths: collectSelectedPaths(payload.tree.children),
     }
   }
 
@@ -66,7 +66,7 @@ export async function reviewDiffInCli(diffSnapshot) {
       if (answer === 'y' || answer === 'yes') {
         return {
           action: 'confirm',
-          selectedPaths: collectSelectedPaths(payload.tree),
+          selectedPaths: collectSelectedPaths(payload.tree.children),
         }
       }
 

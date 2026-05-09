@@ -2,15 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { applySyncPlan, buildApplyExecution } from '#src/core/apply-sync-plan.js'
 
-test('buildApplyExecution groups remote push operations into phased execution', () => {
+test('buildApplyExecution groups file operations into copy and delete phases only', () => {
   const syncPlan = {
     action: 'confirm',
     operations: [
-      { type: 'mkdir', path: 'added' },
       { type: 'copy', path: 'added/added.txt' },
       { type: 'copy', path: 'modified/modified.txt' },
       { type: 'delete', path: 'deleted/deleted.txt' },
-      { type: 'rmdir', path: 'deleted' },
     ],
   }
 
@@ -27,14 +25,6 @@ test('buildApplyExecution groups remote push operations into phased execution', 
     sourceKind: 'local',
     destinationKind: 'remote',
     phases: [
-      {
-        type: 'mkdir',
-        description: 'creating directories',
-        strategy: 'per-path-rclone',
-        targetKind: 'remote',
-        root: 'synology:ProjectsSynced/app',
-        paths: ['added'],
-      },
       {
         type: 'copy',
         description: 'copying files',
@@ -54,26 +44,56 @@ test('buildApplyExecution groups remote push operations into phased execution', 
         paths: ['deleted/deleted.txt'],
       },
       {
-        type: 'rmdir',
-        description: 'deleting directories',
-        strategy: 'per-path-rclone',
+        type: 'cleanup-empty-dirs',
+        description: 'deleting empty directories',
+        strategy: 'rclone-rmdirs',
         targetKind: 'remote',
         root: 'synology:ProjectsSynced/app',
-        paths: ['deleted'],
+        paths: [],
       },
     ],
   })
 })
 
-test('applySyncPlan uses batched rclone commands for copy and delete phases', async () => {
+test('buildApplyExecution targets local root for pull-mode delete cleanup', () => {
+  const execution = buildApplyExecution({
+    action: 'confirm',
+    operations: [
+      { type: 'delete', path: 'deleted/deleted.txt' },
+    ],
+  }, {
+    mode: 'pull',
+    localFolderPath: '/local/root',
+    remoteFolderPath: 'synology:ProjectsSynced/app',
+  })
+
+  assert.deepEqual(execution.phases, [
+    {
+      type: 'delete',
+      description: 'deleting files',
+      strategy: 'batch-rclone-files-from',
+      targetKind: 'local',
+      root: '/local/root',
+      paths: ['deleted/deleted.txt'],
+    },
+    {
+      type: 'cleanup-empty-dirs',
+      description: 'deleting empty directories',
+      strategy: 'rclone-rmdirs',
+      targetKind: 'local',
+      root: '/local/root',
+      paths: [],
+    },
+  ])
+})
+
+test('applySyncPlan uses batched rclone copy and delete with rmdirs cleanup', async () => {
   const syncPlan = {
     action: 'confirm',
     operations: [
-      { type: 'mkdir', path: 'added' },
       { type: 'copy', path: 'added/added.txt' },
       { type: 'copy', path: 'modified/modified.txt' },
       { type: 'delete', path: 'deleted/deleted.txt' },
-      { type: 'rmdir', path: 'deleted' },
     ],
   }
 
@@ -92,6 +112,10 @@ test('applySyncPlan uses batched rclone commands for copy and delete phases', as
     dependents: {
       runCommand: async (command, args) => {
         commands.push({ command, args })
+        return {
+          stdout: '+ added/added.txt\n',
+          stderr: '',
+        }
       },
       createBatchFile: async (paths) => {
         const filePath = `/tmp/mock-batch-${batchFiles.length}.txt`
@@ -116,10 +140,6 @@ test('applySyncPlan uses batched rclone commands for copy and delete phases', as
   assert.deepEqual(commands, [
     {
       command: '/app/bin/rclone',
-      args: ['--config', '/app/rclone.conf', 'mkdir', 'synology:ProjectsSynced/app/added'],
-    },
-    {
-      command: '/app/bin/rclone',
       args: [
         '--config',
         '/app/rclone.conf',
@@ -130,6 +150,11 @@ test('applySyncPlan uses batched rclone commands for copy and delete phases', as
         '--refresh-times',
         '--files-from',
         '/tmp/mock-batch-0.txt',
+        '--use-json-log',
+        '--log-level',
+        'INFO',
+        '--combined',
+        '-',
       ],
     },
     {
@@ -141,13 +166,82 @@ test('applySyncPlan uses batched rclone commands for copy and delete phases', as
         'synology:ProjectsSynced/app',
         '--files-from',
         '/tmp/mock-batch-1.txt',
+        '--rmdirs',
+        '--use-json-log',
+        '--log-level',
+        'INFO',
       ],
     },
     {
       command: '/app/bin/rclone',
-      args: ['--config', '/app/rclone.conf', 'rmdir', 'synology:ProjectsSynced/app/deleted'],
+      args: [
+        '--config',
+        '/app/rclone.conf',
+        'rmdirs',
+        'synology:ProjectsSynced/app',
+        '--leave-root',
+        '--use-json-log',
+        '--log-level',
+        'INFO',
+      ],
     },
   ])
+  assert.deepEqual(result.plannedFiles, ['added/added.txt', 'modified/modified.txt', 'deleted/deleted.txt'])
+  assert.deepEqual(result.confirmedFiles, ['added/added.txt', 'modified/modified.txt', 'deleted/deleted.txt'])
+})
+
+test('applySyncPlan removes batch files after successful batch commands', async () => {
+  const removedBatchFiles = []
+
+  await applySyncPlan({
+    action: 'confirm',
+    operations: [
+      { type: 'copy', path: 'one.txt' },
+    ],
+  }, {
+    mode: 'push',
+    localFolderPath: '/local/root',
+    remoteFolderPath: 'synology:ProjectsSynced/app',
+    runtimePaths: {
+      bundledRclonePath: '/app/bin/rclone',
+    },
+  }, {
+    dependents: {
+      runCommand: async () => ({ stdout: '', stderr: '' }),
+      createBatchFile: async () => '/tmp/mock-batch.txt',
+      removeBatchFile: async filePath => removedBatchFiles.push(filePath),
+    },
+  })
+
+  assert.deepEqual(removedBatchFiles, ['/tmp/mock-batch.txt'])
+})
+
+test('applySyncPlan removes batch files after failed batch commands', async () => {
+  const removedBatchFiles = []
+
+  await assert.rejects(() => applySyncPlan({
+    action: 'confirm',
+    operations: [
+      { type: 'copy', path: 'one.txt' },
+    ],
+  }, {
+    mode: 'push',
+    localFolderPath: '/local/root',
+    remoteFolderPath: 'synology:ProjectsSynced/app',
+    runtimePaths: {
+      bundledRclonePath: '/app/bin/rclone',
+    },
+  }, {
+    dependents: {
+      runCommand: async () => {
+        throw new Error('copy failed')
+      },
+      createBatchFile: async () => '/tmp/mock-batch.txt',
+      removeBatchFile: async filePath => removedBatchFiles.push(filePath),
+    },
+  }), /copy failed/)
+
+  assert.deepEqual(removedBatchFiles, ['/tmp/mock-batch.txt'])
 })
 
 test('applySyncPlan reports apply lifecycle events in execution order', async () => {
@@ -156,7 +250,6 @@ test('applySyncPlan reports apply lifecycle events in execution order', async ()
   await applySyncPlan({
     action: 'confirm',
     operations: [
-      { type: 'mkdir', path: 'added' },
       { type: 'copy', path: 'added/added.txt' },
     ],
   }, {
@@ -172,16 +265,151 @@ test('applySyncPlan reports apply lifecycle events in execution order', async ()
       progress: (current, total, message) => events.push({ current, total, message }),
     },
     dependents: {
-      runCommand: async () => {},
+      runCommand: async () => ({ stdout: '', stderr: '' }),
       createBatchFile: async () => '/tmp/mock-batch.txt',
       removeBatchFile: async () => {},
     },
   })
 
   assert.deepEqual(events, [
-    { current: 0, total: 3, message: 'start' },
-    { current: 1, total: 3, message: 'mkdir' },
-    { current: 2, total: 3, message: 'copy' },
-    { current: 3, total: 3, message: 'complete' },
+    { current: 0, total: 2, message: 'start' },
+    { current: 1, total: 2, message: 'copy' },
+    { current: 2, total: 2, message: 'complete' },
   ])
+})
+
+test('applySyncPlan attaches apply metadata to the original cancellation error', async () => {
+  const abortController = new AbortController()
+  abortController.abort()
+  const originalError = abortController.signal.reason
+
+  await assert.rejects(() => applySyncPlan({
+    action: 'confirm',
+    operations: [
+      { type: 'copy', path: 'one.txt' },
+      { type: 'copy', path: 'two.txt' },
+    ],
+  }, {
+    mode: 'push',
+    localFolderPath: '/local/root',
+    remoteFolderPath: 'synology:ProjectsSynced/app',
+    runtimePaths: {
+      bundledRclonePath: '/app/bin/rclone',
+    },
+  }, {
+    dependents: {
+      runCommand: async () => {
+        throw abortController.signal.reason
+      },
+      createBatchFile: async () => '/tmp/mock-batch.txt',
+      removeBatchFile: async () => {},
+    },
+  }, abortController.signal), (error) => {
+    assert.equal(error, originalError)
+    assert.deepEqual(error.plannedFiles, ['one.txt', 'two.txt'])
+    assert.deepEqual(error.confirmedFiles, [])
+    return true
+  })
+})
+
+test('applySyncPlan preserves confirmed files from aborted rclone output', async () => {
+  const abortController = new AbortController()
+  const abortError = new Error('cancelled')
+  abortError.stdout = '+ one.txt\n'
+
+  await assert.rejects(() => applySyncPlan({
+    action: 'confirm',
+    operations: [
+      { type: 'copy', path: 'one.txt' },
+      { type: 'copy', path: 'two.txt' },
+    ],
+  }, {
+    mode: 'push',
+    localFolderPath: '/local/root',
+    remoteFolderPath: 'synology:ProjectsSynced/app',
+    runtimePaths: {
+      bundledRclonePath: '/app/bin/rclone',
+    },
+  }, {
+    dependents: {
+      runCommand: async () => {
+        abortController.abort(abortError)
+        throw abortError
+      },
+      createBatchFile: async () => '/tmp/mock-batch.txt',
+      removeBatchFile: async () => {},
+    },
+  }, abortController.signal), (error) => {
+    assert.equal(error, abortError)
+    assert.deepEqual(error.plannedFiles, ['one.txt', 'two.txt'])
+    assert.deepEqual(error.confirmedFiles, ['one.txt'])
+    return true
+  })
+})
+
+test('applySyncPlan filters cancellation metadata to selected files', async () => {
+  const abortController = new AbortController()
+  const abortError = new Error('cancelled')
+  abortError.stdout = '+ selected.txt\n+ internal-cleanup-marker\n'
+
+  await assert.rejects(() => applySyncPlan({
+    action: 'confirm',
+    operations: [
+      { type: 'copy', path: 'selected.txt' },
+      { type: 'delete', path: 'deleted.txt' },
+    ],
+  }, {
+    mode: 'push',
+    localFolderPath: '/local/root',
+    remoteFolderPath: 'synology:ProjectsSynced/app',
+    runtimePaths: {
+      bundledRclonePath: '/app/bin/rclone',
+    },
+  }, {
+    dependents: {
+      runCommand: async () => {
+        abortController.abort(abortError)
+        throw abortError
+      },
+      createBatchFile: async () => '/tmp/mock-batch.txt',
+      removeBatchFile: async () => {},
+    },
+  }, abortController.signal), (error) => {
+    assert.deepEqual(error.plannedFiles, ['selected.txt', 'deleted.txt'])
+    assert.deepEqual(error.confirmedFiles, ['selected.txt'])
+    return true
+  })
+})
+
+test('applySyncPlan wraps primitive cancellation reasons with apply metadata', async () => {
+  const abortController = new AbortController()
+  abortController.abort('cancelled')
+
+  await assert.rejects(() => applySyncPlan({
+    action: 'confirm',
+    operations: [
+      { type: 'copy', path: 'one.txt' },
+    ],
+  }, {
+    mode: 'push',
+    localFolderPath: '/local/root',
+    remoteFolderPath: 'synology:ProjectsSynced/app',
+    runtimePaths: {
+      bundledRclonePath: '/app/bin/rclone',
+    },
+  }, {
+    dependents: {
+      runCommand: async () => {
+        throw abortController.signal.reason
+      },
+      createBatchFile: async () => '/tmp/mock-batch.txt',
+      removeBatchFile: async () => {},
+    },
+  }, abortController.signal), (error) => {
+    assert.equal(error.message, 'Apply cancelled')
+    assert.equal(error.cause, 'cancelled')
+    assert.deepEqual(error.plannedFiles, ['one.txt'])
+    assert.deepEqual(error.confirmedFiles, [])
+    return true
+  })
 })

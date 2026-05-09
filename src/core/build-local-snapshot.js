@@ -1,7 +1,7 @@
 /** @typedef {import('./snapshot.js').Snapshot} Snapshot */
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { pushEntryToSnapshot } from '#src/core/snapshot.js'
+import { addFileToSnapshot, createEmptySnapshot, sortFilesByPath } from '#src/core/snapshot.js'
 import ignore from 'ignore'
 
 /**
@@ -39,7 +39,6 @@ async function readPatterns(absFilePath) {
 
   try {
     const content = await fs.readFile(absFilePath, 'utf-8')
-    // eslint-disable-next-line e18e/prefer-static-regex
     const patterns = content.split(/\r?\n/) // will return [] if content is empty
 
     const filtered = [...new Set(patterns
@@ -86,7 +85,7 @@ function checkIgnore(filters, entryPath, isDir) {
  *
  * @param {string} dirPath
  * @param {Filter[]} filterStack
- * @param {snapshot} snapshot
+ * @param {Snapshot} snapshot
  */
 async function walkDir(dirPath, filterStack, snapshot) {
   const entrieNames = await fs.readdir(path.posix.join(snapshot.root, dirPath))
@@ -115,10 +114,10 @@ async function walkDir(dirPath, filterStack, snapshot) {
     if (checkIgnore(filters, path.posix.join(entryPath), isDir))
       continue
 
-    pushEntryToSnapshot(snapshot, entryPath, isDir, stat.size, stat.mtimeMs)
-
     if (isDir)
       await walkDir(entryPath, filters, snapshot)
+    else
+      addFileToSnapshot(snapshot, entryPath, stat.size, stat.mtimeMs)
   }
 }
 
@@ -135,15 +134,7 @@ export async function buildLocalSnapshot(rootAbsPath, extraPatterns = []) {
   }
   rootAbsPath = rootAbsPath.replaceAll(path.sep, path.posix.sep)
 
-  // Create initial snapshot
-  /** @type {Snapshot} */
-  const snapshot = {
-    root: rootAbsPath,
-    fileEntries: new Map(),
-    dirEntries: new Map([
-      ['.', { parent: null, children: new Map() }],
-    ]),
-  }
+  const snapshot = createEmptySnapshot(rootAbsPath)
 
   // Create initial filter
   /** @type {Filter[]} */
@@ -162,8 +153,11 @@ export async function buildLocalSnapshot(rootAbsPath, extraPatterns = []) {
     await walkDir('.', filterStack, snapshot)
   }
   else if (rootStat.isFile()) {
-    // todo: push to file list
+    const fileName = path.posix.basename(rootAbsPath)
+    if (isValidFilename(fileName))
+      addFileToSnapshot(snapshot, fileName, rootStat.size, rootStat.mtimeMs)
   }
 
+  sortFilesByPath(snapshot.files)
   return snapshot
 }

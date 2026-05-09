@@ -7,19 +7,6 @@ import { buildRcloneArgs, getRcloneExecutable } from './rclone-runtime.js'
 
 const execFileAsync = promisify(execFile)
 
-function isRemotePath(inputPath) {
-  return typeof inputPath === 'string' && inputPath.includes(':') && !inputPath.startsWith('/')
-}
-
-function joinPath(rootPath, relativePath) {
-  if (!relativePath || relativePath === '.')
-    return rootPath
-
-  return isRemotePath(rootPath)
-    ? `${rootPath}/${relativePath}`
-    : path.posix.join(rootPath, relativePath)
-}
-
 function createBatchPathsFileContent(paths) {
   return `${paths.join('\n')}\n`
 }
@@ -35,8 +22,11 @@ async function defaultRemoveBatchFile(filePath) {
   await fs.rm(path.dirname(filePath), { recursive: true, force: true })
 }
 
-async function defaultRunCommand(command, args) {
-  await execFileAsync(command, args)
+async function defaultRunCommand(command, args, options = {}) {
+  return execFileAsync(command, args, {
+    signal: options.cancelSignal || undefined,
+    maxBuffer: 1024 * 1024 * 16,
+  })
 }
 
 function getExecutionRoots(mode, localFolderPath, remoteFolderPath) {
@@ -63,7 +53,6 @@ function requireRcloneRuntime(runtimePaths) {
 
   return {
     executable: getRcloneExecutable(runtimePaths),
-    configPath: runtimePaths.rcloneConfigPath || '',
   }
 }
 
@@ -74,6 +63,71 @@ function createRcloneArgs(runtimePaths, commandArgs) {
     executable: rcloneRuntime.executable,
     args: buildRcloneArgs(runtimePaths, commandArgs),
   }
+}
+
+function parseConfirmedFilesFromOutput(output) {
+  const confirmedFiles = new Set()
+  const combinedLinePattern = /^[+*=!-] (.+)$/
+
+  for (const line of String(output || '').split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed)
+      continue
+
+    const combinedMatch = trimmed.match(combinedLinePattern)
+    if (combinedMatch) {
+      confirmedFiles.add(combinedMatch[1])
+      continue
+    }
+
+    if (trimmed.startsWith('{')) {
+      try {
+        const event = JSON.parse(trimmed)
+        if (event.object)
+          confirmedFiles.add(event.object)
+      }
+      catch {
+        // Ignore non-JSON progress fragments.
+      }
+    }
+  }
+
+  return [...confirmedFiles].sort((left, right) => left.localeCompare(right))
+}
+
+function getSelectedFilePaths(syncPlan) {
+  return (syncPlan?.operations || [])
+    .filter(operation => operation.type === 'copy' || operation.type === 'delete')
+    .map(operation => operation.path)
+}
+
+function uniquePaths(paths) {
+  return [...new Set(paths)]
+}
+
+function summarizeExecution(plannedFiles, confirmedFiles) {
+  const selectedFiles = uniquePaths(plannedFiles)
+  const confirmedPathSet = new Set(confirmedFiles)
+
+  return {
+    plannedFiles: selectedFiles,
+    confirmedFiles: selectedFiles.filter(filePath => confirmedPathSet.has(filePath)),
+  }
+}
+
+function attachExecutionSummary(error, plannedFiles, confirmedFiles) {
+  const target = error && (typeof error === 'object' || typeof error === 'function')
+    ? error
+    : new Error('Apply cancelled')
+  const summary = summarizeExecution(plannedFiles, confirmedFiles)
+
+  target.plannedFiles = summary.plannedFiles
+  target.confirmedFiles = summary.confirmedFiles
+
+  if (target !== error)
+    target.cause = error
+
+  return target
 }
 
 export function buildApplyExecution(syncPlan, context) {
@@ -90,42 +144,23 @@ export function buildApplyExecution(syncPlan, context) {
     context.remoteFolderPath,
   )
 
-  const mkdirPaths = []
   const copyPaths = []
   const deletePaths = []
-  const rmdirPaths = []
 
   for (const operation of syncPlan.operations || []) {
-    if (operation.type === 'mkdir')
-      mkdirPaths.push(operation.path)
-    else if (operation.type === 'copy')
+    if (operation.type === 'copy')
       copyPaths.push(operation.path)
     else if (operation.type === 'delete')
       deletePaths.push(operation.path)
-    else if (operation.type === 'rmdir')
-      rmdirPaths.push(operation.path)
   }
 
   const phases = []
-
-  if (mkdirPaths.length > 0) {
-    phases.push({
-      type: 'mkdir',
-      description: 'creating directories',
-      strategy: executionRoots.destinationKind === 'remote' ? 'per-path-rclone' : 'per-path-fs',
-      targetKind: executionRoots.destinationKind,
-      root: executionRoots.destinationRoot,
-      paths: mkdirPaths,
-    })
-  }
 
   if (copyPaths.length > 0) {
     phases.push({
       type: 'copy',
       description: 'copying files',
-      strategy: executionRoots.sourceKind === 'remote' || executionRoots.destinationKind === 'remote'
-        ? 'batch-rclone-files-from'
-        : 'per-path-fs',
+      strategy: 'batch-rclone-files-from',
       sourceKind: executionRoots.sourceKind,
       destinationKind: executionRoots.destinationKind,
       sourceRoot: executionRoots.sourceRoot,
@@ -138,21 +173,18 @@ export function buildApplyExecution(syncPlan, context) {
     phases.push({
       type: 'delete',
       description: 'deleting files',
-      strategy: executionRoots.destinationKind === 'remote' ? 'batch-rclone-files-from' : 'per-path-fs',
+      strategy: 'batch-rclone-files-from',
       targetKind: executionRoots.destinationKind,
       root: executionRoots.destinationRoot,
       paths: deletePaths,
     })
-  }
-
-  if (rmdirPaths.length > 0) {
     phases.push({
-      type: 'rmdir',
-      description: 'deleting directories',
-      strategy: executionRoots.destinationKind === 'remote' ? 'per-path-rclone' : 'per-path-fs',
+      type: 'cleanup-empty-dirs',
+      description: 'deleting empty directories',
+      strategy: 'rclone-rmdirs',
       targetKind: executionRoots.destinationKind,
       root: executionRoots.destinationRoot,
-      paths: rmdirPaths,
+      paths: [],
     })
   }
 
@@ -166,96 +198,68 @@ export function buildApplyExecution(syncPlan, context) {
   }
 }
 
-async function applyMkdirPhase(phase, runtimePaths, runCommand) {
-  if (phase.targetKind === 'local') {
-    for (const relativePath of phase.paths)
-      await fs.mkdir(joinPath(phase.root, relativePath), { recursive: true })
-
-    return
-  }
-
-  for (const relativePath of phase.paths) {
+async function runRcloneBatchPhase(phase, runtimePaths, hooks, cancelSignal) {
+  if (phase.type === 'cleanup-empty-dirs') {
     const { executable, args } = createRcloneArgs(runtimePaths, [
-      'mkdir',
-      joinPath(phase.root, relativePath),
-    ])
-    await runCommand(executable, args)
-  }
-}
-
-async function applyCopyPhase(phase, runtimePaths, hooks) {
-  if (phase.strategy === 'per-path-fs') {
-    for (const relativePath of phase.paths) {
-      const sourcePath = joinPath(phase.sourceRoot, relativePath)
-      const destinationPath = joinPath(phase.destinationRoot, relativePath)
-      const sourceStat = await fs.stat(sourcePath)
-      await fs.mkdir(path.posix.dirname(destinationPath), { recursive: true })
-      await fs.copyFile(sourcePath, destinationPath)
-      await fs.utimes(destinationPath, sourceStat.atime, sourceStat.mtime)
-    }
-    return
-  }
-
-  const batchFilePath = await hooks.createBatchFile(phase.paths)
-  try {
-    const { executable, args } = createRcloneArgs(runtimePaths, [
-      'copy',
-      phase.sourceRoot,
-      phase.destinationRoot,
-      '--metadata',
-      '--refresh-times',
-      '--files-from',
-      batchFilePath,
-    ])
-    await hooks.runCommand(executable, args)
-  }
-  finally {
-    await hooks.removeBatchFile(batchFilePath)
-  }
-}
-
-async function applyDeletePhase(phase, runtimePaths, hooks) {
-  if (phase.targetKind === 'local') {
-    for (const relativePath of phase.paths)
-      await fs.rm(joinPath(phase.root, relativePath), { force: true })
-
-    return
-  }
-
-  const batchFilePath = await hooks.createBatchFile(phase.paths)
-  try {
-    const { executable, args } = createRcloneArgs(runtimePaths, [
-      'delete',
+      'rmdirs',
       phase.root,
-      '--files-from',
-      batchFilePath,
+      '--leave-root',
+      '--use-json-log',
+      '--log-level',
+      'INFO',
     ])
-    await hooks.runCommand(executable, args)
+    const result = await hooks.runCommand(executable, args, { cancelSignal })
+    return parseConfirmedFilesFromOutput(`${result?.stdout || ''}\n${result?.stderr || ''}`)
+  }
+
+  const batchFilePath = await hooks.createBatchFile(phase.paths)
+  try {
+    const commandArgs = phase.type === 'copy'
+      ? [
+          'copy',
+          phase.sourceRoot,
+          phase.destinationRoot,
+          '--metadata',
+          '--refresh-times',
+          '--files-from',
+          batchFilePath,
+          '--use-json-log',
+          '--log-level',
+          'INFO',
+          '--combined',
+          '-',
+        ]
+      : phase.type === 'delete'
+        ? [
+            'delete',
+            phase.root,
+            '--files-from',
+            batchFilePath,
+            '--rmdirs',
+            '--use-json-log',
+            '--log-level',
+            'INFO',
+          ]
+        : []
+
+    const { executable, args } = createRcloneArgs(runtimePaths, commandArgs)
+    try {
+      const result = await hooks.runCommand(executable, args, { cancelSignal })
+      return parseConfirmedFilesFromOutput(`${result?.stdout || ''}\n${result?.stderr || ''}`)
+    }
+    catch (error) {
+      error.confirmedFiles = parseConfirmedFilesFromOutput(`${error?.stdout || ''}\n${error?.stderr || ''}`)
+      throw error
+    }
   }
   finally {
     await hooks.removeBatchFile(batchFilePath)
-  }
-}
-
-async function applyRmdirPhase(phase, runtimePaths, runCommand) {
-  if (phase.targetKind === 'local') {
-    for (const relativePath of phase.paths)
-      await fs.rmdir(joinPath(phase.root, relativePath))
-
-    return
-  }
-
-  for (const relativePath of phase.paths) {
-    const { executable, args } = createRcloneArgs(runtimePaths, [
-      'rmdir',
-      joinPath(phase.root, relativePath),
-    ])
-    await runCommand(executable, args)
   }
 }
 
 export async function applySyncPlan(syncPlan, context, runtime, cancelSignal) {
   const execution = buildApplyExecution(syncPlan, context)
+  const plannedFiles = getSelectedFilePaths(syncPlan)
 
   if (execution.action !== 'confirm') {
     return {
@@ -270,23 +274,25 @@ export async function applySyncPlan(syncPlan, context, runtime, cancelSignal) {
     removeBatchFile: runtime?.dependents?.removeBatchFile || defaultRemoveBatchFile,
   }
 
+  const confirmedFiles = []
   runtime?.events?.progress?.(0, execution.phases.length + 1, 'start')
 
-  for (const [index, phase] of execution.phases.entries()) {
-    runtime?.events?.progress?.(index + 1, execution.phases.length + 1, phase.type)
+  try {
+    for (const [index, phase] of execution.phases.entries()) {
+      cancelSignal?.throwIfAborted()
+      runtime?.events?.progress?.(index + 1, execution.phases.length + 1, phase.type)
+      confirmedFiles.push(...await runRcloneBatchPhase(phase, context.runtimePaths, executionHooks, cancelSignal))
+    }
+  }
+  catch (error) {
+    if (Array.isArray(error?.confirmedFiles))
+      confirmedFiles.push(...error.confirmedFiles)
 
-    // await new Promise(resolve => setTimeout(resolve, 5000))
+    if (cancelSignal?.aborted) {
+      throw attachExecutionSummary(error, plannedFiles, confirmedFiles)
+    }
 
-    if (phase.type === 'mkdir')
-      await applyMkdirPhase(phase, context.runtimePaths, executionHooks.runCommand)
-    else if (phase.type === 'copy')
-      await applyCopyPhase(phase, context.runtimePaths, executionHooks)
-    else if (phase.type === 'delete')
-      await applyDeletePhase(phase, context.runtimePaths, executionHooks)
-    else if (phase.type === 'rmdir')
-      await applyRmdirPhase(phase, context.runtimePaths, executionHooks.runCommand)
-
-    cancelSignal?.throwIfAborted()
+    throw error
   }
 
   runtime?.events?.progress?.(execution.phases.length + 1, execution.phases.length + 1, 'complete')
@@ -294,5 +300,6 @@ export async function applySyncPlan(syncPlan, context, runtime, cancelSignal) {
   return {
     action: 'confirm',
     phases: execution.phases,
+    ...summarizeExecution(plannedFiles, plannedFiles),
   }
 }

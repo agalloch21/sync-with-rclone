@@ -49,7 +49,7 @@ function normalizeOptions(options) {
 }
 
 function getDiffSummary(diffSnapshot) {
-  return diffSnapshot?.dirEntries?.['.']?.changes || {
+  return diffSnapshot?.summary || {
     added: 0,
     modified: 0,
     deleted: 0,
@@ -72,6 +72,7 @@ export async function syncCore(
   const emit = runtime.events?.eventListener || (() => {})
   const reporter = createReporter(emit)
   let currentPhase = null
+  let currentSyncPlan = null
 
   function runPhase(phase, fn, message) {
     currentPhase = phase
@@ -134,6 +135,7 @@ export async function syncCore(
       () => buildSyncPlan(diffSnapshot, reviewResult),
       'Preparing operations',
     )
+    currentSyncPlan = syncPlan
 
     await runPhase(
       PHASES.APPLY_PLAN,
@@ -154,13 +156,14 @@ export async function syncCore(
     }
   }
   catch (error) {
-    if (error === cancelSignal?.reason) {
+    if (cancelSignal?.aborted) {
       return {
         result: SYNC_RESULT.CANCELLED,
         reason: SYNC_CANCEL_REASON.ABORT_SIGNAL,
         phase: currentPhase,
-        // todo: 把operations里填入已经执行过的操作
-        operations: [],
+        operations: currentSyncPlan?.operations || [],
+        plannedFiles: error?.plannedFiles,
+        confirmedFiles: error?.confirmedFiles,
       }
     }
 

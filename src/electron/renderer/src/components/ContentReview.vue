@@ -4,7 +4,6 @@ import TreeNode from './TreeNode.vue'
 
 const state = inject('state')
 const selection = inject('selection')
-const partialSelection = inject('partialSelection')
 
 /*
 // SELECTION STRUCTURE:
@@ -28,59 +27,51 @@ state:{
 {
     type: 'file',
     name,
-    path: childRef.path,
-    state: DIFF_STATE_LABELS[fileEntry?.state] || 'unchanged',
-    size: fileEntry?.size || 0,
-    mtimeMs: fileEntry?.mtimeMs || 0,
+    path,
+    state,
+    size,
+    mtimeMs,
 }
 {
     type: 'directory',
     name,
-    path: childRef.path,
-    changes: getDirChangeSummary(childDirEntry),
-    children: buildTree(diffSnapshot, childRef.path),
+    path,
+    changes,
+    children,
 }
 */
 
-function visitTree(nodes, visit) {
-  for (const node of nodes) {
+function visitFileNodes(node, visit) {
+  if (node.type === 'file') {
     visit(node)
-    if (node.children)
-      visitTree(node.children, visit)
+    return
   }
+
+  for (const child of node.children || [])
+    visitFileNodes(child, visit)
 }
 
 function initializeSelection(tree) {
   for (const key of Object.keys(selection))
     delete selection[key]
 
-  for (const key of Object.keys(partialSelection))
-    delete partialSelection[key]
-
-  selection[tree.path] = true
-
-  visitTree(tree.children, (node) => {
+  visitFileNodes(tree, (node) => {
     selection[node.path] = true
-    if (node.type === 'directory')
-      partialSelection[node.path] = false
   })
-  partialSelection[tree.path] = false
 }
 
-function recalculateSelection(node) {
+function getSelectionState(node) {
   if (node.type !== 'directory')
     return selection[node.path] ? 'checked' : 'unchecked'
 
-  if (!node.children?.length) {
-    partialSelection[node.path] = false
-    return selection[node.path] ? 'checked' : 'unchecked'
-  }
+  if (!node.children?.length)
+    return 'unchecked'
 
   let hasChecked = false
   let hasUnchecked = false
 
   for (const child of node.children) {
-    const childState = recalculateSelection(child)
+    const childState = getSelectionState(child)
     if (childState === 'checked') {
       hasChecked = true
     }
@@ -93,18 +84,27 @@ function recalculateSelection(node) {
     }
   }
 
-  selection[node.path] = hasChecked && !hasUnchecked
-  partialSelection[node.path] = hasChecked && hasUnchecked
-
-  if (partialSelection[node.path])
+  if (hasChecked && hasUnchecked)
     return 'partial'
 
-  return selection[node.path] ? 'checked' : 'unchecked'
+  return hasChecked ? 'checked' : 'unchecked'
 }
 
-function onSelectionChange() {
-  if (state.value?.review?.tree)
-    recalculateSelection(state.value.review.tree)
+function setNodeSelection(node, checked) {
+  if (node.type === 'file') {
+    if (checked)
+      selection[node.path] = true
+    else
+      delete selection[node.path]
+  }
+  else {
+    visitFileNodes(node, (fileNode) => {
+      if (checked)
+        selection[fileNode.path] = true
+      else
+        delete selection[fileNode.path]
+    })
+  }
 }
 
 watch(() => state.value?.review, (newValue, _) => {
@@ -128,9 +128,9 @@ watch(() => state.value?.review, (newValue, _) => {
         :key="state.review.tree.path"
         :node="state.review.tree"
         :selection="selection"
-        :partial-selection="partialSelection"
+        :get-selection-state="getSelectionState"
+        :set-node-selection="setNodeSelection"
         :is-open="true"
-        @selection-change="onSelectionChange"
       />
     </ul>
   </div>

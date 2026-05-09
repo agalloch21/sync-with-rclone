@@ -1,102 +1,34 @@
-import path from 'node:path'
 /**
- * @typedef {object} FileEntry - Entry object for file
- * @property {string} parent - Parent path relative to the root
- * @property {number} mtimeMs - Modified time in number
- * @property {number} size - File size
+ * @typedef {object} FileEntry
+ * @property {string} path - Path relative to the snapshot root
+ * @property {number} size - File size in bytes
+ * @property {number} mtimeMs - Modified time in milliseconds
  */
 
 /**
- * @typedef {object} DirEntry - Entry object for directory
- * @property {string | null} parent - Parent path relative to the root
- * @property {Map<string, ChildRef>} children - Map collection of refs to all children
+ * @typedef {object} Snapshot
+ * @property {string} root - Absolute local path or rclone remote path
+ * @property {FileEntry[]} files - Serializable file entries sorted by path
  */
 
 /**
- * @typedef {object} ChildRef - Object referencing to an entry
- * @property {string} path - Path relative to the root
- * @property {boolean} isDir - Whether the entry is a directory
+ * @typedef {FileEntry & { state: DiffState }} DiffFileEntry
  */
 
 /**
- * @typedef {object} Snapshot - Snapshot
- * @property {string} root - Absolute path of the root directory
- * @property {Map<string, FileEntry>} fileEntries - Map collection of all files
- * @property {Map<string, DirEntry>} dirEntries - Map collection of all dirs
+ * @typedef {object} DiffSummary
+ * @property {number} modified - Count of modified files
+ * @property {number} added - Count of added files
+ * @property {number} deleted - Count of deleted files
  */
 
 /**
- *
- *
- * @export
- * @param {string} rootAbsPath
- * @return {Snapshot}
+ * @typedef {object} DiffSnapshot
+ * @property {string} srcRoot - Source root path
+ * @property {string} dstRoot - Destination root path
+ * @property {DiffFileEntry[]} files - Serializable changed file entries sorted by path
+ * @property {DiffSummary} summary - File-level change summary
  */
-export function createEmptySnapshot(rootAbsPath) {
-  const snapshot = {
-    root: rootAbsPath,
-    fileEntries: new Map(),
-    dirEntries: new Map([
-      ['.', { parent: null, children: new Map() }],
-    ]),
-  }
-  return snapshot
-}
-
-/**
- * Push a single entry into snapshot
- *
- * @export
- * @param {Snapshot} snapshot - Snapshot
- * @param {string} entryPath - Relative path to the root
- * @param {boolean} isDir - Whether the entry is directory
- * @param {number} size - File type only
- * @param {number} mtimeMs - File type only
- */
-export function pushEntryToSnapshot(snapshot, entryPath, isDir, size, mtimeMs) {
-  const dirName = path.posix.dirname(entryPath)
-  const baseName = path.posix.basename(entryPath)
-  const entryMap = isDir ? snapshot.dirEntries : snapshot.fileEntries
-  const entry = isDir
-    ? { parent: dirName, children: new Map() }
-    : { parent: dirName, mtimeMs, size }
-
-  entryMap.set(entryPath, entry)
-
-  const parentEntryMap = snapshot.dirEntries.get(dirName)
-  parentEntryMap.children.set(baseName, { path: entryPath, isDir })
-}
-
-/**
- *
- *
- * @export
- * @param {Snapshot} snapshot - Snapshot
- * @param {string} entryPath - Relative path to the root
- * @param {boolean} isDir - Whether the entry is directory
- */
-export function removeEntryFromSnapshot(snapshot, entryPath, isDir) {
-  if (entryPath === '.' && isDir)
-    return
-
-  if (isDir) {
-    const entry = snapshot.dirEntries.get(entryPath)
-    snapshot.dirEntries.get(entry.parent).children.delete(path.posix.basename(entryPath))
-
-    for (const child of entry.children.values()) {
-      removeEntryFromSnapshot(snapshot, child.path, child.isDir)
-    }
-    snapshot.dirEntries.delete(entryPath)
-  }
-  else {
-    const entry = snapshot.fileEntries.get(entryPath)
-    snapshot.dirEntries.get(entry.parent).children.delete(path.posix.basename(entryPath))
-
-    snapshot.fileEntries.delete(entryPath)
-  }
-}
-
-// ================================================================================
 
 /** @enum {number} */
 export const DiffState = Object.freeze({
@@ -108,61 +40,77 @@ export const DiffState = Object.freeze({
 
 export function getDiffStateStr(state) {
   switch (state) {
-    case 0: return 'unchanged'
-    case 1: return 'modified'
-    case 2: return 'added'
-    case 3: return 'deleted'
+    case DiffState.unchanged: return 'unchanged'
+    case DiffState.modified: return 'modified'
+    case DiffState.added: return 'added'
+    case DiffState.deleted: return 'deleted'
+    default: return 'unknown'
   }
 }
 
-/** @typedef {FileEntry & { state: DiffState }} DiffFileEntry */
-/** @typedef {DirEntry & { changes: Map<DiffState, number>, state?: DiffState }} DiffDirEntry */
-
-/**
- * @typedef {object} DiffSnapshot - Snapshot indicating the differences
- * @property {string} srcRoot - Absolute path of the source folder
- * @property {string} dstRoot - Absolute path of the dest folder
- * @property {Map<string, DiffFileEntry>} fileEntries - File collection
- * @property {Map<string, DiffDirEntry>} dirEntries - Directory collection
- */
-
-/**
- *
- *
- * @export
- * @param {string} srcRootPath
- * @param {string} dstRootPath
- * @return {DiffSnapshot}
- */
-export function createEmptyDiffSnapshot(srcRootPath, dstRootPath) {
-  const snapshot = {
-    srcRoot: srcRootPath,
-    dstRoot: dstRootPath,
-    fileEntries: new Map(),
-    dirEntries: new Map([
-      ['.', { parent: null, children: new Map(), changes: new Map(), state: DiffState.unchanged }],
-    ]),
+export function createEmptySnapshot(root) {
+  return {
+    root,
+    files: [],
   }
-  return snapshot
+}
+
+export function createEmptyDiffSnapshot(srcRoot, dstRoot) {
+  return {
+    srcRoot,
+    dstRoot,
+    files: [],
+    summary: {
+      modified: 0,
+      added: 0,
+      deleted: 0,
+    },
+  }
+}
+
+export function sortFilesByPath(files) {
+  files.sort((left, right) => left.path.localeCompare(right.path))
+  return files
+}
+
+export function addFileToSnapshot(snapshot, filePath, size, mtimeMs) {
+  snapshot.files.push({
+    path: filePath,
+    size,
+    mtimeMs,
+  })
+}
+
+export function indexSnapshotFiles(snapshot) {
+  return new Map(snapshot.files.map(file => [file.path, file]))
+}
+
+export function addFileToDiffSnapshot(diffSnapshot, filePath, state, size, mtimeMs) {
+  diffSnapshot.files.push({
+    path: filePath,
+    state,
+    size,
+    mtimeMs,
+  })
+
+  if (state === DiffState.modified)
+    diffSnapshot.summary.modified += 1
+  else if (state === DiffState.added)
+    diffSnapshot.summary.added += 1
+  else if (state === DiffState.deleted)
+    diffSnapshot.summary.deleted += 1
 }
 
 export function printDiffSnapshot(diffSnapshot) {
   printLog('========= Printing DiffSnapshot Start ========= ')
   printLog('srcRoot: ', diffSnapshot.srcRoot)
   printLog('dstRoot: ', diffSnapshot.dstRoot)
-  for (const [filePath, fileEntry] of diffSnapshot.fileEntries) {
-    printLog(`File: '${filePath}' => { 
-        parent: '${fileEntry.parent}', 
+  printLog('summary: ', JSON.stringify(diffSnapshot.summary))
+  for (const fileEntry of diffSnapshot.files) {
+    printLog(`File: '${fileEntry.path}' => { 
         state: ${getDiffStateStr(fileEntry.state)}
-    }`)
-  }
-  for (const [dirPath, dirEntry] of diffSnapshot.dirEntries) {
-    const changesStr = `modified: ${dirEntry.changes.get(DiffState.modified) || 0}, added: ${dirEntry.changes.get(DiffState.added) || 0}, deleted: ${dirEntry.changes.get(DiffState.deleted) || 0}, unchanged: ${dirEntry.changes.get(DiffState.unchanged) || 0}`
-    const childrenStr = `${[...dirEntry.children.keys()]}`
-    printLog(`Dir: '${dirPath}' => { 
-        parent: '${dirEntry.parent}', 
-        changes:[ ${changesStr} ], 
-        children: [ ${childrenStr} ]
+        size: ${fileEntry.size}
+        mtimeMs: ${fileEntry.mtimeMs}
     }`)
   }
   printLog('========= Printing DiffSnapshot End ========= ')

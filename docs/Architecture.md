@@ -108,28 +108,15 @@ sequenceDiagram
 ```js
 /**
  * @typedef {object} FileEntry
- * @property {string} parent - Parent path relative to the root
+ * @property {string} path - Path relative to the root
  * @property {number} mtimeMs - Modified time in number
  * @property {number} size - File size
  */
 
 /**
- * @typedef {object} DirEntry
- * @property {string | null} parent - Parent path relative to the root
- * @property {Map<string, ChildRef>} children - Map collection of refs to all children
- */
-
-/**
- * @typedef {object} ChildRef
- * @property {string} path - Path relative to the root
- * @property {boolean} isDir - Whether the entry is a directory
- */
-
-/**
  * @typedef {object} Snapshot
  * @property {string} root - Absolute path of the root directory
- * @property {Map<string, FileEntry>} fileEntries - Map collection of all files
- * @property {Map<string, DirEntry>} dirEntries - Map collection of all dirs
+ * @property {FileEntry[]} files - Serializable file entries sorted by path
  */
 ```
 
@@ -137,40 +124,28 @@ sequenceDiagram
 
 - `Snapshot` 是扫描结果的正式结构定义
 - `root` 是绝对路径
-- `fileEntries` 和 `dirEntries` 都以“相对于根的路径”为 key
-- `dirEntries` 中默认必须有 `'.'`
-- `children` 的 key 是名字
-- `ChildRef.path` 是相对于根的完整路径
+- `files` 只记录文件，不记录目录
+- 目录不是同步内容，只在 review UI 中由文件路径派生出来
+- 空目录不会作为 snapshot 内容保存
+- 本地扫描会在进入目录前应用 ignore 规则，已忽略目录不会继续读取子内容
 
 示例：
 
 ```js
 {
   root: "/project/root",
-  dirEntries: {
-    ".": {
-      parent: null,
-      children: {
-        "src": { path: "src", isDir: true },
-        "README.md": { path: "README.md", isDir: false }
-      }
-    },
-    "src": {
-      parent: ".",
-      children: {
-        "index.js": { path: "src/index.js", isDir: false }
-      }
-    }
-  },
-  fileEntries: {
-    "README.md": {
+  files: [
+    {
       path: "README.md",
-      name: "README.md",
-      parent: ".",
       size: 1204,
       mtimeMs: 1711880000000
+    },
+    {
+      path: "src/index.js",
+      size: 532,
+      mtimeMs: 1711880001000
     }
-  }
+  ]
 }
 ```
 
@@ -186,14 +161,13 @@ export const DiffState = Object.freeze({
 })
 
 /** @typedef {FileEntry & { state: DiffState }} DiffFileEntry */
-/** @typedef {DirEntry & { changes: Map<DiffState, number>, state?: DiffState }} DiffDirEntry */
 
 /**
  * @typedef {object} DiffSnapshot
  * @property {string} srcRoot - Absolute path of the source folder
  * @property {string} dstRoot - Absolute path of the dest folder
- * @property {Map<string, DiffFileEntry>} fileEntries - File collection
- * @property {Map<string, DiffDirEntry>} dirEntries - Directory collection
+ * @property {DiffFileEntry[]} files - Serializable file differences sorted by path
+ * @property {{ modified: number, added: number, deleted: number }} summary
  */
 ```
 
@@ -201,10 +175,9 @@ export const DiffState = Object.freeze({
 
 - `DiffSnapshot` 是差异计算后的正式结构定义
 - 它同时记录源端根路径和目标端根路径
-- `fileEntries` 保存文件级差异
-- `dirEntries` 保存目录级差异和子树统计
-- `dirEntry.state` 表示目录自身状态
-- `dirEntry.changes` 表示目录子树聚合后的统计
+- `files` 保存文件级差异
+- `summary` 保存文件级差异统计
+- 目录级统计由 `serializeDiffSnapshot` 在 review 展示前从文件路径派生
 - 文件是否 `modified` 不只看时间戳精确相等，当前实现包含时间容差
 
 示例：
@@ -213,30 +186,25 @@ export const DiffState = Object.freeze({
 {
   srcRoot: "/local/project",
   dstRoot: "remote:project",
-  dirEntries: {
-    ".": {
-      parent: null,
-      state: DiffState.modified,
-      changes: new Map([
-        [DiffState.added, 2],
-        [DiffState.modified, 1],
-        [DiffState.deleted, 0],
-      ]),
-      children: {
-        "README.md": { path: "README.md", isDir: false }
-      }
-    }
+  summary: {
+    added: 1,
+    modified: 1,
+    deleted: 0
   },
-  fileEntries: {
-    "README.md": {
-      parent: ".",
+  files: [
+    {
+      path: "README.md",
       size: 1204,
       mtimeMs: 1711880000000,
-      state: DiffState.modified,
-      src: { size: 1204, mtimeMs: 1711880000000 },
-      dst: { size: 1204, mtimeMs: 1711880000001 }
+      state: DiffState.modified
+    },
+    {
+      path: "src/index.js",
+      size: 532,
+      mtimeMs: 1711880001000,
+      state: DiffState.added
     }
-  }
+  ]
 }
 ```
 
@@ -280,21 +248,25 @@ export const DiffState = Object.freeze({
 
 ```js
 {
-  mkdir: ["docs"],
-  copy: ["README.md", "src/index.js"],
-  delete: ["old.txt"],
-  rmdir: ["empty-dir"]
+  action: "confirm",
+  operations: [
+    { type: "copy", path: "README.md" },
+    { type: "copy", path: "src/index.js" },
+    { type: "delete", path: "old.txt" }
+  ]
 }
 
 // 说明:
 // - 这里表达的是明确的执行意图，而不是 UI 状态
+// - SyncPlan 只包含文件操作，不包含目录操作
 ```
 
 示例含义：
 
 - `SyncPlan` 是 apply 阶段的直接输入
 - 它把“要做什么”压缩成明确的动作集合
-- `applySyncPlan(...)` 会根据它去执行 mkdir、copy、delete、rmdir
+- `applySyncPlan(...)` 会根据它执行 rclone batch copy 和 delete
+- delete 后会执行内部 `rclone rmdirs <destination-root> --leave-root` 清理因文件删除而变空的目标目录，但不会把空目录作为同步内容或 review 项
 
 ### 4.5 `SyncCoreRuntime`
 

@@ -4,14 +4,15 @@ import { buildRemoteSnapshot } from '#src/core/build-remote-snapshot.js'
 
 const REMOTE_NAME = 'fake-remote'
 
-test('Test buildRemoteSnapshot', async () => {
-  const rootPath = `${REMOTE_NAME}:` + `basic`
+test('buildRemoteSnapshot emits files only from recursive rclone listing', async () => {
+  const rootPath = `${REMOTE_NAME}:basic`
   const snapshot = await buildRemoteSnapshot(rootPath)
-  assert.ok(snapshot.fileEntries.has('node_modules/module-a/module-a-index'))
-  assert.ok(snapshot.fileEntries.has('.gitignore'))
-  assert.ok(snapshot.dirEntries.has('node_modules'))
-  assert.ok(snapshot.dirEntries.has('node_modules/module-a'))
-  assert.ok(snapshot.dirEntries.get('node_modules/module-a').children.has('module-a-index'))
-  assert.ok(snapshot.dirEntries.get('.').children.get('node_modules').isDir === true)
-  assert.ok(snapshot.dirEntries.get('.').children.get('.gitignore').isDir === false)
+  const paths = snapshot.files.map(file => file.path)
+
+  assert.ok(paths.includes('node_modules/module-a/module-a-index'))
+  assert.ok(paths.includes('.gitignore'))
+  assert.equal(paths.includes('node_modules'), false)
+  assert.equal(paths.includes('node_modules/module-a'), false)
+  assert.equal('dirEntries' in snapshot, false)
+  assert.equal('fileEntries' in snapshot, false)
 })

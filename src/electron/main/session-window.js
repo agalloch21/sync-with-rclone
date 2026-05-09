@@ -63,9 +63,8 @@ export function createSessionWindow() {
     phase: '',
     message: '',
     progress: {
-      current: 0,
-      total: 0,
-      message: '',
+      phase: null,
+      transfer: null,
     },
     review: {
       summary: {
@@ -269,7 +268,7 @@ export function createSessionWindow() {
   })
 
   sessionWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {
-    console.log(`[renderer:${level}] ${message} (${sourceId}:${line})`)
+    console.warn(`[renderer:${level}] ${message} (${sourceId}:${line})`)
   })
 
   sessionWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription, validatedURL) => {

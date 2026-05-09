@@ -21,12 +21,6 @@ function assertRuntimeContract(runtime) {
   const dependents = runtime.dependents || {}
   if (dependents.runCommand && typeof dependents.runCommand !== 'function')
     throw new TypeError('syncCore runtime.dependents.runCommand must be a function')
-
-  if (dependents.createBatchFile && typeof dependents.createBatchFile !== 'function')
-    throw new TypeError('syncCore runtime.dependents.createBatchFile must be a function')
-
-  if (dependents.removeBatchFile && typeof dependents.removeBatchFile !== 'function')
-    throw new TypeError('syncCore runtime.dependents.removeBatchFile must be a function')
 }
 
 function normalizeOptions(options) {
@@ -72,7 +66,6 @@ export async function syncCore(
   const emit = runtime.events?.eventListener || (() => {})
   const reporter = createReporter(emit)
   let currentPhase = null
-  let currentSyncPlan = null
 
   function runPhase(phase, fn, message) {
     currentPhase = phase
@@ -135,14 +128,13 @@ export async function syncCore(
       () => buildSyncPlan(diffSnapshot, reviewResult),
       'Preparing operations',
     )
-    currentSyncPlan = syncPlan
 
-    await runPhase(
+    const applyResult = await runPhase(
       PHASES.APPLY_PLAN,
       () => applySyncPlan(syncPlan, normalizedOptions, {
         dependents: runtime.dependents,
         events: {
-          progress: (current, total, message) => reporter.progress(PHASES.APPLY_PLAN, current, total, message),
+          progress: progress => reporter.progress(PHASES.APPLY_PLAN, progress),
         },
       }, cancelSignal),
       'Applying operations',
@@ -151,8 +143,7 @@ export async function syncCore(
     return {
       result: SYNC_RESULT.COMPLETED,
       summary: getDiffSummary(diffSnapshot),
-      // todo: 把operations里填入已经执行过的操作, syncPlan.operations里只是大phase
-      operations: syncPlan.operations,
+      operations: applyResult.operations,
     }
   }
   catch (error) {
@@ -161,9 +152,7 @@ export async function syncCore(
         result: SYNC_RESULT.CANCELLED,
         reason: SYNC_CANCEL_REASON.ABORT_SIGNAL,
         phase: currentPhase,
-        operations: currentSyncPlan?.operations || [],
-        plannedFiles: error?.plannedFiles,
-        confirmedFiles: error?.confirmedFiles,
+        operations: error?.operations || [],
       }
     }
 
@@ -172,6 +161,7 @@ export async function syncCore(
       phase: currentPhase,
       message: error?.message || String(error),
       error,
+      operations: error?.operations,
     }
   }
 }

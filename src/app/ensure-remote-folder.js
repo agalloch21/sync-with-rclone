@@ -1,23 +1,8 @@
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-import { buildRcloneArgs, getRcloneExecutable } from '#src/core/rclone-runtime.js'
+import { createRcloneCommand, runCommand as defaultRunCommand } from '#src/core/rclone-command.js'
 import { APP_ERROR_CODE, AppError } from './app-errors.js'
-
-const execFileAsync = promisify(execFile)
-
-async function defaultRunCommand(command, args) {
-  await execFileAsync(command, args)
-}
 
 function isDirectoryNotFoundError(error) {
   return error?.code === 3 || error?.exitCode === 3 || error?.status === 3
-}
-
-function createRcloneCommand(runtimePaths, commandArgs) {
-  return {
-    command: getRcloneExecutable(runtimePaths),
-    args: buildRcloneArgs(runtimePaths, commandArgs),
-  }
 }
 
 export async function ensureRemoteFolderExists(remoteFolderPath, runtimePaths, runtime = {}, cancelSignal = null) {

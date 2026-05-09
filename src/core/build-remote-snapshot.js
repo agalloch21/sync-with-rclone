@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 /** @typedef {import('#src/core/snapshot.js').Snapshot} Snapshot */
 import { addFileToSnapshot, createEmptySnapshot, sortFilesByPath } from '#src/core/snapshot.js'
-import { buildRcloneArgs, getRcloneExecutable } from './rclone-runtime.js'
+import { createRcloneCommand } from './rclone-command.js'
 
 function getDefaultBundledRclonePath() {
   const currentFilePath = fileURLToPath(import.meta.url)
@@ -22,11 +22,10 @@ function getDefaultBundledRclonePath() {
 function fetchDirectory(remotePath, runtimePaths = {}, cancelSignal = null) {
   cancelSignal?.throwIfAborted()
 
-  const execPath = getRcloneExecutable({
+  const command = createRcloneCommand({
     ...runtimePaths,
     bundledRclonePath: runtimePaths.bundledRclonePath || getDefaultBundledRclonePath(),
-  })
-  const args = buildRcloneArgs(runtimePaths, [
+  }, [
     'lsjson',
     '-R',
     '--no-mimetype',
@@ -34,7 +33,7 @@ function fetchDirectory(remotePath, runtimePaths = {}, cancelSignal = null) {
   ])
 
   return new Promise((resolve, reject) => {
-    const child = spawn(execPath, args)
+    const child = spawn(command.command, command.args)
     child.stdout.setEncoding('utf8')
 
     let settled = false

@@ -7,7 +7,7 @@ import { syncCore } from '#src/core/sync-engine.js'
 test('syncCore converts apply cancellation into a cancelled result with apply metadata', async () => {
   const abortController = new AbortController()
   const abortError = new Error('cancelled')
-  abortError.stdout = '+ modified/modified.txt\n'
+  abortError.stdout = '{"level":"info","msg":"Copied (server-side copy)","object":"modified/modified.txt"}\n'
 
   const result = await syncCore({
     mode: 'push',
@@ -22,8 +22,6 @@ test('syncCore converts apply cancellation into a cancelled result with apply me
         abortController.abort(abortError)
         throw abortError
       },
-      createBatchFile: async () => '/tmp/mock-batch.txt',
-      removeBatchFile: async () => {},
     },
   }, abortController.signal)
 
@@ -31,6 +29,38 @@ test('syncCore converts apply cancellation into a cancelled result with apply me
   assert.equal(result.reason, SYNC_CANCEL_REASON.ABORT_SIGNAL)
   assert.equal(result.phase, PHASES.APPLY_PLAN)
   assert.ok(result.operations.length > 0)
-  assert.deepEqual(result.confirmedFiles, ['modified/modified.txt'])
-  assert.ok(result.plannedFiles.includes('modified/modified.txt'))
+  assert.ok(result.operations.some(operation => (
+    operation.path === 'modified/modified.txt'
+    && operation.type === 'copy'
+    && operation.synced
+  )))
+})
+
+test('syncCore returns apply operations when apply fails', async () => {
+  const applyError = new Error('copy failed')
+  applyError.stdout = '{"level":"info","msg":"Copied (server-side copy)","object":"modified/modified.txt"}\n'
+
+  const result = await syncCore({
+    mode: 'push',
+    localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
+    remoteFolderPath: 'fake-remote:compare-push',
+    runtimePaths: {
+      bundledRclonePath: path.posix.resolve('resources/binaries/rclone-osx-arm64'),
+    },
+  }, {
+    dependents: {
+      runCommand: async () => {
+        throw applyError
+      },
+    },
+  })
+
+  assert.equal(result.result, SYNC_RESULT.FAILED)
+  assert.equal(result.phase, PHASES.APPLY_PLAN)
+  assert.equal(result.message, 'copy failed')
+  assert.ok(result.operations.some(operation => (
+    operation.path === 'modified/modified.txt'
+    && operation.type === 'copy'
+    && operation.synced
+  )))
 })

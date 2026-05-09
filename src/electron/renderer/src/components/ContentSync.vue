@@ -6,9 +6,35 @@ const state = inject('state')
 
 const phase = computed(() => state.value?.step === STEPS.SYNC ? (state.value?.phase || '') : '')
 const showProgress = computed(() => phase.value === STEP_META[STEPS.SYNC].phases[1])
-const current = computed(() => showProgress.value ? (state.value?.progress?.current || 0) : 0)
-const total = computed(() => showProgress.value ? (state.value?.progress?.total || 0) : 0)
-const description = computed(() => showProgress.value ? (state.value?.progress?.message || '') : '')
+const transferProgress = computed(() => showProgress.value ? state.value?.progress?.transfer : null)
+const phaseProgress = computed(() => showProgress.value ? state.value?.progress?.phase : null)
+const activeProgress = computed(() => transferProgress.value || phaseProgress.value || null)
+const current = computed(() => activeProgress.value?.current || 0)
+const total = computed(() => activeProgress.value?.total || 0)
+const percent = computed(() => total.value > 0 ? Math.min(100, current.value / total.value * 100) : 0)
+const description = computed(() => activeProgress.value?.message || '')
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0)
+    return '0 B'
+
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
+  let value = bytes
+  let unitIndex = 0
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+
+  return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`
+}
+
+const progressLabel = computed(() => {
+  if (transferProgress.value)
+    return `${formatBytes(current.value)} / ${formatBytes(total.value)}`
+
+  return `Phase ${current.value} of ${total.value} in Progress`
+})
 </script>
 
 <template>
@@ -23,11 +49,11 @@ const description = computed(() => showProgress.value ? (state.value?.progress?.
       <div class="rounded-full w-3/4 h-4 bg-(--primary-soft)">
         <div
           class="rounded-full h-full bg-(--primary) transition-all duration-500"
-          :style="{ width: `${current / total * 100}%` }"
+          :style="{ width: `${percent}%` }"
         />
       </div>
       <div class="text-(--text-primary) text-sm">
-        Phase {{ current }} of {{ total }} in Progress
+        {{ progressLabel }}
       </div>
       <div class="text-(--text-subtle) text-xs allow-select">
         {{ $t(`syncPhases.${description}`) }}

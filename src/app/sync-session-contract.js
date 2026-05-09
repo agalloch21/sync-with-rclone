@@ -33,9 +33,7 @@ export const SESSION_EVENT = {
 
 /**
  * @typedef {object} SyncSessionDependents
- * @property {(command: string, args: string[]) => Promise<void>} [runCommand]
- * @property {(paths: string[]) => Promise<string>} [createBatchFile]
- * @property {(filePath: string) => Promise<void>} [removeBatchFile]
+ * @property {(command: string, args: string[], options?: { cancelSignal?: AbortSignal, onOutput?: (output: string) => void }) => Promise<{ stdout?: string, stderr?: string } | void>} [runCommand]
  */
 
 /**
@@ -62,7 +60,7 @@ export const SESSION_EVENT = {
  * @property {string} phase
  * @property {'started' | 'running' | 'done'} status
  * @property {string} message
- * @property {{ current: number, total: number } | null} progress
+ * @property {{ phase: { current: number, total: number, message: string } | null, transfer: { current: number, total: number, unit: 'bytes', message: string } | null } | null} progress
  */
 
 /**

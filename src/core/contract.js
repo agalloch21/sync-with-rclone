@@ -58,9 +58,7 @@ export const SYNC_RESULT = {
 
 /**
  * @typedef {object} SyncCoreDependents
- * @property {(command: string, args: string[]) => Promise<void>} [runCommand]
- * @property {(paths: string[]) => Promise<string>} [createBatchFile]
- * @property {(filePath: string) => Promise<void>} [removeBatchFile]
+ * @property {(command: string, args: string[], options?: { cancelSignal?: AbortSignal, onOutput?: (output: string) => void }) => Promise<{ stdout?: string, stderr?: string } | void>} [runCommand]
  */
 
 /**
@@ -78,6 +76,7 @@ export const SYNC_RESULT = {
  * @property {string} message
  * @property {number} [current]
  * @property {number} [total]
+ * @property {{ phase: { current: number, total: number, message: string } | null, transfer: { current: number, total: number, unit: 'bytes', message: string } | null }} [progress]
  */
 
 /**
@@ -105,6 +104,7 @@ export const SYNC_RESULT = {
  * @property {string} message
  * @property {string | null} phase
  * @property {unknown} error
+ * @property {Array<object>} [operations]
  */
 
 /**

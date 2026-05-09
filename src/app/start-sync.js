@@ -23,12 +23,6 @@ function assertRuntimeContract(runtime) {
   const dependents = runtime.dependents || {}
   if (dependents.runCommand && typeof dependents.runCommand !== 'function')
     throw new TypeError('startSync runtime.dependents.runCommand must be a function')
-
-  if (dependents.createBatchFile && typeof dependents.createBatchFile !== 'function')
-    throw new TypeError('startSync runtime.dependents.createBatchFile must be a function')
-
-  if (dependents.removeBatchFile && typeof dependents.removeBatchFile !== 'function')
-    throw new TypeError('startSync runtime.dependents.removeBatchFile must be a function')
 }
 
 export async function startSync(options, runtime = {}, cancelSignal = null) {
@@ -86,7 +80,11 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
         type: SESSION_EVENT.PROGRESS,
         phase: event.phase,
         message: event.message,
-        progress: (event.current !== undefined && event.total !== undefined) ? { current: event.current, total: event.total } : null,
+        progress: event.progress || (
+          (event.current !== undefined && event.total !== undefined)
+            ? { phase: { current: event.current, total: event.total, message: event.message }, transfer: null }
+            : null
+        ),
       })
     }
 

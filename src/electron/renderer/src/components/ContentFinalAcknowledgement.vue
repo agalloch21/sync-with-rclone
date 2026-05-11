@@ -10,18 +10,8 @@ const { t } = useI18n()
 const state = inject('state')
 
 const result = computed(() => state.value?.final?.result)
-const logPath = computed(() => state.value?.final?.logPath || '')
-const translatedErrorMessage = computed(() => {
-  const final = state.value?.final
-  const errorCode = final?.errorCode
 
-  if (!errorCode)
-    return final?.message || ''
-
-  const key = `errors['${errorCode}']`
-  const translated = t(key, final?.errorDetails || {})
-  return translated === key ? (final?.message || '') : translated
-})
+// completed
 const waitSecond = ref(5)
 let countdownIntervalId = null
 
@@ -52,23 +42,40 @@ onBeforeUnmount(() => {
   stopCountdown()
 })
 
-const messageHtml = computed(() => {
-  if (result.value === SYNC_RESULT.COMPLETED) {
-    return t(`result.${result.value}.message`, { count: `${waitSecond.value}` })
-  }
-  else if (result.value === SYNC_RESULT.CANCELLED) {
-    return 'some phases have been executed'
-  }
-  else if (result.value === SYNC_RESULT.FAILED) {
-    const lines = translatedErrorMessage.value.split(/\r?\n/)
+// cancelled
+const operations = computed(() => result.value === SYNC_RESULT.CANCELLED ? state.value?.final?.operations || [] : [])
+const operationSummary = computed(() => t(`result.${result.value}.message`, { syncedCount: `${operations.value.filter(op => op.synced).length}`, total: `${operations.value.length}` }))
+
+const showOperationDetail = ref(false)
+
+// failed
+const errorMessages = computed(() => {
+  if (result.value === SYNC_RESULT.FAILED) {
+    const final = state.value?.final
+
+    let errorString = final?.message || ''
+    if (final?.errorCode) {
+      const key = `errors['${final.errorCode}']`
+      const translated = t(key, final?.errorDetails || {})
+      if (translated !== key)
+        errorString = translated
+    }
+
+    const lines = errorString.split(/\r?\n/)
       .filter(line => line.trim() !== '')
-      .map(line => `<p>${line}</p>`)
-    if (logPath.value)
-      lines.push(`<p>${t('result.failed.logPath', { path: logPath.value })}</p>`)
-    return lines.join('')
+
+    // if (state.value?.final?.logPath)
+    //   lines.push(`${t('result.failed.logPath', { path: state.value?.final?.logPath })}`)
+
+    return lines
   }
-  return ''
+  return []
 })
+
+function showLogInFolder() {
+  if (state.value?.final?.logPath)
+    window.syncSession.showItemInFolder(state.value?.final?.logPath)
+};
 </script>
 
 <template>
@@ -85,7 +92,54 @@ const messageHtml = computed(() => {
     <h3 class="result-dock">
       {{ $t(`result.${result}.title`) }}
     </h3>
-    <div class="message-dock" v-html="messageHtml" />
+    <div class="message-dock">
+      <div v-if="result === SYNC_RESULT.COMPLETED" class="flex justify-center">
+        {{ $t(`result.${result}.message`, { count: `${waitSecond}` }) }}
+      </div>
+      <div v-if="result === SYNC_RESULT.CANCELLED" class="h-full flex flex-col items-center gap-3">
+        <p>
+          <span>{{ operationSummary }}</span>
+          <span class="underline cursor-pointer" @click="showOperationDetail = !showOperationDetail">[{{ $t(`result.${result}.detailButton`) }}]</span>
+        </p>
+        <div v-if="showOperationDetail" class="overflow-y-auto [scrollbar-gutter:stable] px-4">
+          <table class="text-[0.6rem] text-(--text-subtle)">
+            <tr v-for="(op, index) in operations" :key="index" class="py-0.5 flex items-center gap-1 whitespace-nowrap">
+              <td class="flex-1">
+                {{ op.path }}
+              </td>
+              <td class="flex-0 basis-auto">
+                ......
+              </td>
+              <td class="flex-0 basis-auto">
+                {{ op.type }}
+              </td>
+              <td class="flex-0 basis-auto ">
+                <svg v-if="op.synced" width="12" height="12" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="50" height="50" rx="25" fill="#3F9D14" />
+                  <path d="M34.3485 18.6274C35.2172 19.4643 35.2172 20.8208 34.3485 21.6576L23.2219 32.3726C22.3529 33.2091 20.9443 33.2091 20.0753 32.3726L15.6247 28.0866C14.7813 27.2457 14.7934 25.9091 15.6518 25.0825C16.5102 24.2559 17.8981 24.2443 18.7713 25.0564L21.6486 27.8273L31.2019 18.6274C32.0709 17.7909 33.4795 17.7909 34.3485 18.6274V18.6274" fill="white" />
+                </svg>
+                <svg v-else width="12" height="12" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="50" height="50" rx="25" fill="#EF0606" />
+                  <path d="M25 22.6334L17.8669 15.5071C17.2144 14.8552 16.1413 14.8552 15.4894 15.5071C14.8375 16.159 14.8369 17.2308 15.4894 17.8827L22.6225 25.0091L15.4894 32.1354C14.8369 32.7873 14.8369 33.8592 15.4894 34.5111C16.1419 35.163 17.215 35.163 17.8669 34.5111L25 27.3847L32.1331 34.5111C32.7856 35.163 33.8588 35.163 34.5106 34.5111C35.1625 33.8592 35.1631 32.7873 34.5106 32.1354L27.3775 25.0091L34.5106 17.8827C34.8241 17.5669 35 17.1399 35 16.6949C35 16.2499 34.8241 15.8229 34.5106 15.5071C33.8581 14.8346 32.8063 14.8346 32.1331 15.4858L25 22.6334Z" fill="white" />
+                </svg>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div v-if="result === SYNC_RESULT.FAILED" class="h-full flex flex-col gap-2 items-center">
+        <div class="overflow-y-auto [scrollbar-gutter:stable] flex flex-col gap-1 break-all ">
+          <p v-for="(msg, index) in errorMessages" :key="index">
+            {{ msg }}
+          </p>
+        </div>
+        <p v-if="state.final?.logPath">
+          {{ $t('result.failed.logPath') }}
+          <span class="underline inline-block ml-0.5 align-middle break-all cursor-pointer" @click.prevent="showLogInFolder">{{ state.final?.logPath?.split('/').pop() }}
+          </span>
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -93,22 +147,22 @@ const messageHtml = computed(() => {
 @reference "tailwindcss";
 
 .final-ackownledgement-stage{
-  @apply h-full grid grid-rows-6 place-items-center px-12 py-4;
+  @apply h-full grid grid-rows-6 px-12 py-4;
 }
 
 .icon-dock{
   @apply row-span-2 self-end;
 }
 .icon-stage{
-  @apply w-13 h-auto aspect-square rounded-full flex justify-center items-center;
+  @apply w-13 h-auto aspect-square m-auto rounded-full flex justify-center items-center;
 }
 .icon{
   @apply w-5 h-auto aspect-square;
 }
 .result-dock{
-  @apply text-3xl text-(--text-primary);
+  @apply m-auto text-3xl text-(--text-primary);
 }
 .message-dock{
-  @apply row-span-3 self-start py-2 whitespace-pre-line text-xs text-(--text-subtle) flex flex-col gap-2 break-all overflow-y-auto;
+  @apply row-span-3 py-2 whitespace-pre-line text-xs text-(--text-subtle);
 }
 </style>

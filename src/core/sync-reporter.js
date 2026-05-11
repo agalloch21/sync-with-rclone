@@ -9,18 +9,11 @@ export function createReporter(emit = () => {}) {
       emit({ type: PHASE_EVENT.DONE, phase, message: message || `phase [${phase}] completed` })
     },
     progress(phase, progress) {
-      const phaseProgress = progress?.phase || null
-      const transferProgress = progress?.transfer || null
       emit({
         type: PHASE_EVENT.PROGRESS,
         phase,
-        progress: {
-          phase: phaseProgress,
-          transfer: transferProgress,
-        },
-        current: phaseProgress?.current,
-        total: phaseProgress?.total,
-        message: phaseProgress?.message || transferProgress?.message || `phase [${phase}] is running`,
+        message: `phase [${phase}] is running`,
+        progress,
       })
     },
     error(phase, error) {

@@ -100,15 +100,12 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
     if (event.type === PHASE_EVENT.FAILED || event.type === PHASE_EVENT.CANCELLED || event.type === PHASE_EVENT.DONE)
       return
 
+    // only transfer SESSION_EVENT.PROGRESS event
     emit({
       type: SESSION_EVENT.PROGRESS,
       phase: event.phase,
       message: event.message,
-      progress: event.progress || (
-        (event.current !== undefined && event.total !== undefined)
-          ? { phase: { current: event.current, total: event.total, message: event.message }, transfer: null }
-          : null
-      ),
+      progress: event.progress,
     })
   }
 

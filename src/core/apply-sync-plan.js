@@ -157,62 +157,64 @@ export async function applySyncPlan(syncPlan, context, runtime, cancelSignal) {
     context.localFolderPath,
     context.remoteFolderPath,
   )
+  const APPLY_ACTIVITIES = {
+    START: 'start',
+    COPY: 'copy',
+    DELETE: 'delete',
+    CLEANUP: 'cleanup',
+    COMPLETE: 'complete',
+  }
   const executionSteps = [
-    copyOperations.length > 0 ? 'copy' : null,
-    deleteOperations.length > 0 ? 'delete' : null,
+    copyOperations.length > 0 ? APPLY_ACTIVITIES.COPY : null,
+    deleteOperations.length > 0 ? APPLY_ACTIVITIES.DELETE : null,
+    deleteOperations.length > 0 ? APPLY_ACTIVITIES.CLEANUP : null,
   ].filter(Boolean)
 
   const runCommand = runtime?.dependents?.runCommand || defaultRunCommand
 
-  function emitTransferProgress(progress) {
+  function emitCopyProgress(progress) {
     if (!progress)
       return
-
-    runtime?.events?.progress?.({
-      transfer: {
-        ...progress,
-        unit: 'bytes',
-        message: 'copy',
-      },
-    })
+    const measurement = {
+      ...progress,
+      unit: 'bytes',
+    }
+    emitPhaseProgress(APPLY_ACTIVITIES.COPY, measurement)
   }
 
-  function emitPhaseProgress(current, message) {
+  function emitPhaseProgress(activity, measurement = null) {
     runtime?.events?.progress?.({
-      phase: {
-        current,
-        total: executionSteps.length + 1,
-        message,
-      },
+      activity,
+      index: Object.values(APPLY_ACTIVITIES).indexOf(activity),
+      total: Object.values(APPLY_ACTIVITIES).length,
+      measurement,
     })
   }
-
-  emitPhaseProgress(0, 'start')
 
   try {
-    let currentStep = 0
+    emitPhaseProgress(APPLY_ACTIVITIES.START)
 
     if (copyOperations.length > 0) {
       cancelSignal?.throwIfAborted()
-      currentStep += 1
-      emitPhaseProgress(currentStep, 'copy')
+      emitPhaseProgress(APPLY_ACTIVITIES.COPY)
+
       await runCopyPhase({
         sourceRoot,
         destinationRoot,
         operations: copyOperations,
-      }, context.runtimePaths, runCommand, cancelSignal, emitTransferProgress)
+      }, context.runtimePaths, runCommand, cancelSignal, emitCopyProgress)
     }
 
     if (deleteOperations.length > 0) {
       cancelSignal?.throwIfAborted()
-      currentStep += 1
-      emitPhaseProgress(currentStep, 'delete')
+      emitPhaseProgress(APPLY_ACTIVITIES.DELETE)
       await runDeletePhase({
         root: destinationRoot,
         operations: deleteOperations,
       }, context.runtimePaths, runCommand, cancelSignal)
 
       cancelSignal?.throwIfAborted()
+      emitPhaseProgress(APPLY_ACTIVITIES.CLEANUP)
       await runCleanupEmptyDirs(destinationRoot, context.runtimePaths, runCommand, cancelSignal)
     }
   }
@@ -224,7 +226,9 @@ export async function applySyncPlan(syncPlan, context, runtime, cancelSignal) {
     )
   }
 
-  emitPhaseProgress(executionSteps.length + 1, 'complete')
+  emitPhaseProgress(APPLY_ACTIVITIES.COMPLETE)
+
+  // await new Promise(resolve => setTimeout(resolve, 500000))
 
   return {
     action: 'confirm',

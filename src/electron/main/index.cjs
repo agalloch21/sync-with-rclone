@@ -1,4 +1,4 @@
-const { app, dialog } = require('electron')
+const { app, dialog, protocol, net } = require('electron')
 // const { initializeMacSetupIfNeeded } = require('./macos-dmg-initialization.cjs')
 
 let isSyncInProgress = false

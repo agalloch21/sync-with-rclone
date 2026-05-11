@@ -18,7 +18,7 @@ const step = computed(() => state.value?.step?.length > 0 ? state.value?.step : 
     class="content-stage h-full overflow-auto
     [&::-webkit-scrollbar]:w-1
      [&::-webkit-scrollbar-track]:invisible
-     [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--primary)_40%,transparent)]
+     [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--text-subtle)_20%,transparent)]
      [&::-webkit-scrollbar-thumb]:rounded-full
      [&::-webkit-scrollbar-thumb]:invisible
      hover:[&::-webkit-scrollbar-thumb]:visible"

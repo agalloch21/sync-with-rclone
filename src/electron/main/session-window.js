@@ -37,7 +37,7 @@ function loadRendererPage(browserWindow, pageName) {
 }
 
 export function createSessionWindow() {
-  const { BrowserWindow, ipcMain } = require('electron')
+  const { BrowserWindow, ipcMain, shell } = require('electron')
   const channelPrefix = `sync-session:${Date.now()}:${Math.random().toString(16).slice(2)}`
   const channels = {
     channelPrefix,
@@ -48,7 +48,8 @@ export function createSessionWindow() {
     confirmSync: `${channelPrefix}:confirm-sync`,
     cancelSync: `${channelPrefix}:cancel-sync`,
     closeWindow: `${channelPrefix}:close-window`,
-
+    // command
+    showItemInFolder: `${channelPrefix}:show-item-in-folder`,
   }
 
   let uiState = {
@@ -63,8 +64,10 @@ export function createSessionWindow() {
     phase: '',
     message: '',
     progress: {
-      phase: null,
-      transfer: null,
+      activity: '',
+      index: 0,
+      total: 0,
+      measurement: null,
     },
     review: {
       summary: {
@@ -231,16 +234,22 @@ export function createSessionWindow() {
     return { success: true, action: 'final-acknowledged' }
   }
 
+  function showItemInFolder(_event, path) {
+    shell.showItemInFolder(path)
+  }
+
   ipcMain.handle(channels.getState, () => uiState)
   ipcMain.handle(channels.cancelSync, handleCancel)
   ipcMain.handle(channels.confirmSync, handleConfirm)
   ipcMain.handle(channels.closeWindow, handleClose)
+  ipcMain.on(channels.showItemInFolder, showItemInFolder)
 
   const cleanup = () => {
     ipcMain.removeHandler(channels.getState)
     ipcMain.removeHandler(channels.cancelSync, handleCancel)
     ipcMain.removeHandler(channels.confirmSync, handleConfirm)
     ipcMain.removeHandler(channels.closeWindow, handleClose)
+    ipcMain.removeListener(channels.showItemInFolder, showItemInFolder)
   }
 
   function closeWindow() {

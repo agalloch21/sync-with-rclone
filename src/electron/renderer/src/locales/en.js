@@ -18,7 +18,7 @@ export default {
   [PHASES.COMPARE_SNAPSHOT]: 'Comparing snapshots',
   [PHASES.REVIEW_DIFFERENCES]: 'Preparing differences review',
   [PHASES.GENERATE_PLAN]: 'Preparing operations',
-  [PHASES.APPLY_PLAN]: 'Applying operations',
+  [PHASES.APPLY_PLAN]: 'Syncing',
 
   windowTitle: 'Sync Session',
   context: {
@@ -36,12 +36,11 @@ export default {
   },
   closeButton: 'Close',
   syncPhases: {
-    start: 'start applying execution phases',
-    mkdir: 'creating directories',
-    copy: 'copying files',
-    delete: 'deleting files',
-    rmdir: 'deleting directories',
-    complete: 'complete applying execution phases',
+    start: 'start applying operations',
+    copy: 'applying copy operations',
+    delete: 'applying delete operations',
+    cleanup: 'cleaning up empty folders',
+    complete: 'syncing completed',
   },
   result: {
     [SYNC_RESULT.COMPLETED]: {
@@ -50,12 +49,13 @@ export default {
     },
     [SYNC_RESULT.CANCELLED]: {
       title: 'Cancelled',
-      message: '',
+      message: '{syncedCount} of {total} operations are applied.',
+      detailButton: 'details',
     },
     [SYNC_RESULT.FAILED]: {
       title: 'Error',
       message: '',
-      logPath: 'For more information, Please check the log at {path}',
+      logPath: 'For more information, Please check',
     },
   },
   errors: {

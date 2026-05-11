@@ -23,4 +23,8 @@ contextBridge.exposeInMainWorld('syncSession', {
   closeWindow() {
     return ipcRenderer.invoke(channels.closeWindow)
   },
+  //
+  showItemInFolder(path) {
+    ipcRenderer.send(channels.showItemInFolder, path)
+  },
 })

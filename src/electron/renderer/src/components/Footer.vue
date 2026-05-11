@@ -24,7 +24,7 @@ const closeVisible = computed(() => showFinalAcknowledgement.value)
   <TransitionGroup
     tag="div"
     name="slide-fade"
-    class="footer-stage flex flex-row justify-end items-center gap-6 px-6 py-4"
+    class="footer-stage flex flex-row justify-end items-center gap-6 px-6 py-4 relative"
   >
     <button
       v-if="cancelVisible"
@@ -37,16 +37,6 @@ const closeVisible = computed(() => showFinalAcknowledgement.value)
     </button>
 
     <button
-      v-if="closeVisible"
-      key="close"
-      :disabled="props.hasPendingCommand"
-      class="button-secondary clickable forcusable"
-      @click="emit('onClickClose')"
-    >
-      {{ $t('closeButton') }}
-    </button>
-
-    <button
       v-if="confirmVisible"
       key="confirm"
       :disabled="props.hasPendingCommand"
@@ -54,6 +44,16 @@ const closeVisible = computed(() => showFinalAcknowledgement.value)
       @click="emit('onClickConfirm')"
     >
       {{ $t(`confirmButton.${mode}`) }}
+    </button>
+
+    <button
+      v-if="closeVisible"
+      key="close"
+      :disabled="props.hasPendingCommand"
+      class="button-secondary clickable forcusable"
+      @click="emit('onClickClose')"
+    >
+      {{ $t('closeButton') }}
     </button>
   </TransitionGroup>
 </template>
@@ -65,6 +65,7 @@ transition: transform 0.5s ease;
 }
 .slide-fade-enter-active,
 .slide-fade-leave-active {
+
   transition: all 1s 0.5s ease;
 }
 
@@ -72,6 +73,10 @@ transition: transform 0.5s ease;
 .slide-fade-leave-to {
   /* transform: translateX(2rem); */
   opacity: 0;
+}
+
+.slide-fade-leave-active {
+position:absolute;
 }
 
 .button-secondary{

@@ -55,12 +55,27 @@ export const SESSION_EVENT = {
  */
 
 /**
+ * @typedef {object} SessionApplyProgressMeasurement
+ * @property {number} current
+ * @property {number} total
+ * @property {'bytes'} unit
+ */
+
+/**
+ * @typedef {object} SessionApplyProgress
+ * @property {'start' | 'copy' | 'delete' | 'cleanup' | 'complete'} activity
+ * @property {number} index
+ * @property {number} total
+ * @property {SessionApplyProgressMeasurement | null} measurement
+ */
+
+/**
  * @typedef {object} CorePhaseSessionEvent
  * @property {'core.phase'} type
  * @property {string} phase
  * @property {'started' | 'running' | 'done'} status
  * @property {string} message
- * @property {{ phase: { current: number, total: number, message: string } | null, transfer: { current: number, total: number, unit: 'bytes', message: string } | null } | null} progress
+ * @property {SessionApplyProgress | null} progress
  */
 
 /**

@@ -234,8 +234,8 @@ export function createSessionWindow() {
     return { success: true, action: 'final-acknowledged' }
   }
 
-  function showItemInFolder(_event, path) {
-    shell.showItemInFolder(path)
+  function showItemInFolder(_event, filePath) {
+    shell.showItemInFolder(filePath)
   }
 
   ipcMain.handle(channels.getState, () => uiState)

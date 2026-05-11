@@ -69,14 +69,27 @@ export const SYNC_RESULT = {
  */
 
 /**
+ * @typedef {object} ApplyProgressMeasurement
+ * @property {number} current
+ * @property {number} total
+ * @property {'bytes'} unit
+ */
+
+/**
+ * @typedef {object} ApplyProgress
+ * @property {'start' | 'copy' | 'delete' | 'cleanup' | 'complete'} activity
+ * @property {number} index
+ * @property {number} total
+ * @property {ApplyProgressMeasurement | null} measurement
+ */
+
+/**
  * @typedef {object} SyncCorePhaseEvent
  * @property {'phase'} type
  * @property {string} phase
  * @property {'started' | 'running' | 'done' | 'failed' | 'cancelled'} status
  * @property {string} message
- * @property {number} [current]
- * @property {number} [total]
- * @property {{ phase: { current: number, total: number, message: string } | null, transfer: { current: number, total: number, unit: 'bytes', message: string } | null }} [progress]
+ * @property {ApplyProgress} [progress]
  */
 
 /**

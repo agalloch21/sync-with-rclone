@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { PHASE_EVENT, SYNC_RESULT } from '#src/core/contract.js'
 import { syncCore } from '#src/core/sync-engine.js'
@@ -30,8 +31,11 @@ function enrichFailedSessionResult(sessionResult, error, runtimePaths) {
   sessionResult.errorCode = getErrorCode(error)
   sessionResult.errorDetails = getErrorDetails(error)
 
-  if (runtimePaths?.logDirectory)
-    sessionResult.logPath = path.posix.join(runtimePaths.logDirectory, 'quick-actions.log')
+  if (runtimePaths?.logDirectory) {
+    const logPath = path.posix.join(runtimePaths.logDirectory, 'quick-actions.log')
+    if (fs.existsSync(logPath))
+      sessionResult.logPath = logPath
+  }
 
   return sessionResult
 }

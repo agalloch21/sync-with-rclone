@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { PHASES, SYNC_CANCEL_REASON, SYNC_RESULT } from '#src/core/contract.js'
 import { syncCore } from '#src/core/sync-engine.js'
 
+function readFirstBatchPath(args) {
+  const batchFilePath = args[args.indexOf('--files-from') + 1]
+  return fs.readFileSync(batchFilePath, 'utf8').trim().split(/\r?\n/)[0]
+}
+
 test('syncCore converts apply cancellation into a cancelled result with apply metadata', async () => {
   const abortController = new AbortController()
-  const abortError = new Error('cancelled')
-  abortError.stdout = '{"level":"info","msg":"Copied (server-side copy)","object":"modified/modified.txt"}\n'
+  let confirmedPath = ''
 
   const result = await syncCore({
     mode: 'push',
@@ -18,7 +23,10 @@ test('syncCore converts apply cancellation into a cancelled result with apply me
     },
   }, {
     dependents: {
-      runCommand: async () => {
+      runCommand: async (_command, args) => {
+        confirmedPath = readFirstBatchPath(args)
+        const abortError = new Error('cancelled')
+        abortError.stdout = `{"level":"info","msg":"Copied (server-side copy)","object":"${confirmedPath}"}\n`
         abortController.abort(abortError)
         throw abortError
       },
@@ -30,15 +38,14 @@ test('syncCore converts apply cancellation into a cancelled result with apply me
   assert.equal(result.phase, PHASES.APPLY_PLAN)
   assert.ok(result.operations.length > 0)
   assert.ok(result.operations.some(operation => (
-    operation.path === 'modified/modified.txt'
+    operation.path === confirmedPath
     && operation.type === 'copy'
     && operation.synced
   )))
 })
 
 test('syncCore returns apply operations when apply fails', async () => {
-  const applyError = new Error('copy failed')
-  applyError.stdout = '{"level":"info","msg":"Copied (server-side copy)","object":"modified/modified.txt"}\n'
+  let confirmedPath = ''
 
   const result = await syncCore({
     mode: 'push',
@@ -49,7 +56,10 @@ test('syncCore returns apply operations when apply fails', async () => {
     },
   }, {
     dependents: {
-      runCommand: async () => {
+      runCommand: async (_command, args) => {
+        confirmedPath = readFirstBatchPath(args)
+        const applyError = new Error('copy failed')
+        applyError.stdout = `{"level":"info","msg":"Copied (server-side copy)","object":"${confirmedPath}"}\n`
         throw applyError
       },
     },
@@ -59,7 +69,7 @@ test('syncCore returns apply operations when apply fails', async () => {
   assert.equal(result.phase, PHASES.APPLY_PLAN)
   assert.equal(result.message, 'copy failed')
   assert.ok(result.operations.some(operation => (
-    operation.path === 'modified/modified.txt'
+    operation.path === confirmedPath
     && operation.type === 'copy'
     && operation.synced
   )))

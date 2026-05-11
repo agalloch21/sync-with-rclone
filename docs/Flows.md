@@ -239,19 +239,26 @@ sequenceDiagram
   participant U as 用户
 
   C->>C: 根据 ReviewResult 生成 SyncPlan
-  C->>C: 先执行 mkdir
+  C-->>U: emit activity=start
   C->>RC: 批量执行 copy
+  RC-->>C: 返回 copy 字节进度
+  C-->>U: emit activity=copy + measurement
   RC-->>C: 返回 copy 结果
   C->>RC: 批量执行 delete
+  C-->>U: emit activity=delete
   RC-->>C: 返回 delete 结果
-  C->>C: 再执行 rmdir
+  C->>RC: 清理目标端空目录
+  C-->>U: emit activity=cleanup
+  C-->>U: emit activity=complete
   C-->>U: 返回执行结果
 ```
 
 当前 apply 的执行策略是：
 
-- `copy` / `delete` 优先批量执行
-- `mkdir` / `rmdir` 逐目录执行
+- `copy` / `delete` 使用 batch file 批量执行
+- `delete` 后会执行 `rclone rmdirs <destination-root> --leave-root` 清理目标端空目录
+- apply 进度以 `start` / `copy` / `delete` / `cleanup` / `complete` activity 表达
+- 只有 `copy` activity 会携带 `measurement` 字节进度
 - `rclone` 调用显式指定配置路径
 
 ## 10. Session result 与 final acknowledgement 流程
@@ -282,6 +289,8 @@ sequenceDiagram
 - `SESSION_EVENT.RESULT` 只是观察事件，不作为 final 流程的控制点
 - cancelled 是正常运行结果；failed 会导致桌面入口以失败码退出
 - review 阶段取消可以直接收尾；进入执行阶段后的取消可按策略展示 final acknowledgement
+- cancelled final acknowledgement 会展示已执行操作的汇总，并允许展开查看每个 operation 的执行状态
+- failed final acknowledgement 会展示错误信息；只有 `quick-actions.log` 文件实际存在时才展示可打开的日志入口
 
 ## 11. 当前阶段限制
 

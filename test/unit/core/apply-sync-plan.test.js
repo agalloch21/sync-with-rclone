@@ -63,6 +63,7 @@ test('applySyncPlan uses batched rclone copy and delete with rmdirs cleanup', as
 
   const commands = []
   const batchFiles = []
+  const events = []
 
   const result = await applySyncPlan(syncPlan, {
     mode: 'push',
@@ -73,6 +74,9 @@ test('applySyncPlan uses batched rclone copy and delete with rmdirs cleanup', as
       bundledRclonePath: '/app/bin/rclone',
     },
   }, {
+    events: {
+      progress: event => events.push(event),
+    },
     dependents: {
       runCommand: async (command, args) => {
         commands.push({ command, args: normalizeFilesFromArg(args) })
@@ -154,6 +158,13 @@ test('applySyncPlan uses batched rclone copy and delete with rmdirs cleanup', as
     { type: 'copy', path: 'modified/modified.txt', synced: true },
     { type: 'delete', path: 'deleted/deleted.txt', synced: true },
   ])
+  assert.deepEqual(events, [
+    { activity: 'start', index: 0, total: 5, measurement: null },
+    { activity: 'copy', index: 1, total: 5, measurement: null },
+    { activity: 'delete', index: 2, total: 5, measurement: null },
+    { activity: 'cleanup', index: 3, total: 5, measurement: null },
+    { activity: 'complete', index: 4, total: 5, measurement: null },
+  ])
   assert.equal(result.phases, undefined)
 })
 
@@ -183,9 +194,9 @@ test('applySyncPlan reports apply lifecycle events in execution order', async ()
   })
 
   assert.deepEqual(events, [
-    { phase: { current: 0, total: 2, message: 'start' } },
-    { phase: { current: 1, total: 2, message: 'copy' } },
-    { phase: { current: 2, total: 2, message: 'complete' } },
+    { activity: 'start', index: 0, total: 5, measurement: null },
+    { activity: 'copy', index: 1, total: 5, measurement: null },
+    { activity: 'complete', index: 4, total: 5, measurement: null },
   ])
 })
 
@@ -217,10 +228,12 @@ test('applySyncPlan emits copy transfer progress from rclone output', async () =
   })
 
   assert.ok(events.some(event => (
-    event.transfer?.current === 1024 ** 2
-    && event.transfer?.total === 2 * 1024 ** 2
-    && event.transfer?.unit === 'bytes'
-    && event.transfer?.message === 'copy'
+    event.activity === 'copy'
+    && event.index === 1
+    && event.total === 5
+    && event.measurement?.current === 1024 ** 2
+    && event.measurement?.total === 2 * 1024 ** 2
+    && event.measurement?.unit === 'bytes'
   )))
 })
 

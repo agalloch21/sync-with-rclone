@@ -228,8 +228,6 @@ export async function applySyncPlan(syncPlan, context, runtime, cancelSignal) {
 
   emitPhaseProgress(APPLY_ACTIVITIES.COMPLETE)
 
-  // await new Promise(resolve => setTimeout(resolve, 500000))
-
   return {
     action: 'confirm',
     operations,

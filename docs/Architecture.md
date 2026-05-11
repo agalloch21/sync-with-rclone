@@ -268,7 +268,42 @@ export const DiffState = Object.freeze({
 - `applySyncPlan(...)` 会根据它执行 rclone batch copy 和 delete
 - delete 后会执行内部 `rclone rmdirs <destination-root> --leave-root` 清理因文件删除而变空的目标目录，但不会把空目录作为同步内容或 review 项
 
-### 4.5 `SyncCoreRuntime`
+### 4.5 `ApplyProgress`
+
+```js
+{
+  activity: "copy",
+  index: 1,
+  total: 5,
+  measurement: {
+    current: 1048576,
+    total: 2097152,
+    unit: "bytes"
+  }
+}
+```
+
+说明：
+
+- `ApplyProgress` 是 apply 阶段的进度观察事件结构，只用于 UI 展示和调试，不推进主流程
+- `activity` 当前固定为 `start` / `copy` / `delete` / `cleanup` / `complete`
+- `index` 是当前 activity 在固定 activity 列表中的位置，`total` 是固定 activity 总数
+- `measurement` 只在 copy 阶段有字节进度；其他 activity 为 `null`
+- UI 可以用 `index` 和 copy 阶段的 `measurement` 推导整体进度条，但 core 不直接暴露一个最终百分比
+- 这个结构表达当前正在发生的 apply 状态，不包含完整 UI 步骤列表
+
+copy 之外的示例：
+
+```js
+{
+  activity: "cleanup",
+  index: 3,
+  total: 5,
+  measurement: null
+}
+```
+
+### 4.6 `SyncCoreRuntime`
 
 ```js
 {
@@ -292,9 +327,10 @@ export const DiffState = Object.freeze({
 - `interactions.reviewDiff` 是业务等待点，`syncCore` 必须等待它返回 `ReviewResult` 才能继续
 - `dependents` 是外部执行能力注入，主要用于测试和替换 rclone / batch file 相关能力
 - `syncCore` 会 emit phase 级事件，事件类型定义在 `src/core/contract.js` 的 `PHASE_EVENT`
+- apply 阶段的 progress payload 使用 `ApplyProgress`
 - `syncCore` 返回 `SyncCoreResult`，结果值定义在 `SYNC_RESULT`
 
-### 4.6 `SyncSessionRuntime`
+### 4.7 `SyncSessionRuntime`
 
 ```js
 {
@@ -319,6 +355,7 @@ export const DiffState = Object.freeze({
 - `startSync` 把 core phase event 转换成 `SESSION_EVENT.PROGRESS`
 - `startSync` 返回 `SyncSessionResult`
 - `startSync` 会 emit `SESSION_EVENT.RESULT` 作为观察事件，但 Electron final 流程由返回值驱动
+- failed result 只在 `quick-actions.log` 已存在时携带 `logPath`；直接启动 Electron 时没有该日志文件就不向 renderer 暴露日志路径
 
 ## 5. 数据契约在主要模块间的流转
 
@@ -348,7 +385,7 @@ sequenceDiagram
 运行时通道按职责区分：
 
 - `return` 是控制流。`startSync(...)` 的返回值决定 Electron 是否展示 final、进程退出码和后续收尾。
-- `events.eventListener` 是观察流。它用于展示 context、phase progress 和调试，不作为流程推进条件。
+- `events.eventListener` 是观察流。它用于展示 context、progress 和调试，不作为流程推进条件。
 - `interactions.reviewDiff` 是业务等待点。它是 core 在 review 阶段继续执行所需的外部输入。
 
 ## 6. 打包与安装

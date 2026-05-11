@@ -133,7 +133,7 @@ function showLogInFolder() {
             {{ msg }}
           </p>
         </div>
-        <p v-if="state.final?.logPath">
+        <p v-if="state.final?.logPath && state.final?.logPath.length > 0">
           {{ $t('result.failed.logPath') }}
           <span class="underline inline-block ml-0.5 align-middle break-all cursor-pointer" @click.prevent="showLogInFolder">{{ state.final?.logPath?.split('/').pop() }}
           </span>

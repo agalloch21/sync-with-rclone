@@ -1,10 +1,8 @@
 <script setup>
 import { STEP_META, STEPS } from '#src/electron/main/session-steps.js'
-import { computed, inject, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, inject } from 'vue'
 
 const state = inject('state')
-const { t } = useI18n()
 
 const phase = computed(() => state.value?.step === STEPS.SYNC ? (state.value?.phase || '') : '')
 
@@ -41,20 +39,6 @@ function formatBytes(bytes) {
 
   return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`
 }
-
-// const description = computed(() => {
-//   const activityDescription = (currentActivity.value &&  currentActivity.value.length > 0) ?
-// }
-//   currentActivity.value
-//     ? t(`syncPhases.${currentActivity.value}`, { current: `${formatBytes(currentMeasurement.value)}`, total: `${formatBytes(totalMeasurement.value)}` })
-//     : '',
-// )
-watch(() => state.value?.progress, () => {
-  console.log(state.value?.progress?.activity)
-  console.log(state.value?.progress?.index)
-  console.log(state.value?.progress?.total)
-  console.log(state.value?.progress?.measurement)
-}, { immediate: true })
 </script>
 
 <template>

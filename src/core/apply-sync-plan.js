@@ -78,6 +78,7 @@ async function runCopyPhase({ sourceRoot, destinationRoot, operations }, runtime
       destinationRoot,
       '--metadata',
       '--refresh-times',
+      '--sftp-disable-hashcheck',
       '--files-from',
       batchFilePath,
       '--use-json-log',

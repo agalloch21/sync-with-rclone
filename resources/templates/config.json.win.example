@@ -14,7 +14,7 @@
   "syncJobs": [
     {
       "name": "ProjectsSynced",
-      "rcloneRemote": "synology",
+      "rcloneRemote": "synology-sftp",
       "localBasePath": "D:/ProjectsSynced",
       "remoteBasePath": "ProjectsSynced",
       "ignorePatterns": []

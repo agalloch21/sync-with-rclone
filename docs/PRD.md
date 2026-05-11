@@ -68,6 +68,9 @@
 这项能力的意义是：
 
 - 简化用户上手工具的难度
+- 帮助用户创建、编辑、删除同步任务和 rclone remote
+- 在配置阶段验证 remote 是否满足同步可靠性要求：SFTP 需要能保存并读回 1 秒精度的 `mtime`
+- hash 支持作为可选增强校验能力展示，不作为普通同步的前置条件
 
 ## 6. 主要交互流程
 
@@ -108,4 +111,4 @@ sequenceDiagram
 - [x] 形成一键安装包
 - [ ] 支持发起 `Push To` 或 `Pull From`操作
 - [ ] 发起 `Push To` 或 `Pull From`操作时展示远程文件夹的目录树供用户选择
-- [ ] GUI配置管理界面
+- [ ] GUI配置管理界面：管理同步任务和 rclone remote，并测试连接、SFTP `mtime` 保留能力和可选 hash 能力

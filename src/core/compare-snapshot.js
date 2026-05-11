@@ -3,7 +3,7 @@
 
 import { addFileToDiffSnapshot, createEmptyDiffSnapshot, DiffState, indexSnapshotFiles, sortFilesByPath } from '#src/core/snapshot.js'
 
-const MTIME_TOLERANCE_MS = 1
+const MTIME_TOLERANCE_MS = 1000
 
 /**
  * @export

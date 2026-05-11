@@ -132,7 +132,7 @@ C:/Program Files/sync-with-rclone/config/
   "syncJobs": [
     {
       "name": "ProjectsSynced",
-      "rcloneRemote": "synology",
+      "rcloneRemote": "synology-sftp",
       "localBasePath": "D:/ProjectsSynced",
       "remoteBasePath": "ProjectsSynced",
       "ignorePatterns": []
@@ -144,10 +144,30 @@ C:/Program Files/sync-with-rclone/config/
 - `globalIgnorePatterns`: 全局忽略规则，作用于所有同步任务，规则语法按 `.gitignore` 风格理解。
 - `syncJobs`: 同步任务列表。每次从某个本地目录发起同步时，程序会从这里找出匹配的任务。
 - `syncJobs[].name`: 任务名称，用于标识这组同步关系，当前主要用于可读性和后续扩展。
-- `syncJobs[].rcloneRemote`: `rclone.conf` 中定义的 remote 名称，例如 `synology`。
+- `syncJobs[].rcloneRemote`: `rclone.conf` 中定义的 remote 名称，例如 `synology-sftp`。
 - `syncJobs[].localBasePath`: 本地根目录。当前右键触发的目录必须落在这个目录下，程序才会认为它属于该任务。
-- `syncJobs[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology:ProjectsSynced` 这样的根路径；如果想直接同步到 remote 根目录，可以写成空字符串 `""`。
+- `syncJobs[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology-sftp:ProjectsSynced` 这样的根路径；如果想直接同步到 remote 根目录，可以写成空字符串 `""`。
 - `syncJobs[].ignorePatterns`: 只对当前任务生效的额外忽略规则，会和 `globalIgnorePatterns` 合并。
+
+### 推荐远端协议
+
+当前正式支持的 NAS 远端基线是 SFTP。同步预览会用文件路径、大小和修改时间判断差异，因此远端必须能可靠读写文件 `mtime`。rclone 的 SFTP backend 可以设置并读取 1 秒精度的 `mtime`，适合作为 Synology NAS 的默认方案。
+
+推荐的 `rclone.conf` 形态：
+
+```ini
+[synology-sftp]
+type = sftp
+host = <nas-host>
+user = <user>
+pass = <obscured-password>
+set_modtime = true
+shell_type = unix
+```
+
+普通同步不要求配置 `path_override`，也不要在基线配置里启用 `md5sum_command` 或 `sha1sum_command`。当前可靠性基线只依赖 SFTP 的 `mtime` 保留能力；hash 校验会留给未来配置界面做能力测试后再启用。
+
+不推荐使用 WebDAV 承担可靠同步。Synology WebDAV 暴露的 `getlastmodified` 不能保证等于源文件 `mtime`，会导致刚同步过的文件在下一次预览里再次显示为不同。FTP 可能具备 1 秒 `mtime`，但没有 hash 支持，连接行为也弱于 SFTP，因此只作为非推荐备选。
 
 路径匹配规则：
 

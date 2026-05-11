@@ -128,6 +128,7 @@ sequenceDiagram
 - 目录不是同步内容，只在 review UI 中由文件路径派生出来
 - 空目录不会作为 snapshot 内容保存
 - 本地扫描会在进入目录前应用 ignore 规则，已忽略目录不会继续读取子内容
+- `Snapshot` 只表达扫描到的文件事实，不携带远端协议能力、hash 能力或 backend 精度等基础设施属性
 
 示例：
 
@@ -178,7 +179,11 @@ export const DiffState = Object.freeze({
 - `files` 保存文件级差异
 - `summary` 保存文件级差异统计
 - 目录级统计由 `serializeDiffSnapshot` 在 review 展示前从文件路径派生
-- 文件是否 `modified` 不只看时间戳精确相等，当前实现包含时间容差
+- 文件是否 `modified` 由路径、大小和 `mtimeMs` 决定；当前实现对 `mtimeMs` 使用 1 秒容差
+- core 假设远端协议能可靠保存并返回文件 `mtime`，协议能力校验属于 app/settings 层，不进入 `Snapshot` 或 `DiffSnapshot` 数据契约
+- 当前支持的 NAS 远端基线是 SFTP；Synology WebDAV 不保证返回源文件 `mtime`，不满足可靠重复同步预览的要求
+- apply 阶段传入 `--sftp-disable-hashcheck`。Synology 的 SFTP 路径和 shell 卷路径可能不同，未验证的 `md5sum_command` / `sha1sum_command` 会让 rclone 在上传完成后误判 checksum 失败并重试整批 copy。hash 能力只在未来配置界面验证通过后作为可选增强使用
+- apply 阶段暂时不使用 `--inplace`，保留 rclone 默认的 `.partial` 上传行为，让用户和系统都能区分未完成文件与已完成文件。代价是 Synology 回收站可能保留失败上传的 `.partial` 文件；这是运维清理问题，不应通过牺牲完成状态可见性来隐藏
 
 示例：
 

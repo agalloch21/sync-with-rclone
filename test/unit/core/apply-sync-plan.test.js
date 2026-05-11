@@ -112,6 +112,7 @@ test('applySyncPlan uses batched rclone copy and delete with rmdirs cleanup', as
         'synology:ProjectsSynced/app',
         '--metadata',
         '--refresh-times',
+        '--sftp-disable-hashcheck',
         '--files-from',
         '<batch-file>',
         '--use-json-log',

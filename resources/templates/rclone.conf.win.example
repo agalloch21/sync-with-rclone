@@ -1,9 +1,9 @@
 ; Fill in your rclone remotes here.
-; Example:
-; [synology]
+; Recommended NAS remote:
+; [synology-sftp]
 ; type = sftp
 ; host = 192.168.1.10
 ; user = your-user
-; port = 22
-; key_file = C:\Users\your-user\.ssh\id_ed25519
-
+; pass = your-obscured-password
+; set_modtime = true
+; shell_type = unix

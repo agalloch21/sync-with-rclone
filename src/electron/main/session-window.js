@@ -3,38 +3,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { SESSION_EVENT } from '#src/app/sync-session-contract.js'
 import { serializeDiffSnapshot } from '#src/core/serialize-diff-snapshot.js'
+import { loadRendererEntry } from './renderer-entry.js'
 import { getStepForPhase, STEPS } from './session-steps.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
-const rendererDistDirectory = path.join(__dirname, '../renderer/dist')
-
-function normalizeDevServerUrl(input) {
-  return input ? input.replace(/\/$/, '') : ''
-}
-
-function getRendererEntryTarget(pageName) {
-  const devServerUrl = normalizeDevServerUrl(process.env.ELECTRON_RENDERER_DEV_SERVER_URL)
-
-  if (devServerUrl) {
-    return {
-      type: 'url',
-      value: `${devServerUrl}/${pageName}.html`,
-    }
-  }
-
-  return {
-    type: 'file',
-    value: path.join(rendererDistDirectory, `${pageName}.html`),
-  }
-}
-
-function loadRendererPage(browserWindow, pageName) {
-  const target = getRendererEntryTarget(pageName)
-  return target.type === 'url'
-    ? browserWindow.loadURL(target.value)
-    : browserWindow.loadFile(target.value)
-}
 
 export function createSessionWindow() {
   const { BrowserWindow, ipcMain, shell } = require('electron')
@@ -288,7 +261,7 @@ export function createSessionWindow() {
     abandonSession(new Error(`Renderer process gone: ${details.reason}`))
   })
 
-  loadRendererPage(sessionWindow, 'sync-session')
+  loadRendererEntry(sessionWindow, 'sync-session')
     .catch((error) => {
       abandonSession(error)
     })

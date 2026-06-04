@@ -67,12 +67,10 @@ async function invokeCommand(name, ipcCommand) {
 }
 
 function cancelSync() {
-  console.log('cancel clicked')
   invokeCommand('cancel', () => window.syncSession.cancelSync())
 }
 
 function confirmSync() {
-  console.log('confirm clicked')
   const selectedPaths = Object.entries(selection)
     .filter(([, checked]) => checked)
     .map(([entryPath]) => entryPath)
@@ -81,7 +79,6 @@ function confirmSync() {
 }
 
 function acknowledgeAndClose() {
-  console.log('close clicked')
   invokeCommand('close', () => window.syncSession.closeWindow())
 }
 </script>

@@ -12,6 +12,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
+        mainPanel: path.resolve('src/electron/renderer/main-panel.html'),
         syncSession: path.resolve('src/electron/renderer/sync-session.html'),
       },
     },

@@ -266,7 +266,7 @@ fi
 echo "  Remote path: \$REMOTE_PATH" >> "\$LOG_FILE"
 
 # Execute the sync executable
-"$EXECUTABLE" --mode=$mode --folder="\$FOLDER_PATH" --remote-path="\$REMOTE_PATH" >> "\$LOG_FILE" 2&gt;&amp;1
+"$EXECUTABLE" --session --mode=$mode --folder="\$FOLDER_PATH" --remote-path="\$REMOTE_PATH" >> "\$LOG_FILE" 2&gt;&amp;1
 EXIT_CODE=\$?
 
 if [ \$EXIT_CODE -ne 0 ]; then
@@ -455,7 +455,7 @@ fi
 FOLDER_PATH=\$(cd "\$FOLDER_PATH" &amp;&amp; pwd)
 
 # Execute the sync executable
-"$EXECUTABLE" --mode=$mode --folder="\$FOLDER_PATH" >> "\$LOG_FILE" 2&gt;&amp;1
+"$EXECUTABLE" --session --mode=$mode --folder="\$FOLDER_PATH" >> "\$LOG_FILE" 2&gt;&amp;1
 EXIT_CODE=\$?
 
 if [ \$EXIT_CODE -ne 0 ]; then
@@ -875,7 +875,7 @@ echo "  Mode: %%MODE%%"
 echo "  Folder: $FOLDER"
 echo "  Remote: $REMOTE"
 echo
-"%%EXECUTABLE%%" --mode=%%MODE%% --folder="$FOLDER" --remote-path="$REMOTE" 2&gt;&amp;1 | tee -a "$LOGFILE"
+"%%EXECUTABLE%%" --session --mode=%%MODE%% --folder="$FOLDER" --remote-path="$REMOTE" 2&gt;&amp;1 | tee -a "$LOGFILE"
 EXIT_CODE=${PIPESTATUS[0]}
 echo
 echo "Log: $LOGFILE"
@@ -922,7 +922,7 @@ echo "Starting sync..."
 echo "  Mode: %%MODE%%"
 echo "  Folder: $FOLDER"
 echo
-"%%EXECUTABLE%%" --mode=%%MODE%% --folder="$FOLDER" 2&gt;&amp;1 | tee -a "$LOGFILE"
+"%%EXECUTABLE%%" --session --mode=%%MODE%% --folder="$FOLDER" 2&gt;&amp;1 | tee -a "$LOGFILE"
 EXIT_CODE=${PIPESTATUS[0]}
 echo
 echo "Log: $LOGFILE"

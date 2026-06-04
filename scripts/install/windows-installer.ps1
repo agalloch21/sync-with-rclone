@@ -236,7 +236,7 @@ function Register-ContextMenu {
             $menuKey = "$($target.RootKey)\shell\$mode"
             $commandKey = "$menuKey\command"
             $label = (Get-Culture).TextInfo.ToTitleCase($mode)
-            $command = "`"$ExePath`" --mode=$mode --local `"$($target.ArgumentToken)`""
+            $command = "`"$ExePath`" --session --mode=$mode --local `"$($target.ArgumentToken)`""
 
             New-Item -Path $menuKey -Force | Out-Null
             New-ItemProperty -Path $menuKey -Name "MUIVerb" -Value $label -PropertyType String -Force | Out-Null

@@ -434,7 +434,7 @@ Windows 当前安装后的目录结构可按下面理解：
 - 程序运行时读取的配置默认位于安装目录下的 `config/`
 - 日志默认位于安装目录下的 `logs/`
 - `rclone` 二进制来自安装目录下的 bundled resources
-- Windows 右键菜单调用时使用命名参数 `--mode` 和 `--local`，避免打包后的额外 argv 干扰参数定位
+- Windows 右键菜单调用时使用显式 `--session` 加命名参数 `--mode` 和 `--local`，避免打包后的额外 argv 干扰参数定位
 
 ## 7. 当前打包和运行结论
 

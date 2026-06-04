@@ -12,8 +12,10 @@
   "main": "src/electron/main/index.cjs",
   "scripts": {
     "build:renderer": "vite build",
+    "dev": "node scripts/dev/dev-electron.js",
+    "dev:session": "node scripts/dev/dev-electron.js --session",
     "dev:renderer": "vite --host 127.0.0.1 --strictPort",
-    "dev:desktop": "node scripts/dev/dev-electron.js",
+    "dev:desktop": "node scripts/dev/dev-electron.js --session",
     "build:icons": "node scripts/build/generate-icons.js",
     "verify:assets": "node scripts/build/verify-assets.js",
     "verify:build": "node scripts/build/verify-build.js",

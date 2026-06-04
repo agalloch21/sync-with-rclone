@@ -299,7 +299,7 @@ sequenceDiagram
 - 右键菜单注册已经接入安装器脚本
 - sync-session Electron 链已打通
 - 配置默认读取安装目录下的 `config/`
-- 打包后的 argv 会优先按 `--mode`、`--local`、`--remote` 解析，避免额外参数导致位置漂移
+- 打包后的 session argv 会先由 `--session` 进入同步窗口，再按 `--mode`、`--local`、`--remote` 解析，避免额外参数导致位置漂移
 
 当前不应写成既成事实的内容：
 

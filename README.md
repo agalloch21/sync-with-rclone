@@ -74,26 +74,29 @@ npm run start:desktop
 electron .
 
 #如果需要按实际同步动作传入参数，可直接运行桌面入口，例如：
-node ./src/electron/main/index.js --mode=push --local=<local-path> --remote=<remote-path>
+node ./src/electron/main/index.js --session --mode=push --local=<local-path> --remote=<remote-path>
 
 # 简写版
-node ./src/electron/main/index.js push <local-path> <remote-path>
+node ./src/electron/main/index.js --session push <local-path> <remote-path>
 ```
 
 这条命令会由 Node 入口转交给 Electron，再进入桌面链路。
 
 ### 5. 使用开发模式实时预览 renderer
-如果你正在调整 `SyncSession.vue`、`TreeNode.vue` 或 renderer 样式，推荐直接使用开发模式。
+如果你正在调整 `MainPanel.vue`、`SyncSession.vue`、`TreeNode.vue` 或 renderer 样式，推荐直接使用对应的开发模式。
 
 ```bash
-npm run dev:desktop
+npm run dev
+
+# 如果需要预览右键菜单打开的 sync-session 窗口：
+npm run dev:session -- --mode=push --folder=<local-path>
 ```
 
 这条命令会：
 
 - 启动 Vite dev server
 - 等待 dev server 就绪后自动启动 Electron
-- 让 sync-session renderer 在开发时改走 Vite 页面
+- 让 main-panel 或 sync-session renderer 在开发时改走 Vite 页面
 
 这样保存 `src/electron/renderer/src/*.vue` 或 `src/electron/renderer/src/styles.css` 后，窗口会自动刷新，能实时看到变化。
 

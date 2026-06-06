@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/forms";
+@plugin "@iconify/tailwind4";
 
 :root {
   color-scheme: light;
@@ -79,6 +80,13 @@
   --danger-soft: #fdeaea;
   --info: #2563eb;
   --info-soft: #e9f1ff; */
+
+  --main-stage-px: calc(var(--spacing) * 5);
+  --main-stage-py: calc(var(--spacing) * 5);
+
+  --gap-lx: calc(var(--spacing) * 5);
+  --gap-base: calc(var(--spacing) * 3);
+  --gap-button: var(--gap-lx);
 }
 
 * {

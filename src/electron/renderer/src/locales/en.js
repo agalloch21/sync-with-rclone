@@ -3,6 +3,20 @@ import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { STEPS } from '#src/electron/main/session-steps.js'
 
 export default {
+  main: {
+    nav: {
+      syncTasks: 'Sync Tasks',
+      logs: 'Logs',
+      settings: 'Settings',
+    },
+    version: 'version',
+    task: {
+      extra: {
+        remoteFolderLabel: 'Mapped to',
+        lastSyncLabel: 'Last Sync',
+      },
+    },
+  },
   [STEPS.ANALYZE]: {
     title: 'Analyze',
   },

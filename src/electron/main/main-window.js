@@ -12,7 +12,6 @@ export function createMainWindow() {
     minWidth: 640,
     minHeight: 480,
     autoHideMenuBar: true,
-    frame: false,
     show: false,
     title: 'Sync with rclone',
     webPreferences: {

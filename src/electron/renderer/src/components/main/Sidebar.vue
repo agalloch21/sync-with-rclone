@@ -4,7 +4,7 @@ const props = defineProps({
   selectedPanel: String,
 })
 
-const emit = defineEmits(['onSelectPanel'])
+defineEmits(['onSelectPanel'])
 </script>
 
 <template>

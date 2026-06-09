@@ -1,23 +1,49 @@
 <script setup>
-import ActionBar from './components/main/ActionBar.vue'
+import { ref, shallowRef } from 'vue'
+
+import LogPanel from './components/main/LogPanel.vue'
+import SettingsPanel from './components/main/SettingsPanel.vue'
 import SideBar from './components/main/Sidebar.vue'
-import WorkSpace from './components/main/WorkSpace.vue'
+import TaskPanel from './components/main/TaskPanel.vue'
+
+const panels = [
+  {
+    name: 'syncTasks',
+    component: TaskPanel,
+  },
+  {
+    name: 'logs',
+    component: LogPanel,
+  },
+  {
+    name: 'settings',
+    component: SettingsPanel,
+  },
+]
+
+const selectedPanel = ref(panels[0].name)
+
+function onSelectPanel(panelName) {
+  selectedPanel.value = panels.find(p => p.name === panelName)?.name || ''
+}
 </script>
 
 <template>
   <div class="flex flex-row h-dvh min-h-0 overflow-hidden bg-(--surface-muted)">
     <aside class="sidebar-dock h-full flex-1">
-      <SideBar />
+      <SideBar
+        :panels="panels"
+        :selected-panel="selectedPanel"
+        @on-select-panel="onSelectPanel"
+      />
     </aside>
-    <main class="main-dock h-full flex-3 min-w-0">
-      <div class="main-stage h-full px-(--main-stage-px) py-(--main-stage-py) flex flex-col gap-5">
-        <div class="action-dock">
-          <ActionBar />
-        </div>
-        <div class="task-list-dock flex-1">
-          <WorkSpace />
-        </div>
-      </div>
+    <main class="main-dock h-full flex-3 min-w-0 px-(--main-stage-px) py-(--main-stage-py) justify-stretch items-stretch">
+      <component
+        :is="panel.component"
+        v-for="(panel, index) in panels"
+        v-show="panel.name === selectedPanel"
+        :key="index"
+      />
     </main>
   </div>
 </template>

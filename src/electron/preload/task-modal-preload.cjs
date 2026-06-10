@@ -10,4 +10,7 @@ contextBridge.exposeInMainWorld('taskModal', {
   close() {
     return ipcRenderer.invoke('task-modal:close')
   },
+  ready() {
+    ipcRenderer.send('task-modal:ready')
+  },
 })

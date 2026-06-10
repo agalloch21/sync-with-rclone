@@ -95,11 +95,9 @@
 
 @font-face {
   font-family: 'JetBrainsMono';
-  /* Use woff2-variations for better support */
-  src: url('JetBrainsMono[wght].ttf') format('woff2-variations'),
-    url('JetBrainsMono[wght].ttf') format('woff2');
-  /* Define the weight range supported by the file */
+  src: url('JetBrainsMono[wght].ttf') format('truetype');
   font-weight: 100 900;
+  /* font-display: swap; */ /* 可以做到在加载新字体时, 先用系统字体显示文字, 在加载完成后切换到新字体. 避免页面空白 */
 }
 
 body {

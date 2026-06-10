@@ -40,8 +40,8 @@ export function createTaskModalWindow(parentWindow, action) {
   const modalState = { action, title: getTaskModalTitle(action) }
 
   const modalWindow = new BrowserWindow({
-    width: 720,
-    height: 560,
+    width: 600,
+    height: 450,
     parent: parentWindow,
     modal: true,
     show: false,
@@ -66,8 +66,9 @@ export function createTaskModalWindow(parentWindow, action) {
 
   ipcMain.handle('task-modal:close', closeModal)
 
-  modalWindow.once('ready-to-show', () => {
-    modalWindow.show()
+  ipcMain.once('task-modal:ready', () => {
+    if (!modalWindow.isDestroyed())
+      modalWindow.show()
   })
 
   modalWindow.on('closed', () => {

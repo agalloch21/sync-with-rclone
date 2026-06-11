@@ -2,9 +2,9 @@
 import Button from './Button.vue'
 import ModalShell from './ModalShell.vue'
 
-defineEmits(['onClickCancel', 'onClickConfirm'])
-const title = 'Create a task'
-const message = 'Create a task'
+defineEmits(['onClickCancel'])
+const title = 'Edit the server'
+const message = 'Edit the server'
 </script>
 
 <template>
@@ -12,7 +12,7 @@ const message = 'Create a task'
     ModalContent
 
     <template #footer>
-      <Button :primary="true" :wide="true" @click="$emit('onClickConfirm')">
+      <Button :primary="true" :wide="true">
         Confirm
       </Button>
       <Button @click="$emit('onClickCancel')">

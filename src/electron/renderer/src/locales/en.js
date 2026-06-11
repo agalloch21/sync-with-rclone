@@ -1,4 +1,5 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
+import { MAIN_ACTIONS } from '#src/app/contract.js'
 import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { STEPS } from '#src/electron/main/session-steps.js'
 
@@ -14,6 +15,42 @@ export default {
       extra: {
         remoteFolderLabel: 'Mapped to',
         lastSyncLabel: 'Last Sync',
+      },
+    },
+    actions: {
+      [MAIN_ACTIONS.CHOOSE_SERVER]: {
+        buttonName: 'Create',
+        modalTitle: 'Choose a server',
+        modalMessage: 'Choose a remote server',
+      },
+      [MAIN_ACTIONS.CREATE_SERVER]: {
+        buttonName: 'Create',
+        modalTitle: 'Create a server',
+        modalMessage: 'Create a remote server',
+      },
+      [MAIN_ACTIONS.EDIT_SERVER]: {
+        buttonName: 'Edit',
+        modalTitle: 'Edit the server',
+      },
+      [MAIN_ACTIONS.DELETE_SERVER]: {
+        buttonName: 'Delete',
+        modalTitle: 'Delete the server',
+      },
+      [MAIN_ACTIONS.CREATE_TASK]: {
+        buttonName: 'Create',
+        modalTitle: 'Create a task',
+      },
+      [MAIN_ACTIONS.EDIT_TASK]: {
+        buttonName: 'Edit',
+        modalTitle: 'Edit the task',
+      },
+      [MAIN_ACTIONS.DELETE_TASK]: {
+        buttonName: 'Delete',
+        modalTitle: 'Delete the task',
+      },
+      [MAIN_ACTIONS.EDIT_PATTERNS]: {
+        buttonName: 'Patterns',
+        modalTitle: 'Edit the patterns',
       },
     },
   },

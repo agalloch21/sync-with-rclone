@@ -58,6 +58,9 @@ onMounted(() => {
   remoteServers.value.forEach((server) => {
     server.tasks = syncTasks.value?.filter(task => task.rcloneRemote === server.name)
   })
+
+  if (remoteServers.value && remoteServers.value.length > 0)
+    onSelectServer(remoteServers.value?.[0])
 })
 
 function onSelectServer(server) {
@@ -77,7 +80,10 @@ function openTaskModal(action) {
 <template>
   <div class="task-panel-stage h-full flex flex-col gap-5">
     <div class="action-dock">
-      <ActionBar @open-task-modal="openTaskModal" />
+      <ActionBar
+        :is-server-selected="selectedServer !== null" :is-task-selected="selectedTask !== null"
+        @open-task-modal="openTaskModal"
+      />
     </div>
     <div class="task-list-dock min-h-0 flex-1 border-t border-(--surface-soft)">
       <div class="task-list-stage h-full overflow-x-auto overflow-y-auto scrollbar-gutter-stable divide-y divide-(--surface-soft)">

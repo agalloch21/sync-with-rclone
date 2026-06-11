@@ -1,8 +1,9 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isValidAction } from '#src/app/contract.js'
 import { loadRendererEntry } from './renderer-entry.js'
-import { createTaskModalWindow, isValidTaskModalAction } from './task-modal-window.js'
+import { createTaskModalWindow } from './task-modal-window.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -28,7 +29,7 @@ export function createMainWindow() {
   function handleOpenTaskModal(_event, payload) {
     const action = payload?.action
 
-    if (!isValidTaskModalAction(action))
+    if (!isValidAction(action))
       return { success: false, reason: 'invalid-action' }
 
     if (taskModalWindow && !taskModalWindow.isDestroyed()) {

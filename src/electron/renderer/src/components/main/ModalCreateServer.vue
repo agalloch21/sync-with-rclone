@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { MAIN_ACTIONS } from '#src/app/contract.js'
 import Button from './Button.vue'
 import ModalShell from './ModalShell.vue'
 
-defineEmits(['onClickCancel', 'onClickConfirm'])
-const title = 'Create a task'
-const message = 'Create a task'
+defineEmits(['onClickCancel', 'onClickNext'])
+const title = 'Create a server'
+const message = 'Create a remote server'
 </script>
 
 <template>
@@ -12,8 +13,8 @@ const message = 'Create a task'
     ModalContent
 
     <template #footer>
-      <Button :primary="true" :wide="true" @click="$emit('onClickConfirm')">
-        Confirm
+      <Button :primary="true" :wide="true" @click="$emit('onClickNext', MAIN_ACTIONS.CREATE_TASK)">
+        Next
       </Button>
       <Button @click="$emit('onClickCancel')">
         Cancel

@@ -6,38 +6,9 @@ import { loadRendererEntry } from './renderer-entry.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 
-export const TASK_MODAL_ACTIONS = {
-  CREATE: 'create',
-  EDIT: 'edit',
-  DELETE: 'delete',
-  PATTERNS: 'patterns',
-}
-
-const VALID_TASK_MODAL_ACTIONS = new Set(Object.values(TASK_MODAL_ACTIONS))
-
-export function isValidTaskModalAction(action) {
-  return VALID_TASK_MODAL_ACTIONS.has(action)
-}
-
-export function getTaskModalTitle(action) {
-  if (action === TASK_MODAL_ACTIONS.CREATE)
-    return 'Create Task'
-  if (action === TASK_MODAL_ACTIONS.EDIT)
-    return 'Edit Task'
-  if (action === TASK_MODAL_ACTIONS.DELETE)
-    return 'Delete Task'
-  if (action === TASK_MODAL_ACTIONS.PATTERNS)
-    return 'Patterns'
-
-  return 'Task'
-}
-
 export function createTaskModalWindow(parentWindow, action) {
-  if (!isValidTaskModalAction(action))
-    throw new Error(`Unsupported task modal action: ${action}`)
-
   const { BrowserWindow, ipcMain } = require('electron')
-  const modalState = { action, title: getTaskModalTitle(action) }
+  const modalState = { action }
 
   const modalWindow = new BrowserWindow({
     width: 600,
@@ -49,7 +20,6 @@ export function createTaskModalWindow(parentWindow, action) {
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
-    title: modalState.title,
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/task-modal-preload.cjs'),
@@ -66,9 +36,11 @@ export function createTaskModalWindow(parentWindow, action) {
 
   ipcMain.handle('task-modal:close', closeModal)
 
-  ipcMain.once('task-modal:ready', () => {
-    if (!modalWindow.isDestroyed())
+  ipcMain.once('task-modal:ready', (event, payload) => {
+    if (!modalWindow.isDestroyed()) {
+      modalWindow.setTitle(payload.title)
       modalWindow.show()
+    }
   })
 
   modalWindow.on('closed', () => {

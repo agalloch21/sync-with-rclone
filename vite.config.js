@@ -14,7 +14,7 @@ export default defineConfig({
       input: {
         mainPanel: path.resolve('src/electron/renderer/main-panel.html'),
         syncSession: path.resolve('src/electron/renderer/sync-session.html'),
-        taskModal: path.resolve('src/electron/renderer/task-modal.html'),
+        syncTaskModal: path.resolve('src/electron/renderer/sync-task-modal.html'),
       },
     },
   },

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { parseSyncArgs } from '#src/app/parse-sync-args.js'
+import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
 
 test('parseSyncArgs supports named arguments with equals syntax', () => {
   const result = parseSyncArgs([

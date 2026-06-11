@@ -1,5 +1,5 @@
-import { parseSyncArgs } from '#src/app/parse-sync-args.js'
-import { startSync } from '#src/app/start-sync.js'
+import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
+import { startSync } from '#src/app/sync-session/start-sync.js'
 import { SYNC_RESULT } from '#src/core/contract.js'
 import { reviewDiffInCli } from './review.js'
 

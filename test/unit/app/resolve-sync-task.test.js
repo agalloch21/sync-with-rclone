@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { resolveSyncTask } from '#src/app/resolve-sync-task.js'
+import { resolveSyncTask } from '#src/app/sync-session/resolve-sync-task.js'
 
 function createConfig() {
   return {

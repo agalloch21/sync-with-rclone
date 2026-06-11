@@ -1,5 +1,5 @@
-import en from '#src/electron/renderer/src/locales/en.js'
-import zhCN from '#src/electron/renderer/src/locales/zh-CN.js'
+import en from '#src/electron/renderer/src/i18n/locales/en.js'
+import zhCN from '#src/electron/renderer/src/i18n/locales/zh-CN.js'
 
 const locales = {
   'zh-CN': zhCN,

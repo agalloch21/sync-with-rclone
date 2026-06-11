@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { ensureRemoteFolderExists } from '#src/app/ensure-remote-folder.js'
+import { ensureRemoteFolderExists } from '#src/app/sync-session/ensure-remote-folder.js'
 
 function createRuntime(runCommand) {
   return {

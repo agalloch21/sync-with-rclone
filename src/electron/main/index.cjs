@@ -28,13 +28,13 @@ app.on('window-all-closed', () => {
 
 async function main() {
   const argv = process.argv.slice(2)
-  const [{ runMainPanel }, { runSyncSession }] = await Promise.all([
-    import('./main-panel-runner.js'),
-    import('./session-runner.js'),
+  const [{ runMainWindow }, { runSyncSession }] = await Promise.all([
+    import('./main-window/runner.js'),
+    import('./sync-session/runner.js'),
   ])
 
   if (!argv.some(arg => SESSION_FLAGS.has(arg))) {
-    await runMainPanel()
+    await runMainWindow()
     return
   }
 

@@ -53,7 +53,7 @@ export const SYNC_RESULT = {
 
 /**
  * @typedef {object} SyncCoreInteractions
- * @property {(diffSnapshot: import('#src/core/snapshot.js').DiffSnapshot) => Promise<import('#src/app/review-contracts.js').ReviewResult>} [reviewDiff]
+ * @property {(diffSnapshot: import('#src/core/snapshot.js').DiffSnapshot) => Promise<import('#src/app/sync-session/review-contracts.js').ReviewResult>} [reviewDiff]
  */
 
 /**

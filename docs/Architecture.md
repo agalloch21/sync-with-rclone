@@ -39,10 +39,10 @@ sequenceDiagram
 
 ```text
 src/           // 运行时代码
-  app/         // 配置读取、路径规范化、同步任务解析、runtime paths、主流程编排
+  app/         // shell 和 core 之间的应用编排层
   cli/         // CLI入口、终端review、终端输出，可独立承接主流程
   core/        // Snapshot、Diff、SyncPlan、Apply、rclone 执行封装
-  electron/    // 当前桌面主壳层，包含 main、preload、renderer、sync-session 窗口
+  electron/    // 当前桌面主壳层，包含 Electron main、preload、renderer
 scripts/       // 非运行时代码
   dev/         // 开发启动脚本
   build/       // 打包校验、产物准备脚本
@@ -50,6 +50,7 @@ scripts/       // 非运行时代码
 resources/     // bundled binaries、图标等静态资源
 templates/     // 默认配置模板
 ```
+
 **层级边界:**
 - core 不读取 Electron API，不解析配置文件
 - app 负责把 shell 的输入整理成 core 的输入

@@ -45,7 +45,7 @@ export default {
       },
       [SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING]: {
         title: 'Create Task',
-        message: 'Create a folder mapping',
+        message: 'Map the local folder with the remote',
       },
       [SYNC_TASK_MODALS.EDIT_SERVER]: {
         title: 'Edit Server',
@@ -53,7 +53,7 @@ export default {
       },
       [SYNC_TASK_MODALS.EDIT_FOLDER_MAPPING]: {
         title: 'Edit Folder Mapping',
-        message: 'Edit the folder mapping',
+        message: 'Map the local folder with the remote',
       },
       [SYNC_TASK_MODALS.EDIT_PATTERNS]: {
         title: 'Edit Patterns',

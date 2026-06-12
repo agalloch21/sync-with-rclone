@@ -30,7 +30,7 @@ const closeVisible = computed(() => showFinalAcknowledgement.value)
       v-if="cancelVisible"
       key="cancel"
       :disabled="props.hasPendingCommand"
-      class="button-secondary clickable forcusable"
+      class="button-secondary clickable focusable"
       @click="emit('onClickCancel')"
     >
       {{ $t('cancelButton') }}
@@ -40,7 +40,7 @@ const closeVisible = computed(() => showFinalAcknowledgement.value)
       v-if="confirmVisible"
       key="confirm"
       :disabled="props.hasPendingCommand"
-      class="button-primary clickable forcusable"
+      class="button-primary clickable focusable"
       @click="emit('onClickConfirm')"
     >
       {{ $t(`confirmButton.${mode}`) }}
@@ -50,7 +50,7 @@ const closeVisible = computed(() => showFinalAcknowledgement.value)
       v-if="closeVisible"
       key="close"
       :disabled="props.hasPendingCommand"
-      class="button-secondary clickable forcusable"
+      class="button-secondary clickable focusable"
       @click="emit('onClickClose')"
     >
       {{ $t('closeButton') }}

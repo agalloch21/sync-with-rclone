@@ -35,11 +35,11 @@ function onToggle(event) {
       v-if="node.type === 'directory'" :open="isOpen"
       class="open:[&_>_summary_.arrow]:rotate-90 open:[&_>_summary_.meta]:invisible"
     >
-      <summary class="flex items-center list-none rounded-lg cursor-pointer forcusable ">
+      <summary class="flex items-center list-none rounded-lg cursor-pointer focusable ">
         <div class="row">
           <input
             type="checkbox"
-            class="forcusable"
+            class="focusable"
             :checked="getSelectionState(node) === 'checked'"
             :indeterminate.prop="getSelectionState(node) === 'partial'"
             @change="onToggle"
@@ -80,7 +80,7 @@ function onToggle(event) {
     <label v-else class="row">
       <input
         type="checkbox"
-        class="forcusable"
+        class="focusable"
         :checked="getSelectionState(node) === 'checked'"
         :indeterminate.prop="false"
         @change="onToggle"

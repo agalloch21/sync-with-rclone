@@ -17,7 +17,7 @@ function onClickArrow() {
 
 <template>
   <details class="server-item-stage group cursor-default" :open="isOpened">
-    <summary class="server-info-dock list-none forcusable py-0.5">
+    <summary class="server-info-dock list-none focusable py-0.5">
       <div
         class="server-info-stage px-(--server-row-px) py-(--server-row-py) flex items-center gap-(--server-row-gap) rounded-lg"
         :class="{ 'server-item-selected': selected }"

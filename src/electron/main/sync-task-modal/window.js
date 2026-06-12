@@ -20,6 +20,7 @@ export function createSyncTaskModalWindow(parentWindow, modalName) {
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
+    resizable: false,
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, '../../preload/sync-task-modal/index.cjs'),

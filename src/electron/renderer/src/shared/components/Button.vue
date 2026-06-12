@@ -13,7 +13,7 @@ const props = defineProps({
 
 <template>
   <button
-    class="flex justify-center items-center gap-1.5 px-4 py-2 text-base text-(--text-primary) clickable focusable"
+    class="flex justify-center items-center gap-1.5 px-4 py-2 text-base text-(--text-primary) no-select clickable focusable"
     :class="[props.primary ? 'primary-button' : 'secondary-button', props.wide ? 'button-wide' : 'button-narrow']"
   >
     <slot />

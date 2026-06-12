@@ -114,6 +114,6 @@ input {
   @apply transition-transform hover:scale-105 active:translate-px cursor-pointer;
 }
 
-.forcusable {
-  @apply focus-visible:ring-1 focus-visible:ring-(--primary) focus-visible:outline-none;
+.focusable {
+  @apply focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) focus-visible:outline-none;
 }

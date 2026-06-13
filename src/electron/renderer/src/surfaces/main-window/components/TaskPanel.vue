@@ -5,63 +5,30 @@ import ServerItem from './ServerItem.vue'
 import TaskItem from './TaskItem.vue'
 
 const remoteServers = ref([
-  {
-    name: 'synology',
-    url: 'http://nas.agalloch21.com:5005',
-    type: 'webdav',
-  },
-  {
-    name: 'synology-ftp',
-    host: 'nas.agalloch21.com',
-    type: 'ftp',
-  },
-  {
-    name: 'synology-sftp',
-    host: 'nas.agalloch21.com',
-    type: 'sftp',
-  },
-  {
-    name: 'fake-remote',
-    type: 'alias',
-    remote: '/Users/xiaobo/NAS/ProjectsSynced/2025.11.2_sync-with-remote/code/sync-with-rclone/test/fixtures/fake-remote',
-  },
 ])
-
-const syncTasks = ref([
-  {
-    name: 'ProjectsSyncedProjectsSyncedProjectsSyncedProjectsSyncedProjectsSynced',
-    rcloneRemote: 'synology-sftp',
-    localBasePath: '/Users/xiaobo/NAS/ProjectsSynced',
-    remoteBasePath: 'ProjectsSynced',
-    ignorePatterns: [],
-  },
-  {
-    name: 'Folder-B',
-    rcloneRemote: 'synology-sftp',
-    localBasePath: '/Users/xiaobo/NAS/Folder-B',
-    remoteBasePath: 'ProjectsSynced/Folder-B',
-    ignorePatterns: [],
-  },
-  {
-    name: 'fake-remotefake-remotefake-remotefake-remotefake-remotefake-remote',
-    rcloneRemote: 'fake-remote',
-    localBasePath: '/Users/xiaobo/NAS/ProjectsSynced/2025.11.2_sync-with-remote/code/sync-with-rclone/test/fixtures/local',
-    remoteBasePath: '',
-    ignorePatterns: [],
-  },
-])
+const errorMessage = ref('')
 
 const selectedServer = shallowRef(null)
 const selectedTask = shallowRef(null)
 
-onMounted(() => {
-  remoteServers.value.forEach((server) => {
-    server.tasks = syncTasks.value?.filter(task => task.rcloneRemote === server.name)
-  })
+onMounted(loadTaskPanel)
 
+async function loadTaskPanel() {
+  const result = await window.mainWindow?.getAppModel?.()
+  if (!result?.success) {
+    errorMessage.value = result?.error || 'Failed to load sync tasks.'
+    remoteServers.value = []
+    return
+  }
+
+  const syncTasks = result.model?.syncTasks || []
+  remoteServers.value = (result.model?.servers || []).map(server => ({
+    ...server,
+    tasks: syncTasks.filter(task => task.rcloneRemote === server.name),
+  }))
   if (remoteServers.value && remoteServers.value.length > 0)
     onSelectServer(remoteServers.value?.[0])
-})
+}
 
 function onSelectServer(server) {
   selectedServer.value = server
@@ -87,6 +54,9 @@ function openSyncTaskModal(modalName) {
     </div>
     <div class="task-list-dock min-h-0 flex-1 border-t border-(--surface-soft)">
       <div class="task-list-stage h-full overflow-x-auto overflow-y-auto scrollbar-gutter-stable divide-y divide-(--surface-soft)">
+        <p v-if="errorMessage" class="px-4 py-3 text-sm text-red-600">
+          {{ errorMessage }}
+        </p>
         <ServerItem
           v-for="server in remoteServers" :key="server.name" :server="server" :selected="server === selectedServer && selectedTask === null"
           @click.prevent="onSelectServer(server)"

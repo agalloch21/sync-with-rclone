@@ -11,13 +11,16 @@
     ".git/",
     "node_modules/"
   ],
-  "syncJobs": [
+  "syncTasks": [
     {
       "name": "ProjectsSynced",
       "rcloneRemote": "synology-sftp",
       "localBasePath": "D:/ProjectsSynced",
       "remoteBasePath": "ProjectsSynced",
-      "ignorePatterns": []
+      "ignorePatterns": [],
+      "lastSyncMode": null,
+      "lastSyncFolder": null,
+      "lastSyncDate": null
     }
   ]
 }

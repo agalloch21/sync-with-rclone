@@ -7,7 +7,7 @@ import { resolveSyncTask } from '#src/app/sync-session/resolve-sync-task.js'
 function createConfig() {
   return {
     globalIgnorePatterns: ['.DS_Store'],
-    syncJobs: [
+    syncTasks: [
       {
         name: 'ProjectsSynced',
         rcloneRemote: 'synology',
@@ -19,18 +19,18 @@ function createConfig() {
   }
 }
 
-test('resolveSyncTask matches the correct sync job and computes the default remote path', () => {
+test('resolveSyncTask matches the correct sync task and computes the default remote path', () => {
   const config = createConfig()
   const result = resolveSyncTask(config, 'test/fixtures/local/compare-push')
 
-  assert.equal(result.matchedJob.name, 'ProjectsSynced')
+  assert.equal(result.matchedTask.name, 'ProjectsSynced')
   assert.equal(result.localFolderPath, path.resolve('test/fixtures/local/compare-push').replaceAll(path.sep, path.posix.sep))
   assert.equal(result.relativePath, 'compare-push')
   assert.equal(result.remoteFolderPath, 'synology:ProjectsSynced/compare-push')
   assert.deepEqual(result.extraIgnorePatterns, ['.DS_Store', 'node_modules/'])
 })
 
-test('resolveSyncTask allows explicit remote paths inside the same sync job', () => {
+test('resolveSyncTask allows explicit remote paths inside the same sync task', () => {
   const config = createConfig()
   const result = resolveSyncTask(
     config,
@@ -41,7 +41,7 @@ test('resolveSyncTask allows explicit remote paths inside the same sync job', ()
   assert.equal(result.remoteFolderPath, 'synology:ProjectsSynced/custom-target')
 })
 
-test('resolveSyncTask rejects explicit remote paths outside the current sync job', () => {
+test('resolveSyncTask rejects explicit remote paths outside the current sync task', () => {
   const config = createConfig()
 
   assert.throws(() => resolveSyncTask(
@@ -50,23 +50,23 @@ test('resolveSyncTask rejects explicit remote paths outside the current sync job
     'synology:AnotherRoot/custom-target',
   ), {
     name: 'AppError',
-    code: APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_JOB,
+    code: APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_TASK,
   })
 })
 
-test('resolveSyncTask throws when no sync job matches the local path', () => {
+test('resolveSyncTask throws when no sync task matches the local path', () => {
   const config = createConfig()
 
   assert.throws(() => resolveSyncTask(config, 'test/fixtures/scan/nested'), {
     name: 'AppError',
-    code: APP_ERROR_CODE.CONFIG_NO_MATCHING_SYNC_JOB,
+    code: APP_ERROR_CODE.CONFIG_NO_MATCHING_SYNC_TASK,
   })
 })
 
 test('resolveSyncTask allows syncing to the remote root when remoteBasePath is empty', () => {
   const config = {
     globalIgnorePatterns: [],
-    syncJobs: [
+    syncTasks: [
       {
         name: 'ProjectsSynced',
         rcloneRemote: 'synology',

@@ -1,14 +1,42 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRcloneRemote, testRcloneRemote } from '#src/app/rclone-config.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 
-export function createSyncTaskModalWindow(parentWindow, modalName) {
+export function createSyncTaskModalHandlers(options = {}) {
+  const { appModelAccess = {} } = options
+
+  return {
+    async listServers() {
+      const result = await appModelAccess.getAppModel?.()
+      if (!result?.success)
+        return { success: false, servers: [], error: result?.error || 'Failed to load servers.' }
+
+      return { success: true, servers: result.model?.servers || [] }
+    },
+
+    async testRemote(_event, payload) {
+      return testRcloneRemote(payload?.remoteName)
+    },
+
+    async createRemote(_event, payload) {
+      const result = await createRcloneRemote(payload)
+      if (result.success)
+        await appModelAccess.refreshAppModel?.()
+
+      return result
+    },
+  }
+}
+
+export function createSyncTaskModalWindow(parentWindow, modalName, appModelAccess = {}) {
   const { BrowserWindow, ipcMain } = require('electron')
   const modalState = { modalName }
+  const handlers = createSyncTaskModalHandlers({ appModelAccess })
 
   const modalWindow = new BrowserWindow({
     width: 600,
@@ -36,6 +64,9 @@ export function createSyncTaskModalWindow(parentWindow, modalName) {
   }
 
   ipcMain.handle('sync-task-modal:close', closeModal)
+  ipcMain.handle('sync-task-modal:list-servers', handlers.listServers)
+  ipcMain.handle('sync-task-modal:test-remote', handlers.testRemote)
+  ipcMain.handle('sync-task-modal:create-remote', handlers.createRemote)
 
   ipcMain.once('sync-task-modal:ready', (event, payload) => {
     if (!modalWindow.isDestroyed()) {
@@ -46,6 +77,9 @@ export function createSyncTaskModalWindow(parentWindow, modalName) {
 
   modalWindow.on('closed', () => {
     ipcMain.removeHandler('sync-task-modal:close')
+    ipcMain.removeHandler('sync-task-modal:list-servers')
+    ipcMain.removeHandler('sync-task-modal:test-remote')
+    ipcMain.removeHandler('sync-task-modal:create-remote')
   })
 
   modalWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {

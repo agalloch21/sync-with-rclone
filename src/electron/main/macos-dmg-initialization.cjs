@@ -132,7 +132,7 @@ async function ensureMacAppSupport(version) {
     `${JSON.stringify({
       globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
       excludeFromFiles: ['.gitignore', '.rcloneignore'],
-      syncJobs: [],
+      syncTasks: [],
     }, null, 2)}\n`,
   )
 

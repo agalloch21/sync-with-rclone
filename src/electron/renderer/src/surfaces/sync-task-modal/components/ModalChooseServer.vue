@@ -1,28 +1,60 @@
-<script setup lang="ts">
+<script setup>
 import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
 import Button from '#src/electron/renderer/src/shared/components/Button.vue'
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import ModalShell from './ModalShell.vue'
 
 const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
 const selectedPlan = ref('choose-from-existing')
-const selectedOption = ref('synology')
+const selectedRemoteName = ref('')
+const servers = ref([])
+const isLoading = ref(false)
+const errorMessage = ref('')
 
-const options = [
-  { value: 'synology', label: 'synology => http://nas.agalloch21.com:5005' },
-  { value: 'synology-ftp', label: 'synology-ftp => nas.agalloch21.com' },
-  { value: 'synology-sftp', label: 'synology-sftp => nas.agalloch21.com' },
-  { value: 'fake-remote', label: 'fake-remote => /Users/xiaobo/NAS/ProjectsSynced/2025.11.2_sync-with-remote/code/sync-with-rclone/test/fixtures/fake-remote' },
-]
+const availableServers = computed(() => servers.value.filter(server => server.status !== 'missing'))
+const canChooseExisting = computed(() => availableServers.value.length > 0)
+
+onMounted(loadServers)
+
+async function loadServers() {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  const result = await window.syncTaskModal?.listServers?.()
+  if (!result?.success) {
+    errorMessage.value = result?.error || 'Failed to load servers.'
+    isLoading.value = false
+    return
+  }
+
+  servers.value = result.servers || []
+  selectedRemoteName.value = availableServers.value[0]?.name || ''
+  if (availableServers.value.length === 0)
+    selectedPlan.value = 'create-new'
+
+  isLoading.value = false
+}
 function onClickNext() {
-  // check connection first
+  errorMessage.value = ''
 
-  // if connection is valid, go to next modal
-  const nextModalName = selectedPlan.value === 'choose-from-existing' ? SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING : SYNC_TASK_MODALS.CREATE_SERVER
-  emit('onClickNext', nextModalName)
+  if (selectedPlan.value === 'choose-from-existing') {
+    if (!selectedRemoteName.value) {
+      errorMessage.value = 'Choose a remote server first.'
+      return
+    }
 
-  // if not, stay in this modal and show the error message
+    emit('onClickNext', SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING, {
+      selectedRemoteName: selectedRemoteName.value,
+    })
+    return
+  }
+
+  emit('onClickNext', SYNC_TASK_MODALS.CREATE_SERVER)
+}
+
+function getServerLabel(server) {
+  return server.address ? `${server.name} - ${server.address}` : server.name
 }
 </script>
 
@@ -46,14 +78,23 @@ function onClickNext() {
             <span class="option-text">Choose from the existing servers</span>
             <select
               id="department"
-              v-model="selectedOption"
+              v-model="selectedRemoteName"
+              :disabled="isLoading || !canChooseExisting"
               class="from-select block w-80 rounded-md border border-gray-300 shadow-sm
               py-2 pl-3 pr-10 text-xs font-medium text-(--text-subtle)
               focus:outline-none focus:ring-(--primary)"
             >
-              <option v-for="item in options" :key="item.value" :value="item.value">
-                {{ item.label }}
+              <option v-if="isLoading" value="">
+                Loading servers...
               </option>
+              <option v-else-if="!canChooseExisting" value="">
+                No configured servers
+              </option>
+              <template v-else>
+                <option v-for="item in availableServers" :key="item.name" :value="item.name">
+                  {{ getServerLabel(item) }}
+                </option>
+              </template>
             </select>
           </div>
 
@@ -72,6 +113,9 @@ function onClickNext() {
           </div>
           <span class="option-text">Connect to a new server</span>
         </label>
+        <p v-if="errorMessage" class="text-xs text-red-600 px-10">
+          {{ errorMessage }}
+        </p>
       </div>
     </div>
     <template #footer>

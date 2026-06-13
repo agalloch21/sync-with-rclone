@@ -132,25 +132,31 @@ C:/Program Files/sync-with-rclone/config/
     ".DS_Store",
     "Thumbs.db"
   ],
-  "syncJobs": [
+  "syncTasks": [
     {
       "name": "ProjectsSynced",
       "rcloneRemote": "synology-sftp",
       "localBasePath": "D:/ProjectsSynced",
       "remoteBasePath": "ProjectsSynced",
-      "ignorePatterns": []
+      "ignorePatterns": [],
+      "lastSyncMode": null,
+      "lastSyncFolder": null,
+      "lastSyncDate": null
     }
   ]
 }
 ```
 
 - `globalIgnorePatterns`: 全局忽略规则，作用于所有同步任务，规则语法按 `.gitignore` 风格理解。
-- `syncJobs`: 同步任务列表。每次从某个本地目录发起同步时，程序会从这里找出匹配的任务。
-- `syncJobs[].name`: 任务名称，用于标识这组同步关系，当前主要用于可读性和后续扩展。
-- `syncJobs[].rcloneRemote`: `rclone.conf` 中定义的 remote 名称，例如 `synology-sftp`。
-- `syncJobs[].localBasePath`: 本地根目录。当前右键触发的目录必须落在这个目录下，程序才会认为它属于该任务。
-- `syncJobs[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology-sftp:ProjectsSynced` 这样的根路径；如果想直接同步到 remote 根目录，可以写成空字符串 `""`。
-- `syncJobs[].ignorePatterns`: 只对当前任务生效的额外忽略规则，会和 `globalIgnorePatterns` 合并。
+- `syncTasks`: 同步任务列表。每次从某个本地目录发起同步时，程序会从这里找出匹配的任务。
+- `syncTasks[].name`: 任务名称，用于标识这组同步关系，当前主要用于可读性和后续扩展。
+- `syncTasks[].rcloneRemote`: `rclone.conf` 中定义的 remote 名称，例如 `synology-sftp`。
+- `syncTasks[].localBasePath`: 本地根目录。当前右键触发的目录必须落在这个目录下，程序才会认为它属于该任务。
+- `syncTasks[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology-sftp:ProjectsSynced` 这样的根路径；如果想直接同步到 remote 根目录，可以写成空字符串 `""`。
+- `syncTasks[].ignorePatterns`: 只对当前任务生效的额外忽略规则，会和 `globalIgnorePatterns` 合并。
+- `syncTasks[].lastSyncMode`: 上一次同步方向，当前可为空。
+- `syncTasks[].lastSyncFolder`: 上一次同步的相对文件夹，当前可为空。
+- `syncTasks[].lastSyncDate`: 上一次同步时间，建议使用 ISO 字符串，当前可为空。
 
 ### 推荐远端协议
 
@@ -176,7 +182,7 @@ shell_type = unix
 
 - 如果触发目录是 `localBasePath` 本身，则默认同步到对应的远端根目录。
 - 如果触发目录是 `localBasePath` 的子目录，则会把相对子路径追加到远端根目录后面。
-- 多个 `syncJobs` 同时命中时，当前实现会优先选择 `localBasePath` 更长、更具体的那一项。
+- 多个 `syncTasks` 同时命中时，当前实现会优先选择 `localBasePath` 更长、更具体的那一项。
 
 ### 环境变量
 

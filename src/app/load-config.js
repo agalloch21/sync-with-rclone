@@ -12,27 +12,30 @@ function normalizeConfig(rawConfig) {
   if (!rawConfig || typeof rawConfig !== 'object')
     throw new Error('Config must be an object')
 
-  if (!Array.isArray(rawConfig.syncJobs))
-    throw new Error('Config must contain syncJobs')
+  if (!Array.isArray(rawConfig.syncTasks))
+    throw new Error('Config must contain syncTasks')
 
   return {
     globalIgnorePatterns: Array.isArray(rawConfig.globalIgnorePatterns) ? rawConfig.globalIgnorePatterns : [],
-    syncJobs: rawConfig.syncJobs.map((job, index) => {
-      if (!job?.name)
-        throw new Error(`syncJobs[${index}].name is required`)
-      if (!job?.rcloneRemote)
-        throw new Error(`syncJobs[${index}].rcloneRemote is required`)
-      if (!job?.localBasePath)
-        throw new Error(`syncJobs[${index}].localBasePath is required`)
-      if (!Object.hasOwn(job ?? {}, 'remoteBasePath'))
-        throw new Error(`syncJobs[${index}].remoteBasePath is required`)
+    syncTasks: rawConfig.syncTasks.map((task, index) => {
+      if (!task?.name)
+        throw new Error(`syncTasks[${index}].name is required`)
+      if (!task?.rcloneRemote)
+        throw new Error(`syncTasks[${index}].rcloneRemote is required`)
+      if (!task?.localBasePath)
+        throw new Error(`syncTasks[${index}].localBasePath is required`)
+      if (!Object.hasOwn(task ?? {}, 'remoteBasePath'))
+        throw new Error(`syncTasks[${index}].remoteBasePath is required`)
 
       return {
-        name: job.name,
-        rcloneRemote: job.rcloneRemote,
-        localBasePath: normalizeLocalPath(path.resolve(job.localBasePath)),
-        remoteBasePath: normalizeLocalPath(job.remoteBasePath),
-        ignorePatterns: Array.isArray(job.ignorePatterns) ? job.ignorePatterns : [],
+        name: task.name,
+        rcloneRemote: task.rcloneRemote,
+        localBasePath: normalizeLocalPath(path.resolve(task.localBasePath)),
+        remoteBasePath: normalizeLocalPath(task.remoteBasePath),
+        ignorePatterns: Array.isArray(task.ignorePatterns) ? task.ignorePatterns : [],
+        lastSyncMode: task.lastSyncMode || null,
+        lastSyncFolder: task.lastSyncFolder || null,
+        lastSyncDate: task.lastSyncDate || null,
       }
     }),
   }

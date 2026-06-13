@@ -41,10 +41,10 @@ function onClickArrow() {
           </p>
           <div class="server-meta flex items-center gap-1 text-(--text-subtle)">
             <p class="server-address text-xs max-w-60 line-clamp-1 break-all">
-              {{ server?.url || server?.host || server?.remote }}
+              {{ server?.address }}
             </p>
             <div class="server-type text-[0.5rem] px-1 rounded-md border-[0.5px] border-(--text-subtle) content-center">
-              {{ server?.type }}
+              {{ server?.status === 'missing' ? 'missing' : server?.type }}
             </div>
           </div>
         </div>

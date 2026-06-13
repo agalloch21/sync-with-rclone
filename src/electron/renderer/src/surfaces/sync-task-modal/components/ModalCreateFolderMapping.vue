@@ -5,6 +5,12 @@ import FolderCard from '../../sync-session/components/FolderCard.vue'
 import ModalShell from './ModalShell.vue'
 
 defineEmits(['onClickCancel', 'onClickConfirm'])
+defineProps({
+  wizardState: {
+    type: Object,
+    default: () => ({}),
+  },
+})
 
 const localBasePath = ref('/Users/xiaobo/NAS/ProjectsSynced')
 const remoteBasePath = ref('ProjectsSynced')
@@ -18,6 +24,9 @@ function getBaseName(folderPath) {
   <ModalShell :title="$t('syncTasks.modals.createFolderMapping.title')" :message="$t('syncTasks.modals.createFolderMapping.message')">
     <div class="content-stage h-full flex justify-center items-center">
       <div class="flex flex-col justify-center gap-8">
+        <p v-if="wizardState.selectedRemoteName" class="text-sm text-(--text-primary) font-semibold">
+          Remote: {{ wizardState.selectedRemoteName }}
+        </p>
         <div>
           <FolderCard side="local" :role="getBaseName(localBasePath)" :content="localBasePath" />
           <Button>Choose Folder</Button>

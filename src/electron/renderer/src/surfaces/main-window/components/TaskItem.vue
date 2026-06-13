@@ -33,7 +33,7 @@ const props = defineProps({
             <span class="extra-info-label">{{ $t('syncTasks.task.extra.remoteFolderLabel') }}:</span>
           </dt>
           <dd class="break-all line-clamp-2">
-            {{ props.task?.remoteBasePath }}ProjectsSyncedProjectsSynced
+            {{ props.task?.rcloneRemote }}:{{ props.task?.remoteBasePath }}
           </dd>
         </div>
         <div class="extra-info-row">
@@ -43,10 +43,10 @@ const props = defineProps({
           </dt>
           <dd class="flex flex-col">
             <p class="break-all line-clamp-1">
-              Push | 2026-06-07 23:32:38
+              {{ props.task?.lastSyncMode || '-' }} | {{ props.task?.lastSyncDate || '-' }}
             </p>
             <p class="">
-              ./subfolder
+              {{ props.task?.lastSyncFolder || '-' }}
             </p>
           </dd>
         </div>

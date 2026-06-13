@@ -15,6 +15,9 @@ const { t } = useI18n()
 
 const state = window.syncTaskModal?.getState?.() || { modalName: '' }
 const modalName = ref(state.modalName)
+const wizardState = ref({
+  selectedRemoteName: '',
+})
 const title = computed(() => modalName.value?.length > 0 ? t(`syncTasks.modals.${modalName.value}.title`) : '')
 
 const ACTION_COMPONENT = {
@@ -34,7 +37,11 @@ function closeModal() {
   window.syncTaskModal?.close?.()
 }
 
-function onClickNext(newModalName) {
+function onClickNext(newModalName, payload = {}) {
+  wizardState.value = {
+    ...wizardState.value,
+    ...payload,
+  }
   modalName.value = newModalName
 }
 
@@ -51,6 +58,12 @@ onMounted(async () => {
 
 <template>
   <div class="task-modal-dock">
-    <component :is="modalComponent" @on-click-cancel="closeModal" @on-click-next="onClickNext" @on-click-confirm="onClickConfirm" />
+    <component
+      :is="modalComponent"
+      :wizard-state="wizardState"
+      @on-click-cancel="closeModal"
+      @on-click-next="onClickNext"
+      @on-click-confirm="onClickConfirm"
+    />
   </div>
 </template>

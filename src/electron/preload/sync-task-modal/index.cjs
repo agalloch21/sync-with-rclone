@@ -10,6 +10,15 @@ contextBridge.exposeInMainWorld('syncTaskModal', {
   close() {
     return ipcRenderer.invoke('sync-task-modal:close')
   },
+  listServers() {
+    return ipcRenderer.invoke('sync-task-modal:list-servers')
+  },
+  testRemote(remoteName) {
+    return ipcRenderer.invoke('sync-task-modal:test-remote', { remoteName })
+  },
+  createRemote(payload) {
+    return ipcRenderer.invoke('sync-task-modal:create-remote', payload)
+  },
   ready(payload) {
     ipcRenderer.send('sync-task-modal:ready', payload)
   },

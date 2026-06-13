@@ -1,29 +1,5 @@
-import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
-import { startSync } from '#src/app/sync-session/start-sync.js'
-import { SYNC_RESULT } from '#src/core/contract.js'
-import { reviewDiffInCli } from './review.js'
+import { runCli } from './commands.js'
 
-const options = parseSyncArgs(process.argv.slice(2))
-
-;(async () => {
-  try {
-    const result = await startSync(options, {
-      interactions: {
-        reviewDiff: reviewDiffInCli,
-      },
-    })
-
-    if (result.result === SYNC_RESULT.FAILED) {
-      console.error(`Error: ${result.message}`)
-      if (result.error?.stack && process.env.DEBUG)
-        console.error(result.error.stack)
-      process.exit(1)
-    }
-  }
-  catch (error) {
-    console.error(`Error: ${error.message}`)
-    if (error.stack && process.env.DEBUG)
-      console.error(error.stack)
-    process.exit(1)
-  }
-})()
+const exitCode = await runCli(process.argv.slice(2))
+if (exitCode !== 0)
+  process.exit(exitCode)

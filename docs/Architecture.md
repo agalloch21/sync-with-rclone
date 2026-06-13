@@ -56,6 +56,20 @@ templates/     // 默认配置模板
 - app 负责把 shell 的输入整理成 core 的输入
 - electron 负责桌面壳层和窗口，不直接承担同步业务
 - cli 负责命令行壳层和终端交互
+- cli 不作为 Electron UI 的下层依赖；UI 通过 Electron Main 调用 app 层能力
+- Electron Main 可以在进程入口处把命令行参数分发给 cli 壳层，这是打包入口职责，不代表 UI 依赖 cli
+- cli 和 electron 都只能依赖 app / core，不允许 app / core 反向依赖 cli 或 electron
+
+当前打包方向采用“一个 Electron 可执行文件，两个运行模式”：
+
+```text
+sync-with-rclone                 -> 启动桌面 UI
+sync-with-rclone list-tasks      -> 命令模式，列出同步任务
+sync-with-rclone list-servers    -> 命令模式，列出 rclone remotes
+sync-with-rclone sync push ...   -> 命令模式，执行同步
+```
+
+在这个模式下，`src/cli/` 仍然是独立的命令行壳层：它负责参数路由、终端输出和终端 review。`src/electron/main/index.cjs` 只是产品可执行文件的统一入口，可以根据 argv 选择进入桌面窗口、同步会话窗口或命令模式。Renderer 不调用 `src/cli/`，它只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
 
 
 ## 3. Electron、Vite、Renderer、Core 的关系
@@ -99,6 +113,7 @@ sequenceDiagram
 - `Vite` 的作用不是参与运行时通信，而是把 renderer 源码编译成 Electron 可加载的页面
 - `CLI` 不是为了测试临时补出来的旁路，而是当前架构下的独立 shell 入口
 - `CLI` 的存在也使 core 更容易独立运行、测试和排查
+- 打包后可以由同一个 Electron 可执行文件承接 CLI 命令；这是入口分发，不改变 CLI 与 Electron UI 的依赖边界
 - `Electron Main` 使用 `startSync(...)` 的返回值推进 final 流程，不依赖 `session.result` event 推进控制流
 - `Renderer` 负责按钮 pending 和重复点击防护；`Electron Main` 负责窗口生命周期和同步取消适配
 

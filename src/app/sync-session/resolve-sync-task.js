@@ -2,8 +2,8 @@ import path from 'node:path'
 import { APP_ERROR_CODE, AppError } from '../app-errors.js'
 import { resolveLocalDirectoryPath, trimTrailingSlash } from '../path-utils.js'
 
-function buildRemoteRoot(syncJob) {
-  return `${syncJob.rcloneRemote}:${trimTrailingSlash(syncJob.remoteBasePath)}`
+function buildRemoteRoot(syncTask) {
+  return `${syncTask.rcloneRemote}:${trimTrailingSlash(syncTask.remoteBasePath)}`
 }
 
 function joinRemotePath(remoteRoot, relativePath) {
@@ -22,37 +22,37 @@ export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPat
     return null
 
   const normalizedLocalPath = resolveLocalDirectoryPath(localFolderPath)
-  const candidates = config.syncJobs
-    .filter((syncJob) => {
-      const localRoot = trimTrailingSlash(syncJob.localBasePath)
+  const candidates = config.syncTasks
+    .filter((syncTask) => {
+      const localRoot = trimTrailingSlash(syncTask.localBasePath)
       return normalizedLocalPath === localRoot || normalizedLocalPath.startsWith(`${localRoot}/`)
     })
     .sort((left, right) => right.localBasePath.length - left.localBasePath.length)
 
-  const syncJob = candidates[0]
-  if (!syncJob)
-    throw new AppError(APP_ERROR_CODE.CONFIG_NO_MATCHING_SYNC_JOB, `No syncJob matches local path: ${normalizedLocalPath}`, { path: normalizedLocalPath })
+  const syncTask = candidates[0]
+  if (!syncTask)
+    throw new AppError(APP_ERROR_CODE.CONFIG_NO_MATCHING_SYNC_TASK, `No syncTask matches local path: ${normalizedLocalPath}`, { path: normalizedLocalPath })
 
-  const relativePath = path.posix.relative(syncJob.localBasePath, normalizedLocalPath) || '.'
-  const remoteRoot = buildRemoteRoot(syncJob)
+  const relativePath = path.posix.relative(syncTask.localBasePath, normalizedLocalPath) || '.'
+  const remoteRoot = buildRemoteRoot(syncTask)
   const defaultRemoteFolderPath = joinRemotePath(remoteRoot, relativePath)
 
   if (explicitRemoteFolderPath && !isWithinRemoteRoot(explicitRemoteFolderPath, remoteRoot)) {
     throw new AppError(
-      APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_JOB,
-      `Remote path must stay within syncJob '${syncJob.name}': ${explicitRemoteFolderPath}`,
-      { syncJobName: syncJob.name, remotePath: explicitRemoteFolderPath, remoteRoot },
+      APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_TASK,
+      `Remote path must stay within syncTask '${syncTask.name}': ${explicitRemoteFolderPath}`,
+      { syncTaskName: syncTask.name, remotePath: explicitRemoteFolderPath, remoteRoot },
     )
   }
 
   return {
-    matchedJob: syncJob,
+    matchedTask: syncTask,
     localFolderPath: normalizedLocalPath,
     relativePath,
     remoteFolderPath: explicitRemoteFolderPath || defaultRemoteFolderPath,
     extraIgnorePatterns: [
       ...config.globalIgnorePatterns,
-      ...syncJob.ignorePatterns,
+      ...syncTask.ignorePatterns,
     ],
   }
 }

@@ -57,7 +57,7 @@ templates/     // 默认配置模板
 - electron 负责桌面壳层和窗口，不直接承担同步业务
 - cli 负责命令行壳层和终端交互
 - cli 不作为 Electron UI 的下层依赖；UI 通过 Electron Main 调用 app 层能力
-- Electron Main 可以在进程入口处把命令行参数分发给 cli 壳层，这是打包入口职责，不代表 UI 依赖 cli
+- Electron Main 在进程入口处把命令行参数分发给 cli 壳层，这是打包入口职责，不代表 UI 依赖 cli
 - cli 和 electron 都只能依赖 app / core，不允许 app / core 反向依赖 cli 或 electron
 
 当前打包方向采用“一个 Electron 可执行文件，两个运行模式”：

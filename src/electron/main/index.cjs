@@ -1,4 +1,5 @@
 const { app, dialog } = require('electron')
+const { isCliCommandMode, runCliCommand } = require('./cli-dispatch.cjs')
 // const { initializeMacSetupIfNeeded } = require('./macos-dmg-initialization.cjs')
 
 let isSyncInProgress = false
@@ -6,6 +7,11 @@ const SESSION_FLAGS = new Set(['--session', '--sync-session'])
 
 async function showStartupError(error) {
   console.error(error)
+
+  if (isCliCommandMode(process.argv)) {
+    app.exit(1)
+    return
+  }
 
   await dialog.showMessageBox({
     type: 'error',
@@ -27,17 +33,23 @@ app.on('window-all-closed', () => {
 })
 
 async function main() {
-  const argv = process.argv.slice(2)
-  const [{ runMainWindow }, { runSyncSession }] = await Promise.all([
-    import('./main-window/runner.js'),
-    import('./sync-session/runner.js'),
-  ])
+  const argv = process.argv.slice(1)
 
-  if (!argv.some(arg => SESSION_FLAGS.has(arg))) {
-    await runMainWindow()
+  if (argv.some(arg => SESSION_FLAGS.has(arg)))
+    return runSyncSessionMode(argv)
+
+  if (isCliCommandMode(process.argv)) {
+    const exitCode = await runCliCommand(process.argv)
+    app.exit(exitCode)
     return
   }
 
+  const { runMainWindow } = await import('./main-window/runner.js')
+  await runMainWindow()
+}
+
+async function runSyncSessionMode(argv) {
+  const { runSyncSession } = await import('./sync-session/runner.js')
   isSyncInProgress = true
   let exitCode = 1
   try {

@@ -66,7 +66,7 @@ Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv�
 
 
 ### 4. 使用 Electron 运行
-Electron 是当前桌面主入口，用于右键菜单、sync-session 窗口等桌面交互
+Electron 是当前桌面主入口，用于桌面 UI、右键菜单、sync-session 窗口和打包后的命令模式。
 
 ```bash
 npm run start:desktop
@@ -81,6 +81,14 @@ node ./src/electron/main/index.js --session push <local-path> <remote-path>
 ```
 
 这条命令会由 Node 入口转交给 Electron，再进入桌面链路。
+
+打包后的 Electron 可执行文件也可以作为命令入口使用：
+
+```bash
+sync-with-rclone list-servers
+sync-with-rclone list-tasks --json
+sync-with-rclone sync push <local-path> <remote-path>
+```
 
 ### 5. 使用开发模式实时预览 renderer
 如果你正在调整桌面界面或 renderer 样式，推荐直接使用对应的开发模式。

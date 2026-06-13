@@ -120,16 +120,16 @@ async function submitServer({ advance }) {
 <style scoped>
 @reference "tailwindcss";
 .server-form-grid{
-  @apply grid grid-cols-[7rem_20rem] items-start gap-x-4 gap-y-4 text-sm text-(--text-primary);
+  @apply grid grid-cols-[7rem_20rem] items-start gap-x-4 text-xs text-(--text-primary);
 }
 .field-label{
-  @apply text-right font-medium leading-9;
+  @apply text-right font-medium leading-4;
 }
 .field-control-dock{
   @apply min-w-0;
 }
 .field-control{
-  @apply w-full border-0 border-b border-(--text-subtle) bg-transparent px-2 py-1.5 text-center text-sm text-(--text-subtle) outline-none;
+  @apply w-full border-0 border-b border-(--text-subtle) bg-transparent px-2 py-0.5 text-center text-sm text-(--text-subtle) outline-none;
 }
 .field-select{
   @apply text-center;

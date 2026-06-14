@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { getDefaultConfigPath, loadConfig } from '#src/app/load-config.js'
+import { ensureConfig, getDefaultConfigPath, loadConfig } from '#src/app/load-config.js'
 import { getDefaultAppDirectory } from '#src/app/runtime-paths.js'
 
 test('getDefaultConfigPath uses the application name constant', () => {
@@ -123,4 +123,35 @@ test('loadConfig defaults to APP_ROOT_PATH config subdirectory', async () => {
   assert.equal(config.path, configPath.replaceAll(path.sep, path.posix.sep))
 
   delete process.env.APP_ROOT_PATH
+})
+
+test('ensureConfig creates a default config when config is missing', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-ensure-config-'))
+  const configDirectory = path.join(tempDir, 'config')
+  const configPath = path.join(configDirectory, 'config.json')
+
+  const result = await ensureConfig({ configDirectory, configPath })
+
+  assert.deepEqual(result, { configCreated: true, configPath })
+  assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
+    globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+    syncTasks: [],
+  })
+})
+
+test('ensureConfig does not overwrite an existing config', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-ensure-config-existing-'))
+  const configDirectory = path.join(tempDir, 'config')
+  const configPath = path.join(configDirectory, 'config.json')
+
+  await fs.mkdir(configDirectory, { recursive: true })
+  await fs.writeFile(configPath, JSON.stringify({ globalIgnorePatterns: ['keep'], syncTasks: [] }))
+
+  const result = await ensureConfig({ configDirectory, configPath })
+
+  assert.deepEqual(result, { configCreated: false, configPath })
+  assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
+    globalIgnorePatterns: ['keep'],
+    syncTasks: [],
+  })
 })

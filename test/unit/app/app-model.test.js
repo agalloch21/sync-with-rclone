@@ -31,15 +31,16 @@ test('createServersFromSyncTasks creates app-facing server records with status',
   ])
 
   assert.deepEqual(servers, [
-    { name: 'server-a', type: 'sftp', address: 'nas.local', status: 'unknown' },
-    { name: 'server-b', type: 'ftp', address: 'ftp.local', status: 'unknown' },
-    { name: 'server-missing', type: null, address: '', status: 'missing' },
+    { name: 'server-a', type: 'sftp', address: 'nas.local', options: { host: 'nas.local' }, status: 'unknown' },
+    { name: 'server-b', type: 'ftp', address: 'ftp.local', options: { host: 'ftp.local' }, status: 'unknown' },
+    { name: 'server-missing', type: null, address: '', options: {}, status: 'missing' },
   ])
 })
 
 test('loadAppModel returns full config data and enriched tasks', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-app-model-'))
   const configPath = path.join(tempDir, 'config.json')
+  const rcloneConfigPath = path.join(tempDir, 'rclone.conf')
 
   await fs.writeFile(configPath, JSON.stringify({
     globalIgnorePatterns: ['.DS_Store'],
@@ -56,11 +57,12 @@ test('loadAppModel returns full config data and enriched tasks', async () => {
       },
     ],
   }, null, 2))
+  await fs.writeFile(rcloneConfigPath, '[synology]\ntype = sftp\n')
 
   const runtime = {
     dependents: {
       async runCommand() {
-        return { stdout: JSON.stringify({ synology: { type: 'sftp', host: 'nas.local' } }) }
+        return { stdout: JSON.stringify({ synology: { type: 'sftp', host: 'nas.local', user: 'xiaobo' } }) }
       },
     },
   }
@@ -68,13 +70,22 @@ test('loadAppModel returns full config data and enriched tasks', async () => {
   const model = await loadAppModel({
     bundledRclonePath: '/bin/rclone',
     configPath,
-    rcloneConfigPath: '/app/rclone.conf',
+    rcloneConfigPath,
   }, runtime)
 
   assert.deepEqual(model.globalIgnorePatterns, ['.DS_Store'])
   assert.equal(model.syncTasks[0].name, 'Projects')
   assert.deepEqual(model.servers, [
-    { name: 'synology', type: 'sftp', address: 'nas.local', status: 'unknown' },
+    {
+      name: 'synology',
+      type: 'sftp',
+      address: 'nas.local',
+      options: {
+        host: 'nas.local',
+        user: 'xiaobo',
+      },
+      status: 'unknown',
+    },
   ])
   assert.equal(Object.hasOwn(model, 'remotes'), false)
 })

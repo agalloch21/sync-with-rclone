@@ -231,8 +231,9 @@ mac 当前推荐使用 `pkg` 安装。
 运行 `.pkg` 安装器后，程序会安装到 `/Applications/sync-with-rclone.app`，并在安装阶段完成：
 
 - 创建 `~/Library/Application Support/sync-with-rclone/config/`
-- 准备 `config.json` 和 `rclone.conf` 模板
 - 注册 Finder 右键 Quick Actions
+
+首次启动时，应用会在缺少 `config.json` 时创建默认配置；`rclone.conf` 由 rclone 在创建 remote 时管理，缺失时表示当前没有 servers。
 
 `dmg` / `zip` 产物仍可用于开发验证和手动安装，但当前不作为主要安装初始化链路。使用这类产物时，需要手动确认配置目录和 Finder Quick Actions 已经准备好。
 

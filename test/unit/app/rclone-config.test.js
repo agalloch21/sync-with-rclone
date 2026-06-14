@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import test from 'node:test'
 import {
   createRcloneRemote,
@@ -25,18 +28,13 @@ test('parseRcloneRemotesFromConfigDump converts rclone config JSON to sorted rcl
     {
       name: 'fake',
       type: 'alias',
-      host: '',
-      url: '',
       remote: '/tmp/fake',
-      endpoint: '',
     },
     {
       name: 'synology-sftp',
       type: 'sftp',
       host: 'nas.local',
-      url: '',
-      remote: '',
-      endpoint: '',
+      user: 'xiaobo',
     },
   ])
 })
@@ -49,6 +47,9 @@ test('getRcloneRemoteAddress normalizes protocol-specific address fields for dis
 })
 
 test('listRcloneRemotes runs rclone config dump', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-rclone-config-'))
+  const rcloneConfigPath = path.join(tempDir, 'rclone.conf')
+  await fs.writeFile(rcloneConfigPath, '[demo]\ntype = sftp\n')
   const calls = []
   const runtime = {
     dependents: {
@@ -59,12 +60,35 @@ test('listRcloneRemotes runs rclone config dump', async () => {
     },
   }
 
-  const remotes = await listRcloneRemotes({ bundledRclonePath: '/bin/rclone', rcloneConfigPath: '/app/rclone.conf' }, runtime)
+  const remotes = await listRcloneRemotes({ bundledRclonePath: '/bin/rclone', rcloneConfigPath }, runtime)
 
   assert.deepEqual(calls, [
-    { command: '/bin/rclone', args: ['--config', '/app/rclone.conf', 'config', 'dump'] },
+    { command: '/bin/rclone', args: ['--config', rcloneConfigPath, 'config', 'dump'] },
   ])
   assert.equal(remotes[0].name, 'demo')
+})
+
+test('listRcloneRemotes lets rclone treat a missing config as no remotes', async () => {
+  const calls = []
+  const remotes = await listRcloneRemotes({
+    bundledRclonePath: '/bin/rclone',
+    rcloneConfigPath: '/tmp/sync-with-rclone/missing-rclone.conf',
+  }, {
+    dependents: {
+      async runCommand(command, args) {
+        calls.push({ command, args })
+        return { stdout: '{}' }
+      },
+    },
+  })
+
+  assert.deepEqual(remotes, [])
+  assert.deepEqual(calls, [
+    {
+      command: '/bin/rclone',
+      args: ['--config', '/tmp/sync-with-rclone/missing-rclone.conf', 'config', 'dump'],
+    },
+  ])
 })
 
 test('testRcloneRemote probes the remote root', async () => {

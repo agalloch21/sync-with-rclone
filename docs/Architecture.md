@@ -48,7 +48,6 @@ scripts/       // 非运行时代码
   build/       // 打包校验、产物准备脚本
   install/     // 安装器脚本、安装辅助脚本
 resources/     // bundled binaries、图标等静态资源
-templates/     // 默认配置模板
 ```
 
 **层级边界:**
@@ -415,7 +414,7 @@ sequenceDiagram
 
 1. Vite 先构建 renderer 页面
 2. electron-builder 收集 Electron main、preload、renderer 构建产物
-3. 打包时附带 resources/ 和 templates/
+3. 打包时附带需要运行的 resources/ 内容
 4. Windows 下由 NSIS 生成安装器
 5. 安装器负责注册右键菜单
 
@@ -423,8 +422,8 @@ sequenceDiagram
 
 1. 用户运行安装器
 2. 安装器写入程序文件
-3. 安装器把默认 `config.json` / `rclone.conf` 初始化到安装目录下的 `config/`
-4. 安装器分发 templates/ 和 bundled binaries
+3. 安装器准备配置目录和系统集成；默认 `config.json` 由应用启动时创建
+4. 安装器分发 bundled binaries 和安装脚本
 5. 安装器注册右键菜单
 6. 用户后续通过右键菜单或 CLI 启动程序
 
@@ -442,7 +441,6 @@ Windows 当前安装后的目录结构可按下面理解：
   resources/
     app.asar
     binaries/
-    templates/
 
 含义是：
 

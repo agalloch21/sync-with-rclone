@@ -14,15 +14,11 @@ const EXPECTED_WORKFLOWS = [
   'Sync with Rclone - 3 Open Config.workflow',
 ]
 
-function getTemplatePath(name) {
-  return path.join(process.resourcesPath, 'templates', name)
-}
-
 async function ensureDirectory(directoryPath) {
   await fs.mkdir(directoryPath, { recursive: true })
 }
 
-async function ensureFile(targetPath, templatePath, fallbackContent) {
+async function ensureFile(targetPath, fallbackContent) {
   try {
     await fs.access(targetPath)
     return false
@@ -30,16 +26,7 @@ async function ensureFile(targetPath, templatePath, fallbackContent) {
   catch {}
 
   await ensureDirectory(path.dirname(targetPath))
-
-  try {
-    await fs.copyFile(templatePath, targetPath)
-  }
-  catch (error) {
-    if (error?.code !== 'ENOENT')
-      throw error
-
-    await fs.writeFile(targetPath, fallbackContent, 'utf8')
-  }
+  await fs.writeFile(targetPath, fallbackContent, 'utf8')
 
   return true
 }
@@ -128,18 +115,10 @@ async function ensureMacAppSupport(version) {
 
   const configCreated = await ensureFile(
     path.join(CONFIG_DIRECTORY, 'config.json'),
-    getTemplatePath('config.json.mac.example'),
     `${JSON.stringify({
       globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
-      excludeFromFiles: ['.gitignore', '.rcloneignore'],
       syncTasks: [],
     }, null, 2)}\n`,
-  )
-
-  const rcloneTemplateCreated = await ensureFile(
-    path.join(CONFIG_DIRECTORY, 'rclone.conf'),
-    getTemplatePath('rclone.conf.mac.example'),
-    '[example]\ntype = local\nnounc = true\n',
   )
 
   let contextMenuInstalled = false
@@ -151,7 +130,7 @@ async function ensureMacAppSupport(version) {
   }
 
   const contextMenuAlreadyInstalled = contextMenuInstalled || await hasInstalledContextMenuWorkflows()
-  const hasSetupChanges = configCreated || rcloneTemplateCreated || contextMenuInstalled
+  const hasSetupChanges = configCreated || contextMenuInstalled
   const shouldShowSetupDialog = configCreated
 
   return {
@@ -162,7 +141,7 @@ async function ensureMacAppSupport(version) {
     contextMenuAlreadyInstalled,
     contextMenuInstalled,
     hasSetupChanges,
-    rcloneTemplateCreated,
+    rcloneTemplateCreated: false,
     shouldShowSetupDialog,
   }
 }
@@ -185,8 +164,8 @@ async function initializeMacSetupIfNeeded(app, dialog, shell, localFolderPath) {
   const detail = [
     `Config: ${setup.configPath}`,
     `Quick Actions: ${setup.contextMenuInstalled ? 'installed or refreshed' : setup.contextMenuAlreadyInstalled ? 'already available' : 'not installed'}`,
-    setup.configCreated ? 'Created config.json from template.' : 'Reused existing config.json.',
-    setup.rcloneTemplateCreated ? 'Created rclone.conf template.' : 'Reused existing rclone.conf.',
+    setup.configCreated ? 'Created default config.json.' : 'Reused existing config.json.',
+    'rclone.conf is managed by rclone and is not initialized by the app.',
   ].join('\n')
 
   const { response } = await dialog.showMessageBox({

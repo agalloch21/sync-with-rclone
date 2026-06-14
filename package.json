@@ -51,10 +51,6 @@
     ],
     "extraResources": [
       {
-        "from": "resources/templates",
-        "to": "templates"
-      },
-      {
         "from": "scripts/install/macos-menu.sh",
         "to": "scripts/macos-menu.sh"
       },

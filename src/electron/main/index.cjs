@@ -34,6 +34,9 @@ app.on('window-all-closed', () => {
 
 async function main() {
   const argv = process.argv.slice(1)
+  const { ensureConfig } = await import('#src/app/load-config.js')
+
+  await ensureConfig()
 
   if (argv.some(arg => SESSION_FLAGS.has(arg)))
     return runSyncSessionMode(argv)

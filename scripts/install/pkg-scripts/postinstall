@@ -98,18 +98,8 @@ fi
 
 RESOURCES_PATH="$RESOLVED_APP_PATH/Contents/Resources"
 MENU_SCRIPT_PATH="$RESOURCES_PATH/scripts/macos-menu.sh"
-CONFIG_TEMPLATE_PATH="$RESOURCES_PATH/templates/config.json.mac.example"
-RCLONE_TEMPLATE_PATH="$RESOURCES_PATH/templates/rclone.conf.mac.example"
 APP_EXECUTABLE_PATH="$RESOLVED_APP_PATH/Contents/MacOS/sync-with-rclone"
 APP_VERSION="$(defaults read "$RESOLVED_APP_PATH/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || true)"
-
-if [[ -f "$CONFIG_TEMPLATE_PATH" && ! -f "$CONFIG_DIRECTORY/config.json" ]]; then
-  cp "$CONFIG_TEMPLATE_PATH" "$CONFIG_DIRECTORY/config.json"
-fi
-
-if [[ -f "$RCLONE_TEMPLATE_PATH" && ! -f "$CONFIG_DIRECTORY/rclone.conf" ]]; then
-  cp "$RCLONE_TEMPLATE_PATH" "$CONFIG_DIRECTORY/rclone.conf"
-fi
 
 chown -R "$CURRENT_USER":staff "$APP_SUPPORT_DIRECTORY"
 

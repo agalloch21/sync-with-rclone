@@ -22,11 +22,7 @@ export function parseRcloneRemotesFromConfigDump(stdout) {
   return Object.entries(config)
     .map(([name, rawRemote]) => ({
       name,
-      type: rawRemote?.type || '',
-      host: rawRemote?.host || '',
-      url: rawRemote?.url || '',
-      remote: rawRemote?.remote || '',
-      endpoint: rawRemote?.endpoint || '',
+      ...(rawRemote || {}),
     }))
     .sort((left, right) => left.name.localeCompare(right.name))
 }

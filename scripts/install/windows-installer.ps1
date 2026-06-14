@@ -132,19 +132,6 @@ function Ensure-Directory {
     }
 }
 
-function Ensure-ConfigFile {
-    param(
-        [Parameter(Mandatory = $true)][string]$TemplatePath,
-        [Parameter(Mandatory = $true)][string]$DestinationPath
-    )
-
-    if (Test-Path -LiteralPath $DestinationPath) {
-        return
-    }
-
-    Copy-Item -LiteralPath $TemplatePath -Destination $DestinationPath -Force
-}
-
 function Get-InstallerStateDirectory {
     if (-not [string]::IsNullOrWhiteSpace($env:SYNC_WITH_RCLONE_INSTALLER_STATE_DIR)) {
         return $env:SYNC_WITH_RCLONE_INSTALLER_STATE_DIR
@@ -304,17 +291,8 @@ try {
             Ensure-Directory -Path $ConfigDir
             Restore-ConfigDirectory -DestinationDir $ConfigDir
 
-            $configTemplate = Join-Path $ResourcesDir "templates\config.json.win.example"
-            $rcloneTemplate = Join-Path $ResourcesDir "templates\rclone.conf.win.example"
-            $configPath = Join-Path $ConfigDir "config.json"
-            $rcloneConfigPath = Join-Path $ConfigDir "rclone.conf"
-
-            Write-InstallerLog "ps1 install: config template=$configTemplate"
-            Write-InstallerLog "ps1 install: rclone template=$rcloneTemplate"
-            Ensure-ConfigFile -TemplatePath $configTemplate -DestinationPath $configPath
-            Write-InstallerLog "ps1 install: ensured config=$configPath"
-            Ensure-ConfigFile -TemplatePath $rcloneTemplate -DestinationPath $rcloneConfigPath
-            Write-InstallerLog "ps1 install: ensured rclone config=$rcloneConfigPath"
+            Write-InstallerLog "ps1 install: config.json is initialized by the app when missing"
+            Write-InstallerLog "ps1 install: rclone config is managed by rclone and was not initialized"
             if ($env:SYNC_WITH_RCLONE_SKIP_MENU_REGISTRATION -eq "1") {
                 Write-InstallerLog "ps1 install: skipped context menu registration"
             }

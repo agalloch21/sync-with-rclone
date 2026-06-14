@@ -8,6 +8,13 @@ function getDefaultConfigPath() {
   return getRuntimePaths().configPath
 }
 
+function createDefaultConfigContent() {
+  return `${JSON.stringify({
+    globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+    syncTasks: [],
+  }, null, 2)}\n`
+}
+
 function normalizeConfig(rawConfig) {
   if (!rawConfig || typeof rawConfig !== 'object')
     throw new Error('Config must be an object')
@@ -39,6 +46,24 @@ function normalizeConfig(rawConfig) {
       }
     }),
   }
+}
+
+export async function ensureConfig(runtimePaths = getRuntimePaths(), runtime = {}) {
+  const fsApi = runtime?.dependents?.fs || fs
+
+  await fsApi.mkdir(runtimePaths.configDirectory, { recursive: true })
+
+  try {
+    await fsApi.access(runtimePaths.configPath)
+    return { configCreated: false, configPath: runtimePaths.configPath }
+  }
+  catch (error) {
+    if (error?.code !== 'ENOENT')
+      throw error
+  }
+
+  await fsApi.writeFile(runtimePaths.configPath, createDefaultConfigContent(), 'utf8')
+  return { configCreated: true, configPath: runtimePaths.configPath }
 }
 
 export async function loadConfig(configPath = getDefaultConfigPath()) {

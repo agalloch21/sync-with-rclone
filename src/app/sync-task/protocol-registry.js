@@ -44,6 +44,20 @@ export function createDefaultProtocolForm(type = getDefaultProtocolType()) {
   }))
 }
 
+export function createProtocolFormFromServer(type = getDefaultProtocolType(), server = {}) {
+  const defaults = createDefaultProtocolForm(type)
+  const options = server.options || {}
+
+  return Object.fromEntries(Object.entries(defaults).map(([fieldName, defaultValue]) => {
+    if (fieldName === 'name')
+      return [fieldName, server.name || defaultValue]
+    if (fieldName === 'pass')
+      return [fieldName, '']
+
+    return [fieldName, Object.hasOwn(options, fieldName) ? options[fieldName] : defaultValue]
+  }))
+}
+
 export function normalizeProtocolForm(type, form) {
   const protocol = getProtocolDefinition(type)
   if (!protocol)

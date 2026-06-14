@@ -1,9 +1,10 @@
 <script setup>
 import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
-import { createDefaultProtocolForm, createRemotePayload, getDefaultProtocolType, getProtocolDefinition, REMOTE_PROTOCOLS } from '#src/app/sync-task/protocol-registry.js'
+import { createDefaultProtocolForm, createRemotePayload, getDefaultProtocolType } from '#src/app/sync-task/protocol-registry.js'
 import Button from '#src/electron/renderer/src/shared/components/Button.vue'
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import ModalShell from './ModalShell.vue'
+import ServerForm from './ServerForm.vue'
 
 const emit = defineEmits(['onClickCancel', 'onClickNext'])
 
@@ -13,8 +14,6 @@ const fieldErrors = ref({})
 const statusMessage = ref('')
 const createdRemoteName = ref('')
 const isSubmitting = ref(false)
-
-const protocol = computed(() => getProtocolDefinition(selectedProtocol.value))
 
 watch(selectedProtocol, (newProtocol) => {
   form.value = createDefaultProtocolForm(newProtocol)
@@ -26,6 +25,14 @@ watch(selectedProtocol, (newProtocol) => {
 function resetCreatedRemote() {
   createdRemoteName.value = ''
   statusMessage.value = ''
+}
+
+function updateField({ name, value }) {
+  form.value = {
+    ...form.value,
+    [name]: value,
+  }
+  resetCreatedRemote()
 }
 
 async function submitServer({ advance }) {
@@ -71,30 +78,14 @@ async function submitServer({ advance }) {
 <template>
   <ModalShell :title="$t('syncTasks.modals.createServer.title')" :message="$t('syncTasks.modals.createServer.message')">
     <div class="content-stage h-full flex justify-center items-center">
-      <div class="server-form-grid">
-        <label class="field-label" for="protocol">Protocol</label>
-        <select id="protocol" v-model="selectedProtocol" class="field-control field-select focusable">
-          <option v-for="item in REMOTE_PROTOCOLS" :key="item.type" :value="item.type">
-            {{ item.label }}
-          </option>
-        </select>
-
-        <template v-for="field in protocol.fields" :key="field.name">
-          <label class="field-label" :for="field.name">{{ field.label }}</label>
-          <div class="field-control-dock">
-            <input
-              :id="field.name"
-              v-model="form[field.name]"
-              :type="field.type"
-              class="field-control focusable"
-              @input="resetCreatedRemote"
-            >
-            <p v-if="fieldErrors[field.name]" class="field-error">
-              {{ fieldErrors[field.name] }}
-            </p>
-          </div>
-        </template>
-
+      <div class="flex flex-col gap-4">
+        <ServerForm
+          :form="form"
+          :protocol-type="selectedProtocol"
+          :field-errors="fieldErrors"
+          @update:protocol-type="selectedProtocol = $event"
+          @update:field="updateField"
+        />
         <div class="col-start-2 flex justify-end">
           <Button :disabled="isSubmitting || Boolean(createdRemoteName)" @click="submitServer({ advance: false })">
             Test Connection
@@ -116,25 +107,3 @@ async function submitServer({ advance }) {
     </template>
   </ModalShell>
 </template>
-
-<style scoped>
-@reference "tailwindcss";
-.server-form-grid{
-  @apply grid grid-cols-[7rem_20rem] items-start gap-x-4 text-xs text-(--text-primary);
-}
-.field-label{
-  @apply text-right font-medium leading-4;
-}
-.field-control-dock{
-  @apply min-w-0;
-}
-.field-control{
-  @apply w-full border-0 border-b border-(--text-subtle) bg-transparent px-2 py-0.5 text-center text-sm text-(--text-subtle) outline-none;
-}
-.field-select{
-  @apply text-center;
-}
-.field-error{
-  @apply mt-1 text-xs text-red-600;
-}
-</style>

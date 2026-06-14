@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   createDefaultProtocolForm,
+  createProtocolFormFromServer,
   createRemotePayload,
   getDefaultProtocolType,
   getProtocolDefinition,
@@ -28,6 +29,25 @@ test('createDefaultProtocolForm uses protocol defaults', () => {
     host: '',
     port: 21,
     user: '',
+    pass: '',
+  })
+})
+
+test('createProtocolFormFromServer uses server options and blanks passwords', () => {
+  assert.deepEqual(createProtocolFormFromServer('sftp', {
+    name: 'synology',
+    type: 'sftp',
+    options: {
+      host: 'nas.local',
+      port: 2222,
+      user: 'xiaobo',
+      pass: 'obscured-pass',
+    },
+  }), {
+    name: 'synology',
+    host: 'nas.local',
+    port: 2222,
+    user: 'xiaobo',
     pass: '',
   })
 })

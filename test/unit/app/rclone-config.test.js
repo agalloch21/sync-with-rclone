@@ -5,11 +5,53 @@ import path from 'node:path'
 import test from 'node:test'
 import {
   createRcloneRemote,
+  deleteRcloneRemote,
   getRcloneRemoteAddress,
   listRcloneRemotes,
   parseRcloneRemotesFromConfigDump,
   testRcloneRemote,
+  updateRcloneRemote,
 } from '#src/app/rclone-config.js'
+
+async function createFakeRclone({ dump = '{}', failLsf = false } = {}) {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-fake-rclone-'))
+  const executablePath = path.join(tempDir, 'rclone')
+  const logPath = path.join(tempDir, 'calls.jsonl')
+
+  await fs.writeFile(executablePath, `#!/usr/bin/env node
+const fs = require('node:fs')
+const args = process.argv.slice(2)
+fs.appendFileSync(${JSON.stringify(logPath)}, JSON.stringify(args) + '\\n')
+if (args.includes('config') && args.includes('dump')) {
+  process.stdout.write(${JSON.stringify(dump)})
+  process.exit(0)
+}
+if (${failLsf ? 'true' : 'false'} && args.includes('lsf')) {
+  process.stderr.write('connection refused')
+  process.exit(1)
+}
+process.exit(0)
+`, 'utf8')
+  await fs.chmod(executablePath, 0o755)
+
+  return {
+    runtimePaths: {
+      bundledRclonePath: executablePath,
+      rcloneConfigPath: path.join(tempDir, 'rclone.conf'),
+    },
+    async readCalls() {
+      try {
+        const content = await fs.readFile(logPath, 'utf8')
+        return content.trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
+      }
+      catch (error) {
+        if (error?.code === 'ENOENT')
+          return []
+        throw error
+      }
+    },
+  }
+}
 
 test('parseRcloneRemotesFromConfigDump converts rclone config JSON to sorted rclone remotes', () => {
   const remotes = parseRcloneRemotesFromConfigDump(JSON.stringify({
@@ -47,129 +89,127 @@ test('getRcloneRemoteAddress normalizes protocol-specific address fields for dis
 })
 
 test('listRcloneRemotes runs rclone config dump', async () => {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-rclone-config-'))
-  const rcloneConfigPath = path.join(tempDir, 'rclone.conf')
-  await fs.writeFile(rcloneConfigPath, '[demo]\ntype = sftp\n')
-  const calls = []
-  const runtime = {
-    dependents: {
-      async runCommand(command, args) {
-        calls.push({ command, args })
-        return { stdout: JSON.stringify({ demo: { type: 'sftp', host: 'nas.local' } }) }
-      },
-    },
-  }
+  const fakeRclone = await createFakeRclone({
+    dump: JSON.stringify({ demo: { type: 'sftp', host: 'nas.local' } }),
+  })
+  const remotes = await listRcloneRemotes(fakeRclone.runtimePaths)
 
-  const remotes = await listRcloneRemotes({ bundledRclonePath: '/bin/rclone', rcloneConfigPath }, runtime)
-
-  assert.deepEqual(calls, [
-    { command: '/bin/rclone', args: ['--config', rcloneConfigPath, 'config', 'dump'] },
+  assert.deepEqual(await fakeRclone.readCalls(), [
+    ['--config', fakeRclone.runtimePaths.rcloneConfigPath, 'config', 'dump'],
   ])
   assert.equal(remotes[0].name, 'demo')
 })
 
 test('listRcloneRemotes lets rclone treat a missing config as no remotes', async () => {
-  const calls = []
-  const remotes = await listRcloneRemotes({
-    bundledRclonePath: '/bin/rclone',
-    rcloneConfigPath: '/tmp/sync-with-rclone/missing-rclone.conf',
-  }, {
-    dependents: {
-      async runCommand(command, args) {
-        calls.push({ command, args })
-        return { stdout: '{}' }
-      },
-    },
-  })
+  const fakeRclone = await createFakeRclone()
+  const remotes = await listRcloneRemotes(fakeRclone.runtimePaths)
 
   assert.deepEqual(remotes, [])
-  assert.deepEqual(calls, [
-    {
-      command: '/bin/rclone',
-      args: ['--config', '/tmp/sync-with-rclone/missing-rclone.conf', 'config', 'dump'],
-    },
+  assert.deepEqual(await fakeRclone.readCalls(), [
+    ['--config', fakeRclone.runtimePaths.rcloneConfigPath, 'config', 'dump'],
   ])
 })
 
 test('testRcloneRemote probes the remote root', async () => {
-  const calls = []
-  const runtime = {
-    dependents: {
-      async runCommand(command, args) {
-        calls.push({ command, args })
-        return { stdout: '' }
-      },
-    },
-  }
+  const fakeRclone = await createFakeRclone()
 
-  assert.deepEqual(await testRcloneRemote('synology', { bundledRclonePath: '/bin/rclone', rcloneConfigPath: '/app/rclone.conf' }, runtime), {
+  assert.deepEqual(await testRcloneRemote('synology', fakeRclone.runtimePaths), {
     success: true,
   })
-  assert.deepEqual(calls, [
-    { command: '/bin/rclone', args: ['--config', '/app/rclone.conf', 'lsf', '--max-depth', '1', 'synology:'] },
+  assert.deepEqual(await fakeRclone.readCalls(), [
+    ['--config', fakeRclone.runtimePaths.rcloneConfigPath, 'lsf', '--max-depth', '1', 'synology:'],
   ])
 })
 
 test('createRcloneRemote tests a temporary config before persisting', async () => {
-  const calls = []
-  const runtime = {
-    dependents: {
-      async runCommand(command, args) {
-        calls.push({ command, args })
-        return { stdout: '' }
-      },
-    },
-  }
+  const fakeRclone = await createFakeRclone()
 
   const result = await createRcloneRemote({
     name: 'synology',
     type: 'sftp',
-    options: {
+    remoteOptions: {
       host: 'nas.local',
       port: 22,
       user: 'xiaobo',
       pass: 'secret',
     },
-  }, { bundledRclonePath: '/bin/rclone', rcloneConfigPath: '/real/rclone.conf' }, runtime)
+  }, fakeRclone.runtimePaths)
 
   assert.equal(result.success, true)
   assert.equal(result.remote.name, 'synology')
+  const calls = await fakeRclone.readCalls()
   assert.equal(calls.length, 3)
-  assert.deepEqual(calls[0].args.slice(2), ['config', 'create', 'synology', 'sftp', 'host', 'nas.local', 'port', '22', 'user', 'xiaobo', 'pass', 'secret', '--obscure'])
-  assert.deepEqual(calls[1].args.slice(2), ['lsf', '--max-depth', '1', 'synology:'])
-  assert.deepEqual(calls[2], {
-    command: '/bin/rclone',
-    args: ['--config', '/real/rclone.conf', 'config', 'create', 'synology', 'sftp', 'host', 'nas.local', 'port', '22', 'user', 'xiaobo', 'pass', 'secret', '--obscure'],
-  })
+  assert.deepEqual(calls[0].slice(2), ['config', 'create', 'synology', 'sftp', 'host', 'nas.local', 'port', '22', 'user', 'xiaobo', 'pass', 'secret', '--obscure'])
+  assert.deepEqual(calls[1].slice(2), ['lsf', '--max-depth', '1', 'synology:'])
+  assert.deepEqual(calls[2], ['--config', fakeRclone.runtimePaths.rcloneConfigPath, 'config', 'create', 'synology', 'sftp', 'host', 'nas.local', 'port', '22', 'user', 'xiaobo', 'pass', 'secret', '--obscure'])
 })
 
 test('createRcloneRemote stops before persisting when the temporary test fails', async () => {
-  const calls = []
-  const runtime = {
-    dependents: {
-      async runCommand(command, args) {
-        calls.push({ command, args })
-        if (args.includes('lsf')) {
-          const error = new Error('probe failed')
-          error.stderr = 'connection refused'
-          throw error
-        }
-        return { stdout: '' }
-      },
-    },
-  }
+  const fakeRclone = await createFakeRclone({ failLsf: true })
 
   const result = await createRcloneRemote({
     name: 'synology',
     type: 'sftp',
-    options: {
+    remoteOptions: {
       host: 'nas.local',
       port: 22,
       user: 'xiaobo',
       pass: 'secret',
     },
-  }, { bundledRclonePath: '/bin/rclone', rcloneConfigPath: '/real/rclone.conf' }, runtime)
+  }, fakeRclone.runtimePaths)
 
   assert.deepEqual(result, { success: false, error: 'connection refused' })
-  assert.equal(calls.length, 2)
+  assert.equal((await fakeRclone.readCalls()).length, 2)
+})
+
+test('updateRcloneRemote tests a temporary config before updating the real remote', async () => {
+  const fakeRclone = await createFakeRclone()
+
+  const result = await updateRcloneRemote({
+    name: 'synology',
+    type: 'sftp',
+    remoteOptions: {
+      host: 'nas.local',
+      port: 22,
+      user: 'xiaobo',
+      pass: 'secret',
+    },
+  }, fakeRclone.runtimePaths)
+
+  assert.equal(result.success, true)
+  assert.equal(result.remote.name, 'synology')
+  const calls = await fakeRclone.readCalls()
+  assert.equal(calls.length, 3)
+  assert.deepEqual(calls[0].slice(2), ['config', 'create', 'synology', 'sftp', 'host', 'nas.local', 'port', '22', 'user', 'xiaobo', 'pass', 'secret', '--obscure'])
+  assert.deepEqual(calls[1].slice(2), ['lsf', '--max-depth', '1', 'synology:'])
+  assert.deepEqual(calls[2], ['--config', fakeRclone.runtimePaths.rcloneConfigPath, 'config', 'update', 'synology', 'type', 'sftp', 'host', 'nas.local', 'port', '22', 'user', 'xiaobo', 'pass', 'secret', '--obscure'])
+})
+
+test('updateRcloneRemote stops before updating when the temporary test fails', async () => {
+  const fakeRclone = await createFakeRclone({ failLsf: true })
+
+  const result = await updateRcloneRemote({
+    name: 'synology',
+    type: 'sftp',
+    remoteOptions: {
+      host: 'nas.local',
+      port: 22,
+      user: 'xiaobo',
+      pass: 'secret',
+    },
+  }, fakeRclone.runtimePaths)
+
+  assert.deepEqual(result, { success: false, error: 'connection refused' })
+  assert.equal((await fakeRclone.readCalls()).length, 2)
+})
+
+test('deleteRcloneRemote deletes a named rclone remote', async () => {
+  const fakeRclone = await createFakeRclone()
+
+  assert.deepEqual(await deleteRcloneRemote('synology', fakeRclone.runtimePaths), {
+    success: true,
+  })
+  assert.deepEqual(await fakeRclone.readCalls(), [
+    ['--config', fakeRclone.runtimePaths.rcloneConfigPath, 'config', 'delete', 'synology'],
+  ])
 })

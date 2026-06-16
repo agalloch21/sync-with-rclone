@@ -1,8 +1,15 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadAppModel } from '#src/app/app-model.js'
 import { isValidSyncTaskModal } from '#src/app/sync-task/modal-contract.js'
+import {
+  clearMainWindow,
+  getAppModel,
+  getCachedAppModelResult,
+  refreshAppModel,
+  setMainWindow,
+} from '../app-state.js'
+import { destroyMessageBox } from '../message-box/window.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 import { createSyncTaskModalWindow } from '../sync-task-modal/window.js'
 
@@ -12,8 +19,6 @@ const require = createRequire(import.meta.url)
 export function createMainWindow() {
   const { BrowserWindow, ipcMain } = require('electron')
   let syncTaskModalWindow = null
-  let appModel = null
-  let appModelError = null
 
   const mainWindow = new BrowserWindow({
     width: 800,
@@ -28,9 +33,11 @@ export function createMainWindow() {
       preload: path.join(__dirname, '../../preload/main-window/index.cjs'),
     },
   })
+  setMainWindow(mainWindow)
 
   function handleOpenSyncTaskModal(_event, payload) {
     const modalName = payload?.modalName
+    const context = payload?.context || {}
 
     if (!isValidSyncTaskModal(modalName))
       return { success: false, reason: 'invalid-modal' }
@@ -40,10 +47,7 @@ export function createMainWindow() {
       return { success: true, modalName }
     }
 
-    syncTaskModalWindow = createSyncTaskModalWindow(mainWindow, modalName, {
-      getAppModel: handleGetAppModel,
-      refreshAppModel,
-    })
+    syncTaskModalWindow = createSyncTaskModalWindow(modalName, context)
     syncTaskModalWindow.once('closed', () => {
       syncTaskModalWindow = null
     })
@@ -51,30 +55,20 @@ export function createMainWindow() {
     return { success: true, modalName }
   }
 
-  async function refreshAppModel() {
-    try {
-      appModel = await loadAppModel()
-      appModelError = null
-      return { success: true, model: appModel }
-    }
-    catch (error) {
-      appModelError = error?.message || 'Failed to load app model.'
-      return { success: false, error: appModelError }
-    }
+  function notifyAppModelUpdated(result = null) {
+    const payload = result || getCachedAppModelResult() || { success: false, error: 'Failed to load app model.' }
+    if (!mainWindow.isDestroyed())
+      mainWindow.webContents.send('main-window:app-model-updated', payload)
   }
 
-  async function handleGetAppModel() {
-    if (!appModel && !appModelError)
-      return refreshAppModel()
-
-    if (appModel)
-      return { success: true, model: appModel }
-
-    return { success: false, error: appModelError }
+  async function handleRefreshAppModel() {
+    const result = await refreshAppModel()
+    notifyAppModelUpdated(result)
+    return result
   }
 
   async function handleListSyncTasks() {
-    const result = await handleGetAppModel()
+    const result = await getAppModel()
     if (!result.success)
       return { success: false, syncTasks: [], error: result.error }
 
@@ -82,9 +76,9 @@ export function createMainWindow() {
   }
 
   ipcMain.handle('main-window:open-sync-task-modal', handleOpenSyncTaskModal)
-  ipcMain.handle('main-window:get-app-model', handleGetAppModel)
+  ipcMain.handle('main-window:get-app-model', getAppModel)
   ipcMain.handle('main-window:list-sync-tasks', handleListSyncTasks)
-  ipcMain.handle('main-window:refresh-app-model', refreshAppModel)
+  ipcMain.handle('main-window:refresh-app-model', handleRefreshAppModel)
 
   refreshAppModel()
 
@@ -93,6 +87,8 @@ export function createMainWindow() {
   })
 
   mainWindow.on('closed', () => {
+    destroyMessageBox()
+    clearMainWindow(mainWindow)
     ipcMain.removeHandler('main-window:open-sync-task-modal')
     ipcMain.removeHandler('main-window:get-app-model')
     ipcMain.removeHandler('main-window:list-sync-tasks')

@@ -13,6 +13,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         mainPanel: path.resolve('src/electron/renderer/main-panel.html'),
+        messageBox: path.resolve('src/electron/renderer/message-box.html'),
         syncSession: path.resolve('src/electron/renderer/sync-session.html'),
         syncTaskModal: path.resolve('src/electron/renderer/sync-task-modal.html'),
       },

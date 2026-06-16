@@ -1,8 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('mainWindow', {
-  openSyncTaskModal(modalName) {
-    return ipcRenderer.invoke('main-window:open-sync-task-modal', { modalName })
+  openSyncTaskModal(modalName, context = {}) {
+    return ipcRenderer.invoke('main-window:open-sync-task-modal', { modalName, context })
   },
   getAppModel() {
     return ipcRenderer.invoke('main-window:get-app-model')
@@ -12,5 +12,10 @@ contextBridge.exposeInMainWorld('mainWindow', {
   },
   refreshAppModel() {
     return ipcRenderer.invoke('main-window:refresh-app-model')
+  },
+  onAppModelUpdated(callback) {
+    const listener = (_event, payload) => callback(payload)
+    ipcRenderer.on('main-window:app-model-updated', listener)
+    return () => ipcRenderer.removeListener('main-window:app-model-updated', listener)
   },
 })

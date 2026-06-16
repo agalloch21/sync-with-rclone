@@ -5,6 +5,20 @@ import path from 'node:path'
 import test from 'node:test'
 import { createServersFromSyncTasks, listSyncTasks, loadAppModel, sortSyncTasks } from '#src/app/app-model.js'
 
+async function createFakeRclone(dump) {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-app-model-rclone-'))
+  const executablePath = path.join(tempDir, 'rclone')
+
+  await fs.writeFile(executablePath, `#!/usr/bin/env node
+if (process.argv.includes('dump')) {
+  process.stdout.write(${JSON.stringify(dump)})
+}
+`, 'utf8')
+  await fs.chmod(executablePath, 0o755)
+
+  return executablePath
+}
+
 test('sortSyncTasks sorts by server then task name without enriching task objects', () => {
   const syncTasks = sortSyncTasks([
     { name: 'Task B', rcloneRemote: 'server-b' },
@@ -57,21 +71,13 @@ test('loadAppModel returns full config data and enriched tasks', async () => {
       },
     ],
   }, null, 2))
-  await fs.writeFile(rcloneConfigPath, '[synology]\ntype = sftp\n')
-
-  const runtime = {
-    dependents: {
-      async runCommand() {
-        return { stdout: JSON.stringify({ synology: { type: 'sftp', host: 'nas.local', user: 'xiaobo' } }) }
-      },
-    },
-  }
+  const bundledRclonePath = await createFakeRclone(JSON.stringify({ synology: { type: 'sftp', host: 'nas.local', user: 'xiaobo' } }))
 
   const model = await loadAppModel({
-    bundledRclonePath: '/bin/rclone',
+    bundledRclonePath,
     configPath,
     rcloneConfigPath,
-  }, runtime)
+  })
 
   assert.deepEqual(model.globalIgnorePatterns, ['.DS_Store'])
   assert.equal(model.syncTasks[0].name, 'Projects')
@@ -113,16 +119,11 @@ test('listSyncTasks returns the flat sorted task list', async () => {
     ],
   }, null, 2))
 
+  const bundledRclonePath = await createFakeRclone(JSON.stringify({ 'server-a': { type: 'sftp' }, 'server-b': { type: 'sftp' } }))
   const syncTasks = await listSyncTasks({
-    bundledRclonePath: '/bin/rclone',
+    bundledRclonePath,
     configPath,
     rcloneConfigPath: '/app/rclone.conf',
-  }, {
-    dependents: {
-      async runCommand() {
-        return { stdout: JSON.stringify({ 'server-a': { type: 'sftp' }, 'server-b': { type: 'sftp' } }) }
-      },
-    },
   })
 
   assert.deepEqual(syncTasks.map(task => task.name), ['A', 'B'])

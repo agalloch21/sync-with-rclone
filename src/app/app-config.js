@@ -4,18 +4,18 @@ import { APP_ERROR_CODE, AppError } from './app-errors.js'
 import { normalizeLocalPath } from './path-utils.js'
 import { getRuntimePaths } from './runtime-paths.js'
 
-function getDefaultConfigPath() {
+function getDefaultAppConfigPath() {
   return getRuntimePaths().configPath
 }
 
-function createDefaultConfigContent() {
+function createDefaultAppConfigContent() {
   return `${JSON.stringify({
     globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
     syncTasks: [],
   }, null, 2)}\n`
 }
 
-function normalizeConfig(rawConfig) {
+function normalizeAppConfig(rawConfig) {
   if (!rawConfig || typeof rawConfig !== 'object')
     throw new Error('Config must be an object')
 
@@ -48,13 +48,18 @@ function normalizeConfig(rawConfig) {
   }
 }
 
-export async function ensureConfig(runtimePaths = getRuntimePaths(), runtime = {}) {
-  const fsApi = runtime?.dependents?.fs || fs
+function serializeAppConfig(config) {
+  return `${JSON.stringify({
+    globalIgnorePatterns: Array.isArray(config?.globalIgnorePatterns) ? config.globalIgnorePatterns : [],
+    syncTasks: Array.isArray(config?.syncTasks) ? config.syncTasks : [],
+  }, null, 2)}\n`
+}
 
-  await fsApi.mkdir(runtimePaths.configDirectory, { recursive: true })
+export async function ensureAppConfig(runtimePaths = getRuntimePaths()) {
+  await fs.mkdir(runtimePaths.configDirectory, { recursive: true })
 
   try {
-    await fsApi.access(runtimePaths.configPath)
+    await fs.access(runtimePaths.configPath)
     return { configCreated: false, configPath: runtimePaths.configPath }
   }
   catch (error) {
@@ -62,15 +67,15 @@ export async function ensureConfig(runtimePaths = getRuntimePaths(), runtime = {
       throw error
   }
 
-  await fsApi.writeFile(runtimePaths.configPath, createDefaultConfigContent(), 'utf8')
+  await fs.writeFile(runtimePaths.configPath, createDefaultAppConfigContent(), 'utf8')
   return { configCreated: true, configPath: runtimePaths.configPath }
 }
 
-export async function loadConfig(configPath = getDefaultConfigPath()) {
+export async function loadAppConfig(configPath = getDefaultAppConfigPath()) {
   try {
     const content = await fs.readFile(configPath, 'utf8')
     const rawConfig = JSON.parse(content)
-    const config = normalizeConfig(rawConfig)
+    const config = normalizeAppConfig(rawConfig)
 
     return {
       path: configPath,
@@ -90,4 +95,16 @@ export async function loadConfig(configPath = getDefaultConfigPath()) {
   }
 }
 
-export { getDefaultConfigPath }
+export async function saveAppConfig(config, runtimePaths = getRuntimePaths()) {
+  await fs.writeFile(runtimePaths.configPath, serializeAppConfig(config), 'utf8')
+  return {
+    path: runtimePaths.configPath,
+    ...normalizeAppConfig(config),
+  }
+}
+
+export {
+  getDefaultAppConfigPath,
+  normalizeAppConfig,
+  serializeAppConfig,
+}

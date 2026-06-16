@@ -13,8 +13,8 @@ import ModalEditServer from './components/ModalEditServer.vue'
 
 const { t } = useI18n()
 
-const state = window.syncTaskModal?.getState?.() || { modalName: '' }
-const modalName = ref(state.modalName)
+const modalName = ref('')
+const context = ref({})
 const wizardState = ref({
   selectedRemoteName: '',
 })
@@ -50,6 +50,9 @@ function onClickConfirm() {
 }
 
 onMounted(async () => {
+  const state = await window.syncTaskModal?.getState?.() || { modalName: '', context: {} }
+  modalName.value = state.modalName || ''
+  context.value = state.context || {}
   await nextTick()
   await document.fonts.ready
   window.syncTaskModal?.ready?.({ title: title.value })
@@ -61,6 +64,7 @@ onMounted(async () => {
     <component
       :is="modalComponent"
       :wizard-state="wizardState"
+      :context="context"
       @on-click-cancel="closeModal"
       @on-click-next="onClickNext"
       @on-click-confirm="onClickConfirm"

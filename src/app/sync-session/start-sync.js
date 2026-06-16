@@ -4,7 +4,7 @@ import { PHASE_EVENT, SYNC_RESULT } from '#src/core/contract.js'
 import { syncCore } from '#src/core/sync-engine.js'
 import { getErrorCode, getErrorDetails } from '../app-errors.js'
 import { ensureRemoteFolderExists } from './ensure-remote-folder.js'
-import { loadConfig } from '../load-config.js'
+import { loadAppConfig } from '../app-config.js'
 import { resolveLocalDirectoryPath } from '../path-utils.js'
 import { resolveSyncTask } from './resolve-sync-task.js'
 import { getRuntimePaths } from '../runtime-paths.js'
@@ -62,7 +62,7 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
     }
 
     runtimePaths = getRuntimePaths()
-    const config = bypassConfig ? null : await loadConfig(runtimePaths.configPath)
+    const config = bypassConfig ? null : await loadAppConfig(runtimePaths.configPath)
 
     const resolvedTask = bypassConfig ? null : resolveSyncTask(config, options.localFolderPath, options.remoteFolderPath)
     resolvedContext.localFolderPath = resolvedTask ? resolvedTask.localFolderPath : resolveLocalDirectoryPath(options.localFolderPath)

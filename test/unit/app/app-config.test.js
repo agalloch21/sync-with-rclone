@@ -4,15 +4,15 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { ensureConfig, getDefaultConfigPath, loadConfig } from '#src/app/load-config.js'
+import { ensureAppConfig, getDefaultAppConfigPath, loadAppConfig, saveAppConfig } from '#src/app/app-config.js'
 import { getDefaultAppDirectory } from '#src/app/runtime-paths.js'
 
-test('getDefaultConfigPath uses the application name constant', () => {
+test('getDefaultAppConfigPath uses the application name constant', () => {
   const expectedPath = path.posix.join(getDefaultAppDirectory(), 'config', 'config.json')
-  assert.equal(getDefaultConfigPath(), expectedPath)
+  assert.equal(getDefaultAppConfigPath(), expectedPath)
 })
 
-test('loadConfig reads and normalizes sync config', async () => {
+test('loadAppConfig reads and normalizes sync config', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-'))
   const configPath = path.join(tempDir, 'config.json')
 
@@ -32,7 +32,7 @@ test('loadConfig reads and normalizes sync config', async () => {
     ],
   }, null, 2))
 
-  const config = await loadConfig(configPath)
+  const config = await loadAppConfig(configPath)
   assert.equal(config.path, configPath)
   assert.deepEqual(config.globalIgnorePatterns, ['.DS_Store'])
   assert.equal(config.syncTasks[0].name, 'Projects')
@@ -44,7 +44,7 @@ test('loadConfig reads and normalizes sync config', async () => {
   assert.ok(path.isAbsolute(config.syncTasks[0].localBasePath))
 })
 
-test('loadConfig allows an empty remoteBasePath for syncing to the remote root', async () => {
+test('loadAppConfig allows an empty remoteBasePath for syncing to the remote root', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-root-'))
   const configPath = path.join(tempDir, 'config.json')
 
@@ -60,11 +60,11 @@ test('loadConfig allows an empty remoteBasePath for syncing to the remote root',
     ],
   }, null, 2))
 
-  const config = await loadConfig(configPath)
+  const config = await loadAppConfig(configPath)
   assert.equal(config.syncTasks[0].remoteBasePath, '')
 })
 
-test('loadConfig defaults last sync fields to null', async () => {
+test('loadAppConfig defaults last sync fields to null', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-last-sync-'))
   const configPath = path.join(tempDir, 'config.json')
 
@@ -80,25 +80,25 @@ test('loadConfig defaults last sync fields to null', async () => {
     ],
   }, null, 2))
 
-  const config = await loadConfig(configPath)
+  const config = await loadAppConfig(configPath)
   assert.equal(config.syncTasks[0].lastSyncMode, null)
   assert.equal(config.syncTasks[0].lastSyncFolder, null)
   assert.equal(config.syncTasks[0].lastSyncDate, null)
 })
 
-test('loadConfig returns null when config file does not exist', async () => {
-  const config = await loadConfig('/tmp/sync-with-rclone/does-not-exist.json')
+test('loadAppConfig returns null when config file does not exist', async () => {
+  const config = await loadAppConfig('/tmp/sync-with-rclone/does-not-exist.json')
   assert.equal(config, null)
 })
 
-test('loadConfig wraps invalid config errors with a stable error code', async () => {
+test('loadAppConfig wraps invalid config errors with a stable error code', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-invalid-'))
   const configPath = path.join(tempDir, 'config.json')
 
   await fs.writeFile(configPath, JSON.stringify({ syncTasks: {} }, null, 2))
 
   await assert.rejects(
-    () => loadConfig(configPath),
+    () => loadAppConfig(configPath),
     {
       name: 'AppError',
       code: APP_ERROR_CODE.CONFIG_LOAD_FAILED,
@@ -106,7 +106,7 @@ test('loadConfig wraps invalid config errors with a stable error code', async ()
   )
 })
 
-test('loadConfig defaults to APP_ROOT_PATH config subdirectory', async () => {
+test('loadAppConfig defaults to APP_ROOT_PATH config subdirectory', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-app-root-'))
   const configDir = path.join(tempDir, 'config')
   const configPath = path.join(configDir, 'config.json')
@@ -119,18 +119,18 @@ test('loadConfig defaults to APP_ROOT_PATH config subdirectory', async () => {
   process.env.APP_ROOT_PATH = tempDir
   delete process.env.CONFIG_PATH
 
-  const config = await loadConfig()
+  const config = await loadAppConfig()
   assert.equal(config.path, configPath.replaceAll(path.sep, path.posix.sep))
 
   delete process.env.APP_ROOT_PATH
 })
 
-test('ensureConfig creates a default config when config is missing', async () => {
+test('ensureAppConfig creates a default config when config is missing', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-ensure-config-'))
   const configDirectory = path.join(tempDir, 'config')
   const configPath = path.join(configDirectory, 'config.json')
 
-  const result = await ensureConfig({ configDirectory, configPath })
+  const result = await ensureAppConfig({ configDirectory, configPath })
 
   assert.deepEqual(result, { configCreated: true, configPath })
   assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
@@ -139,7 +139,7 @@ test('ensureConfig creates a default config when config is missing', async () =>
   })
 })
 
-test('ensureConfig does not overwrite an existing config', async () => {
+test('ensureAppConfig does not overwrite an existing config', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-ensure-config-existing-'))
   const configDirectory = path.join(tempDir, 'config')
   const configPath = path.join(configDirectory, 'config.json')
@@ -147,11 +147,33 @@ test('ensureConfig does not overwrite an existing config', async () => {
   await fs.mkdir(configDirectory, { recursive: true })
   await fs.writeFile(configPath, JSON.stringify({ globalIgnorePatterns: ['keep'], syncTasks: [] }))
 
-  const result = await ensureConfig({ configDirectory, configPath })
+  const result = await ensureAppConfig({ configDirectory, configPath })
 
   assert.deepEqual(result, { configCreated: false, configPath })
   assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
     globalIgnorePatterns: ['keep'],
     syncTasks: [],
   })
+})
+
+test('saveAppConfig writes normalized config JSON', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-save-config-'))
+  const configPath = path.join(tempDir, 'config.json')
+
+  const saved = await saveAppConfig({
+    globalIgnorePatterns: ['.DS_Store'],
+    syncTasks: [
+      {
+        name: 'Projects',
+        rcloneRemote: 'synology',
+        localBasePath: './test/fixtures/local',
+        remoteBasePath: 'Projects',
+        ignorePatterns: [],
+      },
+    ],
+  }, { configPath })
+
+  assert.equal(saved.path, configPath)
+  assert.ok(path.isAbsolute(saved.syncTasks[0].localBasePath))
+  assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')).globalIgnorePatterns, ['.DS_Store'])
 })

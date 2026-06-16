@@ -1,11 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
-const encoded = process.argv.find(arg => arg.startsWith('{"modalName"'))
-const state = encoded ? JSON.parse(encoded) : { modalName: '' }
-
 contextBridge.exposeInMainWorld('syncTaskModal', {
   getState() {
-    return state
+    return ipcRenderer.invoke('sync-task-modal:get-state')
   },
   close() {
     return ipcRenderer.invoke('sync-task-modal:close')
@@ -18,6 +15,15 @@ contextBridge.exposeInMainWorld('syncTaskModal', {
   },
   createRemote(payload) {
     return ipcRenderer.invoke('sync-task-modal:create-remote', payload)
+  },
+  updateRemote(payload) {
+    return ipcRenderer.invoke('sync-task-modal:update-remote', payload)
+  },
+  deleteRemote(remoteName) {
+    return ipcRenderer.invoke('sync-task-modal:delete-remote', { remoteName })
+  },
+  deleteSyncTask(taskIdentity) {
+    return ipcRenderer.invoke('sync-task-modal:delete-sync-task', taskIdentity)
   },
   ready(payload) {
     ipcRenderer.send('sync-task-modal:ready', payload)

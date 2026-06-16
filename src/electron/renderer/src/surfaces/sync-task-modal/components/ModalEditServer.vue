@@ -5,22 +5,28 @@ import { ref, watch } from 'vue'
 import ModalShell from './ModalShell.vue'
 import ServerForm from './ServerForm.vue'
 
-defineEmits(['onClickCancel'])
+const emit = defineEmits(['onClickCancel'])
 
 const props = defineProps({
   server: {
     type: Object,
     default: () => ({}),
   },
+  context: {
+    type: Object,
+    default: () => ({}),
+  },
 })
 
-const selectedProtocol = ref(props.server.type || getDefaultProtocolType())
-const form = ref(createProtocolFormFromServer(selectedProtocol.value, props.server))
+const activeServer = props.context?.server || props.server
+const selectedProtocol = ref(activeServer?.type || getDefaultProtocolType())
+const form = ref(createProtocolFormFromServer(selectedProtocol.value, activeServer))
 const fieldErrors = ref({})
+const isSubmitting = ref(false)
 
 watch(selectedProtocol, (newProtocol) => {
   form.value = createProtocolFormFromServer(newProtocol, {
-    ...props.server,
+    ...activeServer,
     name: form.value.name,
   })
   fieldErrors.value = {}
@@ -36,6 +42,27 @@ function updateField({ name, value }) {
 function validateForm() {
   const payload = createRemotePayload(selectedProtocol.value, form.value)
   fieldErrors.value = payload.success ? {} : payload.errors
+  return payload
+}
+
+async function submitServer() {
+  if (isSubmitting.value)
+    return
+
+  const payload = validateForm()
+  if (!payload.success)
+    return
+
+  isSubmitting.value = true
+  const result = await window.syncTaskModal?.updateRemote?.(payload.value)
+  isSubmitting.value = false
+
+  if (!result?.success) {
+    fieldErrors.value = result?.errors || {}
+    return
+  }
+
+  emit('onClickCancel')
 }
 </script>
 
@@ -53,8 +80,8 @@ function validateForm() {
     </div>
 
     <template #footer>
-      <Button :primary="true" :wide="true" @click="validateForm">
-        {{ $t('syncTasks.modals.common.confirm') }}
+      <Button :primary="true" :wide="true" :disabled="isSubmitting" @click="submitServer">
+        {{ $t('syncTasks.modals.common.next') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
         {{ $t('syncTasks.modals.common.cancel') }}

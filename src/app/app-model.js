@@ -1,4 +1,4 @@
-import { loadConfig } from './load-config.js'
+import { loadAppConfig } from './app-config.js'
 import { getRcloneRemoteAddress, listRcloneRemotes } from './rclone-config.js'
 import { getRuntimePaths } from './runtime-paths.js'
 
@@ -43,7 +43,7 @@ export function createServersFromSyncTasks(rcloneRemotes = [], syncTasks = []) {
 }
 
 export async function loadAppModel(runtimePaths = getRuntimePaths(), runtime = {}) {
-  const config = await loadConfig(runtimePaths.configPath)
+  const config = await loadAppConfig(runtimePaths.configPath)
   const rcloneRemotes = await listRcloneRemotes(runtimePaths, runtime)
   const syncTasks = sortSyncTasks(config?.syncTasks || [])
 

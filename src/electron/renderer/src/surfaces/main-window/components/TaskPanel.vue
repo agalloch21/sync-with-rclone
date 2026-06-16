@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, shallowRef } from 'vue'
+import { onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import ActionBar from './ActionBar.vue'
 import ServerItem from './ServerItem.vue'
 import TaskItem from './TaskItem.vue'
@@ -13,8 +13,24 @@ const selectedTask = shallowRef(null)
 
 onMounted(loadTaskPanel)
 
+let unsubscribeAppModelUpdated = null
+
+onMounted(() => {
+  unsubscribeAppModelUpdated = window.mainWindow?.onAppModelUpdated?.((result) => {
+    applyAppModelResult(result)
+  })
+})
+
+onUnmounted(() => {
+  unsubscribeAppModelUpdated?.()
+})
+
 async function loadTaskPanel() {
   const result = await window.mainWindow?.getAppModel?.()
+  applyAppModelResult(result)
+}
+
+function applyAppModelResult(result) {
   if (!result?.success) {
     errorMessage.value = result?.error || 'Failed to load sync tasks.'
     remoteServers.value = []
@@ -26,8 +42,15 @@ async function loadTaskPanel() {
     ...server,
     tasks: syncTasks.filter(task => task.rcloneRemote === server.name),
   }))
-  if (remoteServers.value && remoteServers.value.length > 0)
-    onSelectServer(remoteServers.value?.[0])
+  const previousTask = selectedTask.value
+  const previousServer = selectedServer.value
+  const nextServer = remoteServers.value.find(server => server.name === previousServer?.name) || remoteServers.value?.[0] || null
+  const nextTask = previousTask && nextServer
+    ? nextServer.tasks.find(task => task.name === previousTask.name && task.localBasePath === previousTask.localBasePath)
+    : null
+
+  selectedServer.value = nextServer
+  selectedTask.value = nextTask || null
 }
 
 function onSelectServer(server) {
@@ -40,7 +63,10 @@ function onSelectTask(server, task) {
 }
 
 function openSyncTaskModal(modalName) {
-  window.mainWindow?.openSyncTaskModal?.(modalName)
+  window.mainWindow?.openSyncTaskModal?.(modalName, {
+    server: selectedServer.value,
+    task: selectedTask.value,
+  })
 }
 </script>
 

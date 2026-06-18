@@ -7,7 +7,7 @@ function sortByServerThenName(left, right) {
   if (remoteCompare !== 0)
     return remoteCompare
 
-  return left.name.localeCompare(right.name)
+  return left.localBasePath.localeCompare(right.localBasePath)
 }
 
 export function sortSyncTasks(syncTasks = []) {
@@ -42,9 +42,9 @@ export function createServersFromSyncTasks(rcloneRemotes = [], syncTasks = []) {
   return [...serverByName.values()].sort((left, right) => left.name.localeCompare(right.name))
 }
 
-export async function loadAppModel(runtimePaths = getRuntimePaths(), runtime = {}) {
+export async function loadAppModel(runtimePaths = getRuntimePaths()) {
   const config = await loadAppConfig(runtimePaths.configPath)
-  const rcloneRemotes = await listRcloneRemotes(runtimePaths, runtime)
+  const rcloneRemotes = await listRcloneRemotes(runtimePaths)
   const syncTasks = sortSyncTasks(config?.syncTasks || [])
 
   return {
@@ -56,7 +56,7 @@ export async function loadAppModel(runtimePaths = getRuntimePaths(), runtime = {
   }
 }
 
-export async function listSyncTasks(runtimePaths = getRuntimePaths(), runtime = {}) {
-  const model = await loadAppModel(runtimePaths, runtime)
+export async function listSyncTasks(runtimePaths = getRuntimePaths()) {
+  const model = await loadAppModel(runtimePaths)
   return model.syncTasks
 }

@@ -15,14 +15,14 @@ test('deleteTaskFromConfig removes the selected task and preserves global ignore
     globalIgnorePatterns: ['.DS_Store'],
     syncTasks: [
       {
-        name: 'A',
+        displayName: 'A',
         rcloneRemote: 'synology',
         localBasePath: localA,
         remoteBasePath: 'A',
         ignorePatterns: [],
       },
       {
-        name: 'B',
+        displayName: 'B',
         rcloneRemote: 'synology',
         localBasePath: localB,
         remoteBasePath: 'B',
@@ -32,14 +32,13 @@ test('deleteTaskFromConfig removes the selected task and preserves global ignore
   }, null, 2))
 
   assert.deepEqual(await deleteTaskFromConfig({
-    name: 'A',
     rcloneRemote: 'synology',
     localBasePath: localA,
   }, { configPath }), { success: true })
 
   const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
   assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
-  assert.deepEqual(saved.syncTasks.map(task => task.name), ['B'])
+  assert.deepEqual(saved.syncTasks.map(task => task.displayName), ['B'])
   assert.deepEqual(saved.syncTasks[0].ignorePatterns, ['node_modules/'])
 })
 
@@ -50,7 +49,7 @@ test('deleteTaskFromConfig returns an error when the task does not exist', async
   await fs.writeFile(configPath, JSON.stringify({
     syncTasks: [
       {
-        name: 'A',
+        displayName: 'A',
         rcloneRemote: 'synology',
         localBasePath: tempDir,
         remoteBasePath: 'A',
@@ -60,9 +59,8 @@ test('deleteTaskFromConfig returns an error when the task does not exist', async
   }, null, 2))
 
   assert.deepEqual(await deleteTaskFromConfig({
-    name: 'Missing',
     rcloneRemote: 'synology',
-    localBasePath: tempDir,
+    localBasePath: path.join(tempDir, 'missing'),
   }, { configPath }), {
     success: false,
     error: 'Sync task was not found.',

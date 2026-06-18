@@ -8,15 +8,15 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
-  task: {
+  syncTask: {
     type: Object,
     default: () => ({}),
   },
 })
 
-const localBasePath = ref(props.task.localBasePath || '/Users/xiaobo/NAS/ProjectsSynced')
-const remoteBasePath = ref(props.task.remoteBasePath || 'ProjectsSynced')
-const remoteName = computed(() => props.task.rcloneRemote || props.wizardState.selectedRemoteName || '')
+const localBasePath = ref(props.syncTask.localBasePath || '/Users/xiaobo/NAS/ProjectsSynced')
+const remoteBasePath = ref(props.syncTask.remoteBasePath || 'ProjectsSynced')
+const remoteName = computed(() => props.syncTask.rcloneRemote || props.wizardState.selectedRemoteName || '')
 
 function getBaseName(folderPath) {
   return folderPath.split(/[/\\]/).pop()

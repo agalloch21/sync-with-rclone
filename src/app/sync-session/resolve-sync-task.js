@@ -17,6 +17,10 @@ function isWithinRemoteRoot(remotePath, remoteRoot) {
   return remotePath === remoteRoot || remotePath.startsWith(`${remoteRoot}/`)
 }
 
+function getSyncTaskLabel(syncTask) {
+  return syncTask.displayName || syncTask.localBasePath
+}
+
 export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPath = '') {
   if (!config)
     return null
@@ -40,8 +44,8 @@ export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPat
   if (explicitRemoteFolderPath && !isWithinRemoteRoot(explicitRemoteFolderPath, remoteRoot)) {
     throw new AppError(
       APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_TASK,
-      `Remote path must stay within syncTask '${syncTask.name}': ${explicitRemoteFolderPath}`,
-      { syncTaskName: syncTask.name, remotePath: explicitRemoteFolderPath, remoteRoot },
+      `Remote path must stay within syncTask '${getSyncTaskLabel(syncTask)}': ${explicitRemoteFolderPath}`,
+      { syncTaskName: getSyncTaskLabel(syncTask), remotePath: explicitRemoteFolderPath, remoteRoot },
     )
   }
 

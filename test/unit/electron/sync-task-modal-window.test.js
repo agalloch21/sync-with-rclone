@@ -109,7 +109,7 @@ test('deleteRemote handler blocks deletion when sync tasks reference the server'
   setMessageBoxTestActions(['ok'])
   setAppModelLoaderForTest(async () => ({
     syncTasks: [
-      { name: 'Projects', rcloneRemote: 'synology' },
+      { displayName: 'Projects', rcloneRemote: 'synology' },
     ],
   }))
   const handlers = createSyncTaskModalHandlers()

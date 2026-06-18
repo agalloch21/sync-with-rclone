@@ -377,6 +377,87 @@ copy 之外的示例：
 - `startSync` 会 emit `SESSION_EVENT.RESULT` 作为观察事件，但 Electron final 流程由返回值驱动
 - failed result 只在 `quick-actions.log` 已存在时携带 `logPath`；直接启动 Electron 时没有该日志文件就不向 renderer 暴露日志路径
 
+### 4.8 `AppModel`
+
+```js
+{
+  configPath: "/app/config/config.json",
+  rcloneConfigPath: "/app/config/rclone.conf",
+  globalIgnorePatterns: [],
+  syncTasks: [],
+  servers: []
+}
+```
+
+说明：
+
+- `AppModel` 是主窗口 renderer 的只读展示模型
+- `src/app/app-model.js` 只负责读取 `config.json` 和 rclone remotes，并组合成 UI 需要的结构
+- `app-model.js` 不保存 Electron 窗口状态，也不执行 syncTask/server 修改
+- sync task 的 `displayName` 是可选展示文本，不是任务身份；任务操作用 server + local path 引用当前任务
+- Electron Main 在 `src/electron/main/app-state.js` 中缓存最近一次 `AppModel` 或加载错误
+- renderer 通过 preload bridge 调用 `main-window:get-app-model` 和 `main-window:refresh-app-model`
+- 修改 server/syncTask 后，由 Electron Main 刷新 `AppModel`，再通过 `main-window:app-model-updated` 通知主窗口 renderer
+
+### 4.9 `SyncTaskModalState`
+
+```js
+{
+  modalName: "edit-server",
+  context: {
+    server: {
+      name: "synology",
+      type: "sftp",
+      address: "nas.local",
+      options: {},
+      status: "unknown"
+    },
+    syncTask: {
+      displayName: "Projects",
+      rcloneRemote: "synology",
+      localBasePath: "/Users/me/Projects",
+      remoteBasePath: "Projects"
+    }
+  }
+}
+```
+
+说明：
+
+- 主窗口 renderer 只能把可 structured-clone 的纯数据传给 Electron Main
+- Vue reactive proxy、DOM 对象、函数和窗口对象不能作为 IPC payload
+- 主窗口 renderer 打开 modal 时传完整的 plain `server` 和 `syncTask` 对象
+- `server.tasks` 是主窗口 renderer 的 UI 组合字段，不传给 modal
+- Electron Main 不重新组装 modal context，只校验 modal 名称并创建窗口
+- `context.server` 和 `context.syncTask` 是 Electron Main 传给 sync-task modal 的纯数据
+- sync-task modal 的初始状态不通过 `additionalArguments` 传入 renderer
+- Electron Main 保存 `modalState`，preload 暴露 `window.syncTaskModal.getState()`，renderer 启动后异步读取
+
+### 4.10 `MessageBoxState`
+
+```js
+{
+  mode: "confirm",
+  title: "Delete Server",
+  message: "Delete server \"synology\"?",
+  detail: "This removes the rclone remote from the local rclone configuration.",
+  confirmLabel: "Delete",
+  cancelLabel: "Cancel",
+  okLabel: "OK",
+  closeOnAction: true,
+  autoCloseMs: 0
+}
+```
+
+说明：
+
+- message-box 是 Electron Main 里的进程级单例窗口
+- 同一时间只允许存在一个 message-box
+- message-box parent 由 `app-state.js` 选择：优先 active modal，其次 main window
+- message-box 支持 `confirm` / `progress` / `error` / `success`
+- 调用方通过 `openMessageBox(...)` / `updateMessageBox(...)` / `closeMessageBox(...)` 操作单例窗口
+- message-box renderer 的初始状态也不通过 `additionalArguments` 传入，而是通过 `window.messageBox.getState()` 读取
+
 ## 5. 数据契约在主要模块间的流转
 
 ```mermaid

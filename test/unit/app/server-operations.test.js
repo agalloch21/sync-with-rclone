@@ -5,11 +5,11 @@ import { findTasksUsingRemote } from '#src/app/sync-task/server-operations.js'
 test('findTasksUsingRemote returns tasks referencing a remote name', () => {
   const tasks = findTasksUsingRemote({
     syncTasks: [
-      { name: 'A', rcloneRemote: 'synology' },
-      { name: 'B', rcloneRemote: 'backup' },
-      { name: 'C', rcloneRemote: 'synology' },
+      { displayName: 'A', rcloneRemote: 'synology' },
+      { displayName: 'B', rcloneRemote: 'backup' },
+      { displayName: 'C', rcloneRemote: 'synology' },
     ],
   }, 'synology')
 
-  assert.deepEqual(tasks.map(task => task.name), ['A', 'C'])
+  assert.deepEqual(tasks.map(task => task.displayName), ['A', 'C'])
 })

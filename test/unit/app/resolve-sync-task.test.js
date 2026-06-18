@@ -9,7 +9,7 @@ function createConfig() {
     globalIgnorePatterns: ['.DS_Store'],
     syncTasks: [
       {
-        name: 'ProjectsSynced',
+        displayName: 'ProjectsSynced',
         rcloneRemote: 'synology',
         localBasePath: path.resolve('test/fixtures/local').replaceAll(path.sep, path.posix.sep),
         remoteBasePath: 'ProjectsSynced',
@@ -23,7 +23,7 @@ test('resolveSyncTask matches the correct sync task and computes the default rem
   const config = createConfig()
   const result = resolveSyncTask(config, 'test/fixtures/local/compare-push')
 
-  assert.equal(result.matchedTask.name, 'ProjectsSynced')
+  assert.equal(result.matchedTask.displayName, 'ProjectsSynced')
   assert.equal(result.localFolderPath, path.resolve('test/fixtures/local/compare-push').replaceAll(path.sep, path.posix.sep))
   assert.equal(result.relativePath, 'compare-push')
   assert.equal(result.remoteFolderPath, 'synology:ProjectsSynced/compare-push')
@@ -68,7 +68,7 @@ test('resolveSyncTask allows syncing to the remote root when remoteBasePath is e
     globalIgnorePatterns: [],
     syncTasks: [
       {
-        name: 'ProjectsSynced',
+        displayName: 'ProjectsSynced',
         rcloneRemote: 'synology',
         localBasePath: path.resolve('test/fixtures/local/compare-push').replaceAll(path.sep, path.posix.sep),
         remoteBasePath: '',

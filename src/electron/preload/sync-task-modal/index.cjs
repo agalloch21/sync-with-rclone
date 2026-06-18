@@ -22,8 +22,8 @@ contextBridge.exposeInMainWorld('syncTaskModal', {
   deleteRemote(remoteName) {
     return ipcRenderer.invoke('sync-task-modal:delete-remote', { remoteName })
   },
-  deleteSyncTask(taskIdentity) {
-    return ipcRenderer.invoke('sync-task-modal:delete-sync-task', taskIdentity)
+  deleteSyncTask(taskReference) {
+    return ipcRenderer.invoke('sync-task-modal:delete-sync-task', taskReference)
   },
   ready(payload) {
     ipcRenderer.send('sync-task-modal:ready', payload)

@@ -6,7 +6,7 @@ import TaskMappingForm from './TaskMappingForm.vue'
 defineEmits(['onClickCancel'])
 
 defineProps({
-  task: {
+  syncTask: {
     type: Object,
     default: () => ({}),
   },
@@ -15,7 +15,7 @@ defineProps({
 
 <template>
   <ModalShell :title="$t('syncTasks.modals.editFolderMapping.title')" :message="$t('syncTasks.modals.editFolderMapping.message')">
-    <TaskMappingForm :task="task" />
+    <TaskMappingForm :sync-task="syncTask" />
 
     <template #footer>
       <Button :primary="true" :wide="true">

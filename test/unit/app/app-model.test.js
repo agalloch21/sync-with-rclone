@@ -19,19 +19,19 @@ if (process.argv.includes('dump')) {
   return executablePath
 }
 
-test('sortSyncTasks sorts by server then task name without enriching task objects', () => {
+test('sortSyncTasks sorts by server then local path without enriching task objects', () => {
   const syncTasks = sortSyncTasks([
-    { name: 'Task B', rcloneRemote: 'server-b' },
-    { name: 'Task A2', rcloneRemote: 'server-a' },
-    { name: 'Task A1', rcloneRemote: 'server-a' },
-    { name: 'Missing', rcloneRemote: 'server-missing' },
+    { displayName: 'Task B', rcloneRemote: 'server-b', localBasePath: '/b' },
+    { displayName: 'Task A2', rcloneRemote: 'server-a', localBasePath: '/a/2' },
+    { displayName: 'Task A1', rcloneRemote: 'server-a', localBasePath: '/a/1' },
+    { displayName: 'Missing', rcloneRemote: 'server-missing', localBasePath: '/missing' },
   ])
 
-  assert.deepEqual(syncTasks.map(task => [task.rcloneRemote, task.name, Object.hasOwn(task, 'remote')]), [
-    ['server-a', 'Task A1', false],
-    ['server-a', 'Task A2', false],
-    ['server-b', 'Task B', false],
-    ['server-missing', 'Missing', false],
+  assert.deepEqual(syncTasks.map(task => [task.rcloneRemote, task.localBasePath, Object.hasOwn(task, 'remote')]), [
+    ['server-a', '/a/1', false],
+    ['server-a', '/a/2', false],
+    ['server-b', '/b', false],
+    ['server-missing', '/missing', false],
   ])
 })
 
@@ -40,8 +40,8 @@ test('createServersFromSyncTasks creates app-facing server records with status',
     { name: 'server-a', type: 'sftp', host: 'nas.local' },
     { name: 'server-b', type: 'ftp', host: 'ftp.local' },
   ], [
-    { name: 'Task A', rcloneRemote: 'server-a' },
-    { name: 'Task Missing', rcloneRemote: 'server-missing' },
+    { displayName: 'Task A', rcloneRemote: 'server-a' },
+    { displayName: 'Task Missing', rcloneRemote: 'server-missing' },
   ])
 
   assert.deepEqual(servers, [
@@ -60,7 +60,7 @@ test('loadAppModel returns full config data and enriched tasks', async () => {
     globalIgnorePatterns: ['.DS_Store'],
     syncTasks: [
       {
-        name: 'Projects',
+        displayName: 'Projects',
         rcloneRemote: 'synology',
         localBasePath: './test/fixtures/local',
         remoteBasePath: 'Projects',
@@ -80,7 +80,7 @@ test('loadAppModel returns full config data and enriched tasks', async () => {
   })
 
   assert.deepEqual(model.globalIgnorePatterns, ['.DS_Store'])
-  assert.equal(model.syncTasks[0].name, 'Projects')
+  assert.equal(model.syncTasks[0].displayName, 'Projects')
   assert.deepEqual(model.servers, [
     {
       name: 'synology',
@@ -103,16 +103,16 @@ test('listSyncTasks returns the flat sorted task list', async () => {
   await fs.writeFile(configPath, JSON.stringify({
     syncTasks: [
       {
-        name: 'B',
+        displayName: 'B',
         rcloneRemote: 'server-b',
-        localBasePath: './test/fixtures/local',
+        localBasePath: './test/fixtures/local/b',
         remoteBasePath: 'B',
         ignorePatterns: [],
       },
       {
-        name: 'A',
+        displayName: 'A',
         rcloneRemote: 'server-a',
-        localBasePath: './test/fixtures/local',
+        localBasePath: './test/fixtures/local/a',
         remoteBasePath: 'A',
         ignorePatterns: [],
       },
@@ -126,5 +126,5 @@ test('listSyncTasks returns the flat sorted task list', async () => {
     rcloneConfigPath: '/app/rclone.conf',
   })
 
-  assert.deepEqual(syncTasks.map(task => task.name), ['A', 'B'])
+  assert.deepEqual(syncTasks.map(task => task.displayName), ['A', 'B'])
 })

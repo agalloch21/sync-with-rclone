@@ -48,7 +48,7 @@ function printServers(output, remotes) {
 function printTasks(output, syncTasks) {
   output.log(stringifyTable(syncTasks, [
     { key: 'rcloneRemote', label: 'SERVER' },
-    { key: 'name', label: 'TASK' },
+    { key: 'displayName', label: 'DISPLAY' },
     { key: 'localBasePath', label: 'LOCAL' },
     { key: 'remotePath', label: 'REMOTE' },
     { key: 'lastSync', label: 'LAST_SYNC' },

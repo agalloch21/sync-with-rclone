@@ -25,8 +25,6 @@ function normalizeAppConfig(rawConfig) {
   return {
     globalIgnorePatterns: Array.isArray(rawConfig.globalIgnorePatterns) ? rawConfig.globalIgnorePatterns : [],
     syncTasks: rawConfig.syncTasks.map((task, index) => {
-      if (!task?.name)
-        throw new Error(`syncTasks[${index}].name is required`)
       if (!task?.rcloneRemote)
         throw new Error(`syncTasks[${index}].rcloneRemote is required`)
       if (!task?.localBasePath)
@@ -35,7 +33,7 @@ function normalizeAppConfig(rawConfig) {
         throw new Error(`syncTasks[${index}].remoteBasePath is required`)
 
       return {
-        name: task.name,
+        displayName: task.displayName || '',
         rcloneRemote: task.rcloneRemote,
         localBasePath: normalizeLocalPath(path.resolve(task.localBasePath)),
         remoteBasePath: normalizeLocalPath(task.remoteBasePath),
@@ -96,10 +94,11 @@ export async function loadAppConfig(configPath = getDefaultAppConfigPath()) {
 }
 
 export async function saveAppConfig(config, runtimePaths = getRuntimePaths()) {
-  await fs.writeFile(runtimePaths.configPath, serializeAppConfig(config), 'utf8')
+  const normalizedConfig = normalizeAppConfig(config)
+  await fs.writeFile(runtimePaths.configPath, serializeAppConfig(normalizedConfig), 'utf8')
   return {
     path: runtimePaths.configPath,
-    ...normalizeAppConfig(config),
+    ...normalizedConfig,
   }
 }
 

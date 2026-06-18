@@ -20,7 +20,7 @@ test('loadAppConfig reads and normalizes sync config', async () => {
     globalIgnorePatterns: ['.DS_Store'],
     syncTasks: [
       {
-        name: 'Projects',
+        displayName: 'Projects',
         rcloneRemote: 'synology',
         localBasePath: './test/fixtures/local',
         remoteBasePath: 'Projects',
@@ -35,7 +35,7 @@ test('loadAppConfig reads and normalizes sync config', async () => {
   const config = await loadAppConfig(configPath)
   assert.equal(config.path, configPath)
   assert.deepEqual(config.globalIgnorePatterns, ['.DS_Store'])
-  assert.equal(config.syncTasks[0].name, 'Projects')
+  assert.equal(config.syncTasks[0].displayName, 'Projects')
   assert.equal(config.syncTasks[0].rcloneRemote, 'synology')
   assert.deepEqual(config.syncTasks[0].ignorePatterns, ['node_modules/'])
   assert.equal(config.syncTasks[0].lastSyncMode, 'push')
@@ -51,7 +51,7 @@ test('loadAppConfig allows an empty remoteBasePath for syncing to the remote roo
   await fs.writeFile(configPath, JSON.stringify({
     syncTasks: [
       {
-        name: 'Projects',
+        displayName: 'Projects',
         rcloneRemote: 'synology',
         localBasePath: './test/fixtures/local',
         remoteBasePath: '',
@@ -71,7 +71,7 @@ test('loadAppConfig defaults last sync fields to null', async () => {
   await fs.writeFile(configPath, JSON.stringify({
     syncTasks: [
       {
-        name: 'Projects',
+        displayName: 'Projects',
         rcloneRemote: 'synology',
         localBasePath: './test/fixtures/local',
         remoteBasePath: 'Projects',
@@ -164,7 +164,7 @@ test('saveAppConfig writes normalized config JSON', async () => {
     globalIgnorePatterns: ['.DS_Store'],
     syncTasks: [
       {
-        name: 'Projects',
+        displayName: 'Projects',
         rcloneRemote: 'synology',
         localBasePath: './test/fixtures/local',
         remoteBasePath: 'Projects',
@@ -175,5 +175,8 @@ test('saveAppConfig writes normalized config JSON', async () => {
 
   assert.equal(saved.path, configPath)
   assert.ok(path.isAbsolute(saved.syncTasks[0].localBasePath))
-  assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')).globalIgnorePatterns, ['.DS_Store'])
+  const savedContent = JSON.parse(await fs.readFile(configPath, 'utf8'))
+  assert.deepEqual(savedContent.globalIgnorePatterns, ['.DS_Store'])
+  assert.equal(savedContent.syncTasks[0].displayName, 'Projects')
+  assert.equal(Object.hasOwn(savedContent.syncTasks[0], 'name'), false)
 })

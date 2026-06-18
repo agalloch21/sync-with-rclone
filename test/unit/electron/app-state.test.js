@@ -31,16 +31,16 @@ test('getAppModel loads once and returns cached app model', async () => {
   let calls = 0
   setAppModelLoaderForTest(async () => {
     calls += 1
-    return { syncTasks: [{ name: 'Projects' }] }
+    return { syncTasks: [{ displayName: 'Projects' }] }
   })
 
   assert.deepEqual(await getAppModel(), {
     success: true,
-    model: { syncTasks: [{ name: 'Projects' }] },
+    model: { syncTasks: [{ displayName: 'Projects' }] },
   })
   assert.deepEqual(await getAppModel(), {
     success: true,
-    model: { syncTasks: [{ name: 'Projects' }] },
+    model: { syncTasks: [{ displayName: 'Projects' }] },
   })
   assert.equal(calls, 1)
 })

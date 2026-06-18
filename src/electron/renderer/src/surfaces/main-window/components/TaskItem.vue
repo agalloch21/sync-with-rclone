@@ -1,12 +1,20 @@
 <script setup>
 const props = defineProps({
-  task: {
+  syncTask: {
     type: Object,
   },
   selected: {
     type: Boolean,
   },
 })
+
+function getBaseName(filePath = '') {
+  return filePath.replaceAll('\\', '/').split('/').filter(Boolean).at(-1) || filePath
+}
+
+function getTaskDisplayName(syncTask) {
+  return syncTask?.displayName || getBaseName(syncTask?.localBasePath || '') || syncTask?.localBasePath || ''
+}
 </script>
 
 <template>
@@ -20,10 +28,10 @@ const props = defineProps({
       </div>
       <div class="task-base-info min-w-44 flex-1 flex flex-col gap-1">
         <label class="local-folder-name h-lh text-sm font-semibold text-(--text-primary) break-all line-clamp-1">
-          {{ props.task?.name }}
+          {{ getTaskDisplayName(props.syncTask) }}
         </label>
         <div class="local-folder-path h-[2lh] text-[0.625rem] leading-3 underline text-blue-500 break-all line-clamp-2 cursor-pointer">
-          {{ props.task?.localBasePath }}
+          {{ props.syncTask?.localBasePath }}
         </div>
       </div>
       <dl class="task-extra-info min-w-64 flex-1 pl-4 flex flex-col text-[0.6rem] text-(--text-subtle)">
@@ -33,7 +41,7 @@ const props = defineProps({
             <span class="extra-info-label">{{ $t('syncTasks.task.extra.remoteFolderLabel') }}:</span>
           </dt>
           <dd class="break-all line-clamp-2">
-            {{ props.task?.rcloneRemote }}:{{ props.task?.remoteBasePath }}
+            {{ props.syncTask?.rcloneRemote }}:{{ props.syncTask?.remoteBasePath }}
           </dd>
         </div>
         <div class="extra-info-row">
@@ -43,10 +51,10 @@ const props = defineProps({
           </dt>
           <dd class="flex flex-col">
             <p class="break-all line-clamp-1">
-              {{ props.task?.lastSyncMode || '-' }} | {{ props.task?.lastSyncDate || '-' }}
+              {{ props.syncTask?.lastSyncMode || '-' }} | {{ props.syncTask?.lastSyncDate || '-' }}
             </p>
             <p class="">
-              {{ props.task?.lastSyncFolder || '-' }}
+              {{ props.syncTask?.lastSyncFolder || '-' }}
             </p>
           </dd>
         </div>
@@ -54,7 +62,7 @@ const props = defineProps({
     <!-- <div class="task-extra-info flex-2 pl-8 grid grid-cols-[max-content_max-content_1fr] grid-rows-4 items-center text-[0.6rem] text-(--text-subtle) gap-x-1">
       <span class="row-start-1 col-start-1 icon-[lucide--link] w-3 h-3" />
       <span class="row-start-1 col-start-2 font-bold">Mapped to:</span>
-      <label class="row-start-1 row-end-3 col-start-3 remote-folder-path break-all line-clamp-2">{{ props.task?.remoteBasePath }}ProjectsSyncedProjectsSyncedProjectsSyncedProjectsSynced</label>
+      <label class="row-start-1 row-end-3 col-start-3 remote-folder-path break-all line-clamp-2">{{ props.syncTask?.remoteBasePath }}ProjectsSyncedProjectsSyncedProjectsSyncedProjectsSynced</label>
 
       <span class="row-start-3 col-start-1 icon-[lucide--folder-clock] w-3 h-3" />
       <span class="row-start-3 col-start-2 font-bold">Last Sync:</span>

@@ -42,7 +42,7 @@ test('runCli prints list-tasks as JSON', async () => {
           globalIgnorePatterns: ['.DS_Store'],
           syncTasks: [
             {
-              name: 'Projects',
+              displayName: 'Projects',
               rcloneRemote: 'synology',
               localBasePath: '/local',
               remoteBasePath: 'Projects',
@@ -60,8 +60,8 @@ test('runCli prints list-tasks as JSON', async () => {
   assert.deepEqual(JSON.parse(output.lines[0]), {
     globalIgnorePatterns: ['.DS_Store'],
     syncTasks: [
-      {
-        name: 'Projects',
+        {
+          displayName: 'Projects',
         rcloneRemote: 'synology',
         localBasePath: '/local',
         remoteBasePath: 'Projects',

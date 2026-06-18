@@ -65,6 +65,7 @@ onMounted(async () => {
       :is="modalComponent"
       :wizard-state="wizardState"
       :context="context"
+      :sync-task="context.syncTask"
       @on-click-cancel="closeModal"
       @on-click-next="onClickNext"
       @on-click-confirm="onClickConfirm"

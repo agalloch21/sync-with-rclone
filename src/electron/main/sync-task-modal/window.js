@@ -176,10 +176,11 @@ export function createSyncTaskModalHandlers() {
     },
 
     async deleteSyncTask(_event, payload) {
+      const taskLabel = payload?.displayName || payload?.localBasePath || 'selected task'
       const action = await openMessageBox({
         mode: 'confirm',
         title: 'Delete Sync Task',
-        message: `Delete task "${payload?.name || 'selected task'}"?`,
+        message: `Delete task "${taskLabel}"?`,
         detail: 'This removes the task from config.json. It does not delete local or remote files.',
         confirmLabel: 'Delete',
         cancelLabel: 'Cancel',
@@ -187,17 +188,16 @@ export function createSyncTaskModalHandlers() {
       if (action.action !== 'confirm')
         return { success: false, cancelled: true }
 
-      const taskIdentity = {
-        name: payload?.name,
+      const taskReference = {
         rcloneRemote: payload?.rcloneRemote,
         localBasePath: payload?.localBasePath,
       }
-      const result = await deleteTaskFromConfig(taskIdentity)
+      const result = await deleteTaskFromConfig(taskReference)
       if (!result.success) {
         await openMessageBox({
           mode: 'error',
           title: 'Delete Failed',
-          message: `Could not delete "${payload?.name || 'selected task'}".`,
+          message: `Could not delete "${taskLabel}".`,
           detail: result.error || 'Failed to update config.json.',
           okLabel: 'OK',
         })
@@ -208,7 +208,7 @@ export function createSyncTaskModalHandlers() {
       await openMessageBox({
         mode: 'success',
         title: 'Task Deleted',
-        message: `Deleted "${payload?.name || 'selected task'}".`,
+        message: `Deleted "${taskLabel}".`,
         okLabel: 'OK',
       })
       return result

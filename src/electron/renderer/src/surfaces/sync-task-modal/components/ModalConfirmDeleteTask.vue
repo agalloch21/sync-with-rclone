@@ -13,17 +13,17 @@ const props = defineProps({
 })
 
 const isSubmitting = ref(false)
-const task = computed(() => props.context?.task || null)
+const syncTask = computed(() => props.context?.syncTask || null)
 
 async function deleteTask() {
-  if (isSubmitting.value || !task.value)
+  if (isSubmitting.value || !syncTask.value)
     return
 
   isSubmitting.value = true
   const result = await window.syncTaskModal?.deleteSyncTask?.({
-    name: task.value.name,
-    rcloneRemote: task.value.rcloneRemote,
-    localBasePath: task.value.localBasePath,
+    displayName: syncTask.value.displayName,
+    rcloneRemote: syncTask.value.rcloneRemote,
+    localBasePath: syncTask.value.localBasePath,
   })
   isSubmitting.value = false
 
@@ -36,12 +36,12 @@ async function deleteTask() {
   <ModalShell :title="$t('syncTasks.modals.confirmDeleteTask.title')" :message="$t('syncTasks.modals.confirmDeleteTask.message')">
     <div class="h-full flex items-center justify-center px-8 text-center text-sm text-(--text-primary)">
       <p>
-        {{ task ? `Prepare to delete task "${task.name}".` : 'No sync task is selected.' }}
+        {{ syncTask ? `Prepare to delete task "${syncTask.displayName || syncTask.localBasePath}".` : 'No sync task is selected.' }}
       </p>
     </div>
 
     <template #footer>
-      <Button :primary="true" :wide="true" :disabled="isSubmitting || !task" @click="deleteTask">
+      <Button :primary="true" :wide="true" :disabled="isSubmitting || !syncTask" @click="deleteTask">
         {{ $t('syncTasks.modals.common.confirm') }}
       </Button>
       <Button @click="$emit('onClickCancel')">

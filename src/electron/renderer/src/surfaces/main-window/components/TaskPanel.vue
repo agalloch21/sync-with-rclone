@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref, shallowRef } from 'vue'
+import { onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
 import ActionBar from './ActionBar.vue'
 import ServerItem from './ServerItem.vue'
 import TaskItem from './TaskItem.vue'
@@ -9,7 +9,7 @@ const remoteServers = ref([
 const errorMessage = ref('')
 
 const selectedServer = shallowRef(null)
-const selectedTask = shallowRef(null)
+const selectedSyncTask = shallowRef(null)
 
 onMounted(loadTaskPanel)
 
@@ -27,6 +27,7 @@ onUnmounted(() => {
 
 async function loadTaskPanel() {
   const result = await window.mainWindow?.getAppModel?.()
+  console.log(result)
   applyAppModelResult(result)
 }
 
@@ -42,30 +43,44 @@ function applyAppModelResult(result) {
     ...server,
     tasks: syncTasks.filter(task => task.rcloneRemote === server.name),
   }))
-  const previousTask = selectedTask.value
+  const previousSyncTask = selectedSyncTask.value
   const previousServer = selectedServer.value
   const nextServer = remoteServers.value.find(server => server.name === previousServer?.name) || remoteServers.value?.[0] || null
-  const nextTask = previousTask && nextServer
-    ? nextServer.tasks.find(task => task.name === previousTask.name && task.localBasePath === previousTask.localBasePath)
+  const nextSyncTask = previousSyncTask && nextServer
+    ? nextServer.tasks.find(syncTask => syncTask.localBasePath === previousSyncTask.localBasePath)
     : null
 
   selectedServer.value = nextServer
-  selectedTask.value = nextTask || null
+  selectedSyncTask.value = nextSyncTask || null
 }
 
 function onSelectServer(server) {
   selectedServer.value = server
-  selectedTask.value = null
+  selectedSyncTask.value = null
 }
-function onSelectTask(server, task) {
+function onSelectTask(server, syncTask) {
   selectedServer.value = server
-  selectedTask.value = task
+  selectedSyncTask.value = syncTask
+}
+
+function createSerializableServer(server) {
+  const rawServer = toRaw(server)
+  if (!rawServer)
+    return null
+
+  const { tasks: _tasks, ...serverContext } = rawServer
+  return structuredClone(serverContext)
+}
+
+function createSerializableSyncTask(syncTask) {
+  const rawSyncTask = toRaw(syncTask)
+  return rawSyncTask ? structuredClone(rawSyncTask) : null
 }
 
 function openSyncTaskModal(modalName) {
   window.mainWindow?.openSyncTaskModal?.(modalName, {
-    server: selectedServer.value,
-    task: selectedTask.value,
+    server: createSerializableServer(selectedServer.value),
+    syncTask: createSerializableSyncTask(selectedSyncTask.value),
   })
 }
 </script>
@@ -74,7 +89,7 @@ function openSyncTaskModal(modalName) {
   <div class="task-panel-stage h-full flex flex-col gap-5">
     <div class="action-dock">
       <ActionBar
-        :is-server-selected="selectedServer !== null" :is-task-selected="selectedTask !== null"
+        :is-server-selected="selectedServer !== null" :is-task-selected="selectedSyncTask !== null"
         @open-sync-task-modal="openSyncTaskModal"
       />
     </div>
@@ -84,12 +99,12 @@ function openSyncTaskModal(modalName) {
           {{ errorMessage }}
         </p>
         <ServerItem
-          v-for="server in remoteServers" :key="server.name" :server="server" :selected="server === selectedServer && selectedTask === null"
+          v-for="server in remoteServers" :key="server.name" :server="server" :selected="server === selectedServer && selectedSyncTask === null"
           @click.prevent="onSelectServer(server)"
         >
           <TaskItem
-            v-for="task in server.tasks" :key="task.name" :task="task" :selected="server === selectedServer && task === selectedTask"
-            @click.stop="onSelectTask(server, task)"
+            v-for="syncTask in server.tasks" :key="syncTask.localBasePath" :sync-task="syncTask" :selected="server === selectedServer && syncTask === selectedSyncTask"
+            @click.stop="onSelectTask(server, syncTask)"
           />
         </ServerItem>
       </div>

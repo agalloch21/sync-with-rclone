@@ -9,7 +9,7 @@ import {
   refreshAppModel,
   setMainWindow,
 } from '../app-state.js'
-import { destroyMessageBox } from '../message-box/window.js'
+import { closeMessageBox, destroyMessageBox, openMessageBox } from '../message-box/window.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 import { createSyncTaskModalWindow } from '../sync-task-modal/window.js'
 
@@ -75,10 +75,21 @@ export function createMainWindow() {
     return { success: true, syncTasks: result.model.syncTasks }
   }
 
+  function handleShowMessageBox(_event, options = {}) {
+    return openMessageBox(options)
+  }
+
+  function handleCloseMessageBox(_event, payload = {}) {
+    closeMessageBox(payload.action || 'close')
+    return { success: true }
+  }
+
   ipcMain.handle('main-window:open-sync-task-modal', handleOpenSyncTaskModal)
   ipcMain.handle('main-window:get-app-model', getAppModel)
   ipcMain.handle('main-window:list-sync-tasks', handleListSyncTasks)
   ipcMain.handle('main-window:refresh-app-model', handleRefreshAppModel)
+  ipcMain.handle('main-window:show-message-box', handleShowMessageBox)
+  ipcMain.handle('main-window:close-message-box', handleCloseMessageBox)
 
   refreshAppModel()
 
@@ -93,6 +104,8 @@ export function createMainWindow() {
     ipcMain.removeHandler('main-window:get-app-model')
     ipcMain.removeHandler('main-window:list-sync-tasks')
     ipcMain.removeHandler('main-window:refresh-app-model')
+    ipcMain.removeHandler('main-window:show-message-box')
+    ipcMain.removeHandler('main-window:close-message-box')
   })
 
   mainWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {

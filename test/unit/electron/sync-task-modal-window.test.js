@@ -105,6 +105,68 @@ test('sync task modal listServers handler returns app model servers', async () =
   })
 })
 
+test('createRemote handler saves a flat remote and refreshes app model', async () => {
+  await withFakeRuntimePaths(async (fakeRuntime) => {
+    let refreshCount = 0
+    setMainWindow({ isDestroyed: () => false, webContents: { send() {} } })
+    setAppModelLoaderForTest(async () => {
+      refreshCount += 1
+      return { syncTasks: [] }
+    })
+    const handlers = createSyncTaskModalHandlers()
+
+    const result = await handlers.createRemote(null, {
+      name: 'synology',
+      type: 'sftp',
+      host: ' nas.local ',
+      port: '22',
+      user: 'xiaobo',
+      pass: 'secret',
+    })
+
+    assert.equal(result.success, true)
+    assert.deepEqual(result.remote, {
+      name: 'synology',
+      type: 'sftp',
+      host: 'nas.local',
+      port: 22,
+      user: 'xiaobo',
+      pass: 'secret',
+    })
+    const calls = await fakeRuntime.readCalls()
+    assert.deepEqual(calls[0].slice(2), ['config', 'create', 'synology', 'sftp', 'host', 'nas.local', 'port', '22', 'user', 'xiaobo', 'pass', 'secret', '--obscure'])
+    assert.deepEqual(calls[1].slice(2), ['lsf', '--max-depth', '1', 'synology:'])
+    assert.deepEqual(calls[2].slice(2), ['config', 'create', 'synology', 'sftp', 'host', 'nas.local', 'port', '22', 'user', 'xiaobo', 'pass', 'secret', '--obscure'])
+    assert.equal(refreshCount >= 1, true)
+  })
+})
+
+test('updateRemote handler saves a flat remote and refreshes app model', async () => {
+  await withFakeRuntimePaths(async (fakeRuntime) => {
+    let refreshCount = 0
+    setMainWindow({ isDestroyed: () => false, webContents: { send() {} } })
+    setAppModelLoaderForTest(async () => {
+      refreshCount += 1
+      return { syncTasks: [] }
+    })
+    const handlers = createSyncTaskModalHandlers()
+
+    const result = await handlers.updateRemote(null, {
+      name: 'synology',
+      type: 'sftp',
+      host: 'nas.local',
+      port: '22',
+      user: 'xiaobo',
+      pass: 'secret',
+    })
+
+    assert.equal(result.success, true)
+    const calls = await fakeRuntime.readCalls()
+    assert.deepEqual(calls[2].slice(2), ['config', 'update', 'synology', 'type', 'sftp', 'host', 'nas.local', 'port', '22', 'user', 'xiaobo', 'pass', 'secret', '--obscure'])
+    assert.equal(refreshCount >= 1, true)
+  })
+})
+
 test('deleteRemote handler blocks deletion when sync tasks reference the server', async () => {
   setMessageBoxTestActions(['ok'])
   setAppModelLoaderForTest(async () => ({
@@ -116,8 +178,9 @@ test('deleteRemote handler blocks deletion when sync tasks reference the server'
 
   assert.deepEqual(await handlers.deleteRemote(null, { remoteName: 'synology' }), {
     success: false,
-    blocked: true,
-    error: 'Server is still used by sync tasks.',
+    code: 'server.in_use',
+    message: 'Server is still used by sync tasks.',
+    detail: 'This server is used by 1 sync task(s). Delete or move those tasks first.',
   })
   assert.equal(getMessageBoxTestMessages()[0].mode, 'error')
 })
@@ -137,5 +200,16 @@ test('deleteRemote handler confirms before deleting an unused server', async () 
     assert.deepEqual((await fakeRuntime.readCalls())[0].slice(2), ['config', 'delete', 'synology'])
     assert.equal(refreshCount >= 2, true)
     assert.deepEqual(getMessageBoxTestMessages().map(message => message.mode), ['confirm', 'success'])
+  })
+})
+
+test('deleteRemote returns a neutral action when deletion is cancelled', async () => {
+  setMessageBoxTestActions(['cancel'])
+  setAppModelLoaderForTest(async () => ({ syncTasks: [] }))
+  const handlers = createSyncTaskModalHandlers()
+
+  assert.deepEqual(await handlers.deleteRemote(null, { remoteName: 'synology' }), {
+    success: true,
+    action: 'cancelled',
   })
 })

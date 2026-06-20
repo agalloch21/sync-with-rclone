@@ -13,17 +13,23 @@ contextBridge.exposeInMainWorld('syncTaskModal', {
   testRemote(remoteName) {
     return ipcRenderer.invoke('sync-task-modal:test-remote', { remoteName })
   },
-  createRemote(payload) {
-    return ipcRenderer.invoke('sync-task-modal:create-remote', payload)
+  createRemote(remote) {
+    return ipcRenderer.invoke('sync-task-modal:create-remote', remote)
   },
-  updateRemote(payload) {
-    return ipcRenderer.invoke('sync-task-modal:update-remote', payload)
+  updateRemote(remote) {
+    return ipcRenderer.invoke('sync-task-modal:update-remote', remote)
   },
   deleteRemote(remoteName) {
     return ipcRenderer.invoke('sync-task-modal:delete-remote', { remoteName })
   },
   deleteSyncTask(taskReference) {
     return ipcRenderer.invoke('sync-task-modal:delete-sync-task', taskReference)
+  },
+  showMessageBox(options = {}) {
+    return ipcRenderer.invoke('sync-task-modal:show-message-box', options)
+  },
+  closeMessageBox(action = 'close') {
+    return ipcRenderer.invoke('sync-task-modal:close-message-box', { action })
   },
   ready(payload) {
     ipcRenderer.send('sync-task-modal:ready', payload)

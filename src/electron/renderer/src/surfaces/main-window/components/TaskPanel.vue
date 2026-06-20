@@ -1,12 +1,23 @@
 <script setup>
-import { onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
+import { showErrorMessage } from '#src/electron/renderer/src/shared/message-box.js'
+import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
 import ActionBar from './ActionBar.vue'
 import ServerItem from './ServerItem.vue'
 import TaskItem from './TaskItem.vue'
 
 const remoteServers = ref([
 ])
-const errorMessage = ref('')
+const syncTasks = ref([
+])
+const tasksByServerName = computed(() => {
+  const groupedTasks = new Map()
+  for (const syncTask of syncTasks.value) {
+    const serverTasks = groupedTasks.get(syncTask.rcloneRemote) || []
+    serverTasks.push(syncTask)
+    groupedTasks.set(syncTask.rcloneRemote, serverTasks)
+  }
+  return groupedTasks
+})
 
 const selectedServer = shallowRef(null)
 const selectedSyncTask = shallowRef(null)
@@ -27,31 +38,44 @@ onUnmounted(() => {
 
 async function loadTaskPanel() {
   const result = await window.mainWindow?.getAppModel?.()
-  console.log(result)
   applyAppModelResult(result)
 }
 
 function applyAppModelResult(result) {
   if (!result?.success) {
-    errorMessage.value = result?.error || 'Failed to load sync tasks.'
     remoteServers.value = []
+    syncTasks.value = []
+    showTaskPanelLoadError(result?.error)
     return
   }
 
-  const syncTasks = result.model?.syncTasks || []
-  remoteServers.value = (result.model?.servers || []).map(server => ({
-    ...server,
-    tasks: syncTasks.filter(task => task.rcloneRemote === server.name),
-  }))
+  remoteServers.value = result.model?.servers || []
+  syncTasks.value = result.model?.syncTasks || []
+  updateTaskPanelSelection()
+}
+
+function getServerSyncTasks(serverName) {
+  return tasksByServerName.value.get(serverName) || []
+}
+
+function updateTaskPanelSelection() {
   const previousSyncTask = selectedSyncTask.value
   const previousServer = selectedServer.value
   const nextServer = remoteServers.value.find(server => server.name === previousServer?.name) || remoteServers.value?.[0] || null
   const nextSyncTask = previousSyncTask && nextServer
-    ? nextServer.tasks.find(syncTask => syncTask.localBasePath === previousSyncTask.localBasePath)
+    ? getServerSyncTasks(nextServer.name).find(syncTask => syncTask.localBasePath === previousSyncTask.localBasePath)
     : null
 
   selectedServer.value = nextServer
   selectedSyncTask.value = nextSyncTask || null
+}
+
+function showTaskPanelLoadError(error) {
+  showErrorMessage({
+    title: 'Load Failed',
+    message: 'Could not load sync tasks.',
+    detail: error || 'Failed to load sync tasks.',
+  })
 }
 
 function onSelectServer(server) {
@@ -68,8 +92,7 @@ function createSerializableServer(server) {
   if (!rawServer)
     return null
 
-  const { tasks: _tasks, ...serverContext } = rawServer
-  return structuredClone(serverContext)
+  return structuredClone(rawServer)
 }
 
 function createSerializableSyncTask(syncTask) {
@@ -95,15 +118,12 @@ function openSyncTaskModal(modalName) {
     </div>
     <div class="task-list-dock min-h-0 flex-1 border-t border-(--surface-soft)">
       <div class="task-list-stage h-full overflow-x-auto overflow-y-auto scrollbar-gutter-stable divide-y divide-(--surface-soft)">
-        <p v-if="errorMessage" class="px-4 py-3 text-sm text-red-600">
-          {{ errorMessage }}
-        </p>
         <ServerItem
           v-for="server in remoteServers" :key="server.name" :server="server" :selected="server === selectedServer && selectedSyncTask === null"
           @click.prevent="onSelectServer(server)"
         >
           <TaskItem
-            v-for="syncTask in server.tasks" :key="syncTask.localBasePath" :sync-task="syncTask" :selected="server === selectedServer && syncTask === selectedSyncTask"
+            v-for="syncTask in getServerSyncTasks(server.name)" :key="syncTask.localBasePath" :sync-task="syncTask" :selected="server === selectedServer && syncTask === selectedSyncTask"
             @click.stop="onSelectTask(server, syncTask)"
           />
         </ServerItem>

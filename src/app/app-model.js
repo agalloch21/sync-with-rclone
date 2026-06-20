@@ -14,17 +14,30 @@ export function sortSyncTasks(syncTasks = []) {
   return [...syncTasks].sort(sortByServerThenName)
 }
 
+export function createServerFromRcloneRemote(remote = {}) {
+  const { name, type = '', ...options } = remote || {}
+
+  return {
+    name,
+    type,
+    address: getRcloneRemoteAddress(options),
+    options,
+    status: 'unknown',
+  }
+}
+
+export function createRcloneRemoteFromServer(server = {}) {
+  return {
+    name: server.name,
+    type: server.type,
+    ...(server.options || {}),
+  }
+}
+
 export function createServersFromSyncTasks(rcloneRemotes = [], syncTasks = []) {
   const serverByName = new Map(rcloneRemotes.map((remote) => {
-    const { name, type = '', ...options } = remote || {}
-
-    return [name, {
-      name,
-      type,
-      address: getRcloneRemoteAddress(options),
-      options,
-      status: 'unknown',
-    }]
+    const server = createServerFromRcloneRemote(remote)
+    return [server.name, server]
   }))
 
   for (const task of syncTasks) {

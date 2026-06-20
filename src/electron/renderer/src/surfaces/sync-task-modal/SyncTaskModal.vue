@@ -6,10 +6,9 @@ import ModalChooseServer from './components/ModalChooseServer.vue'
 import ModalConfirmDeleteServer from './components/ModalConfirmDeleteServer.vue'
 import ModalConfirmDeleteTask from './components/ModalConfirmDeleteTask.vue'
 import ModalCreateFolderMapping from './components/ModalCreateFolderMapping.vue'
-import ModalCreateServer from './components/ModalCreateServer.vue'
 import ModalEditFolderMapping from './components/ModalEditFolderMapping.vue'
 import ModalEditPatterns from './components/ModalEditPatterns.vue'
-import ModalEditServer from './components/ModalEditServer.vue'
+import ModalServer from './components/ModalServer.vue'
 
 const { t } = useI18n()
 
@@ -22,9 +21,9 @@ const title = computed(() => modalName.value?.length > 0 ? t(`syncTasks.modals.$
 
 const ACTION_COMPONENT = {
   [SYNC_TASK_MODALS.CHOOSE_SERVER]: ModalChooseServer,
-  [SYNC_TASK_MODALS.CREATE_SERVER]: ModalCreateServer,
+  [SYNC_TASK_MODALS.CREATE_SERVER]: ModalServer,
   [SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING]: ModalCreateFolderMapping,
-  [SYNC_TASK_MODALS.EDIT_SERVER]: ModalEditServer,
+  [SYNC_TASK_MODALS.EDIT_SERVER]: ModalServer,
   [SYNC_TASK_MODALS.EDIT_FOLDER_MAPPING]: ModalEditFolderMapping,
   [SYNC_TASK_MODALS.EDIT_PATTERNS]: ModalEditPatterns,
   [SYNC_TASK_MODALS.CONFIRM_DELETE_SERVER]: ModalConfirmDeleteServer,
@@ -63,6 +62,7 @@ onMounted(async () => {
   <div class="task-modal-dock">
     <component
       :is="modalComponent"
+      :modal-name="modalName"
       :wizard-state="wizardState"
       :context="context"
       :sync-task="context.syncTask"

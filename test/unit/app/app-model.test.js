@@ -3,7 +3,13 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { createServersFromSyncTasks, listSyncTasks, loadAppModel, sortSyncTasks } from '#src/app/app-model.js'
+import {
+  createRcloneRemoteFromServer,
+  createServersFromSyncTasks,
+  listSyncTasks,
+  loadAppModel,
+  sortSyncTasks,
+} from '#src/app/app-model.js'
 
 async function createFakeRclone(dump) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-app-model-rclone-'))
@@ -49,6 +55,26 @@ test('createServersFromSyncTasks creates app-facing server records with status',
     { name: 'server-b', type: 'ftp', address: 'ftp.local', options: { host: 'ftp.local' }, status: 'unknown' },
     { name: 'server-missing', type: null, address: '', options: {}, status: 'missing' },
   ])
+})
+
+test('createRcloneRemoteFromServer converts app model server back to flat rclone remote', () => {
+  assert.deepEqual(createRcloneRemoteFromServer({
+    name: 'synology',
+    type: 'sftp',
+    address: 'nas.local',
+    options: {
+      host: 'nas.local',
+      port: 2222,
+      user: 'xiaobo',
+    },
+    status: 'unknown',
+  }), {
+    name: 'synology',
+    type: 'sftp',
+    host: 'nas.local',
+    port: 2222,
+    user: 'xiaobo',
+  })
 })
 
 test('loadAppModel returns full config data and enriched tasks', async () => {

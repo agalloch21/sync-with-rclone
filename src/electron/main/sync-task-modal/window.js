@@ -1,15 +1,6 @@
 import { createRequire } from 'node:module'
-import fs from 'node:fs/promises'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import {
-  clearActiveModalWindow,
-  getAppModel,
-  getMainWindow,
-  refreshAppModel,
-  setActiveModalWindow,
-} from '../app-state.js'
 import { getRuntimePaths } from '#src/app/runtime-paths.js'
 import {
   createRemoteConfig,
@@ -19,7 +10,14 @@ import {
   updateRemoteConfig,
 } from '#src/app/sync-task/server-operations.js'
 import { deleteTaskFromConfig } from '#src/app/sync-task/task-operations.js'
-import { closeMessageBox, openMessageBox, updateMessageBox } from '../message-box/window.js'
+import {
+  clearActiveModalWindow,
+  getAppModel,
+  getMainWindow,
+  refreshAppModel,
+  setActiveModalWindow,
+} from '../app-state.js'
+import { closeMessageBox, openMessageBox } from '../message-box/window.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -34,49 +32,18 @@ export function createSyncTaskModalHandlers() {
     return result
   }
 
-  function toRemote(payload = {}) {
-    return {
-      name: payload.name,
-      type: payload.type,
-      remoteOptions: payload.remoteOptions || payload.options || {},
-    }
-  }
-
-  async function withTemporaryRcloneConfig(callback) {
-    const runtimePaths = getRuntimePaths()
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-remote-test-'))
-    const tempRuntimePaths = {
-      ...runtimePaths,
-      rcloneConfigPath: path.join(tempDir, 'rclone.conf'),
-    }
-
-    try {
-      return await callback(tempRuntimePaths, runtimePaths)
-    }
-    finally {
-      await fs.rm(tempDir, { recursive: true, force: true })
-    }
-  }
-
-  async function testRemoteBeforePersist(remote, persist) {
-    return withTemporaryRcloneConfig(async (tempRuntimePaths, runtimePaths) => {
-      const tempCreateResult = await createRemoteConfig(remote, tempRuntimePaths)
-      if (!tempCreateResult.success)
-        return tempCreateResult
-
-      const testResult = await testRemoteConnection(remote.name, tempRuntimePaths)
-      if (!testResult.success)
-        return testResult
-
-      return persist(runtimePaths)
-    })
-  }
-
   return {
     async listServers() {
       const result = await getAppModel()
-      if (!result?.success)
-        return { success: false, servers: [], error: result?.error || 'Failed to load servers.' }
+      if (!result?.success) {
+        return {
+          success: false,
+          code: 'app_model.load_failed',
+          message: 'Failed to load servers.',
+          detail: result?.error || 'Failed to load app model.',
+          servers: [],
+        }
+      }
 
       return { success: true, servers: result.model?.servers || [] }
     },
@@ -86,8 +53,7 @@ export function createSyncTaskModalHandlers() {
     },
 
     async createRemote(_event, payload) {
-      const remote = toRemote(payload)
-      const result = await testRemoteBeforePersist(remote, runtimePaths => createRemoteConfig(remote, runtimePaths))
+      const result = await createRemoteConfig(payload, getRuntimePaths())
       if (result.success)
         await refreshAndNotifyAppModel()
 
@@ -95,40 +61,23 @@ export function createSyncTaskModalHandlers() {
     },
 
     async updateRemote(_event, payload) {
-      const remote = toRemote(payload)
-      const progressPromise = openMessageBox({
-        mode: 'progress',
-        title: 'Testing Connection',
-        message: `Testing ${remote.name || 'remote'}...`,
-        detail: 'The edited server will be saved only after this connection test succeeds.',
-        closeOnAction: false,
-      })
-      progressPromise.catch(() => {})
-
-      const result = await testRemoteBeforePersist(remote, runtimePaths => updateRemoteConfig(remote, runtimePaths))
-
-      if (!result.success) {
-        updateMessageBox({
-          mode: 'error',
-          title: 'Connection Failed',
-          message: 'The server settings were not saved.',
-          detail: result.error || 'Failed to test or update the remote.',
-          okLabel: 'OK',
-          closeOnAction: true,
-        })
-        return result
-      }
-
-      closeMessageBox('success')
-      await refreshAndNotifyAppModel()
+      const result = await updateRemoteConfig(payload, getRuntimePaths())
+      if (result.success)
+        await refreshAndNotifyAppModel()
       return result
     },
 
     async deleteRemote(_event, payload) {
       const remoteName = payload?.remoteName
       const modelResult = await getAppModel()
-      if (!modelResult?.success)
-        return { success: false, error: modelResult?.error || 'Failed to load sync tasks.' }
+      if (!modelResult?.success) {
+        return {
+          success: false,
+          code: 'app_model.load_failed',
+          message: 'Failed to load sync tasks.',
+          detail: modelResult?.error || 'Failed to load app model.',
+        }
+      }
 
       const referencedTasks = findTasksUsingRemote(modelResult.model, remoteName)
       if (referencedTasks.length > 0) {
@@ -139,7 +88,12 @@ export function createSyncTaskModalHandlers() {
           detail: `This server is used by ${referencedTasks.length} sync task(s). Delete or move those tasks first.`,
           okLabel: 'OK',
         })
-        return { success: false, blocked: true, error: 'Server is still used by sync tasks.' }
+        return {
+          success: false,
+          code: 'server.in_use',
+          message: 'Server is still used by sync tasks.',
+          detail: `This server is used by ${referencedTasks.length} sync task(s). Delete or move those tasks first.`,
+        }
       }
 
       const action = await openMessageBox({
@@ -151,7 +105,7 @@ export function createSyncTaskModalHandlers() {
         cancelLabel: 'Cancel',
       })
       if (action.action !== 'confirm')
-        return { success: false, cancelled: true }
+        return { success: true, action: 'cancelled' }
 
       const result = await deleteRemoteConfig(remoteName)
       if (!result.success) {
@@ -159,7 +113,7 @@ export function createSyncTaskModalHandlers() {
           mode: 'error',
           title: 'Delete Failed',
           message: `Could not delete "${remoteName}".`,
-          detail: result.error || 'Unknown rclone error.',
+          detail: result.detail || result.message || 'Unknown rclone error.',
           okLabel: 'OK',
         })
         return result
@@ -186,7 +140,7 @@ export function createSyncTaskModalHandlers() {
         cancelLabel: 'Cancel',
       })
       if (action.action !== 'confirm')
-        return { success: false, cancelled: true }
+        return { success: true, action: 'cancelled' }
 
       const taskReference = {
         rcloneRemote: payload?.rcloneRemote,
@@ -198,7 +152,7 @@ export function createSyncTaskModalHandlers() {
           mode: 'error',
           title: 'Delete Failed',
           message: `Could not delete "${taskLabel}".`,
-          detail: result.error || 'Failed to update config.json.',
+          detail: result.detail || result.message || 'Failed to update config.json.',
           okLabel: 'OK',
         })
         return result
@@ -248,6 +202,15 @@ export function createSyncTaskModalWindow(modalName, context = {}) {
     return { success: true }
   }
 
+  function handleShowMessageBox(_event, options = {}) {
+    return openMessageBox(options)
+  }
+
+  function handleCloseMessageBox(_event, payload = {}) {
+    closeMessageBox(payload.action || 'close')
+    return { success: true }
+  }
+
   ipcMain.handle('sync-task-modal:close', closeModal)
   ipcMain.handle('sync-task-modal:get-state', () => modalState)
   ipcMain.handle('sync-task-modal:list-servers', handlers.listServers)
@@ -256,6 +219,8 @@ export function createSyncTaskModalWindow(modalName, context = {}) {
   ipcMain.handle('sync-task-modal:update-remote', handlers.updateRemote)
   ipcMain.handle('sync-task-modal:delete-remote', handlers.deleteRemote)
   ipcMain.handle('sync-task-modal:delete-sync-task', handlers.deleteSyncTask)
+  ipcMain.handle('sync-task-modal:show-message-box', handleShowMessageBox)
+  ipcMain.handle('sync-task-modal:close-message-box', handleCloseMessageBox)
 
   ipcMain.once('sync-task-modal:ready', (event, payload) => {
     if (!modalWindow.isDestroyed()) {
@@ -274,6 +239,8 @@ export function createSyncTaskModalWindow(modalName, context = {}) {
     ipcMain.removeHandler('sync-task-modal:update-remote')
     ipcMain.removeHandler('sync-task-modal:delete-remote')
     ipcMain.removeHandler('sync-task-modal:delete-sync-task')
+    ipcMain.removeHandler('sync-task-modal:show-message-box')
+    ipcMain.removeHandler('sync-task-modal:close-message-box')
   })
 
   modalWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {

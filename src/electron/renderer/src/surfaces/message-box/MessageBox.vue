@@ -19,7 +19,7 @@ const iconClass = computed(() => {
     return 'icon-[lucide--loader-circle] animate-spin text-(--primary)'
   if (state.value.mode === 'success')
     return 'icon-[lucide--circle-check] text-(--success)'
-  if (state.value.mode === 'confirm')
+  if (state.value.mode === 'confirm' || state.value.mode === 'warning')
     return 'icon-[lucide--circle-alert] text-(--warning)'
   return 'icon-[lucide--circle-x] text-(--danger)'
 })

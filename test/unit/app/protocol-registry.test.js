@@ -2,12 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   createDefaultProtocolForm,
-  createProtocolFormFromServer,
-  createRemotePayload,
+  createProtocolFormFromRemote,
   getDefaultProtocolType,
   getProtocolDefinition,
-  normalizeProtocolForm,
   REMOTE_PROTOCOLS,
+  validateProtocolForm,
 } from '#src/app/sync-task/protocol-registry.js'
 
 test('protocol registry exposes ftp and sftp definitions', () => {
@@ -33,16 +32,14 @@ test('createDefaultProtocolForm uses protocol defaults', () => {
   })
 })
 
-test('createProtocolFormFromServer uses server options and blanks passwords', () => {
-  assert.deepEqual(createProtocolFormFromServer('sftp', {
+test('createProtocolFormFromRemote uses flat remote fields and blanks passwords', () => {
+  assert.deepEqual(createProtocolFormFromRemote('sftp', {
     name: 'synology',
     type: 'sftp',
-    options: {
-      host: 'nas.local',
-      port: 2222,
-      user: 'xiaobo',
-      pass: 'obscured-pass',
-    },
+    host: 'nas.local',
+    port: 2222,
+    user: 'xiaobo',
+    pass: 'obscured-pass',
   }), {
     name: 'synology',
     host: 'nas.local',
@@ -52,43 +49,18 @@ test('createProtocolFormFromServer uses server options and blanks passwords', ()
   })
 })
 
-test('normalizeProtocolForm validates required fields and positive ports', () => {
-  assert.deepEqual(normalizeProtocolForm('sftp', {
+test('validateProtocolForm returns field errors', () => {
+  assert.deepEqual(validateProtocolForm('sftp', {
     name: '',
     host: '',
     port: '0',
     user: '',
     pass: '',
   }), {
-    success: false,
-    errors: {
-      name: 'Name is required.',
-      host: 'Host is required.',
-      port: 'Port must be a positive number.',
-      user: 'Username is required.',
-      pass: 'Password is required.',
-    },
-  })
-})
-
-test('createRemotePayload trims text and parses numeric fields', () => {
-  assert.deepEqual(createRemotePayload('sftp', {
-    name: ' synology ',
-    host: ' nas.local ',
-    port: '2222',
-    user: ' xiaobo ',
-    pass: ' secret ',
-  }), {
-    success: true,
-    value: {
-      name: 'synology',
-      type: 'sftp',
-      options: {
-        host: 'nas.local',
-        port: 2222,
-        user: 'xiaobo',
-        pass: 'secret',
-      },
-    },
+    name: 'Name is required.',
+    host: 'Host is required.',
+    port: 'Port must be a positive number.',
+    user: 'Username is required.',
+    pass: 'Password is required.',
   })
 })

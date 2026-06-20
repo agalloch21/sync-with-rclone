@@ -1,6 +1,7 @@
 <script setup>
 import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
 import Button from '#src/electron/renderer/src/shared/components/Button.vue'
+import { showErrorMessage, showWarningMessage } from '#src/electron/renderer/src/shared/message-box.js'
 import { computed, onMounted, ref } from 'vue'
 
 import ModalShell from './ModalShell.vue'
@@ -10,7 +11,6 @@ const selectedPlan = ref('choose-from-existing')
 const selectedRemoteName = ref('')
 const servers = ref([])
 const isLoading = ref(false)
-const errorMessage = ref('')
 
 const availableServers = computed(() => servers.value.filter(server => server.status !== 'missing'))
 const canChooseExisting = computed(() => availableServers.value.length > 0)
@@ -19,11 +19,14 @@ onMounted(loadServers)
 
 async function loadServers() {
   isLoading.value = true
-  errorMessage.value = ''
 
   const result = await window.syncTaskModal?.listServers?.()
   if (!result?.success) {
-    errorMessage.value = result?.error || 'Failed to load servers.'
+    await showErrorMessage({
+      title: 'Load Failed',
+      message: 'Could not load servers.',
+      detail: result?.detail || result?.message || 'Failed to load servers.',
+    })
     isLoading.value = false
     return
   }
@@ -35,12 +38,13 @@ async function loadServers() {
 
   isLoading.value = false
 }
-function onClickNext() {
-  errorMessage.value = ''
-
+async function onClickNext() {
   if (selectedPlan.value === 'choose-from-existing') {
     if (!selectedRemoteName.value) {
-      errorMessage.value = 'Choose a remote server first.'
+      await showWarningMessage({
+        title: 'Server Required',
+        message: 'Choose a remote server first.',
+      })
       return
     }
 
@@ -113,9 +117,6 @@ function getServerLabel(server) {
           </div>
           <span class="option-text">Connect to a new server</span>
         </label>
-        <p v-if="errorMessage" class="text-xs text-red-600 px-10">
-          {{ errorMessage }}
-        </p>
       </div>
     </div>
     <template #footer>

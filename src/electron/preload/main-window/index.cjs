@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld('mainWindow', {
   refreshAppModel() {
     return ipcRenderer.invoke('main-window:refresh-app-model')
   },
+  showMessageBox(options = {}) {
+    return ipcRenderer.invoke('main-window:show-message-box', options)
+  },
+  closeMessageBox(action = 'close') {
+    return ipcRenderer.invoke('main-window:close-message-box', { action })
+  },
   onAppModelUpdated(callback) {
     const listener = (_event, payload) => callback(payload)
     ipcRenderer.on('main-window:app-model-updated', listener)

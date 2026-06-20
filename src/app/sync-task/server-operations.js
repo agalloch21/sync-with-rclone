@@ -1,8 +1,8 @@
 import {
+  createRcloneRemote,
   deleteRcloneRemote,
   testRcloneRemote,
-  updateRcloneRemoteConfig,
-  writeRcloneRemote,
+  updateRcloneRemote,
 } from '../rclone-config.js'
 
 export function findTasksUsingRemote(config, remoteName) {
@@ -10,11 +10,11 @@ export function findTasksUsingRemote(config, remoteName) {
 }
 
 export function createRemoteConfig(remote, runtimePaths) {
-  return writeRcloneRemote(remote, runtimePaths)
+  return createRcloneRemote(remote, runtimePaths)
 }
 
 export function updateRemoteConfig(remote, runtimePaths) {
-  return updateRcloneRemoteConfig(remote, runtimePaths)
+  return updateRcloneRemote(remote, runtimePaths)
 }
 
 export function deleteRemoteConfig(remoteName, runtimePaths) {

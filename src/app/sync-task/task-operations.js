@@ -8,12 +8,22 @@ function taskMatchesReference(task, taskReference = {}) {
 
 export async function deleteTaskFromConfig(taskReference, runtimePaths = getRuntimePaths()) {
   const config = await loadAppConfig(runtimePaths.configPath)
-  if (!config)
-    return { success: false, error: 'Sync config does not exist.' }
+  if (!config) {
+    return {
+      success: false,
+      code: 'sync_task.config_missing',
+      message: 'Sync config does not exist.',
+    }
+  }
 
   const nextTasks = config.syncTasks.filter(task => !taskMatchesReference(task, taskReference))
-  if (nextTasks.length === config.syncTasks.length)
-    return { success: false, error: 'Sync task was not found.' }
+  if (nextTasks.length === config.syncTasks.length) {
+    return {
+      success: false,
+      code: 'sync_task.not_found',
+      message: 'Sync task was not found.',
+    }
+  }
 
   await saveAppConfig({
     globalIgnorePatterns: config.globalIgnorePatterns,

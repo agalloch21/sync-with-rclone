@@ -60,7 +60,7 @@ test('parseRcloneRemotesFromConfigDump converts rclone config JSON to sorted rcl
       host: 'nas.local',
       user: 'xiaobo',
     },
-    fake: {
+    'fake': {
       type: 'alias',
       remote: '/tmp/fake',
     },
@@ -121,18 +121,16 @@ test('testRcloneRemote probes the remote root', async () => {
   ])
 })
 
-test('createRcloneRemote tests a temporary config before persisting', async () => {
+test('createRcloneRemote normalizes a flat remote before testing a temporary config', async () => {
   const fakeRclone = await createFakeRclone()
 
   const result = await createRcloneRemote({
     name: 'synology',
     type: 'sftp',
-    remoteOptions: {
-      host: 'nas.local',
-      port: 22,
-      user: 'xiaobo',
-      pass: 'secret',
-    },
+    host: ' nas.local ',
+    port: '22',
+    user: ' xiaobo ',
+    pass: ' secret ',
   }, fakeRclone.runtimePaths)
 
   assert.equal(result.success, true)
@@ -150,30 +148,31 @@ test('createRcloneRemote stops before persisting when the temporary test fails',
   const result = await createRcloneRemote({
     name: 'synology',
     type: 'sftp',
-    remoteOptions: {
-      host: 'nas.local',
-      port: 22,
-      user: 'xiaobo',
-      pass: 'secret',
-    },
+    host: 'nas.local',
+    port: 22,
+    user: 'xiaobo',
+    pass: 'secret',
   }, fakeRclone.runtimePaths)
 
-  assert.deepEqual(result, { success: false, error: 'connection refused' })
+  assert.deepEqual(result, {
+    success: false,
+    code: 'rclone.connection_failed',
+    message: 'Could not connect to the server.',
+    detail: 'connection refused',
+  })
   assert.equal((await fakeRclone.readCalls()).length, 2)
 })
 
-test('updateRcloneRemote tests a temporary config before updating the real remote', async () => {
+test('updateRcloneRemote normalizes a flat remote before updating the real remote', async () => {
   const fakeRclone = await createFakeRclone()
 
   const result = await updateRcloneRemote({
     name: 'synology',
     type: 'sftp',
-    remoteOptions: {
-      host: 'nas.local',
-      port: 22,
-      user: 'xiaobo',
-      pass: 'secret',
-    },
+    host: 'nas.local',
+    port: '22',
+    user: 'xiaobo',
+    pass: 'secret',
   }, fakeRclone.runtimePaths)
 
   assert.equal(result.success, true)
@@ -191,16 +190,36 @@ test('updateRcloneRemote stops before updating when the temporary test fails', a
   const result = await updateRcloneRemote({
     name: 'synology',
     type: 'sftp',
-    remoteOptions: {
-      host: 'nas.local',
-      port: 22,
-      user: 'xiaobo',
-      pass: 'secret',
-    },
+    host: 'nas.local',
+    port: 22,
+    user: 'xiaobo',
+    pass: 'secret',
   }, fakeRclone.runtimePaths)
 
-  assert.deepEqual(result, { success: false, error: 'connection refused' })
+  assert.deepEqual(result, {
+    success: false,
+    code: 'rclone.connection_failed',
+    message: 'Could not connect to the server.',
+    detail: 'connection refused',
+  })
   assert.equal((await fakeRclone.readCalls()).length, 2)
+})
+
+test('createRcloneRemote returns field errors for unsupported protocol type', async () => {
+  const fakeRclone = await createFakeRclone()
+
+  assert.deepEqual(await createRcloneRemote({
+    name: 'synology',
+    type: 'unknown',
+  }, fakeRclone.runtimePaths), {
+    success: false,
+    code: 'rclone.invalid_remote',
+    message: 'Remote settings are invalid.',
+    fieldErrors: {
+      type: 'Unsupported protocol.',
+    },
+  })
+  assert.deepEqual(await fakeRclone.readCalls(), [])
 })
 
 test('deleteRcloneRemote deletes a named rclone remote', async () => {

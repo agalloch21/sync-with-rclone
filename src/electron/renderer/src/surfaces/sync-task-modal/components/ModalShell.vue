@@ -14,7 +14,7 @@ defineProps({
       <div class="message-dock h-15 bg-(--primary) content-center px-5 text-(--on-primary) font-semibold">
         {{ message }}
       </div>
-      <div class="content-dock min-h-0 flex-1">
+      <div class="content-dock min-h-0 flex-1 overflow-y-auto">
         <slot />
       </div>
     </main>

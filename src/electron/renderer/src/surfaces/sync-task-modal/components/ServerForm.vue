@@ -11,10 +11,6 @@ const props = defineProps({
     type: String,
     required: true,
   },
-  fieldErrors: {
-    type: Object,
-    default: () => ({}),
-  },
   readonlyName: {
     type: Boolean,
     default: false,
@@ -55,9 +51,6 @@ function updateField(name, value) {
           class="field-control focusable"
           @input="updateField(field.name, $event.target.value)"
         >
-        <p v-if="fieldErrors[field.name]" class="field-error">
-          {{ fieldErrors[field.name] }}
-        </p>
       </div>
     </template>
   </div>
@@ -75,15 +68,12 @@ function updateField(name, value) {
   @apply min-w-0;
 }
 .field-control{
-  @apply w-full border-0 border-b border-(--text-subtle) bg-transparent px-2 py-0.5 text-center text-sm text-(--text-subtle) outline-none;
+  @apply w-full border-0 border-b border-(--text-subtle) bg-transparent px-2 py-4 text-center text-sm text-(--text-subtle) outline-none;
 }
 .field-control[readonly]{
   @apply opacity-70;
 }
 .field-select{
   @apply text-center;
-}
-.field-error{
-  @apply mt-1 text-xs text-red-600;
 }
 </style>

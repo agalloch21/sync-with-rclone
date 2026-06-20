@@ -63,6 +63,7 @@ test('deleteTaskFromConfig returns an error when the task does not exist', async
     localBasePath: path.join(tempDir, 'missing'),
   }, { configPath }), {
     success: false,
-    error: 'Sync task was not found.',
+    code: 'sync_task.not_found',
+    message: 'Sync task was not found.',
   })
 })

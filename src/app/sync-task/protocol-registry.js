@@ -44,27 +44,25 @@ export function createDefaultProtocolForm(type = getDefaultProtocolType()) {
   }))
 }
 
-export function createProtocolFormFromServer(type = getDefaultProtocolType(), server = {}) {
+export function createProtocolFormFromRemote(type = getDefaultProtocolType(), remote = {}) {
   const defaults = createDefaultProtocolForm(type)
-  const options = server.options || {}
 
   return Object.fromEntries(Object.entries(defaults).map(([fieldName, defaultValue]) => {
     if (fieldName === 'name')
-      return [fieldName, server.name || defaultValue]
+      return [fieldName, remote.name || defaultValue]
     if (fieldName === 'pass')
       return [fieldName, '']
 
-    return [fieldName, Object.hasOwn(options, fieldName) ? options[fieldName] : defaultValue]
+    return [fieldName, Object.hasOwn(remote, fieldName) ? remote[fieldName] : defaultValue]
   }))
 }
 
-export function normalizeProtocolForm(type, form) {
+export function validateProtocolForm(type, form) {
   const protocol = getProtocolDefinition(type)
   if (!protocol)
-    return { success: false, errors: { type: 'Unsupported protocol.' } }
+    return { type: 'Unsupported protocol.' }
 
   const errors = {}
-  const normalized = {}
 
   for (const field of protocol.fields) {
     const rawValue = form?.[field.name]
@@ -77,35 +75,10 @@ export function normalizeProtocolForm(type, form) {
 
     if (field.type === 'number') {
       const parsed = Number(value)
-      if (!Number.isInteger(parsed) || parsed <= 0) {
+      if (!Number.isInteger(parsed) || parsed <= 0)
         errors[field.name] = `${field.label} must be a positive number.`
-        continue
-      }
-      normalized[field.name] = parsed
-      continue
     }
-
-    normalized[field.name] = value
   }
 
-  if (Object.keys(errors).length > 0)
-    return { success: false, errors }
-
-  return { success: true, value: normalized }
-}
-
-export function createRemotePayload(type, form) {
-  const result = normalizeProtocolForm(type, form)
-  if (!result.success)
-    return result
-
-  const { name, ...options } = result.value
-  return {
-    success: true,
-    value: {
-      name,
-      type,
-      options,
-    },
-  }
+  return errors
 }

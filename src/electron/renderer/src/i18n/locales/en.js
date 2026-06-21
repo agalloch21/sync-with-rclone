@@ -36,7 +36,7 @@ export default {
         confirm: 'Confirm',
         local: 'Local',
         remote: 'Remote',
-        change: 'Select Folder',
+        changeFolder: 'Select Folder',
       },
       [SYNC_TASK_MODALS.CHOOSE_SERVER]: {
         title: 'Create Task',

@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/forms";
-@plugin "@iconify/tailwind4";
+
+@plugin "@iconify/tailwind4" {
+  /* Syntax: from-folder(custom-prefix, "path-to-folder") */
+  icon-sets: from-folder(custom, "src/electron/renderer/src/assets/custom-icons");
+}
 
 :root {
   color-scheme: light;

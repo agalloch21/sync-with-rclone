@@ -29,7 +29,7 @@ function getBaseName(folderPath) {
     <div class="folder-selection-dock">
       <FolderSelection side="local" :path="localBasePath" />
     </div>
-    <span class="icon-[lucide--link] text-2xl" />
+    <span class="icon-[custom--connection] text-3xl text-(--text-primary)" />
     <div class="folder-selection-dock">
       <FolderSelection side="remote" :path="localBasePath" />
     </div>

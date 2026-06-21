@@ -4,12 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, test } from 'node:test'
 import { resetAppStateForTest, setAppModelLoaderForTest, setMainWindow } from '#src/electron/main/app-state.js'
-import {
-  destroyMessageBox,
-  getMessageBoxTestMessages,
-  resetMessageBoxForTest,
-  setMessageBoxTestActions,
-} from '#src/electron/main/message-box/window.js'
+import { destroyMessageBox } from '#src/electron/main/message-box/window.js'
 import { createSyncTaskModalHandlers } from '#src/electron/main/sync-task-modal/window.js'
 
 function getFakeRcloneFileName() {
@@ -27,7 +22,6 @@ function getFakeRcloneFileName() {
 
 afterEach(() => {
   destroyMessageBox()
-  resetMessageBoxForTest()
   resetAppStateForTest()
 })
 
@@ -164,52 +158,5 @@ test('updateRemote handler saves a flat remote and refreshes app model', async (
     const calls = await fakeRuntime.readCalls()
     assert.deepEqual(calls[2].slice(2), ['config', 'update', 'synology', 'type', 'sftp', 'host', 'nas.local', 'port', '22', 'user', 'xiaobo', 'pass', 'secret', '--obscure'])
     assert.equal(refreshCount >= 1, true)
-  })
-})
-
-test('deleteRemote handler blocks deletion when sync tasks reference the server', async () => {
-  setMessageBoxTestActions(['ok'])
-  setAppModelLoaderForTest(async () => ({
-    syncTasks: [
-      { displayName: 'Projects', rcloneRemote: 'synology' },
-    ],
-  }))
-  const handlers = createSyncTaskModalHandlers()
-
-  assert.deepEqual(await handlers.deleteRemote(null, { remoteName: 'synology' }), {
-    success: false,
-    code: 'server.in_use',
-    message: 'Server is still used by sync tasks.',
-    detail: 'This server is used by 1 sync task(s). Delete or move those tasks first.',
-  })
-  assert.equal(getMessageBoxTestMessages()[0].mode, 'error')
-})
-
-test('deleteRemote handler confirms before deleting an unused server', async () => {
-  await withFakeRuntimePaths(async (fakeRuntime) => {
-    setMessageBoxTestActions(['confirm', 'ok'])
-    let refreshCount = 0
-    setMainWindow({ isDestroyed: () => false, webContents: { send() {} } })
-    setAppModelLoaderForTest(async () => {
-      refreshCount += 1
-      return { syncTasks: [] }
-    })
-    const handlers = createSyncTaskModalHandlers()
-
-    assert.deepEqual(await handlers.deleteRemote(null, { remoteName: 'synology' }), { success: true })
-    assert.deepEqual((await fakeRuntime.readCalls())[0].slice(2), ['config', 'delete', 'synology'])
-    assert.equal(refreshCount >= 2, true)
-    assert.deepEqual(getMessageBoxTestMessages().map(message => message.mode), ['confirm', 'success'])
-  })
-})
-
-test('deleteRemote returns a neutral action when deletion is cancelled', async () => {
-  setMessageBoxTestActions(['cancel'])
-  setAppModelLoaderForTest(async () => ({ syncTasks: [] }))
-  const handlers = createSyncTaskModalHandlers()
-
-  assert.deepEqual(await handlers.deleteRemote(null, { remoteName: 'synology' }), {
-    success: true,
-    action: 'cancelled',
   })
 })

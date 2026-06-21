@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld('mainWindow', {
   refreshAppModel() {
     return ipcRenderer.invoke('main-window:refresh-app-model')
   },
+  deleteRemote(remoteName) {
+    return ipcRenderer.invoke('main-window:delete-remote', { remoteName })
+  },
+  deleteSyncTask(taskReference) {
+    return ipcRenderer.invoke('main-window:delete-sync-task', taskReference)
+  },
   showMessageBox(options = {}) {
     return ipcRenderer.invoke('main-window:show-message-box', options)
   },

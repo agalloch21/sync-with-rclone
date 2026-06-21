@@ -1,4 +1,5 @@
 <script setup>
+import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
 import { showErrorMessage } from '#src/electron/renderer/src/shared/message-box.js'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
 import ActionBar from './ActionBar.vue'
@@ -100,7 +101,33 @@ function createSerializableSyncTask(syncTask) {
   return rawSyncTask ? structuredClone(rawSyncTask) : null
 }
 
+function handleDeleteRemote() {
+  const server = createSerializableServer(selectedServer.value)
+  if (!server?.name)
+    return
+
+  window.mainWindow?.deleteRemote?.(server.name)
+}
+
+function handleDeleteSyncTask() {
+  const syncTask = createSerializableSyncTask(selectedSyncTask.value)
+  if (!syncTask)
+    return
+
+  window.mainWindow?.deleteSyncTask?.(syncTask)
+}
+
 function openSyncTaskModal(modalName) {
+  if (modalName === SYNC_TASK_MODALS.CONFIRM_DELETE_SERVER) {
+    handleDeleteRemote()
+    return
+  }
+
+  if (modalName === SYNC_TASK_MODALS.CONFIRM_DELETE_TASK) {
+    handleDeleteSyncTask()
+    return
+  }
+
   window.mainWindow?.openSyncTaskModal?.(modalName, {
     server: createSerializableServer(selectedServer.value),
     syncTask: createSerializableSyncTask(selectedSyncTask.value),

@@ -1,5 +1,4 @@
 <script setup>
-import { createRcloneRemoteFromServer } from '#src/app/app-model.js'
 import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
 import {
   createDefaultProtocolForm,
@@ -32,8 +31,7 @@ const props = defineProps({
 const emit = defineEmits(['onClickCancel', 'onClickNext'])
 
 const isEditing = computed(() => props.modalName === SYNC_TASK_MODALS.EDIT_SERVER)
-const activeServer = computed(() => props.context?.server || {})
-const initialRemote = computed(() => isEditing.value ? createRcloneRemoteFromServer(activeServer.value) : null)
+const initialRemote = computed(() => isEditing.value ? props.context?.remote || null : null)
 const selectedProtocol = ref(initialRemote.value?.type || getDefaultProtocolType())
 const form = ref(createInitialForm())
 const isSubmitting = ref(false)

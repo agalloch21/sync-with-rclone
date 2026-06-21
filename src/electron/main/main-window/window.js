@@ -1,7 +1,13 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isValidSyncTaskModal } from '#src/app/sync-task/modal-contract.js'
+import { createRcloneRemoteFromServer } from '#src/app/app-model.js'
+import { isValidSyncTaskModal, SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
+import {
+  checkRemoteDeletion,
+  deleteRemoteConfig,
+} from '#src/app/sync-task/server-operations.js'
+import { deleteTaskFromConfig } from '#src/app/sync-task/task-operations.js'
 import {
   clearMainWindow,
   getAppModel,
@@ -35,9 +41,19 @@ export function createMainWindow() {
   })
   setMainWindow(mainWindow)
 
+  function createSyncTaskModalContext(modalName, context = {}) {
+    if (modalName !== SYNC_TASK_MODALS.EDIT_SERVER)
+      return context
+
+    return {
+      ...context,
+      remote: createRcloneRemoteFromServer(context.server),
+    }
+  }
+
   function handleOpenSyncTaskModal(_event, payload) {
     const modalName = payload?.modalName
-    const context = payload?.context || {}
+    const context = createSyncTaskModalContext(modalName, payload?.context || {})
 
     if (!isValidSyncTaskModal(modalName))
       return { success: false, reason: 'invalid-modal' }
@@ -75,6 +91,104 @@ export function createMainWindow() {
     return { success: true, syncTasks: result.model.syncTasks }
   }
 
+  async function handleDeleteRemote(_event, payload) {
+    const remoteName = payload?.remoteName
+    const modelResult = await getAppModel()
+    if (!modelResult?.success) {
+      return {
+        success: false,
+        code: 'app_model.load_failed',
+        message: 'Failed to load sync tasks.',
+        detail: modelResult?.error || 'Failed to load app model.',
+      }
+    }
+
+    const deletionCheck = checkRemoteDeletion(modelResult.model, remoteName)
+    if (!deletionCheck.success) {
+      await openMessageBox({
+        mode: 'error',
+        title: 'Server Is Still Used',
+        message: `Cannot delete "${remoteName}".`,
+        detail: deletionCheck.detail,
+        okLabel: 'OK',
+      })
+      return deletionCheck
+    }
+
+    const action = await openMessageBox({
+      mode: 'confirm',
+      title: 'Delete Server',
+      message: `Delete server "${remoteName}"?`,
+      detail: 'This removes the rclone remote from the local rclone configuration.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+    })
+    if (action.action !== 'confirm')
+      return { success: true, action: 'cancelled' }
+
+    const result = await deleteRemoteConfig(remoteName)
+    if (!result.success) {
+      await openMessageBox({
+        mode: 'error',
+        title: 'Delete Failed',
+        message: `Could not delete "${remoteName}".`,
+        detail: result.detail || result.message || 'Unknown rclone error.',
+        okLabel: 'OK',
+      })
+      return result
+    }
+
+    const appModelResult = await refreshAppModel()
+    notifyAppModelUpdated(appModelResult)
+    await openMessageBox({
+      mode: 'success',
+      title: 'Server Deleted',
+      message: `Deleted "${remoteName}".`,
+      okLabel: 'OK',
+    })
+    return result
+  }
+
+  async function handleDeleteSyncTask(_event, payload) {
+    const taskLabel = payload?.displayName || payload?.localBasePath || 'selected task'
+    const action = await openMessageBox({
+      mode: 'confirm',
+      title: 'Delete Sync Task',
+      message: `Delete task "${taskLabel}"?`,
+      detail: 'This removes the task from config.json. It does not delete local or remote files.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+    })
+    if (action.action !== 'confirm')
+      return { success: true, action: 'cancelled' }
+
+    const taskReference = {
+      rcloneRemote: payload?.rcloneRemote,
+      localBasePath: payload?.localBasePath,
+    }
+    const result = await deleteTaskFromConfig(taskReference)
+    if (!result.success) {
+      await openMessageBox({
+        mode: 'error',
+        title: 'Delete Failed',
+        message: `Could not delete "${taskLabel}".`,
+        detail: result.detail || result.message || 'Failed to update config.json.',
+        okLabel: 'OK',
+      })
+      return result
+    }
+
+    const appModelResult = await refreshAppModel()
+    notifyAppModelUpdated(appModelResult)
+    await openMessageBox({
+      mode: 'success',
+      title: 'Task Deleted',
+      message: `Deleted "${taskLabel}".`,
+      okLabel: 'OK',
+    })
+    return result
+  }
+
   function handleShowMessageBox(_event, options = {}) {
     return openMessageBox(options)
   }
@@ -88,6 +202,8 @@ export function createMainWindow() {
   ipcMain.handle('main-window:get-app-model', getAppModel)
   ipcMain.handle('main-window:list-sync-tasks', handleListSyncTasks)
   ipcMain.handle('main-window:refresh-app-model', handleRefreshAppModel)
+  ipcMain.handle('main-window:delete-remote', handleDeleteRemote)
+  ipcMain.handle('main-window:delete-sync-task', handleDeleteSyncTask)
   ipcMain.handle('main-window:show-message-box', handleShowMessageBox)
   ipcMain.handle('main-window:close-message-box', handleCloseMessageBox)
 
@@ -104,6 +220,8 @@ export function createMainWindow() {
     ipcMain.removeHandler('main-window:get-app-model')
     ipcMain.removeHandler('main-window:list-sync-tasks')
     ipcMain.removeHandler('main-window:refresh-app-model')
+    ipcMain.removeHandler('main-window:delete-remote')
+    ipcMain.removeHandler('main-window:delete-sync-task')
     ipcMain.removeHandler('main-window:show-message-box')
     ipcMain.removeHandler('main-window:close-message-box')
   })

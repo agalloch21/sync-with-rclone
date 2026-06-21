@@ -1,11 +1,10 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getRuntimePaths } from '#src/app/runtime-paths.js'
 import {
+  checkRemoteDeletion,
   createRemoteConfig,
   deleteRemoteConfig,
-  findTasksUsingRemote,
   testRemoteConnection,
   updateRemoteConfig,
 } from '#src/app/sync-task/server-operations.js'
@@ -53,7 +52,7 @@ export function createSyncTaskModalHandlers() {
     },
 
     async createRemote(_event, payload) {
-      const result = await createRemoteConfig(payload, getRuntimePaths())
+      const result = await createRemoteConfig(payload)
       if (result.success)
         await refreshAndNotifyAppModel()
 
@@ -61,7 +60,7 @@ export function createSyncTaskModalHandlers() {
     },
 
     async updateRemote(_event, payload) {
-      const result = await updateRemoteConfig(payload, getRuntimePaths())
+      const result = await updateRemoteConfig(payload)
       if (result.success)
         await refreshAndNotifyAppModel()
       return result
@@ -79,21 +78,16 @@ export function createSyncTaskModalHandlers() {
         }
       }
 
-      const referencedTasks = findTasksUsingRemote(modelResult.model, remoteName)
-      if (referencedTasks.length > 0) {
+      const deletionCheck = checkRemoteDeletion(modelResult.model, remoteName)
+      if (!deletionCheck.success) {
         await openMessageBox({
           mode: 'error',
           title: 'Server Is Still Used',
           message: `Cannot delete "${remoteName}".`,
-          detail: `This server is used by ${referencedTasks.length} sync task(s). Delete or move those tasks first.`,
+          detail: deletionCheck.detail,
           okLabel: 'OK',
         })
-        return {
-          success: false,
-          code: 'server.in_use',
-          message: 'Server is still used by sync tasks.',
-          detail: `This server is used by ${referencedTasks.length} sync task(s). Delete or move those tasks first.`,
-        }
+        return deletionCheck
       }
 
       const action = await openMessageBox({

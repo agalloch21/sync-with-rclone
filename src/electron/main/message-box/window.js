@@ -28,8 +28,6 @@ let pendingResolve = null
 let closingAction = 'close'
 let handlersRegistered = false
 let readyHandler = null
-let testActionQueue = null
-let testMessages = null
 
 function settle(action) {
   const resolve = pendingResolve
@@ -49,6 +47,7 @@ function registerHandlers() {
     const shouldClose = currentState?.closeOnAction !== false || action === 'close'
 
     if (shouldClose && messageWindow && !messageWindow.isDestroyed()) {
+      closingAction = action
       messageWindow.close()
     }
     else {
@@ -73,21 +72,21 @@ function createWindow(state) {
   registerHandlers()
 
   messageWindow = new BrowserWindow({
-      width: 420,
-      height: 240,
-      parent: getMessageBoxParentWindow(),
-      modal: true,
-      show: false,
-      autoHideMenuBar: true,
-      minimizable: false,
-      maximizable: false,
-      fullscreenable: false,
-      resizable: false,
-      title: state.title,
-      webPreferences: {
-        contextIsolation: true,
-        preload: path.join(__dirname, '../../preload/message-box/index.cjs'),
-      },
+    width: 420,
+    height: 240,
+    parent: getMessageBoxParentWindow(),
+    modal: true,
+    show: false,
+    autoHideMenuBar: true,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    resizable: false,
+    title: state.title,
+    webPreferences: {
+      contextIsolation: true,
+      preload: path.join(__dirname, '../../preload/message-box/index.cjs'),
+    },
   })
 
   messageWindow.on('closed', () => {
@@ -110,6 +109,9 @@ function createWindow(state) {
       if (messageWindow && !messageWindow.isDestroyed())
         messageWindow.close()
     })
+
+  if (process.env.DEBUG_ELECTRON === '1')
+    messageWindow.webContents.openDevTools({ mode: 'detach' })
 }
 
 export function updateMessageBox(options = {}) {
@@ -117,11 +119,6 @@ export function updateMessageBox(options = {}) {
     ...currentState,
     ...options,
   })
-
-  if (testMessages) {
-    testMessages.push(currentState)
-    return { success: true }
-  }
 
   if (messageWindow && !messageWindow.isDestroyed()) {
     messageWindow.setTitle(currentState.title)
@@ -134,11 +131,6 @@ export function updateMessageBox(options = {}) {
 
 export function openMessageBox(options = {}) {
   currentState = normalizeState(options)
-
-  if (testActionQueue) {
-    testMessages.push(currentState)
-    return Promise.resolve({ action: testActionQueue.shift() || 'ok' })
-  }
 
   if (pendingResolve)
     settle('replaced')
@@ -180,22 +172,4 @@ export function destroyMessageBox() {
     handlersRegistered = false
     readyHandler = null
   }
-}
-
-export function resetMessageBoxForTest() {
-  messageWindow = null
-  currentState = null
-  pendingResolve = null
-  closingAction = 'close'
-  testActionQueue = null
-  testMessages = null
-}
-
-export function setMessageBoxTestActions(actions = []) {
-  testActionQueue = [...actions]
-  testMessages = []
-}
-
-export function getMessageBoxTestMessages() {
-  return testMessages ? [...testMessages] : []
 }

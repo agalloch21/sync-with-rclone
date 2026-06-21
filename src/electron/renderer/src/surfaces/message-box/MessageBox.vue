@@ -50,7 +50,7 @@ onUnmounted(() => {
     <header class="h-10 shrink-0 flex items-center justify-center bg-(--surface-soft) font-semibold">
       {{ state.title }}
     </header>
-    <main class="min-h-0 flex-1 px-6 py-5 flex gap-4">
+    <main class="min-h-0 flex-1 px-6 py-5 flex gap-4 items-center">
       <div class="shrink-0 pt-0.5">
         <span :class="iconClass" class="block size-8" />
       </div>

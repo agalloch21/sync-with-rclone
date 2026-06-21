@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   createDefaultProtocolForm,
+  createProtocolFormForSwitch,
   createProtocolFormFromRemote,
   getDefaultProtocolType,
   getProtocolDefinition,
@@ -47,6 +48,50 @@ test('createProtocolFormFromRemote uses flat remote fields and blanks passwords'
     user: 'xiaobo',
     pass: '',
   })
+})
+
+test('createProtocolFormFromRemote returns an empty form for unsupported protocols', () => {
+  assert.deepEqual(createProtocolFormFromRemote('alias', {
+    name: 'local-alias',
+    type: 'alias',
+    remote: '/tmp/source',
+  }), {})
+})
+
+test('createProtocolFormForSwitch preserves shared fields and applies target protocol defaults', () => {
+  assert.deepEqual(createProtocolFormForSwitch('ftp', {
+    name: 'synology',
+    host: 'nas.local',
+    port: 22,
+    user: 'xiaobo',
+    pass: '',
+  }), {
+    name: 'synology',
+    host: 'nas.local',
+    port: 21,
+    user: 'xiaobo',
+    pass: '',
+  })
+
+  assert.deepEqual(createProtocolFormForSwitch('sftp', {
+    name: 'synology',
+    host: 'nas.local',
+    port: '',
+    user: 'xiaobo',
+    pass: '',
+  }), {
+    name: 'synology',
+    host: 'nas.local',
+    port: 22,
+    user: 'xiaobo',
+    pass: '',
+  })
+})
+
+test('createProtocolFormForSwitch returns an empty form for unsupported protocols', () => {
+  assert.deepEqual(createProtocolFormForSwitch('alias', {
+    name: 'local-alias',
+  }), {})
 })
 
 test('validateProtocolForm returns field errors', () => {

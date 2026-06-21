@@ -2,8 +2,10 @@
 import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
 import {
   createDefaultProtocolForm,
+  createProtocolFormForSwitch,
   createProtocolFormFromRemote,
   getDefaultProtocolType,
+  getProtocolDefinition,
   validateProtocolForm,
 } from '#src/app/sync-task/protocol-registry.js'
 import Button from '#src/electron/renderer/src/shared/components/Button.vue'
@@ -13,7 +15,7 @@ import {
   showProgressMessage,
   showWarningMessage,
 } from '#src/electron/renderer/src/shared/message-box.js'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import ModalShell from './ModalShell.vue'
 import ServerForm from './ServerForm.vue'
 
@@ -32,15 +34,24 @@ const emit = defineEmits(['onClickCancel', 'onClickNext'])
 
 const isEditing = computed(() => props.modalName === SYNC_TASK_MODALS.EDIT_SERVER)
 const initialRemote = computed(() => isEditing.value ? props.context?.remote || null : null)
-const selectedProtocol = ref(initialRemote.value?.type || getDefaultProtocolType())
+const unsupportedInitialProtocol = computed(() => {
+  const type = initialRemote.value?.type
+  return Boolean(isEditing.value && type && !getProtocolDefinition(type))
+})
+const selectedProtocol = ref(getInitialProtocolType())
 const form = ref(createInitialForm())
 const isSubmitting = ref(false)
 
 watch(selectedProtocol, (newProtocol) => {
-  const baseForm = isEditing.value
-    ? createProtocolFormFromRemote(newProtocol, initialRemote.value)
-    : createDefaultProtocolForm(newProtocol)
-  form.value = preserveOverlappingFields(baseForm, form.value)
+  if (!getProtocolDefinition(newProtocol)) {
+    form.value = {}
+    return
+  }
+
+  form.value = createProtocolFormForSwitch(newProtocol, {
+    name: initialRemote.value?.name,
+    ...form.value,
+  })
 })
 
 function createInitialForm() {
@@ -49,17 +60,18 @@ function createInitialForm() {
     : createDefaultProtocolForm(selectedProtocol.value)
 }
 
+function getInitialProtocolType() {
+  const type = initialRemote.value?.type
+  if (!isEditing.value)
+    return getDefaultProtocolType()
+
+  return getProtocolDefinition(type) ? type : ''
+}
+
 function formatErrorDetails(errors = {}) {
   return Object.values(errors)
     .filter(Boolean)
     .join('\n')
-}
-
-function preserveOverlappingFields(nextForm, currentForm = {}) {
-  return Object.fromEntries(Object.entries(nextForm).map(([fieldName, defaultValue]) => [
-    fieldName,
-    Object.hasOwn(currentForm, fieldName) ? currentForm[fieldName] : defaultValue,
-  ]))
 }
 
 function updateField({ name, value }) {
@@ -142,6 +154,19 @@ async function submitServer() {
     selectedRemoteName: result.remote?.name || remoteName,
   })
 }
+
+onMounted(() => {
+  if (!unsupportedInitialProtocol.value)
+    return
+
+  window.setTimeout(() => {
+    showWarningMessage({
+      title: 'Unsupported Protocol',
+      message: `This server uses the unsupported rclone protocol "${initialRemote.value.type}".`,
+      detail: 'Choose a supported protocol before saving changes.',
+    })
+  })
+})
 </script>
 
 <template>

@@ -57,6 +57,20 @@ export function createProtocolFormFromRemote(type = getDefaultProtocolType(), re
   }))
 }
 
+export function createProtocolFormForSwitch(type = getDefaultProtocolType(), currentForm = {}) {
+  const protocol = getProtocolDefinition(type)
+  if (!protocol)
+    return {}
+
+  return Object.fromEntries(protocol.fields.map((field) => {
+    if (Object.hasOwn(field, 'defaultValue'))
+      return [field.name, field.defaultValue]
+
+    const currentValue = currentForm?.[field.name]
+    return [field.name, currentValue ?? '']
+  }))
+}
+
 export function validateProtocolForm(type, form) {
   const protocol = getProtocolDefinition(type)
   if (!protocol)

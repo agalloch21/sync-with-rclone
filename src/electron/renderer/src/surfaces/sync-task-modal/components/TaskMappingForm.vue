@@ -1,7 +1,5 @@
 <script setup>
-import Button from '#src/electron/renderer/src/shared/components/Button.vue'
-import { computed, ref } from 'vue'
-import FolderCard from '../../sync-session/components/FolderCard.vue'
+import { ref } from 'vue'
 import FolderSelection from './FolderSelection.vue'
 
 const props = defineProps({
@@ -15,13 +13,8 @@ const props = defineProps({
   },
 })
 
-const localBasePath = ref(props.syncTask.localBasePath || '/Users/xiaobo/NAS/ProjectsSynced')
-const remoteBasePath = ref(props.syncTask.remoteBasePath || 'ProjectsSynced')
-const remoteName = computed(() => props.syncTask.rcloneRemote || props.wizardState.selectedRemoteName || '')
-
-function getBaseName(folderPath) {
-  return folderPath.split(/[/\\]/).pop()
-}
+const localBasePath = ref(props.syncTask.localBasePath || '')
+const remoteBasePath = ref(Object.hasOwn(props.syncTask, 'remoteBasePath') ? props.syncTask.remoteBasePath : '')
 </script>
 
 <template>
@@ -31,7 +24,7 @@ function getBaseName(folderPath) {
     </div>
     <span class="icon-[custom--connection] text-3xl text-(--text-primary)" />
     <div class="folder-selection-dock">
-      <FolderSelection side="remote" :path="localBasePath" />
+      <FolderSelection side="remote" :path="remoteBasePath" />
     </div>
   </div>
 </template>

@@ -36,23 +36,28 @@ function updateField(name, value) {
         class="field-control field-select focusable"
         @change="$emit('update:protocolType', $event.target.value)"
       >
+        <option disabled value="">
+          Select the type of the remote
+        </option>
         <option v-for="item in REMOTE_PROTOCOLS" :key="item.type" :value="item.type">
           {{ item.label }}
         </option>
       </select>
     </div>
-    <template v-for="field in protocol.fields" :key="field.name">
-      <label class="field-label" :for="field.name">{{ field.label }}</label>
-      <div class="field-control-dock">
-        <input
-          :id="field.name"
-          :value="form[field.name]"
-          :type="field.type"
-          :readonly="readonlyName && field.name === 'name'"
-          class="field-control focusable"
-          @input="updateField(field.name, $event.target.value)"
-        >
-      </div>
+    <template v-if="protocol">
+      <template v-for="field in protocol.fields" :key="field.name">
+        <label class="field-label" :for="field.name">{{ field.label }}</label>
+        <div class="field-control-dock">
+          <input
+            :id="field.name"
+            :value="form[field.name]"
+            :type="field.type"
+            :readonly="readonlyName && field.name === 'name'"
+            class="field-control focusable"
+            @input="updateField(field.name, $event.target.value)"
+          >
+        </div>
+      </template>
     </template>
   </div>
 </template>

@@ -1,7 +1,8 @@
 <script setup>
-import { computed, ref } from 'vue'
 import Button from '#src/electron/renderer/src/shared/components/Button.vue'
+import { computed, ref } from 'vue'
 import FolderCard from '../../sync-session/components/FolderCard.vue'
+import FolderSelection from './FolderSelection.vue'
 
 const props = defineProps({
   wizardState: {
@@ -24,21 +25,20 @@ function getBaseName(folderPath) {
 </script>
 
 <template>
-  <div class="content-stage h-full flex justify-center items-center">
-    <div class="flex flex-col justify-center gap-8">
-      <p v-if="remoteName" class="text-sm text-(--text-primary) font-semibold">
-        Remote: {{ remoteName }}
-      </p>
-      <div>
-        <FolderCard side="local" :role="getBaseName(localBasePath)" :content="localBasePath" />
-        <Button>Choose Folder</Button>
-      </div>
+  <div class="content-stage h-full flex justify-center items-center gap-5">
+    <div class="folder-selection-dock">
+      <FolderSelection side="local" :path="localBasePath" />
     </div>
-    <div>
-      <div>
-        <FolderCard side="local" :role="getBaseName(remoteBasePath)" :content="remoteBasePath" />
-        <Button>Choose Folder</Button>
-      </div>
+    <span class="icon-[lucide--link] text-2xl" />
+    <div class="folder-selection-dock">
+      <FolderSelection side="remote" :path="localBasePath" />
     </div>
   </div>
 </template>
+
+<style scoped>
+@reference "tailwindcss";
+.folder-selection-dock{
+  @apply w-60;
+}
+</style>

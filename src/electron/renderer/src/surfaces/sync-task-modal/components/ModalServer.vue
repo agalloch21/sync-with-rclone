@@ -146,7 +146,7 @@ async function submitServer() {
 
 <template>
   <ModalShell :title="$t(`syncTasks.modals.${modalName}.title`)" :message="$t(`syncTasks.modals.${modalName}.message`)">
-    <div class="content-stage h-full flex justify-center items-center">
+    <div class="content-stage flex justify-center items-center">
       <ServerForm
         :form="form"
         :protocol-type="selectedProtocol"

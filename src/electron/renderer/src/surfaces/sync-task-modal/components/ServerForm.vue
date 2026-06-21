@@ -29,17 +29,18 @@ function updateField(name, value) {
 <template>
   <div class="server-form-grid">
     <label class="field-label" for="protocol">Protocol</label>
-    <select
-      id="protocol"
-      :value="protocolType"
-      class="field-control field-select focusable"
-      @change="$emit('update:protocolType', $event.target.value)"
-    >
-      <option v-for="item in REMOTE_PROTOCOLS" :key="item.type" :value="item.type">
-        {{ item.label }}
-      </option>
-    </select>
-
+    <div class="field-control-dock">
+      <select
+        id="protocol"
+        :value="protocolType"
+        class="field-control field-select focusable"
+        @change="$emit('update:protocolType', $event.target.value)"
+      >
+        <option v-for="item in REMOTE_PROTOCOLS" :key="item.type" :value="item.type">
+          {{ item.label }}
+        </option>
+      </select>
+    </div>
     <template v-for="field in protocol.fields" :key="field.name">
       <label class="field-label" :for="field.name">{{ field.label }}</label>
       <div class="field-control-dock">
@@ -59,7 +60,7 @@ function updateField(name, value) {
 <style scoped>
 @reference "tailwindcss";
 .server-form-grid{
-  @apply grid grid-cols-[7rem_20rem] items-start gap-x-4 text-xs text-(--text-primary);
+  @apply grid grid-cols-[7rem_20rem] items-center gap-x-4 text-xs text-(--text-primary);
 }
 .field-label{
   @apply text-right font-medium leading-4;
@@ -68,7 +69,7 @@ function updateField(name, value) {
   @apply min-w-0;
 }
 .field-control{
-  @apply w-full border-0 border-b border-(--text-subtle) bg-transparent px-2 py-4 text-center text-sm text-(--text-subtle) outline-none;
+  @apply w-full border-0 border-b border-(--text-subtle) bg-transparent px-2 py-2 text-center text-sm text-(--text-subtle) outline-none;
 }
 .field-control[readonly]{
   @apply opacity-70;

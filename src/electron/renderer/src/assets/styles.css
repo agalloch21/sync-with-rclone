@@ -105,10 +105,10 @@ body {
   font-family: "JetBrainsMono", "Menlo", monospace;
 }
 
-button,
+/* button,
 input {
   font: inherit;
-}
+} */
 
 .clickable {
   @apply transition-transform hover:scale-105 active:translate-px cursor-pointer;

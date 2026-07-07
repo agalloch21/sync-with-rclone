@@ -401,12 +401,80 @@ copy 之外的示例：
 
 - `MainWindowData` 是主窗口 renderer 的当前只读展示数据
 - `src/app/main-window/app-operations.js` 通过 `getMainWindowData()` 组合 server 列表和 sync task 列表
-- server connection 来源于 `src/app/configuration/rclone-config.js`，对外结构固定为 `{ name, type, address, status, config }`
+- server connection 由 `src/app/configuration/server-operations.js` 从 rclone remote 转换而来，对外结构固定为 `{ name, type, address, status, config }`
 - sync task 来源于 `src/app/configuration/app-config.js` 中的 `config.json`
 - 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
 - `src/electron/main/app-state.js` 只保存 Electron 窗口状态，不缓存业务数据
 - renderer 通过 preload bridge 调用 `main-window:get-data`
 - server/task 修改成功后，app operation 调用 `notifyConfigUpdate()`，Electron Main 再发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
+
+### 4.8.1 `RcloneRemote` 与 `ServerConnection`
+
+当前配置层有两个不同的数据结构：
+
+```js
+// 只在 rclone-config.js 和 server-operations.js 边界内使用
+{
+  name: "synology",
+  config: {
+    type: "sftp",
+    host: "nas.local",
+    port: "22",
+    user: "xiaobo"
+  }
+}
+
+// app 层和 UI 层使用
+{
+  name: "synology",
+  type: "sftp",
+  address: "nas.local",
+  status: "unknown",
+  config: {
+    type: "sftp",
+    host: "nas.local",
+    port: "22",
+    user: "xiaobo"
+  }
+}
+```
+
+说明：
+
+- `RcloneRemote` 的正式结构是 `{ name, config }`
+- `RcloneRemote.config` 是 rclone 配置的原始字段集合，包含 `type`
+- `rclone-config.js` 只负责读写 rclone remote，不负责生成 app/UI 使用的 server 展示字段
+- `ServerConnection` 的正式结构是 `{ name, type, address, status, config }`
+- `server-operations.js` 是 remote 和 server 之间的唯一转换层
+- `type` 从 `config.type` 派生
+- `address` 从 `config.host` / `config.url` / `config.remote` / `config.endpoint` 派生，只用于展示
+- `status` 是 app/UI 状态，不写入 rclone config
+- 上层模块不直接使用 remote 术语；`app-operations.js` 调用 `createServerConnection` / `updateServerConnection` / `renameServerConnection` / `deleteServerConnection`
+
+### 4.8.2 Server operation flow
+
+```mermaid
+sequenceDiagram
+  participant APP as app-operations.js
+  participant SO as server-operations.js
+  participant RC as rclone-config.js
+  participant PR as protocol-registry.js
+
+  APP->>SO: create/update/rename/delete server connection
+  SO->>PR: validateProtocolForm(protocolType, protocolFields)
+  SO->>SO: build rclone config or convert existing server to remote config
+  SO->>RC: create/update/delete raw rclone remote
+  RC-->>SO: raw remote result or adapter error
+  SO-->>APP: app-language success or AppError
+```
+
+当前职责边界：
+
+- `app-operations.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后调用 `notifyConfigUpdate()`
+- `server-operations.js` 负责 server-level operation flow、协议字段校验、remote/server 转换、连接测试和 rename rollback
+- `rclone-config.js` 负责 rclone config dump/create/update/delete/test，并返回 `{ name, config }` 形式的 raw remote
+- rename 使用 create-target 后 delete-source 的顺序；如果 delete-source 失败，会尝试删除新 target，避免同时留下新旧两个 server
+- rename 在没有新协议配置时会先读取 source server 的 config；如果 source 不存在，会在创建 target 之前抛出 `server.operation_failed`
 
 ### 4.9 `SyncTaskModalState`
 

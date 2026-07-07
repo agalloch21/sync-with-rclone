@@ -7,7 +7,6 @@ import {
   createRcloneRemote,
   deleteRcloneRemote,
   listRcloneRemotes,
-  renameRcloneRemote,
   updateRcloneRemote,
 } from '#src/app/configuration/rclone-config.js'
 
@@ -94,7 +93,7 @@ process.exit(0)
   }
 }
 
-test('listRcloneRemotes returns formatted server records with raw config', async () => {
+test('listRcloneRemotes returns raw remote records with config', async () => {
   const fakeRclone = await createFakeRclone({
     initialConfig: {
       demo: { type: 'sftp', host: 'nas.local', user: 'xiaobo' },
@@ -105,16 +104,10 @@ test('listRcloneRemotes returns formatted server records with raw config', async
   assert.deepEqual(await listRcloneRemotes(fakeRclone.runtimePaths), [
     {
       name: 'demo',
-      type: 'sftp',
-      address: 'nas.local',
-      status: 'unknown',
       config: { type: 'sftp', host: 'nas.local', user: 'xiaobo' },
     },
     {
       name: 'webdav',
-      type: 'webdav',
-      address: 'https://nas.local',
-      status: 'unknown',
       config: { type: 'webdav', url: 'https://nas.local' },
     },
   ])
@@ -212,25 +205,4 @@ test('deleteRcloneRemote validates existence before deleting', async () => {
   await deleteRcloneRemote('synology', fakeRclone.runtimePaths)
 
   assert.deepEqual(await fakeRclone.readState(), {})
-})
-
-test('renameRcloneRemote creates the target from existing config then deletes the old remote', async () => {
-  const fakeRclone = await createFakeRclone({
-    initialConfig: {
-      synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
-    },
-  })
-
-  await renameRcloneRemote('synology', 'nas', fakeRclone.runtimePaths)
-
-  assert.deepEqual(await fakeRclone.readState(), {
-    nas: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
-  })
-  assert.deepEqual((await fakeRclone.readCalls()).map(call => call.slice(2, 4)), [
-    ['config', 'dump'],
-    ['config', 'dump'],
-    ['config', 'create'],
-    ['config', 'dump'],
-    ['config', 'delete'],
-  ])
 })

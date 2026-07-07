@@ -6,6 +6,7 @@ import { afterEach, test } from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import {
   createServerConnection,
+  renameServerConnection,
   updateServerConnection,
 } from '#src/app/configuration/server-operations.js'
 
@@ -196,14 +197,60 @@ test('createServerConnection throws AppError for invalid protocol fields', async
   )
 })
 
-test('updateServerConnection renames then updates a server connection', async () => {
+test('updateServerConnection updates an existing server connection', async () => {
   const runtime = await createFakeRuntime({
     initialConfig: {
       synology: { type: 'sftp', host: 'old.local', port: '22', user: 'old', pass: 'old' },
     },
   })
 
-  await updateServerConnection('synology', 'nas', 'sftp', {
+  await updateServerConnection('synology', 'sftp', {
+    host: 'nas.local',
+    port: 2222,
+    user: 'xiaobo',
+    pass: 'secret',
+  })
+
+  assert.deepEqual(await runtime.readState(), {
+    synology: {
+      type: 'sftp',
+      host: 'nas.local',
+      port: '2222',
+      user: 'xiaobo',
+      pass: 'secret',
+    },
+  })
+})
+
+test('renameServerConnection creates the target from server config then deletes the old server', async () => {
+  const runtime = await createFakeRuntime({
+    initialConfig: {
+      synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
+    },
+  })
+
+  await renameServerConnection('synology', 'nas')
+
+  assert.deepEqual(await runtime.readState(), {
+    nas: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
+  })
+  assert.deepEqual((await runtime.readCalls()).map(call => call.slice(2, 4)), [
+    ['config', 'dump'],
+    ['config', 'dump'],
+    ['config', 'create'],
+    ['config', 'dump'],
+    ['config', 'delete'],
+  ])
+})
+
+test('renameServerConnection creates the target with updated config then deletes the old server', async () => {
+  const runtime = await createFakeRuntime({
+    initialConfig: {
+      synology: { type: 'sftp', host: 'old.local', port: '22', user: 'old', pass: 'old' },
+    },
+  })
+
+  await renameServerConnection('synology', 'nas', 'sftp', {
     host: 'nas.local',
     port: 2222,
     user: 'xiaobo',
@@ -219,4 +266,22 @@ test('updateServerConnection renames then updates a server connection', async ()
       pass: 'secret',
     },
   })
+})
+
+test('renameServerConnection rejects a missing source server before creating the target', async () => {
+  const runtime = await createFakeRuntime()
+
+  await assert.rejects(
+    () => renameServerConnection('missing', 'nas'),
+    {
+      name: 'AppError',
+      code: APP_ERROR_CODE.SERVER_OPERATION_FAILED,
+      message: 'Server missing does not exist',
+    },
+  )
+
+  assert.deepEqual(await runtime.readState(), {})
+  assert.deepEqual((await runtime.readCalls()).map(call => call.slice(2, 4)), [
+    ['config', 'dump'],
+  ])
 })

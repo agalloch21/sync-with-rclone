@@ -10,7 +10,7 @@ import ModalShell from './ModalShell.vue'
 const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
 
 const messageBox = useMessageBox(window?.syncTaskModal)
-const serverOperations = useServerOperations()
+const serverOperations = useServerOperations(window?.syncTaskModal)
 
 const SERVER_PLAN = Object.freeze({
   CREATE_NEW: 'create-new-server',
@@ -40,8 +40,7 @@ async function loadServers() {
     return
   }
 
-  const payload = unwrapResult(result)
-  servers.value = payload.servers || []
+  servers.value = unwrapResult(result) || []
 
   availableServers.value = servers.value.filter(server => server.status !== 'missing')
   canChooseExisting.value = availableServers.value.length > 0

@@ -77,7 +77,12 @@ export async function updateServer(serverName, expectedServerName, protocolType,
     throwAppError(APP_ERROR_CODE.SERVER_INVALID_OPERATION, 'Invalid update server request.')
   }
 
-  await serverOperations.updateServerConnection(serverName, expectedServerName, protocolType, protocolFields)
+  if (serverName.trim() === expectedServerName.trim()) {
+    await serverOperations.updateServerConnection(serverName, protocolType, protocolFields)
+  }
+  else {
+    await serverOperations.renameServerConnection(serverName, expectedServerName, protocolType, protocolFields)
+  }
 
   notifyConfigUpdate()
 }

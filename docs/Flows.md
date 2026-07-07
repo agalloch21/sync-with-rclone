@@ -341,12 +341,18 @@ sequenceDiagram
   participant EM as Electron Main
   participant MB as Message Box
   participant APP as App Layer
+  participant SO as Server Operations
+  participant RC as rclone-config.js
   participant MW as Main Window Renderer
 
   U->>M: 点击 Next
   M->>M: 校验表单
   M->>EM: updateServer(payload)
-  EM->>APP: 校验并保存 server connection
+  EM->>APP: updateServer(serverName, expectedServerName, protocolType, protocolFields)
+  APP->>APP: 判断 same-name update 或 rename-with-update
+  APP->>SO: updateServerConnection(...) 或 renameServerConnection(...)
+  SO->>SO: 校验协议字段并生成 rclone config
+  SO->>RC: update remote 或 create target + delete source
   alt 测试失败
     EM->>MB: error
     EM-->>M: success=false
@@ -365,6 +371,10 @@ sequenceDiagram
 - 连接测试和保存过程中的状态只显示在 message-box
 - 失败时保留 Edit Server modal，让用户继续修改表单
 - 成功时关闭 message-box，通知主窗口重新读取数据，然后关闭 modal
+- `app-operations.js` 负责判断保存动作是同名 update 还是 rename
+- `server-operations.js` 负责 app-level server 与 raw rclone remote 的转换
+- `rclone-config.js` 只读写 `{ name, config }` 形式的 raw remote
+- rename-with-update 会先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote
 
 ## 13. Delete Server / Delete Task 流程
 

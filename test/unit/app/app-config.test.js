@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { ensureAppConfig, getDefaultAppConfigPath, loadAppConfig, saveAppConfig } from '#src/app/app-config.js'
+import { ensureAppConfig, getDefaultAppConfigPath, loadAppConfig, saveAppConfig } from '#src/app/configuration/app-config.js'
 import { getDefaultAppDirectory } from '#src/app/runtime-paths.js'
 
 test('getDefaultAppConfigPath uses the application name constant', () => {

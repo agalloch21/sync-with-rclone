@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { runCli } from '#src/cli/commands.js'
 import { SYNC_RESULT } from '#src/core/contract.js'
+import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 function createOutput() {
   const lines = []
@@ -19,59 +20,21 @@ function createOutput() {
 }
 
 test('runCli prints list-servers as a table', async () => {
-  const output = createOutput()
-  const exitCode = await runCli(['list-servers'], output, {
-    dependents: {
-      async listRcloneRemotes() {
-        return [{ name: 'synology', type: 'sftp', host: 'nas.local' }]
-      },
+  await withFakeAppRuntime({
+    rcloneConfig: {
+      synology: { type: 'sftp', host: 'nas.local' },
     },
-  })
+  }, async () => {
+    const output = createOutput()
+    const exitCode = await runCli(['list-servers'], output)
 
-  assert.equal(exitCode, 0)
-  assert.match(output.lines[0], /SERVER/)
-  assert.match(output.lines[0], /synology/)
+    assert.equal(exitCode, 0)
+    assert.match(output.lines[0], /SERVER/)
+    assert.match(output.lines[0], /synology/)
+  })
 })
 
-test('runCli prints list-tasks as JSON', async () => {
-  const output = createOutput()
-  const exitCode = await runCli(['list-tasks', '--json'], output, {
-    dependents: {
-      async loadAppModel() {
-        return {
-          globalIgnorePatterns: ['.DS_Store'],
-          syncTasks: [
-            {
-              displayName: 'Projects',
-              rcloneRemote: 'synology',
-              localBasePath: '/local',
-              remoteBasePath: 'Projects',
-              lastSyncMode: null,
-              lastSyncFolder: null,
-              lastSyncDate: null,
-            },
-          ],
-        }
-      },
-    },
-  })
-
-  assert.equal(exitCode, 0)
-  assert.deepEqual(JSON.parse(output.lines[0]), {
-    globalIgnorePatterns: ['.DS_Store'],
-    syncTasks: [
-        {
-          displayName: 'Projects',
-        rcloneRemote: 'synology',
-        localBasePath: '/local',
-        remoteBasePath: 'Projects',
-        lastSyncMode: null,
-        lastSyncFolder: null,
-        lastSyncDate: null,
-      },
-    ],
-  })
-})
+// TODO: Restore list-tasks CLI coverage when task operations are rebuilt on the new app-operation structure.
 
 test('runCli routes sync subcommand to existing sync execution', async () => {
   const output = createOutput()

@@ -64,7 +64,7 @@ resources/     // bundled binaries、图标等静态资源
 ```text
 sync-with-rclone                 -> 启动桌面 UI
 sync-with-rclone list-tasks      -> 命令模式，列出同步任务
-sync-with-rclone list-servers    -> 命令模式，列出 rclone remotes
+sync-with-rclone list-servers    -> 命令模式，列出 servers
 sync-with-rclone sync push ...   -> 命令模式，执行同步
 ```
 
@@ -377,27 +377,36 @@ copy 之外的示例：
 - `startSync` 会 emit `SESSION_EVENT.RESULT` 作为观察事件，但 Electron final 流程由返回值驱动
 - failed result 只在 `quick-actions.log` 已存在时携带 `logPath`；直接启动 Electron 时没有该日志文件就不向 renderer 暴露日志路径
 
-### 4.8 `AppModel`
+### 4.8 `MainWindowData`
 
 ```js
 {
-  configPath: "/app/config/config.json",
-  rcloneConfigPath: "/app/config/rclone.conf",
-  globalIgnorePatterns: [],
-  syncTasks: [],
-  servers: []
+  servers: [
+    {
+      name: "synology",
+      type: "sftp",
+      address: "nas.local",
+      status: "unknown",
+      config: {
+        type: "sftp",
+        host: "nas.local"
+      }
+    }
+  ],
+  syncTasks: []
 }
 ```
 
 说明：
 
-- `AppModel` 是主窗口 renderer 的只读展示模型
-- `src/app/app-model.js` 只负责读取 `config.json` 和 rclone remotes，并组合成 UI 需要的结构
-- `app-model.js` 不保存 Electron 窗口状态，也不执行 syncTask/server 修改
-- sync task 的 `displayName` 是可选展示文本，不是任务身份；任务操作用 server + local path 引用当前任务
-- Electron Main 在 `src/electron/main/app-state.js` 中缓存最近一次 `AppModel` 或加载错误
-- renderer 通过 preload bridge 调用 `main-window:get-app-model` 和 `main-window:refresh-app-model`
-- 修改 server/syncTask 后，由 Electron Main 刷新 `AppModel`，再通过 `main-window:app-model-updated` 通知主窗口 renderer
+- `MainWindowData` 是主窗口 renderer 的当前只读展示数据
+- `src/app/main-window/app-operations.js` 通过 `getMainWindowData()` 组合 server 列表和 sync task 列表
+- server connection 来源于 `src/app/configuration/rclone-config.js`，对外结构固定为 `{ name, type, address, status, config }`
+- sync task 来源于 `src/app/configuration/app-config.js` 中的 `config.json`
+- 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
+- `src/electron/main/app-state.js` 只保存 Electron 窗口状态，不缓存业务数据
+- renderer 通过 preload bridge 调用 `main-window:get-data`
+- server/task 修改成功后，app operation 调用 `notifyConfigUpdate()`，Electron Main 再发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
 
 ### 4.9 `SyncTaskModalState`
 
@@ -409,8 +418,8 @@ copy 之外的示例：
       name: "synology",
       type: "sftp",
       address: "nas.local",
-      options: {},
-      status: "unknown"
+      status: "unknown",
+      config: {}
     },
     syncTask: {
       displayName: "Projects",
@@ -427,7 +436,8 @@ copy 之外的示例：
 - 主窗口 renderer 只能把可 structured-clone 的纯数据传给 Electron Main
 - Vue reactive proxy、DOM 对象、函数和窗口对象不能作为 IPC payload
 - 主窗口 renderer 打开 modal 时传完整的 plain `server` 和 `syncTask` 对象
-- `server.tasks` 是主窗口 renderer 的 UI 组合字段，不传给 modal
+- server 对象使用 app-level 结构 `{ name, type, address, status, config }`
+- 任何主窗口 renderer 的 UI 组合字段都不传给 modal
 - Electron Main 不重新组装 modal context，只校验 modal 名称并创建窗口
 - `context.server` 和 `context.syncTask` 是 Electron Main 传给 sync-task modal 的纯数据
 - sync-task modal 的初始状态不通过 `additionalArguments` 传入 renderer

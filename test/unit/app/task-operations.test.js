@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { deleteTaskFromConfig } from '#src/app/sync-task/task-operations.js'
+import { deleteTaskFromConfig } from '#src/app/configuration/task-operations.js'
 
 test('deleteTaskFromConfig removes the selected task and preserves global ignore patterns', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-task-config-'))

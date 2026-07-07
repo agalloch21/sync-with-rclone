@@ -64,7 +64,11 @@ export function createMainWindowHandlers() {
   }
 
   async function deleteSyncTaskHandler(_event, payload) {
-
+    return toFailureResult({
+      code: 'task.deferred',
+      message: 'Task operations are not implemented yet.',
+      detail: 'Task deletion will be restored when task operations are rebuilt.',
+    })
   }
 
   // async deleteSyncTaskHandler(_event, payload) {

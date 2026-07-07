@@ -300,7 +300,6 @@ sequenceDiagram
   participant MW as Main Window Renderer
   participant MP as Main Window Preload
   participant EM as Electron Main
-  participant AS as app-state
   participant APP as App Layer
   participant MB as Message Box
   participant M as Sync Task Modal
@@ -308,16 +307,19 @@ sequenceDiagram
   U->>MW: 点击 create / edit / delete
   MW->>MP: openSyncTaskModal(modalName, context)
   MP->>EM: invoke main-window:open-sync-task-modal
-  EM->>AS: 读取 main window 作为 parent
+  EM->>EM: 读取 main window 作为 parent
   EM->>M: 创建 sync-task modal
   M->>EM: getState()
   EM-->>M: 返回 modalName + context
   M->>EM: invoke create/update/delete
   EM->>MB: confirm / progress / error / success
-  EM->>APP: 执行 atomic server/task operation
-  EM->>AS: refreshAppModel()
-  AS-->>EM: 返回最新 AppModel
-  EM-->>MW: main-window:app-model-updated
+  EM->>APP: 执行 server/task operation
+  APP-->>EM: notifyConfigUpdate()
+  EM-->>MW: main-window:config-updated
+  MW->>MP: getData()
+  MP->>EM: invoke main-window:get-data
+  EM->>APP: getMainWindowData()
+  EM-->>MW: 返回最新 MainWindowData
 ```
 
 当前结论：
@@ -326,8 +328,8 @@ sequenceDiagram
 - Electron Main 不重新组装 modal context，只校验 modal 名称并创建窗口
 - Electron Main 负责 modal 生命周期、message-box 生命周期和流程推进
 - sync-task modal renderer 不直接读取 app config，也不直接调用 rclone
-- App Layer 提供原子操作：读取 app model、读写 app config、读写 rclone config、删除 task
-- server/syncTask 修改成功后，Electron Main 刷新 `AppModel` 并通知主窗口 renderer
+- App Layer 提供应用操作：组合主窗口数据、读写 app config、读写 rclone config、删除 task
+- server/syncTask 修改成功后，App Layer 发出 config update 通知，主窗口 renderer 再读取 `MainWindowData`
 - message-box 只作为临时状态窗口，不替换普通 modal 的内容
 
 ## 12. Edit Server 流程
@@ -343,18 +345,15 @@ sequenceDiagram
 
   U->>M: 点击 Next
   M->>M: 校验表单
-  M->>EM: updateRemote(remote)
-  EM->>MB: progress: Testing Connection
-  EM->>APP: 写入临时 rclone config
-  EM->>APP: 测试临时 remote
+  M->>EM: updateServer(payload)
+  EM->>APP: 校验并保存 server connection
   alt 测试失败
     EM->>MB: error
     EM-->>M: success=false
   else 测试成功
-    EM->>APP: 更新真实 rclone config
     EM->>MB: close
-    EM->>APP: reload app model
-    EM-->>MW: app-model-updated
+    APP-->>EM: notifyConfigUpdate()
+    EM-->>MW: main-window:config-updated
     EM-->>M: success=true
     M->>EM: close modal
   end
@@ -365,7 +364,7 @@ sequenceDiagram
 - 表单校验失败时不打开 message-box
 - 连接测试和保存过程中的状态只显示在 message-box
 - 失败时保留 Edit Server modal，让用户继续修改表单
-- 成功时关闭 message-box，刷新主窗口模型，然后关闭 modal
+- 成功时关闭 message-box，通知主窗口重新读取数据，然后关闭 modal
 
 ## 13. Delete Server / Delete Task 流程
 
@@ -379,7 +378,7 @@ sequenceDiagram
   participant MW as Main Window Renderer
 
   U->>M: 点击 Confirm
-  M->>EM: deleteRemote(remoteName) / deleteSyncTask(taskReference)
+  M->>EM: deleteServer(serverName) / deleteSyncTask(taskReference)
   alt 删除 server 且仍被 task 使用
     EM->>MB: error
     EM-->>M: success=false
@@ -390,8 +389,8 @@ sequenceDiagram
       EM-->>M: cancelled
     else Confirm
       EM->>APP: 删除 rclone remote 或 config task
-      EM->>APP: reload app model
-      EM-->>MW: app-model-updated
+      APP-->>EM: notifyConfigUpdate()
+      EM-->>MW: main-window:config-updated
       EM->>MB: success
       EM-->>M: success=true
     end
@@ -400,10 +399,9 @@ sequenceDiagram
 
 关键点：
 
-- server 删除前必须检查是否仍有 sync task 引用该 server
-- 被引用的 server 不能删除，只展示 error message-box
+- server 与 task 引用关系的完整处理将在 task operation 重建时补齐
 - task 删除只修改 `config.json`，不删除本地或远端文件
-- 删除成功后由 Electron Main 统一刷新 `AppModel`
+- 删除成功后由 App Layer 发出 config update 通知，主窗口 renderer 重新读取数据
 
 ## 14. 当前阶段限制
 

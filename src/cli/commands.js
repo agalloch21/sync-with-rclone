@@ -1,5 +1,3 @@
-// import { loadAppModel } from '#src/app/app-model.js'
-// import { getRcloneRemoteAddress, listRcloneRemotes } from '#src/app/configuration/rclone-config.js'
 import { listServers } from '#src/app/main-window/app-operations.js'
 import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
 import { startSync } from '#src/app/sync-session/start-sync.js'
@@ -56,13 +54,6 @@ function printTasks(output, syncTasks) {
   ]))
 }
 
-// function toServerRows(servers) {
-//   return servers.map(server => ({
-//     ...server,
-//     address: getRcloneRemoteAddress(server),
-//   }))
-// }
-
 function toTaskRows(syncTasks) {
   return syncTasks.map(task => ({
     ...task,
@@ -106,19 +97,10 @@ async function runListServers(json, output, runtime) {
     output.error(error)
     return 1
   }
-  // const runListRcloneRemotes = runtime?.dependents?.listRcloneRemotes || listRcloneRemotes
-  // const remotes = await runListRcloneRemotes()
-
-  // if (json) {
-  //   printJson(output, { servers: remotes })
-  //   return 0
-  // }
-
-  // printServers(output, toServerRows(remotes))
-  // return 0
 }
 
 async function runListTasks(json, output, runtime) {
+  // TODO: Restore list-tasks when task operations are rebuilt on the new app-operation structure.
   // const runLoadAppModel = runtime?.dependents?.loadAppModel || loadAppModel
   // const model = await runLoadAppModel()
 
@@ -132,6 +114,8 @@ async function runListTasks(json, output, runtime) {
 
   // printTasks(output, toTaskRows(model.syncTasks))
   // return 0
+  output.error('list-tasks is temporarily unavailable while task operations are being rebuilt.')
+  return 1
 }
 
 export async function runCli(argv = process.argv.slice(2), output = console, runtime = {}) {

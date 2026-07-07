@@ -2,12 +2,9 @@ import assert from 'node:assert/strict'
 import { afterEach, test } from 'node:test'
 import {
   clearActiveModalWindow,
-  getAppModel,
+  clearMainWindow,
   getMessageBoxParentWindow,
-  refreshAppModel,
-  resetAppStateForTest,
   setActiveModalWindow,
-  setAppModelLoaderForTest,
   setMainWindow,
 } from '#src/electron/main/app-state.js'
 
@@ -24,37 +21,8 @@ function createWindowStub() {
 }
 
 afterEach(() => {
-  resetAppStateForTest()
-})
-
-test('getAppModel loads once and returns cached app model', async () => {
-  let calls = 0
-  setAppModelLoaderForTest(async () => {
-    calls += 1
-    return { syncTasks: [{ displayName: 'Projects' }] }
-  })
-
-  assert.deepEqual(await getAppModel(), {
-    success: true,
-    model: { syncTasks: [{ displayName: 'Projects' }] },
-  })
-  assert.deepEqual(await getAppModel(), {
-    success: true,
-    model: { syncTasks: [{ displayName: 'Projects' }] },
-  })
-  assert.equal(calls, 1)
-})
-
-test('refreshAppModel replaces cached app model', async () => {
-  let calls = 0
-  setAppModelLoaderForTest(async () => {
-    calls += 1
-    return { version: calls }
-  })
-
-  assert.deepEqual(await getAppModel(), { success: true, model: { version: 1 } })
-  assert.deepEqual(await refreshAppModel(), { success: true, model: { version: 2 } })
-  assert.deepEqual(await getAppModel(), { success: true, model: { version: 2 } })
+  clearActiveModalWindow()
+  clearMainWindow()
 })
 
 test('getMessageBoxParentWindow prefers active modal over main window', () => {

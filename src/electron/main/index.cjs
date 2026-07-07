@@ -34,7 +34,7 @@ app.on('window-all-closed', () => {
 
 async function main() {
   const argv = process.argv.slice(1)
-  const { ensureAppConfig } = await import('#src/app/app-config.js')
+  const { ensureAppConfig } = await import('#src/app/configuration/app-config.js')
 
   await ensureAppConfig()
 

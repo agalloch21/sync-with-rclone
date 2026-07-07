@@ -1,23 +1,12 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
-import {
-  createDefaultProtocolForm,
-  createProtocolFormForSwitch,
-  createProtocolFormFromRemote,
-  getDefaultProtocolType,
-  getProtocolDefinition,
-  validateProtocolForm,
-} from '#src/app/sync-task/protocol-registry.js'
-import Button from '#src/electron/renderer/src/shared/components/Button.vue'
-import {
-  closeMessageBox,
-  showErrorMessage,
-  showProgressMessage,
-  showWarningMessage,
-} from '#src/electron/renderer/src/shared/message-box.js'
+import { createDefaultProtocolForm, getDefaultProtocolType, getProtocolDefinition, REMOTE_PROTOCOLS } from '#src/app/configuration/protocol-registry.js'
+import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
+import { unwrapResult } from '#src/app/operation-result.js'
+import { useServerOperations } from '#src/electron/renderer/src/composables/useServerOperations.js'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useMessageBox } from '../../../composables/useMessageBox.js'
+import Button from '../../shared/Button.vue'
 import ModalShell from './ModalShell.vue'
-import ServerForm from './ServerForm.vue'
 
 const props = defineProps({
   modalName: {
@@ -30,160 +19,137 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['onClickCancel', 'onClickNext'])
+const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
 
-const isEditing = computed(() => props.modalName === SYNC_TASK_MODALS.EDIT_SERVER)
-const initialRemote = computed(() => isEditing.value ? props.context?.remote || null : null)
-const unsupportedInitialProtocol = computed(() => {
-  const type = initialRemote.value?.type
-  return Boolean(isEditing.value && type && !getProtocolDefinition(type))
-})
-const selectedProtocol = ref(getInitialProtocolType())
-const form = ref(createInitialForm())
+const messageBox = useMessageBox(window.syncTaskModal)
+const serverOperations = useServerOperations(window.syncTaskModal)
+
+const EDIT_MODE = {
+  UPDATE: 'update',
+  CREATE: 'create',
+}
+const mode = computed(() => props.context?.selectedServer ? EDIT_MODE.UPDATE : EDIT_MODE.CREATE)
+
+const currentServerName = ref(props.context?.selectedServer?.name || '')
+const expectedServerName = ref(currentServerName.value || '')
+const protocolType = ref(props.context?.selectedServer?.type || getDefaultProtocolType())
+const protocolForm = ref(
+  replaceExistingProperties(createDefaultProtocolForm(protocolType.value), props.context?.selectedServer?.config || {}),
+)
+const formFields = computed(() => getProtocolDefinition(protocolType.value)?.fields || {})
+
 const isSubmitting = ref(false)
 
-watch(selectedProtocol, (newProtocol) => {
-  if (!getProtocolDefinition(newProtocol)) {
-    form.value = {}
-    return
+function replaceExistingProperties(baseObj, newObj) {
+  // only replace the property values in baseObj that newObj has and are not null
+  return Object.fromEntries(Object.entries(baseObj).map(([fieldName, fieldValue]) =>
+    [fieldName, Object.hasOwn(newObj, fieldName) && newObj[fieldName] ? newObj[fieldName] : fieldValue]))
+}
+
+function updateProtocolType(type) {
+  protocolType.value = type
+  protocolForm.value = replaceExistingProperties(protocolForm.value, createDefaultProtocolForm(type))
+}
+
+function updateField(fieldName, fieldValue) {
+  protocolForm.value = {
+    ...protocolForm.value,
+    [fieldName]: fieldValue,
   }
-
-  form.value = createProtocolFormForSwitch(newProtocol, {
-    name: initialRemote.value?.name,
-    ...form.value,
-  })
-})
-
-function createInitialForm() {
-  return isEditing.value
-    ? createProtocolFormFromRemote(selectedProtocol.value, initialRemote.value)
-    : createDefaultProtocolForm(selectedProtocol.value)
-}
-
-function getInitialProtocolType() {
-  const type = initialRemote.value?.type
-  if (!isEditing.value)
-    return getDefaultProtocolType()
-
-  return getProtocolDefinition(type) ? type : ''
-}
-
-function formatErrorDetails(errors = {}) {
-  return Object.values(errors)
-    .filter(Boolean)
-    .join('\n')
-}
-
-function updateField({ name, value }) {
-  form.value = {
-    ...form.value,
-    [name]: value,
-  }
-}
-
-function createRemoteFromProtocolForm(type, protocolForm) {
-  return {
-    type,
-    ...protocolForm,
-  }
-}
-
-async function runRemoteRequest(remote) {
-  return isEditing.value
-    ? window.syncTaskModal?.updateRemote?.(remote)
-    : window.syncTaskModal?.createRemote?.(remote)
 }
 
 async function submitServer() {
   if (isSubmitting.value)
     return
 
-  const validationErrors = validateProtocolForm(selectedProtocol.value, form.value)
-  if (Object.keys(validationErrors).length > 0) {
-    await showWarningMessage({
-      title: 'Check Server Settings',
-      message: 'Some server fields need attention.',
-      detail: formatErrorDetails(validationErrors),
-    })
-    return
-  }
-
-  const remote = createRemoteFromProtocolForm(selectedProtocol.value, form.value)
-  const remoteName = typeof remote.name === 'string' ? remote.name.trim() : remote.name
-
   isSubmitting.value = true
-  showProgressMessage({
-    title: 'Testing Connection',
-    message: `Testing ${remoteName}...`,
-    detail: isEditing.value
-      ? 'The edited server will be saved only after this connection test succeeds.'
-      : 'The server will be saved only after this connection test succeeds.',
-  })
 
   let result
   try {
-    result = await runRemoteRequest(remote)
+    result = mode.value === EDIT_MODE.UPDATE
+      ? await serverOperations.updateServer(currentServerName.value, expectedServerName.value, protocolType.value, protocolForm.value)
+      : await serverOperations.createServer(expectedServerName.value, protocolType.value, protocolForm.value)
   }
-  catch (error) {
-    result = {
-      success: false,
-      code: 'ipc.remote_request_failed',
-      message: 'Remote request failed.',
-      detail: error?.message || 'Unknown IPC error.',
+  finally {
+    isSubmitting.value = false
+  }
+
+  if (result.success) {
+    if (mode.value === EDIT_MODE.UPDATE) {
+      emit('onClickConfirm')
+    }
+    else {
+      const result = await serverOperations.getServer(expectedServerName.value)
+      if (!result.success) {
+        await messageBox.showWarningMessage({
+          message: 'Something wrong',
+        })
+        return
+      }
+
+      emit('onClickNext', SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING, {
+        selectedServer: unwrapResult(result),
+      })
     }
   }
-  isSubmitting.value = false
-
-  if (!result?.success) {
-    await showErrorMessage({
-      title: 'Connection Failed',
-      message: result?.message || (isEditing.value ? 'The server settings were not saved.' : 'The server was not saved.'),
-      detail: formatErrorDetails(result?.fieldErrors) || result?.detail || (isEditing.value ? 'Failed to test or update the remote.' : 'Failed to create or test the remote.'),
-    })
-    return
-  }
-
-  await closeMessageBox('success')
-
-  if (isEditing.value) {
-    emit('onClickCancel')
-    return
-  }
-
-  emit('onClickNext', SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING, {
-    selectedRemoteName: result.remote?.name || remoteName,
-  })
 }
-
-onMounted(() => {
-  if (!unsupportedInitialProtocol.value)
-    return
-
-  window.setTimeout(() => {
-    showWarningMessage({
-      title: 'Unsupported Protocol',
-      message: `This server uses the unsupported rclone protocol "${initialRemote.value.type}".`,
-      detail: 'Choose a supported protocol before saving changes.',
-    })
-  })
-})
 </script>
 
 <template>
-  <ModalShell :title="$t(`syncTasks.modals.${modalName}.title`)" :message="$t(`syncTasks.modals.${modalName}.message`)">
+  <ModalShell :modal-name="modalName" :title="$t(`syncTasks.modals.${modalName}.title`)" :message="$t(`syncTasks.modals.${modalName}.message`)">
     <div class="content-stage flex justify-center items-center">
-      <ServerForm
-        :form="form"
-        :protocol-type="selectedProtocol"
-        :readonly-name="isEditing"
-        @update:protocol-type="selectedProtocol = $event"
+      <!-- Name -->
+      <label class="field-label" for="server-name">Name</label>
+      <input
+        id="server-name"
+        class="field-input"
+        :value="expectedServerName"
+        @input="expectedServerName = $event.target.value"
+      >
+      <div class="protocol-form-grid">
+        <!-- Protocol Type Selection -->
+        <label class="field-label" for="protocol">Protocol</label>
+        <div class="field-control-dock">
+          <select
+            id="protocol"
+            :value="protocolType"
+            class="field-control field-select focusable"
+            @change="updateProtocolType($event.target.value)"
+          >
+            <option disabled value="">
+              Select the type of the protocol
+            </option>
+            <option v-for="item in REMOTE_PROTOCOLS" :key="item.type" :value="item.type">
+              {{ item.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Protocol Properties Form -->
+        <template v-for="field in formFields" :key="field.name">
+          <label class="field-label" :for="field.name">{{ field.label }}</label>
+          <div class="field-control-dock">
+            <input
+              :id="field.name"
+              :value="protocolForm.hasOwnProperty(field.name) ? protocolForm[field.name] : ''"
+              :type="field.type"
+              class="field-control focusable"
+              @input="updateField(field.name, $event.target.value)"
+            >
+          </div>
+        </template>
+      </div>
+      <!-- <ServerForm
+        :protocol-form="protocolForm"
+        :protocol-type="protocolType"
+        @update:protocol-type="updateProtocolType"
         @update:field="updateField"
-      />
+      /> -->
     </div>
 
     <template #footer>
       <Button :primary="true" :wide="true" :disabled="isSubmitting" @click="submitServer">
-        {{ $t('syncTasks.modals.common.next') }}
+        {{ mode === EDIT_MODE.UPDATE ? $t('syncTasks.modals.common.confirm') : $t('syncTasks.modals.common.next') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
         {{ $t('syncTasks.modals.common.cancel') }}
@@ -191,3 +157,25 @@ onMounted(() => {
     </template>
   </ModalShell>
 </template>
+
+<style scoped>
+@reference "tailwindcss";
+.protocol-form-grid{
+  @apply grid grid-cols-[7rem_20rem] items-center gap-x-4 text-xs text-(--text-primary);
+}
+.field-label{
+  @apply text-right font-medium leading-4;
+}
+.field-control-dock{
+  @apply min-w-0;
+}
+.field-control{
+  @apply w-full border-0 border-b border-(--text-subtle) bg-transparent px-2 py-2 text-center text-sm text-(--text-subtle) outline-none;
+}
+.field-control[readonly]{
+  @apply opacity-70;
+}
+.field-select{
+  @apply text-center;
+}
+</style>

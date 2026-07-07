@@ -1,6 +1,6 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
-import Button from '#src/electron/renderer/src/shared/components/Button.vue'
+import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
+import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
 
 defineProps({
   isServerSelected: {

@@ -1,28 +1,37 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
-import Button from '#src/electron/renderer/src/shared/components/Button.vue'
-import { showErrorMessage, showWarningMessage } from '#src/electron/renderer/src/shared/message-box.js'
+import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
+import { unwrapResult } from '#src/app/operation-result.js'
+import { useMessageBox } from '#src/electron/renderer/src/composables/useMessageBox.js'
+import { useServerOperations } from '#src/electron/renderer/src/composables/useServerOperations.js'
+import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
 import { computed, onMounted, ref } from 'vue'
-
 import ModalShell from './ModalShell.vue'
 
 const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
-const selectedPlan = ref('choose-from-existing')
-const selectedRemoteName = ref('')
-const servers = ref([])
-const isLoading = ref(false)
 
-const availableServers = computed(() => servers.value.filter(server => server.status !== 'missing'))
-const canChooseExisting = computed(() => availableServers.value.length > 0)
+const messageBox = useMessageBox(window?.syncTaskModal)
+const serverOperations = useServerOperations()
+
+const SERVER_PLAN = Object.freeze({
+  CREATE_NEW: 'create-new-server',
+  CHOOSE_FROM_EXISTING: 'choose-from-existing',
+})
+
+const selectedPlan = ref(SERVER_PLAN.CHOOSE_FROM_EXISTING)
+const selectedServerName = ref('')
+const servers = ref([])
+const availableServers = ref([])
+const canChooseExisting = ref(true)
+const isLoading = ref(false)
 
 onMounted(loadServers)
 
 async function loadServers() {
   isLoading.value = true
 
-  const result = await window.syncTaskModal?.listServers?.()
+  const result = await serverOperations.listServers()
   if (!result?.success) {
-    await showErrorMessage({
+    await messageBox.showErrorMessage({
       title: 'Load Failed',
       message: 'Could not load servers.',
       detail: result?.detail || result?.message || 'Failed to load servers.',
@@ -31,17 +40,22 @@ async function loadServers() {
     return
   }
 
-  servers.value = result.servers || []
-  selectedRemoteName.value = availableServers.value[0]?.name || ''
+  const payload = unwrapResult(result)
+  servers.value = payload.servers || []
+
+  availableServers.value = servers.value.filter(server => server.status !== 'missing')
+  canChooseExisting.value = availableServers.value.length > 0
+  selectedServerName.value = availableServers.value[0]?.name || ''
   if (availableServers.value.length === 0)
-    selectedPlan.value = 'create-new'
+    selectedPlan.value = SERVER_PLAN.CREATE_NEW
 
   isLoading.value = false
 }
+
 async function onClickNext() {
-  if (selectedPlan.value === 'choose-from-existing') {
-    if (!selectedRemoteName.value) {
-      await showWarningMessage({
+  if (selectedPlan.value === SERVER_PLAN.CHOOSE_FROM_EXISTING) {
+    if (!selectedServerName.value) {
+      await messageBox.showWarningMessage({
         title: 'Server Required',
         message: 'Choose a remote server first.',
       })
@@ -49,7 +63,7 @@ async function onClickNext() {
     }
 
     emit('onClickNext', SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING, {
-      selectedRemoteName: selectedRemoteName.value,
+      selectedServer: servers.value.find(server => server.name === selectedServerName.value),
     })
     return
   }
@@ -72,7 +86,7 @@ function getServerLabel(server) {
             <input
               v-model="selectedPlan"
               type="radio"
-              value="choose-from-existing"
+              :value="SERVER_PLAN.CHOOSE_FROM_EXISTING"
               name="plan"
               class="option-radio-button focusable"
             >
@@ -82,7 +96,7 @@ function getServerLabel(server) {
             <span class="option-text">Choose from the existing servers</span>
             <select
               id="department"
-              v-model="selectedRemoteName"
+              v-model="selectedServerName"
               :disabled="isLoading || !canChooseExisting"
               class="from-select block w-80 rounded-md border border-gray-300 shadow-sm
               py-2 pl-3 pr-10 text-xs font-medium text-(--text-subtle)
@@ -110,7 +124,7 @@ function getServerLabel(server) {
             <input
               v-model="selectedPlan"
               type="radio"
-              value="create-new"
+              :value="SERVER_PLAN.CREATE_NEW"
               name="plan"
               class="option-radio-button focusable"
             >

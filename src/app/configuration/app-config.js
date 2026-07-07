@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { APP_ERROR_CODE, AppError } from './app-errors.js'
-import { normalizeLocalPath } from './path-utils.js'
-import { getRuntimePaths } from './runtime-paths.js'
+import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
+import { normalizeLocalPath } from '../path-utils.js'
+import { getRuntimePaths } from '../runtime-paths.js'
 
 function getDefaultAppConfigPath() {
   return getRuntimePaths().configPath
@@ -84,10 +84,9 @@ export async function loadAppConfig(configPath = getDefaultAppConfigPath()) {
     if (error?.code === 'ENOENT')
       return null
 
-    throw new AppError(
+    throwAppError(
       APP_ERROR_CODE.CONFIG_LOAD_FAILED,
       `Failed to load config from ${configPath}: ${error.message}`,
-      { configPath },
       { cause: error },
     )
   }

@@ -1,18 +1,19 @@
 <script setup>
 defineProps({
-  title: String,
-  message: String,
+  modalName: String,
 })
 </script>
 
 <template>
   <div class="task-modal-stage h-dvh min-h-0 flex flex-col bg-(--surface-muted)">
     <header class="header-dock h-10 shrink-0 flex items-center justify-center bg-(--surface-soft) text-(--text-primary) font-semibold">
-      {{ title }}
+      <!-- {{ title }} -->
+      {{ $t(`syncTasks.modals.${modalName}.title`) }}
     </header>
     <main class="main-dock min-h-0 flex-1 flex flex-col">
       <div class="message-dock h-15 bg-(--primary) content-center px-5 text-(--on-primary) font-semibold">
-        {{ message }}
+        <!-- {{ message }} -->
+        {{ $t(`syncTasks.modals.${modalName}.message`) }}
       </div>
       <div class="content-dock min-h-0 flex-1 flex flex-col justify-center overflow-y-auto">
         <slot />

@@ -10,20 +10,14 @@ contextBridge.exposeInMainWorld('syncTaskModal', {
   listServers() {
     return ipcRenderer.invoke('sync-task-modal:list-servers')
   },
-  testRemote(remoteName) {
-    return ipcRenderer.invoke('sync-task-modal:test-remote', { remoteName })
+  getServer(payload) {
+    return ipcRenderer.invoke('sync-task-modal:get-server', payload)
   },
-  createRemote(remote) {
-    return ipcRenderer.invoke('sync-task-modal:create-remote', remote)
+  createServer(payload) {
+    return ipcRenderer.invoke('sync-task-modal:create-server', payload)
   },
-  updateRemote(remote) {
-    return ipcRenderer.invoke('sync-task-modal:update-remote', remote)
-  },
-  deleteRemote(remoteName) {
-    return ipcRenderer.invoke('sync-task-modal:delete-remote', { remoteName })
-  },
-  deleteSyncTask(taskReference) {
-    return ipcRenderer.invoke('sync-task-modal:delete-sync-task', taskReference)
+  updateServer(payload) {
+    return ipcRenderer.invoke('sync-task-modal:update-server', payload)
   },
   showMessageBox(options = {}) {
     return ipcRenderer.invoke('sync-task-modal:show-message-box', options)
@@ -31,6 +25,7 @@ contextBridge.exposeInMainWorld('syncTaskModal', {
   closeMessageBox(action = 'close') {
     return ipcRenderer.invoke('sync-task-modal:close-message-box', { action })
   },
+
   ready(payload) {
     ipcRenderer.send('sync-task-modal:ready', payload)
   },

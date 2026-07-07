@@ -1,9 +1,7 @@
 <script setup>
-import Button from '#src/electron/renderer/src/shared/components/Button.vue'
+import Button from '../../shared/Button.vue'
 import ModalShell from './ModalShell.vue'
 import TaskMappingForm from './TaskMappingForm.vue'
-
-defineEmits(['onClickCancel'])
 
 defineProps({
   syncTask: {
@@ -11,6 +9,8 @@ defineProps({
     default: () => ({}),
   },
 })
+
+defineEmits(['onClickCancel'])
 </script>
 
 <template>

@@ -1,5 +1,5 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
+import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ModalChooseServer from './components/ModalChooseServer.vue'
@@ -12,10 +12,9 @@ const { t } = useI18n()
 
 const modalName = ref('')
 const context = ref({})
-const wizardState = ref({
-  selectedRemoteName: '',
-})
-const title = computed(() => modalName.value?.length > 0 ? t(`syncTasks.modals.${modalName.value}.title`) : '')
+// const wizardState = ref({
+//   selectedRemoteName: '',
+// })
 
 const ACTION_COMPONENT = {
   [SYNC_TASK_MODALS.CHOOSE_SERVER]: ModalChooseServer,
@@ -32,8 +31,12 @@ function closeModal() {
 }
 
 function onClickNext(newModalName, payload = {}) {
-  wizardState.value = {
-    ...wizardState.value,
+  // wizardState.value = {
+  //   ...wizardState.value,
+  //   ...payload,
+  // }
+  context.value = {
+    ...context.value,
     ...payload,
   }
   modalName.value = newModalName
@@ -46,10 +49,11 @@ function onClickConfirm() {
 onMounted(async () => {
   const state = await window.syncTaskModal?.getState?.() || { modalName: '', context: {} }
   modalName.value = state.modalName || ''
-  context.value = state.context || {}
+  context.value = state.context || { selectedServer: null, selectedSyncTask: null }
+
   await nextTick()
   await document.fonts.ready
-  window.syncTaskModal?.ready?.({ title: title.value })
+  window.syncTaskModal?.ready?.({ title: t(`syncTasks.modals.${modalName.value}.title`, '') })
 })
 </script>
 
@@ -58,9 +62,7 @@ onMounted(async () => {
     <component
       :is="modalComponent"
       :modal-name="modalName"
-      :wizard-state="wizardState"
       :context="context"
-      :sync-task="context.syncTask"
       @on-click-cancel="closeModal"
       @on-click-next="onClickNext"
       @on-click-confirm="onClickConfirm"

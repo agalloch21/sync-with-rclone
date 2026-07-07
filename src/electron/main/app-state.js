@@ -1,11 +1,6 @@
-import { loadAppModel } from '#src/app/app-model.js'
-
 // Electron main-process runtime state only. Do not put app/domain mutations here.
 let mainWindow = null
 let activeModalWindow = null
-let appModel = null
-let appModelError = null
-let appModelLoader = loadAppModel
 
 function isUsableWindow(window) {
   return window && !window.isDestroyed?.()
@@ -39,50 +34,4 @@ export function clearActiveModalWindow(window = activeModalWindow) {
 
 export function getMessageBoxParentWindow() {
   return getActiveModalWindow() || getMainWindow()
-}
-
-export async function refreshAppModel() {
-  try {
-    appModel = await appModelLoader()
-    appModelError = null
-    return { success: true, model: appModel }
-  }
-  catch (error) {
-    appModelError = error?.message || 'Failed to load app model.'
-    return { success: false, error: appModelError }
-  }
-}
-
-export async function getAppModel() {
-  if (!appModel && !appModelError)
-    return refreshAppModel()
-
-  if (appModel)
-    return { success: true, model: appModel }
-
-  return { success: false, error: appModelError }
-}
-
-export function getCachedAppModelResult() {
-  if (appModel)
-    return { success: true, model: appModel }
-
-  if (appModelError)
-    return { success: false, error: appModelError }
-
-  return null
-}
-
-export function setAppModelLoaderForTest(loader) {
-  appModelLoader = loader || loadAppModel
-  appModel = null
-  appModelError = null
-}
-
-export function resetAppStateForTest() {
-  mainWindow = null
-  activeModalWindow = null
-  appModel = null
-  appModelError = null
-  appModelLoader = loadAppModel
 }

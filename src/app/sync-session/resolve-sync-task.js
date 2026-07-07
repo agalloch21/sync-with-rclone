@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { APP_ERROR_CODE, AppError } from '../app-errors.js'
+import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
 import { resolveLocalDirectoryPath, trimTrailingSlash } from '../path-utils.js'
 
 function buildRemoteRoot(syncTask) {
@@ -35,17 +35,16 @@ export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPat
 
   const syncTask = candidates[0]
   if (!syncTask)
-    throw new AppError(APP_ERROR_CODE.CONFIG_NO_MATCHING_SYNC_TASK, `No syncTask matches local path: ${normalizedLocalPath}`, { path: normalizedLocalPath })
+    throwAppError(APP_ERROR_CODE.CONFIG_NO_MATCHING_SYNC_TASK, `No syncTask matches local path: ${normalizedLocalPath}`)
 
   const relativePath = path.posix.relative(syncTask.localBasePath, normalizedLocalPath) || '.'
   const remoteRoot = buildRemoteRoot(syncTask)
   const defaultRemoteFolderPath = joinRemotePath(remoteRoot, relativePath)
 
   if (explicitRemoteFolderPath && !isWithinRemoteRoot(explicitRemoteFolderPath, remoteRoot)) {
-    throw new AppError(
+    throwAppError(
       APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_TASK,
       `Remote path must stay within syncTask '${getSyncTaskLabel(syncTask)}': ${explicitRemoteFolderPath}`,
-      { syncTaskName: getSyncTaskLabel(syncTask), remotePath: explicitRemoteFolderPath, remoteRoot },
     )
   }
 

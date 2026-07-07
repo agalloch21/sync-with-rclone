@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { APP_ERROR_CODE, AppError } from './app-errors.js'
+import { APP_ERROR_CODE, throwAppError } from './app-errors.js'
 
 export function normalizeLocalPath(inputPath) {
   return inputPath
@@ -24,7 +24,7 @@ export function expandHomeDir(inputPath) {
 
 export function resolveLocalDirectoryPath(inputPath) {
   if (!inputPath)
-    throw new AppError(APP_ERROR_CODE.PATH_EMPTY, 'Path can not be empty')
+    throwAppError(APP_ERROR_CODE.PATH_EMPTY, 'Path can not be empty')
 
   const expandedPath = expandHomeDir(inputPath)
   const absolutePath = trimTrailingSlash(normalizeLocalPath(path.resolve(expandedPath)))
@@ -35,18 +35,18 @@ export function resolveLocalDirectoryPath(inputPath) {
   }
   catch (error) {
     if (error.code === 'ENOENT')
-      throw new AppError(APP_ERROR_CODE.PATH_NOT_FOUND, `Path does not exist: ${absolutePath}`, { path: absolutePath })
+      throwAppError(APP_ERROR_CODE.PATH_NOT_FOUND, `Path does not exist: ${absolutePath}`, { cause: error })
     throw error
   }
 
   if (stat == null || stat.isDirectory() === false)
-    throw new AppError(APP_ERROR_CODE.PATH_NOT_DIRECTORY, `Expected a directory path, got: ${absolutePath}`, { path: absolutePath })
+    throwAppError(APP_ERROR_CODE.PATH_NOT_DIRECTORY, `Expected a directory path, got: ${absolutePath}`)
 
   return absolutePath
 }
 
 export function trimTrailingSlash(inputPath) {
-  if (inputPath === '/' || /^[A-Za-z]:\/$/.test(inputPath))
+  if (inputPath === '/' || /^[A-Z]:\/$/i.test(inputPath))
     return inputPath
 
   return inputPath.replace(/\/+$/, '')

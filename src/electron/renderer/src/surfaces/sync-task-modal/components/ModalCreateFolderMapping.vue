@@ -1,21 +1,20 @@
 <script setup>
-import Button from '#src/electron/renderer/src/shared/components/Button.vue'
+import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
 import ModalShell from './ModalShell.vue'
 import TaskMappingForm from './TaskMappingForm.vue'
 
-defineEmits(['onClickCancel', 'onClickConfirm'])
 defineProps({
-  wizardState: {
+  context: {
     type: Object,
     default: () => ({}),
   },
 })
-
+defineEmits(['onClickCancel', 'onClickConfirm'])
 </script>
 
 <template>
   <ModalShell :title="$t('syncTasks.modals.createFolderMapping.title')" :message="$t('syncTasks.modals.createFolderMapping.message')">
-    <TaskMappingForm :wizard-state="wizardState" />
+    <TaskMappingForm :context="context" />
 
     <template #footer>
       <Button :primary="true" :wide="true" @click="$emit('onClickConfirm')">

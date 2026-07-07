@@ -1,7 +1,8 @@
-import { loadAppModel } from '#src/app/app-model.js'
+// import { loadAppModel } from '#src/app/app-model.js'
+// import { getRcloneRemoteAddress, listRcloneRemotes } from '#src/app/configuration/rclone-config.js'
+import { listServers } from '#src/app/main-window/app-operations.js'
 import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
 import { startSync } from '#src/app/sync-session/start-sync.js'
-import { getRcloneRemoteAddress, listRcloneRemotes } from '#src/app/rclone-config.js'
 import { SYNC_RESULT } from '#src/core/contract.js'
 import { reviewDiffInCli } from './review.js'
 
@@ -37,8 +38,8 @@ function printJson(output, payload) {
   output.log(JSON.stringify(payload, null, 2))
 }
 
-function printServers(output, remotes) {
-  output.log(stringifyTable(remotes, [
+function printServers(output, servers) {
+  output.log(stringifyTable(servers, [
     { key: 'name', label: 'SERVER' },
     { key: 'type', label: 'TYPE' },
     { key: 'address', label: 'ADDRESS' },
@@ -55,12 +56,12 @@ function printTasks(output, syncTasks) {
   ]))
 }
 
-function toServerRows(remotes) {
-  return remotes.map(remote => ({
-    ...remote,
-    address: getRcloneRemoteAddress(remote),
-  }))
-}
+// function toServerRows(servers) {
+//   return servers.map(server => ({
+//     ...server,
+//     address: getRcloneRemoteAddress(server),
+//   }))
+// }
 
 function toTaskRows(syncTasks) {
   return syncTasks.map(task => ({
@@ -90,32 +91,47 @@ async function runSync(argv, output, runtime) {
 }
 
 async function runListServers(json, output, runtime) {
-  const runListRcloneRemotes = runtime?.dependents?.listRcloneRemotes || listRcloneRemotes
-  const remotes = await runListRcloneRemotes()
+  try {
+    const servers = await listServers()
 
-  if (json) {
-    printJson(output, { servers: remotes })
+    if (json) {
+      printJson(output, { servers })
+      return 0
+    }
+
+    printServers(output, servers)
     return 0
   }
+  catch (error) {
+    output.error(error)
+    return 1
+  }
+  // const runListRcloneRemotes = runtime?.dependents?.listRcloneRemotes || listRcloneRemotes
+  // const remotes = await runListRcloneRemotes()
 
-  printServers(output, toServerRows(remotes))
-  return 0
+  // if (json) {
+  //   printJson(output, { servers: remotes })
+  //   return 0
+  // }
+
+  // printServers(output, toServerRows(remotes))
+  // return 0
 }
 
 async function runListTasks(json, output, runtime) {
-  const runLoadAppModel = runtime?.dependents?.loadAppModel || loadAppModel
-  const model = await runLoadAppModel()
+  // const runLoadAppModel = runtime?.dependents?.loadAppModel || loadAppModel
+  // const model = await runLoadAppModel()
 
-  if (json) {
-    printJson(output, {
-      globalIgnorePatterns: model.globalIgnorePatterns,
-      syncTasks: model.syncTasks,
-    })
-    return 0
-  }
+  // if (json) {
+  //   printJson(output, {
+  //     globalIgnorePatterns: model.globalIgnorePatterns,
+  //     syncTasks: model.syncTasks,
+  //   })
+  //   return 0
+  // }
 
-  printTasks(output, toTaskRows(model.syncTasks))
-  return 0
+  // printTasks(output, toTaskRows(model.syncTasks))
+  // return 0
 }
 
 export async function runCli(argv = process.argv.slice(2), output = console, runtime = {}) {

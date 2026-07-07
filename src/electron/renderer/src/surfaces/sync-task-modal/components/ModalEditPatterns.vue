@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from '#src/electron/renderer/src/shared/components/Button.vue'
+import Button from '../../shared/Button.vue'
 import ModalShell from './ModalShell.vue'
 
 defineEmits(['onClickCancel'])

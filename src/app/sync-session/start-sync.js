@@ -2,13 +2,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { PHASE_EVENT, SYNC_RESULT } from '#src/core/contract.js'
 import { syncCore } from '#src/core/sync-engine.js'
-import { getErrorCode, getErrorDetails } from '../app-errors.js'
-import { ensureRemoteFolderExists } from './ensure-remote-folder.js'
-import { loadAppConfig } from '../app-config.js'
+import { getErrorCode, getErrorDetail } from '../app-errors.js'
+import { loadAppConfig } from '../configuration/app-config.js'
 import { resolveLocalDirectoryPath } from '../path-utils.js'
-import { resolveSyncTask } from './resolve-sync-task.js'
 import { getRuntimePaths } from '../runtime-paths.js'
 import { SESSION_EVENT } from './contract.js'
+import { ensureRemoteFolderExists } from './ensure-remote-folder.js'
+import { resolveSyncTask } from './resolve-sync-task.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
@@ -29,7 +29,7 @@ function assertRuntimeContract(runtime) {
 
 function enrichFailedSessionResult(sessionResult, error, runtimePaths) {
   sessionResult.errorCode = getErrorCode(error)
-  sessionResult.errorDetails = getErrorDetails(error)
+  sessionResult.errorDetails = getErrorDetail(error)
 
   if (runtimePaths?.logDirectory) {
     const logPath = path.posix.join(runtimePaths.logDirectory, 'quick-actions.log')

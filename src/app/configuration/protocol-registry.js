@@ -3,7 +3,6 @@ export const REMOTE_PROTOCOLS = [
     type: 'sftp',
     label: 'SFTP',
     fields: [
-      { name: 'name', label: 'Name', type: 'text', required: true },
       { name: 'host', label: 'Host', type: 'text', required: true },
       { name: 'port', label: 'Port', type: 'number', required: true, defaultValue: 22 },
       { name: 'user', label: 'Username', type: 'text', required: true },
@@ -14,7 +13,6 @@ export const REMOTE_PROTOCOLS = [
     type: 'ftp',
     label: 'FTP',
     fields: [
-      { name: 'name', label: 'Name', type: 'text', required: true },
       { name: 'host', label: 'Host', type: 'text', required: true },
       { name: 'port', label: 'Port', type: 'number', required: true, defaultValue: 21 },
       { name: 'user', label: 'Username', type: 'text', required: true },
@@ -33,48 +31,28 @@ export function getDefaultProtocolType() {
   return REMOTE_PROTOCOLS[0].type
 }
 
-export function createDefaultProtocolForm(type = getDefaultProtocolType()) {
+export function createDefaultProtocolForm(type) {
   const protocol = getProtocolDefinition(type)
   if (!protocol)
     return {}
 
   return Object.fromEntries(protocol.fields.map((field) => {
-    const value = Object.hasOwn(field, 'defaultValue') ? field.defaultValue : ''
+    const value = Object.hasOwn(field, 'defaultValue') ? field.defaultValue : null
     return [field.name, value]
-  }))
-}
-
-export function createProtocolFormFromRemote(type = getDefaultProtocolType(), remote = {}) {
-  const defaults = createDefaultProtocolForm(type)
-
-  return Object.fromEntries(Object.entries(defaults).map(([fieldName, defaultValue]) => {
-    if (fieldName === 'name')
-      return [fieldName, remote.name || defaultValue]
-    if (fieldName === 'pass')
-      return [fieldName, '']
-
-    return [fieldName, Object.hasOwn(remote, fieldName) ? remote[fieldName] : defaultValue]
-  }))
-}
-
-export function createProtocolFormForSwitch(type = getDefaultProtocolType(), currentForm = {}) {
-  const protocol = getProtocolDefinition(type)
-  if (!protocol)
-    return {}
-
-  return Object.fromEntries(protocol.fields.map((field) => {
-    if (Object.hasOwn(field, 'defaultValue'))
-      return [field.name, field.defaultValue]
-
-    const currentValue = currentForm?.[field.name]
-    return [field.name, currentValue ?? '']
   }))
 }
 
 export function validateProtocolForm(type, form) {
   const protocol = getProtocolDefinition(type)
-  if (!protocol)
-    return { type: 'Unsupported protocol.' }
+  if (!protocol) {
+    return {
+      success: false,
+      error: {
+        message: `Unsupported protocol ${type}.`,
+      },
+
+    }
+  }
 
   const errors = {}
 
@@ -94,5 +72,15 @@ export function validateProtocolForm(type, form) {
     }
   }
 
-  return errors
+  if (Object.keys(errors).length > 0) {
+    return {
+      success: false,
+      error: {
+        message: 'Validation failed.',
+        fields: errors,
+      },
+    }
+  }
+
+  return { success: true }
 }

@@ -1,15 +1,18 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
-import { showErrorMessage } from '#src/electron/renderer/src/shared/message-box.js'
+import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
+import { unwrapResult } from '#src/app/operation-result.js'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
+import { useMessageBox } from '../../../composables/useMessageBox.js'
+import { useServerOperations } from '../../../composables/useServerOperations.js'
 import ActionBar from './ActionBar.vue'
 import ServerItem from './ServerItem.vue'
 import TaskItem from './TaskItem.vue'
 
-const remoteServers = ref([
-])
-const syncTasks = ref([
-])
+const messageBox = useMessageBox(window?.mainWindow)
+const serverOperations = useServerOperations(window?.mainWindow)
+
+const servers = ref([])
+const syncTasks = ref([])
 const tasksByServerName = computed(() => {
   const groupedTasks = new Map()
   for (const syncTask of syncTasks.value) {
@@ -23,48 +26,46 @@ const tasksByServerName = computed(() => {
 const selectedServer = shallowRef(null)
 const selectedSyncTask = shallowRef(null)
 
-onMounted(loadTaskPanel)
+let unsubscribeConfigUpdated = null
 
-let unsubscribeAppModelUpdated = null
+onMounted(async () => {
+  const result = await window.mainWindow?.getMainWindowData?.()
+  applyMainWindowData(result)
 
-onMounted(() => {
-  unsubscribeAppModelUpdated = window.mainWindow?.onAppModelUpdated?.((result) => {
-    applyAppModelResult(result)
+  unsubscribeConfigUpdated = window.mainWindow?.onConfigUpdated?.((result) => {
+    applyMainWindowData(result)
   })
 })
 
 onUnmounted(() => {
-  unsubscribeAppModelUpdated?.()
+  unsubscribeConfigUpdated?.()
 })
 
-async function loadTaskPanel() {
-  const result = await window.mainWindow?.getAppModel?.()
-  applyAppModelResult(result)
-}
-
-function applyAppModelResult(result) {
+function applyMainWindowData(result) {
   if (!result?.success) {
-    remoteServers.value = []
+    servers.value = []
     syncTasks.value = []
     showTaskPanelLoadError(result?.error)
     return
   }
 
-  remoteServers.value = result.model?.servers || []
-  syncTasks.value = result.model?.syncTasks || []
+  const payload = unwrapResult(result)
+  servers.value = payload?.servers || []
+  syncTasks.value = payload?.syncTasks || []
+
   updateTaskPanelSelection()
 }
 
-function getServerSyncTasks(serverName) {
+function getSyncTasksByServer(serverName) {
   return tasksByServerName.value.get(serverName) || []
 }
 
 function updateTaskPanelSelection() {
   const previousSyncTask = selectedSyncTask.value
   const previousServer = selectedServer.value
-  const nextServer = remoteServers.value.find(server => server.name === previousServer?.name) || remoteServers.value?.[0] || null
+  const nextServer = servers.value.find(server => server.name === previousServer?.name) || servers.value?.[0] || null
   const nextSyncTask = previousSyncTask && nextServer
-    ? getServerSyncTasks(nextServer.name).find(syncTask => syncTask.localBasePath === previousSyncTask.localBasePath)
+    ? getSyncTasksByServer(nextServer.name).find(syncTask => syncTask.localBasePath === previousSyncTask.localBasePath)
     : null
 
   selectedServer.value = nextServer
@@ -72,7 +73,7 @@ function updateTaskPanelSelection() {
 }
 
 function showTaskPanelLoadError(error) {
-  showErrorMessage({
+  messageBox.showErrorMessage({
     title: 'Load Failed',
     message: 'Could not load sync tasks.',
     detail: error || 'Failed to load sync tasks.',
@@ -101,36 +102,23 @@ function createSerializableSyncTask(syncTask) {
   return rawSyncTask ? structuredClone(rawSyncTask) : null
 }
 
-function handleDeleteRemote() {
-  const server = createSerializableServer(selectedServer.value)
-  if (!server?.name)
-    return
-
-  window.mainWindow?.deleteRemote?.(server.name)
-}
-
-function handleDeleteSyncTask() {
-  const syncTask = createSerializableSyncTask(selectedSyncTask.value)
-  if (!syncTask)
-    return
-
-  window.mainWindow?.deleteSyncTask?.(syncTask)
-}
-
-function openSyncTaskModal(modalName) {
+async function openSyncTaskModal(modalName) {
   if (modalName === SYNC_TASK_MODALS.CONFIRM_DELETE_SERVER) {
-    handleDeleteRemote()
+    await serverOperations.deleteServer(selectedServer.value.name)
     return
   }
 
   if (modalName === SYNC_TASK_MODALS.CONFIRM_DELETE_TASK) {
-    handleDeleteSyncTask()
+    // handleDeleteSyncTask()
+    // await taskOperations.deleteSyncTask(selectedSyncTask.value)
     return
   }
 
   window.mainWindow?.openSyncTaskModal?.(modalName, {
-    server: createSerializableServer(selectedServer.value),
-    syncTask: createSerializableSyncTask(selectedSyncTask.value),
+    selectedServer: createSerializableServer(selectedServer.value),
+    selectedSyncTask: createSerializableSyncTask(selectedSyncTask.value),
+    // selectedServerName: selectedServer.value?.name || null
+    // selectedSyncTaskPath: selectedSyncTask..value?.name
   })
 }
 </script>
@@ -146,11 +134,11 @@ function openSyncTaskModal(modalName) {
     <div class="task-list-dock min-h-0 flex-1 border-t border-(--surface-soft)">
       <div class="task-list-stage h-full overflow-x-auto overflow-y-auto scrollbar-gutter-stable divide-y divide-(--surface-soft)">
         <ServerItem
-          v-for="server in remoteServers" :key="server.name" :server="server" :selected="server === selectedServer && selectedSyncTask === null"
+          v-for="server in servers" :key="server.name" :server="server" :selected="server === selectedServer && selectedSyncTask === null"
           @click.prevent="onSelectServer(server)"
         >
           <TaskItem
-            v-for="syncTask in getServerSyncTasks(server.name)" :key="syncTask.localBasePath" :sync-task="syncTask" :selected="server === selectedServer && syncTask === selectedSyncTask"
+            v-for="syncTask in getSyncTasksByServer(server.name)" :key="syncTask.localBasePath" :sync-task="syncTask" :selected="server === selectedServer && syncTask === selectedSyncTask"
             @click.stop="onSelectTask(server, syncTask)"
           />
         </ServerItem>

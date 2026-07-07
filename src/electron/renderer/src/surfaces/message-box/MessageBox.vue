@@ -1,5 +1,5 @@
 <script setup>
-import Button from '#src/electron/renderer/src/shared/components/Button.vue'
+import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const state = ref({

@@ -3,18 +3,14 @@ import { ref } from 'vue'
 import FolderSelection from './FolderSelection.vue'
 
 const props = defineProps({
-  wizardState: {
-    type: Object,
-    default: () => ({}),
-  },
-  syncTask: {
+  context: {
     type: Object,
     default: () => ({}),
   },
 })
 
-const localBasePath = ref(props.syncTask.localBasePath || '')
-const remoteBasePath = ref(Object.hasOwn(props.syncTask, 'remoteBasePath') ? props.syncTask.remoteBasePath : '')
+const localBasePath = ref(props.context?.selectedSyncTask?.localBasePath || '')
+const remoteBasePath = ref(Object.hasOwn(props.context?.selectedSyncTask || {}, 'remoteBasePath') ? props.context?.selectedSyncTask?.remoteBasePath : '')
 </script>
 
 <template>

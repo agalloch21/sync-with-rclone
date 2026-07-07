@@ -1,9 +1,14 @@
-import { loadAppConfig, saveAppConfig } from '../app-config.js'
 import { getRuntimePaths } from '../runtime-paths.js'
+import { loadAppConfig, saveAppConfig } from './app-config.js'
 
 function taskMatchesReference(task, taskReference = {}) {
   return task.rcloneRemote === taskReference.rcloneRemote
     && task.localBasePath === taskReference.localBasePath
+}
+
+export async function listSyncTasks() {
+  const result = await loadAppConfig()
+  return result?.syncTasks
 }
 
 export async function deleteTaskFromConfig(taskReference, runtimePaths = getRuntimePaths()) {

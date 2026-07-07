@@ -1,5 +1,5 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { SYNC_TASK_MODALS } from '#src/app/sync-task/modal-contract.js'
+import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
 import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { STEPS } from '#src/electron/main/sync-session/steps.js'
 
@@ -52,7 +52,7 @@ export default {
       },
       [SYNC_TASK_MODALS.EDIT_SERVER]: {
         title: 'Edit Server',
-        message: 'Edit the server',
+        message: 'Edit the connection',
       },
       [SYNC_TASK_MODALS.EDIT_FOLDER_MAPPING]: {
         title: 'Edit Folder Mapping',

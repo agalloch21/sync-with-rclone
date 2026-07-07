@@ -4,20 +4,17 @@ contextBridge.exposeInMainWorld('mainWindow', {
   openSyncTaskModal(modalName, context = {}) {
     return ipcRenderer.invoke('main-window:open-sync-task-modal', { modalName, context })
   },
-  getAppModel() {
-    return ipcRenderer.invoke('main-window:get-app-model')
+  getMainWindowData() {
+    return ipcRenderer.invoke('main-window:get-data')
   },
-  listSyncTasks() {
-    return ipcRenderer.invoke('main-window:list-sync-tasks')
+  getServer(payload) {
+    return ipcRenderer.invoke('main-window:get-server', payload)
   },
-  refreshAppModel() {
-    return ipcRenderer.invoke('main-window:refresh-app-model')
+  deleteServer(payload) {
+    return ipcRenderer.invoke('main-window:delete-server', payload)
   },
-  deleteRemote(remoteName) {
-    return ipcRenderer.invoke('main-window:delete-remote', { remoteName })
-  },
-  deleteSyncTask(taskReference) {
-    return ipcRenderer.invoke('main-window:delete-sync-task', taskReference)
+  deleteSyncTask(payload) {
+    return ipcRenderer.invoke('main-window:delete-sync-task', payload)
   },
   showMessageBox(options = {}) {
     return ipcRenderer.invoke('main-window:show-message-box', options)
@@ -25,9 +22,9 @@ contextBridge.exposeInMainWorld('mainWindow', {
   closeMessageBox(action = 'close') {
     return ipcRenderer.invoke('main-window:close-message-box', { action })
   },
-  onAppModelUpdated(callback) {
+  onConfigUpdated(callback) {
     const listener = (_event, payload) => callback(payload)
-    ipcRenderer.on('main-window:app-model-updated', listener)
-    return () => ipcRenderer.removeListener('main-window:app-model-updated', listener)
+    ipcRenderer.on('main-window:config-updated', listener)
+    return () => ipcRenderer.removeListener('main-window:config-updated', listener)
   },
 })

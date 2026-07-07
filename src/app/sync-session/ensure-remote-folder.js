@@ -1,5 +1,5 @@
 import { createRcloneCommand, runCommand as defaultRunCommand } from '#src/core/rclone-command.js'
-import { APP_ERROR_CODE, AppError } from '../app-errors.js'
+import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
 
 function isDirectoryNotFoundError(error) {
   return error?.code === 3 || error?.exitCode === 3 || error?.status === 3
@@ -7,7 +7,7 @@ function isDirectoryNotFoundError(error) {
 
 export async function ensureRemoteFolderExists(remoteFolderPath, runtimePaths, runtime = {}, cancelSignal = null) {
   if (!remoteFolderPath)
-    throw new AppError(APP_ERROR_CODE.REMOTE_FOLDER_PATH_REQUIRED, 'remoteFolderPath is required')
+    throwAppError(APP_ERROR_CODE.REMOTE_FOLDER_PATH_REQUIRED, 'remoteFolderPath is required')
 
   const runCommand = runtime?.dependents?.runCommand || defaultRunCommand
 
@@ -26,10 +26,9 @@ export async function ensureRemoteFolderExists(remoteFolderPath, runtimePaths, r
   }
   catch (error) {
     if (!isDirectoryNotFoundError(error)) {
-      throw new AppError(
+      throwAppError(
         APP_ERROR_CODE.REMOTE_FOLDER_PROBE_FAILED,
         error?.message || `Failed to check remote folder: ${remoteFolderPath}`,
-        { remotePath: remoteFolderPath },
         { cause: error },
       )
     }
@@ -45,10 +44,9 @@ export async function ensureRemoteFolderExists(remoteFolderPath, runtimePaths, r
     await runCommand(mkdir.command, mkdir.args)
   }
   catch (error) {
-    throw new AppError(
+    throwAppError(
       APP_ERROR_CODE.REMOTE_FOLDER_CREATE_FAILED,
       error?.message || `Failed to create remote folder: ${remoteFolderPath}`,
-      { remotePath: remoteFolderPath },
       { cause: error },
     )
   }

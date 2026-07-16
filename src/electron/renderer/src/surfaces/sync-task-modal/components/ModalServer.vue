@@ -24,19 +24,21 @@ const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
 const messageBox = useMessageBox(window.syncTaskModal)
 const serverOperations = useServerOperations(window.syncTaskModal)
 
-const EDIT_MODE = {
-  UPDATE: 'update',
+const ACTION_MODE = {
+  EDIT: 'edit',
   CREATE: 'create',
 }
-const mode = computed(() => props.context?.selectedServer ? EDIT_MODE.UPDATE : EDIT_MODE.CREATE)
+const mode = ref(props.modalName === SYNC_TASK_MODALS.EDIT_SERVER ? ACTION_MODE.EDIT : ACTION_MODE.CREATE)
 
-const currentServerName = ref(props.context?.selectedServer?.name || '')
-const expectedServerName = ref(currentServerName.value || '')
-const protocolType = ref(props.context?.selectedServer?.type || getDefaultProtocolType())
+const currentServerName = ref((mode.value === ACTION_MODE.EDIT && props.context?.selectedServer?.name) || '')
+const expectedServerName = ref((mode.value === ACTION_MODE.EDIT && currentServerName.value) || '')
+const protocolType = ref((mode.value === ACTION_MODE.EDIT && props.context?.selectedServer?.type) || getDefaultProtocolType())
 const protocolForm = ref(
-  replaceExistingProperties(createDefaultProtocolForm(protocolType.value), props.context?.selectedServer?.config || {}),
+  mode.value === ACTION_MODE.EDIT
+    ? replaceExistingProperties(createDefaultProtocolForm(protocolType.value), props.context?.selectedServer?.config || {})
+    : createDefaultProtocolForm(protocolType.value),
 )
-const formFields = computed(() => getProtocolDefinition(protocolType.value)?.fields || {})
+const formFields = ref(getProtocolDefinition(protocolType.value)?.fields || {})
 
 const isSubmitting = ref(false)
 
@@ -66,7 +68,7 @@ async function submitServer() {
 
   let result
   try {
-    result = mode.value === EDIT_MODE.UPDATE
+    result = mode.value === ACTION_MODE.EDIT
       ? await serverOperations.updateServer(currentServerName.value, expectedServerName.value, protocolType.value, protocolForm.value)
       : await serverOperations.createServer(expectedServerName.value, protocolType.value, protocolForm.value)
   }
@@ -75,7 +77,7 @@ async function submitServer() {
   }
 
   if (result.success) {
-    if (mode.value === EDIT_MODE.UPDATE) {
+    if (mode.value === ACTION_MODE.EDIT) {
       emit('onClickConfirm')
     }
     else {
@@ -98,15 +100,15 @@ async function submitServer() {
 <template>
   <ModalShell :modal-name="modalName" :title="$t(`syncTasks.modals.${modalName}.title`)" :message="$t(`syncTasks.modals.${modalName}.message`)">
     <div class="content-stage flex justify-center items-center">
-      <!-- Name -->
-      <label class="field-label" for="server-name">Name</label>
-      <input
-        id="server-name"
-        class="field-input"
-        :value="expectedServerName"
-        @input="expectedServerName = $event.target.value"
-      >
       <div class="protocol-form-grid">
+        <!-- Name -->
+        <label class="field-label" for="server-name">Name</label>
+        <input
+          id="server-name"
+          class="field-control"
+          :value="expectedServerName"
+          @input="expectedServerName = $event.target.value"
+        >
         <!-- Protocol Type Selection -->
         <label class="field-label" for="protocol">Protocol</label>
         <div class="field-control-dock">
@@ -149,7 +151,7 @@ async function submitServer() {
 
     <template #footer>
       <Button :primary="true" :wide="true" :disabled="isSubmitting" @click="submitServer">
-        {{ mode === EDIT_MODE.UPDATE ? $t('syncTasks.modals.common.confirm') : $t('syncTasks.modals.common.next') }}
+        {{ mode === ACTION_MODE.EDIT ? $t('syncTasks.modals.common.confirm') : $t('syncTasks.modals.common.next') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
         {{ $t('syncTasks.modals.common.cancel') }}

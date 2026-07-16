@@ -1,24 +1,30 @@
-import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
-import { validateProtocolForm } from './protocol-registry.js'
+import { APP_ERROR_CODE, getErrorCode, throwAppError } from '../app-errors.js'
+import { getProtocolDefinition } from './protocol-registry.js'
 import * as rcloneRemotes from './rclone-config.js'
+
+function buildRcloneConfig(protocolType, protocolFields) {
+  return { type: protocolType, ...protocolFields }
+}
 
 function getRcloneRemoteAddress(remote) {
   const config = remote?.config || {}
   return config?.host || config?.url || config?.remote || config?.endpoint || ''
 }
 
-function buildRcloneConfig(protocolType, protocolFields) {
-  return { type: protocolType, ...protocolFields }
-}
+function removePasswordFields(config = {}) {
+  const protocol = getProtocolDefinition(config.type)
+  if (!protocol)
+    return { ...config }
 
-function serverToRcloneRemote(server) {
-  if (!server)
-    return null
+  const passwordFields = new Set(
+    protocol.fields
+      .filter(field => field.type === 'password')
+      .map(field => field.name),
+  )
 
-  return {
-    name: server.name,
-    config: server.config,
-  }
+  return Object.fromEntries(
+    Object.entries(config).filter(([fieldName]) => !passwordFields.has(fieldName)),
+  )
 }
 
 function rcloneRemoteToServer(remote) {
@@ -31,8 +37,36 @@ function rcloneRemoteToServer(remote) {
     type: config.type,
     address: getRcloneRemoteAddress(remote),
     status: 'unknown',
-    config,
+    config: removePasswordFields(config),
   }
+}
+
+// Layer throw helpers use: (code, message, { cause, detail, fields, meta }).
+function throwServerError(code, message, options = {}) {
+  const { cause = null, detail = null, fields = null, meta = {} } = options
+  throwAppError(code, message, {
+    detail: detail ?? cause?.detail,
+    fields: fields ?? cause?.fields,
+    cause,
+    meta,
+  })
+}
+
+function throwServerErrorFromRclone(error, fallbackMessage, meta = {}) {
+  const code = getErrorCode(error)
+  if (code === APP_ERROR_CODE.RCLONE_REMOTE_EXISTS) {
+    throwServerError(APP_ERROR_CODE.SERVER_ALREADY_EXISTS, 'Server already exists.', { cause: error, meta })
+  }
+
+  if (code === APP_ERROR_CODE.RCLONE_REMOTE_MISSING) {
+    throwServerError(APP_ERROR_CODE.SERVER_NOT_FOUND, 'Server does not exist.', { cause: error, meta })
+  }
+
+  if (code === APP_ERROR_CODE.RCLONE_INVALID_REMOTE) {
+    throwServerError(APP_ERROR_CODE.SERVER_VALIDATION_FAILED, 'Server validation failed.', { cause: error, meta })
+  }
+
+  throwServerError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, fallbackMessage, { cause: error, meta })
 }
 
 export function buildEmptyServerObject(name) {
@@ -52,146 +86,107 @@ export async function listServerConnections() {
     return servers
   }
   catch (error) {
-    throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, 'Failed to list servers.', { cause: error })
+    throwServerErrorFromRclone(error, 'Failed to list servers.')
   }
 }
 
-export async function getServerConnection(serverName) {
+export async function getServerConnection(name) {
   try {
-    const name = serverName.trim()
     const remote = await rcloneRemotes.getRcloneRemote(name)
     const server = rcloneRemoteToServer(remote)
     return server
   }
   catch (error) {
-    throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, 'Failed to get server.', { cause: error })
-  }
-}
-
-export async function testServerConnection(serverName) {
-  try {
-    const name = serverName.trim()
-    await rcloneRemotes.testRcloneRemoteConnection(name)
-  }
-  catch (error) {
-    throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, 'Failed to test server.', { cause: error })
-  }
-}
-
-export async function createServerConnection(expectedServerName, protocolType, protocolFields) {
-  const validationResult = validateProtocolForm(protocolType, protocolFields)
-  if (!validationResult.success) {
-    throwAppError(APP_ERROR_CODE.SERVER_VALIDATION_FAILED, 'Server validation failed', {
-      detail: validationResult.error?.message,
-      fields: validationResult.error?.fields,
+    throwServerErrorFromRclone(error, 'Failed to get server.', {
+      name,
     })
   }
+}
 
-  const name = expectedServerName.trim()
-  try {
-    const config = buildRcloneConfig(protocolType, protocolFields)
-    await rcloneRemotes.createRcloneRemote(name, config)
-  }
-  catch (error) {
-    throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, 'Failed to create server.', { cause: error })
-  }
-
+export async function testServerConnection(name) {
   try {
     await rcloneRemotes.testRcloneRemoteConnection(name)
   }
   catch (error) {
-    await rcloneRemotes.deleteRcloneRemote(name)
-    throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, 'Targeted server is not reachable.', { cause: error })
+    throwServerError(APP_ERROR_CODE.SERVER_CONNECTION_FAILED, 'Server connection failed.', {
+      cause: error,
+      meta: {
+        name,
+      },
+    })
   }
 }
 
-export async function updateServerConnection(serverName, protocolType, protocolFields) {
-  const validationResult = validateProtocolForm(protocolType, protocolFields)
-  if (!validationResult.success) {
-    throwAppError(APP_ERROR_CODE.SERVER_VALIDATION_FAILED, 'Server validation failed', {
-      detail: validationResult.error?.message,
-      fields: validationResult.error?.fields,
+export async function createServerConnection(expectedName, protocolType, protocolFields) {
+  const config = buildRcloneConfig(protocolType, protocolFields)
+
+  try {
+    await rcloneRemotes.createRcloneRemote(expectedName, config)
+  }
+  catch (error) {
+    throwServerErrorFromRclone(error, 'Failed to create server.', {
+      name: expectedName,
     })
   }
 
   try {
-    const name = serverName.trim()
-    const config = buildRcloneConfig(protocolType, protocolFields)
+    await rcloneRemotes.testRcloneRemoteConnection(expectedName)
+  }
+  catch (error) {
+    let rollbackError = null
+    try {
+      await rcloneRemotes.deleteRcloneRemote(expectedName)
+    }
+    catch (caughtRollbackError) {
+      rollbackError = caughtRollbackError
+    }
+    throwServerError(APP_ERROR_CODE.SERVER_CONNECTION_FAILED, 'Server connection failed.', {
+      cause: error,
+      detail: error?.detail || 'The server was saved temporarily, but the connection test failed.',
+      meta: {
+        name: expectedName,
+        ...(rollbackError && { rollbackErrorCode: getErrorCode(rollbackError) }),
+      },
+    })
+  }
+}
+
+export async function updateServerConnection(name, protocolType, protocolFields) {
+  const config = buildRcloneConfig(protocolType, protocolFields)
+
+  try {
     await rcloneRemotes.updateRcloneRemote(name, config)
   }
   catch (error) {
-    throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, 'Failed to update the server.', { cause: error })
+    throwServerErrorFromRclone(error, 'Failed to update the server.', {
+      name,
+    })
   }
 }
 
-export async function deleteServerConnection(serverName) {
+export async function deleteServerConnection(name) {
   try {
-    const name = serverName.trim()
     await rcloneRemotes.deleteRcloneRemote(name)
   }
   catch (error) {
-    throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, 'Failed to delete the server.', { cause: error })
+    throwServerErrorFromRclone(error, 'Failed to delete the server.', {
+      name,
+    })
   }
 }
 
-// export async function renameServerConnection(currentServerName, expectedServerName) {
-//   currentServerName = currentServerName.trim()
-//   expectedServerName = expectedServerName.trim()
-
-//   if (currentServerName === expectedServerName)
-//     return
-
-//   try {
-//     await rcloneRemotes.renameRcloneRemote(currentServerName, expectedServerName)
-//   }
-//   catch (error) {
-//     throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, 'Failed to rename the server.', { cause: error })
-//   }
-// }
-
-export async function renameServerConnection(serverName, expectedServerName, protocolType = null, protocolFields = null) {
-  serverName = serverName.trim()
-  expectedServerName = expectedServerName.trim()
-
-  if (serverName === expectedServerName)
-    return
-
-  let config = null
-  if (protocolType && protocolFields) {
-    const validationResult = validateProtocolForm(protocolType, protocolFields)
-    if (!validationResult.success) {
-      throwAppError(APP_ERROR_CODE.SERVER_VALIDATION_FAILED, 'Server validation failed.', {
-        detail: validationResult.error?.message,
-        fields: validationResult.error?.fields,
-      })
-    }
-    config = buildRcloneConfig(protocolType, protocolFields)
-  }
-  else {
-    const server = await getServerConnection(serverName)
-    const remote = serverToRcloneRemote(server)
-    if (!remote || !remote.config) {
-      throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, `Server ${serverName} does not exist.`)
-    }
-    config = remote.config
-  }
+export async function renameServerConnection(name, expectedName, protocolType = null, protocolFields = null) {
+  const config = protocolType == null && protocolFields == null
+    ? null
+    : buildRcloneConfig(protocolType, protocolFields)
 
   try {
-    await rcloneRemotes.createRcloneRemote(expectedServerName, config)
+    await rcloneRemotes.renameRcloneRemote(name, expectedName, config)
   }
   catch (error) {
-    throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, 'Failed to rename the server.', { cause: error })
-  }
-
-  try {
-    await rcloneRemotes.deleteRcloneRemote(serverName)
-  }
-  catch (error) {
-    try {
-      await rcloneRemotes.deleteRcloneRemote(expectedServerName)
-    }
-    catch {}
-
-    throwAppError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, 'Failed to rename the server.', { cause: error })
+    throwServerErrorFromRclone(error, 'Failed to rename the server.', {
+      name,
+      expectedName,
+    })
   }
 }

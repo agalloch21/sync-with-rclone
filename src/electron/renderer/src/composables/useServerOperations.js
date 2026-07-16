@@ -1,6 +1,7 @@
 import { validateProtocolForm } from '#src/app/configuration/protocol-registry.js'
-import { toFailureResult, unwrapResult } from '#src/app/operation-result.js'
-import { useMessageBox } from './useMessageBox'
+import { toFailureResult } from '#src/app/operation-result.js'
+import { toRaw } from 'vue'
+import { useMessageBox } from './useMessageBox.js'
 
 export function useServerOperations(windowPreload) {
   const messageBox = useMessageBox(windowPreload)
@@ -11,15 +12,26 @@ export function useServerOperations(windowPreload) {
       .join('\n')
   }
 
+  function getErrorDetail(error = {}) {
+    return formatErrorFields(error.fields) || error.detail
+  }
+
+  function toPlainObject(value) {
+    return structuredClone(toRaw(value || {}))
+  }
+
+  async function showOperationWarning(result) {
+    await messageBox.showWarningMessage({
+      message: result?.error?.message,
+      detail: getErrorDetail(result?.error),
+    })
+  }
+
   async function listServers() {
     try {
       const result = await windowPreload?.listServers?.()
-      if (!result?.success) {
-        await messageBox.showWarningMessage({
-          message: result?.error?.message,
-          detail: result?.error?.detail,
-        })
-      }
+      if (!result?.success)
+        await showOperationWarning(result)
       return result
     }
     catch (error) {
@@ -43,12 +55,8 @@ export function useServerOperations(windowPreload) {
     try {
       const payload = { serverName }
       const result = await windowPreload?.getServer?.(payload)
-      if (!result?.success) {
-        await messageBox.showWarningMessage({
-          message: result?.error?.message,
-          detail: result?.error?.detail,
-        })
-      }
+      if (!result?.success)
+        await showOperationWarning(result)
       return result
     }
     catch (error) {
@@ -79,34 +87,10 @@ export function useServerOperations(windowPreload) {
     }
 
     try {
-      const payload = { serverName: expectedServerName }
-      const result = await windowPreload?.getServer?.(payload)
-      const hasServer = result.success && unwrapResult(result)
-      if (hasServer) {
-        await messageBox.showWarningMessage({
-          message: `Server ${expectedServerName} already exists.`,
-          detail: 'Please specify another name.',
-        })
-        return toFailureResult()
-      }
-    }
-    catch (error) {
-      await messageBox.showErrorMessage({
-        message: `Something wrong when executing IPC functions.`,
-        detail: error?.message,
-      })
-      return toFailureResult()
-    }
-
-    try {
-      const payload = { expectedServerName, protocolType, protocolFields }
+      const payload = { expectedServerName, protocolType, protocolFields: toPlainObject(protocolFields) }
       const result = await windowPreload?.createServer?.(payload)
-      if (!result?.success) {
-        await messageBox.showWarningMessage({
-          message: result?.error?.message,
-          detail: result?.error?.detail,
-        })
-      }
+      if (!result?.success)
+        await showOperationWarning(result)
       return result
     }
     catch (error) {
@@ -145,34 +129,10 @@ export function useServerOperations(windowPreload) {
     }
 
     try {
-      const payload = { serverName }
-      const result = await windowPreload?.getServer?.(payload)
-      const serverNotExist = (result.success === false || !unwrapResult(result))
-      if (serverNotExist) {
-        await messageBox.showWarningMessage({
-          message: `Server ${serverName} does not exist.`,
-          detail: 'please specify another server.',
-        })
-        return toFailureResult()
-      }
-    }
-    catch (error) {
-      await messageBox.showErrorMessage({
-        message: `Something wrong when executing IPC functions.`,
-        detail: error?.message,
-      })
-      return toFailureResult(error)
-    }
-
-    try {
-      const payload = { serverName, expectedServerName, protocolType, protocolFields }
+      const payload = { serverName, expectedServerName, protocolType, protocolFields: toPlainObject(protocolFields) }
       const result = await windowPreload?.updateServer?.(payload)
-      if (!result?.success) {
-        await messageBox.showWarningMessage({
-          message: result?.error?.message,
-          detail: result?.error?.detail,
-        })
-      }
+      if (!result?.success)
+        await showOperationWarning(result)
       return result
     }
     catch (error) {
@@ -195,33 +155,9 @@ export function useServerOperations(windowPreload) {
 
     try {
       const payload = { serverName }
-      const result = await windowPreload?.getServer?.(payload)
-      const serverNotExist = (result.success === false || !unwrapResult(result))
-      if (serverNotExist) {
-        await messageBox.showWarningMessage({
-          message: `Server ${serverName} does not exist.`,
-          detail: 'please specify another server.',
-        })
-        return toFailureResult()
-      }
-    }
-    catch (error) {
-      await messageBox.showErrorMessage({
-        message: `Something wrong when executing IPC functions.`,
-        detail: error?.message,
-      })
-      return toFailureResult(error)
-    }
-
-    try {
-      const payload = { serverName }
       const result = await windowPreload?.deleteServer?.(payload)
-      if (!result?.success) {
-        await messageBox.showWarningMessage({
-          message: result?.error?.message,
-          detail: result?.error?.detail,
-        })
-      }
+      if (!result?.success)
+        await showOperationWarning(result)
       return result
     }
     catch (error) {

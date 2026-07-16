@@ -346,13 +346,15 @@ sequenceDiagram
   participant MW as Main Window Renderer
 
   U->>M: 点击 Next
-  M->>M: 校验表单
+  M->>M: UI 表单预校验
   M->>EM: updateServer(payload)
   EM->>APP: updateServer(serverName, expectedServerName, protocolType, protocolFields)
   APP->>APP: 判断 same-name update 或 rename-with-update
   APP->>SO: updateServerConnection(...) 或 renameServerConnection(...)
-  SO->>SO: 校验协议字段并生成 rclone config
-  SO->>RC: update remote 或 create target + delete source
+  SO->>SO: 生成 rclone config 并转义 SERVER_* 错误
+  SO->>RC: updateRcloneRemote(...) 或 renameRcloneRemote(...)
+  RC->>RC: 校验 name / expectedName / config 并 normalize
+  RC->>RC: rename 时 create target + delete source，失败时 rollback target
   alt 测试失败
     EM->>MB: error
     EM-->>M: success=false
@@ -368,13 +370,15 @@ sequenceDiagram
 关键点：
 
 - 表单校验失败时不打开 message-box
+- UI 表单预校验只用于即时提示；官方字段语义错误由 server/rclone operation 返回
 - 连接测试和保存过程中的状态只显示在 message-box
 - 失败时保留 Edit Server modal，让用户继续修改表单
 - 成功时关闭 message-box，通知主窗口重新读取数据，然后关闭 modal
 - `app-operations.js` 负责判断保存动作是同名 update 还是 rename
-- `server-operations.js` 负责 app-level server 与 raw rclone remote 的转换
-- `rclone-config.js` 只读写 `{ name, config }` 形式的 raw remote
-- rename-with-update 会先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote
+- `server-operations.js` 负责 app-level server 与 raw rclone remote 的对象转换，并把 `RCLONE_*` 转成 `SERVER_*`
+- `name` 是 server 与 remote 共享的资源标识；server 层不单独校验或 normalize name
+- `rclone-config.js` 负责 raw rclone remote 的输入校验、normalize、读写和 rename adapter operation
+- rename-with-update 由 `renameRcloneRemote()` 封装：先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote
 
 ## 13. Delete Server / Delete Task 流程
 

@@ -1,8 +1,21 @@
 import { deleteServer, getMainWindowData, getServer } from '#src/app/main-window/app-operations.js'
+import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { isValidSyncTaskModal } from '#src/app/main-window/modal-contract.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import { getActiveModalWindow } from '../app-state.js'
 import { createSyncTaskModalWindow } from '../sync-task-modal/window.js'
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function assertPayloadObject(payload) {
+  if (!isPlainObject(payload)) {
+    throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, 'Invalid IPC payload.', {
+      detail: 'The request payload must be an object.',
+    })
+  }
+}
 
 export function createMainWindowHandlers() {
   function openSyncTaskModalHandler(_event, payload) {
@@ -43,6 +56,7 @@ export function createMainWindowHandlers() {
 
   async function getServerHandler(_event, payload) {
     try {
+      assertPayloadObject(payload)
       const { serverName } = payload || {}
       const result = await getServer(serverName)
       return toSuccessfulResult(result)
@@ -54,6 +68,7 @@ export function createMainWindowHandlers() {
 
   async function deleteServerHandler(_event, payload) {
     try {
+      assertPayloadObject(payload)
       const { serverName } = payload || {}
       const result = await deleteServer(serverName)
       return toSuccessfulResult(result)

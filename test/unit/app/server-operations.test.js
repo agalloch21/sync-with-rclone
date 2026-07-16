@@ -6,6 +6,7 @@ import { afterEach, test } from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import {
   createServerConnection,
+  listServerConnections,
   renameServerConnection,
   updateServerConnection,
 } from '#src/app/configuration/server-operations.js'
@@ -161,6 +162,29 @@ test('createServerConnection validates, creates, and tests a server connection',
   ])
 })
 
+test('listServerConnections removes password fields from server config', async () => {
+  await createFakeRuntime({
+    initialConfig: {
+      synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'obscured-password' },
+    },
+  })
+
+  assert.deepEqual(await listServerConnections(), [
+    {
+      name: 'synology',
+      type: 'sftp',
+      address: 'nas.local',
+      status: 'unknown',
+      config: {
+        type: 'sftp',
+        host: 'nas.local',
+        port: '22',
+        user: 'xiaobo',
+      },
+    },
+  ])
+})
+
 test('createServerConnection rolls back the remote when connection testing fails', async () => {
   const runtime = await createFakeRuntime({ failLsf: true })
 
@@ -173,11 +197,69 @@ test('createServerConnection rolls back the remote when connection testing fails
     }),
     {
       name: 'AppError',
-      code: APP_ERROR_CODE.SERVER_OPERATION_FAILED,
-      message: 'Targeted server is not reachable.',
+      code: APP_ERROR_CODE.SERVER_CONNECTION_FAILED,
+      message: 'Server connection failed.',
     },
   )
   assert.deepEqual(await runtime.readState(), {})
+})
+
+test('createServerConnection maps duplicate backend remote to server already exists', async () => {
+  await createFakeRuntime({
+    initialConfig: {
+      synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
+    },
+  })
+
+  await assert.rejects(
+    () => createServerConnection('synology', 'sftp', {
+      host: 'nas.local',
+      port: 22,
+      user: 'xiaobo',
+      pass: 'secret',
+    }),
+    {
+      name: 'AppError',
+      code: APP_ERROR_CODE.SERVER_ALREADY_EXISTS,
+      message: 'Server already exists.',
+    },
+  )
+})
+
+test('updateServerConnection maps missing backend remote to server not found', async () => {
+  await createFakeRuntime()
+
+  await assert.rejects(
+    () => updateServerConnection('missing', 'sftp', {
+      host: 'nas.local',
+      port: 22,
+      user: 'xiaobo',
+      pass: 'secret',
+    }),
+    {
+      name: 'AppError',
+      code: APP_ERROR_CODE.SERVER_NOT_FOUND,
+      message: 'Server does not exist.',
+    },
+  )
+})
+
+test('renameServerConnection validates both current and expected names', async () => {
+  await createFakeRuntime()
+
+  await assert.rejects(
+    () => renameServerConnection('synology', '', 'sftp', {
+      host: 'nas.local',
+      port: 22,
+      user: 'xiaobo',
+      pass: 'secret',
+    }),
+    {
+      name: 'AppError',
+      code: APP_ERROR_CODE.SERVER_VALIDATION_FAILED,
+      message: 'Server validation failed.',
+    },
+  )
 })
 
 test('createServerConnection throws AppError for invalid protocol fields', async () => {
@@ -190,9 +272,11 @@ test('createServerConnection throws AppError for invalid protocol fields', async
       user: '',
       pass: '',
     }),
-    {
-      name: 'AppError',
-      code: APP_ERROR_CODE.SERVER_VALIDATION_FAILED,
+    (error) => {
+      assert.equal(error.name, 'AppError')
+      assert.equal(error.code, APP_ERROR_CODE.SERVER_VALIDATION_FAILED)
+      assert.equal(error.cause?.code, APP_ERROR_CODE.RCLONE_INVALID_REMOTE)
+      return true
     },
   )
 })
@@ -236,14 +320,12 @@ test('renameServerConnection creates the target from server config then deletes 
   })
   assert.deepEqual((await runtime.readCalls()).map(call => call.slice(2, 4)), [
     ['config', 'dump'],
-    ['config', 'dump'],
     ['config', 'create'],
-    ['config', 'dump'],
     ['config', 'delete'],
   ])
 })
 
-test('renameServerConnection creates the target with updated config then deletes the old server', async () => {
+test('renameServerConnection writes updated config when protocol input is provided', async () => {
   const runtime = await createFakeRuntime({
     initialConfig: {
       synology: { type: 'sftp', host: 'old.local', port: '22', user: 'old', pass: 'old' },
@@ -275,8 +357,8 @@ test('renameServerConnection rejects a missing source server before creating the
     () => renameServerConnection('missing', 'nas'),
     {
       name: 'AppError',
-      code: APP_ERROR_CODE.SERVER_OPERATION_FAILED,
-      message: 'Server missing does not exist',
+      code: APP_ERROR_CODE.SERVER_NOT_FOUND,
+      message: 'Server does not exist.',
     },
   )
 

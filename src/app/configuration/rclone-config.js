@@ -1,75 +1,80 @@
 import { createRcloneCommand, runCommand } from '#src/core/rclone-command.js'
+import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
 import { getRuntimePaths } from '../runtime-paths.js'
 import { getProtocolDefinition, validateProtocolForm } from './protocol-registry.js'
 
-function parseConfigDump(stdout) {
-  if (!stdout?.trim())
-    return {}
-
-  return JSON.parse(stdout)
-}
-
-function parseRcloneRemotesFromConfigDump(stdout) {
-  const rcloneConfig = parseConfigDump(stdout)
-  return Object.entries(rcloneConfig)
-    .map(([name, rawRemote]) => ({
-      name,
-      config: rawRemote || {},
-    }))
-}
-
-// function getRcloneRemoteAddress(remote) {
-//   return remote.host || remote.url || remote.remote || remote.endpoint || ''
-// }
-
-// function formatRawRcloneRemotes(remotes) {
-//   return remotes.map((remote) => {
-//     return rcloneRemoteToServer(remote)
-//   })
-// }
-
-function buildOptionArgs(options) {
-  return Object.entries(options || {}).flatMap(([key, value]) => [key, String(value)])
-}
-
-function validationFailure(message, fields = null) {
-  return {
-    success: false,
-    error: {
-      message,
-      ...(fields != null && { fields }),
-    },
+function assertName(name, fieldName = 'name') {
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_INVALID_REMOTE, 'Invalid rclone remote.', {
+      detail: 'Name is required.',
+      fields: {
+        [fieldName]: 'Name is required.',
+      },
+    })
   }
 }
 
-function validateRemote(name, config) {
-  const { type, ...fields } = config || {}
-  if (!name || typeof name !== 'string' || name.trim().length === 0)
-    return validationFailure('Name is required.')
+function assertRemoteConfig(config, meta = {}) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_INVALID_REMOTE, 'Invalid rclone remote.', {
+      detail: 'Protocol configuration is required.',
+      fields: {
+        config: 'Protocol configuration is required.',
+      },
+      meta,
+    })
+  }
 
-  if (!type || !fields)
-    return validationFailure('Protocol configuration is required.')
+  const { type, ...fields } = config
+  if (!type || typeof type !== 'string') {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_INVALID_REMOTE, 'Invalid rclone remote.', {
+      detail: 'Protocol type is required.',
+      fields: {
+        'config.type': 'Protocol type is required.',
+      },
+      meta,
+    })
+  }
 
   const protocol = getProtocolDefinition(type)
-  if (!protocol)
-    return validationFailure('Unsupported protocol.')
+  if (!protocol) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_INVALID_REMOTE, 'Invalid rclone remote.', {
+      detail: 'Unsupported protocol.',
+      fields: {
+        'config.type': 'Unsupported protocol.',
+      },
+      meta: {
+        ...meta,
+        protocolType: type,
+      },
+    })
+  }
 
   const validateResult = validateProtocolForm(type, fields)
-  if (!validateResult.success)
-    return validationFailure('Invalid protocol configuration.', validateResult.error?.fields)
-
-  return { success: true }
+  if (!validateResult.success) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_INVALID_REMOTE, 'Invalid rclone remote.', {
+      detail: 'Invalid protocol configuration.',
+      fields: prefixedProtocolFields(validateResult.error?.fields),
+      meta: {
+        ...meta,
+        protocolType: type,
+      },
+    })
+  }
 }
 
-function normalizeRemoteName(name) {
+function assertRcloneRemoteInput(name, config, meta = {}) {
+  assertName(name)
+  assertRemoteConfig(config, meta)
+}
+
+function normalizeName(name) {
   return name.trim()
 }
 
 function normalizeRemoteConfig(config) {
   const { type, ...fields } = config || {}
   const protocol = getProtocolDefinition(type)
-  if (!protocol)
-    throw new Error('normalizing remote config failed')
 
   const normalizedFields = Object.fromEntries(protocol.fields.map((field) => {
     const rawValue = fields[field.name]
@@ -84,7 +89,67 @@ function normalizeRemoteConfig(config) {
   return { type, ...normalizedFields }
 }
 
-function testRcloneRemoteConfig(name, runtimePaths = getRuntimePaths()) {
+function parseConfigDump(stdout) {
+  if (!stdout?.trim())
+    return {}
+
+  try {
+    return JSON.parse(stdout)
+  }
+  catch (error) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_PARSE_FAILED, 'Failed to parse rclone config.', {
+      detail: 'rclone config dump returned invalid JSON.',
+      cause: error,
+    })
+  }
+}
+
+function parseRcloneRemotesFromConfigDump(stdout) {
+  const rcloneConfig = parseConfigDump(stdout)
+  return Object.entries(rcloneConfig)
+    .map(([name, rawRemote]) => ({
+      name,
+      config: rawRemote || {},
+    }))
+}
+
+function buildOptionArgs(options) {
+  return Object.entries(options || {}).flatMap(([key, value]) => [key, String(value)])
+}
+
+function prefixedProtocolFields(fields = {}) {
+  return Object.fromEntries(Object.entries(fields).map(([key, value]) => [`config.${key}`, value]))
+}
+
+function getCommandErrorDetail(error) {
+  return error?.stderr?.trim() || error?.stdout?.trim() || error?.message || 'rclone command failed.'
+}
+
+// Layer throw helpers use: (code, message, { cause, detail, fields, meta }).
+function throwRcloneError(code, message, options = {}) {
+  const { cause = null, detail = null, fields = null, meta = {} } = options
+  throwAppError(code, message, {
+    detail: detail ?? cause?.detail,
+    fields: fields ?? cause?.fields,
+    cause,
+    meta,
+  })
+}
+
+async function runRcloneOperation(command, message, meta = {}) {
+  try {
+    return await runCommand(command.command, command.args)
+  }
+  catch (error) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_COMMAND_FAILED, message, {
+      detail: getCommandErrorDetail(error),
+      cause: error,
+      meta,
+    })
+  }
+}
+
+async function testRcloneRemoteConfig(name, runtimePaths = getRuntimePaths()) {
   const command = createRcloneCommand(runtimePaths, [
     'lsf',
     '--max-depth',
@@ -92,10 +157,12 @@ function testRcloneRemoteConfig(name, runtimePaths = getRuntimePaths()) {
     `${name}:`,
   ])
 
-  return runCommand(command.command, command.args)
+  return await runRcloneOperation(command, 'Failed to test rclone remote connection.', {
+    name,
+  })
 }
 
-function writeRcloneRemoteConfig(name, config, runtimePaths = getRuntimePaths()) {
+async function writeRcloneRemoteConfig(name, config, runtimePaths = getRuntimePaths()) {
   const { type, ...fields } = config || {}
 
   const command = createRcloneCommand(runtimePaths, [
@@ -107,10 +174,12 @@ function writeRcloneRemoteConfig(name, config, runtimePaths = getRuntimePaths())
     '--obscure',
   ])
 
-  return runCommand(command.command, command.args)
+  return await runRcloneOperation(command, 'Failed to create rclone remote.', {
+    name,
+  })
 }
 
-function updateRcloneRemoteConfig(name, config, runtimePaths = getRuntimePaths()) {
+async function updateRcloneRemoteConfig(name, config, runtimePaths = getRuntimePaths()) {
   const { type, ...fields } = config || {}
 
   const command = createRcloneCommand(runtimePaths, [
@@ -123,151 +192,169 @@ function updateRcloneRemoteConfig(name, config, runtimePaths = getRuntimePaths()
     '--obscure',
   ])
 
-  return runCommand(command.command, command.args)
+  return await runRcloneOperation(command, 'Failed to update rclone remote.', {
+    name,
+  })
 }
 
-function deleteRcloneRemoteConfig(name, runtimePaths = getRuntimePaths()) {
+async function deleteRcloneRemoteConfig(name, runtimePaths = getRuntimePaths()) {
   const command = createRcloneCommand(runtimePaths, [
     'config',
     'delete',
     name,
   ])
 
-  return runCommand(command.command, command.args)
+  return await runRcloneOperation(command, 'Failed to delete rclone remote.', {
+    name,
+  })
 }
-
-//* ================================ Exported Functions ==============================*/
-
-// export function buildRcloneConfig(protocolType, protocolFields) {
-//   return { type: protocolType, ...protocolFields }
-// }
-// function getRcloneRemoteConfig(remote) {
-
-// }
-// function serverToRcloneRemote(server) {
-//   return {
-//     name: server.name,
-//     ...server.config,
-//   }
-// }
-// function rcloneRemoteToServer(remote) {
-//   const { name, ...config } = remote
-//   return {
-//     name,
-//     type: config.type,
-//     address: getRcloneRemoteAddress(remote),
-//     status: 'unknown',
-//     config,
-//   }
-// }
 
 export async function listRcloneRemotes(runtimePaths = getRuntimePaths()) {
   const command = createRcloneCommand(runtimePaths, ['config', 'dump'])
 
-  const result = await runCommand(command.command, command.args)
+  const result = await runRcloneOperation(command, 'Failed to list rclone remotes.')
   const remotes = parseRcloneRemotesFromConfigDump(result.stdout)
 
   return remotes
 }
 
 export async function getRcloneRemote(name, runtimePaths = getRuntimePaths()) {
-  if (!name || typeof name !== 'string' || name.trim().length === 0)
-    throw new Error('Remote name is required.')
-
-  const normalizedName = normalizeRemoteName(name)
+  assertName(name)
+  const normalizedName = normalizeName(name)
   const remotes = await listRcloneRemotes(runtimePaths)
 
   return remotes.find(remote => remote.name === normalizedName) || null
 }
 
 export async function testRcloneRemoteConnection(name, runtimePaths = getRuntimePaths()) {
-  if (!name || typeof name !== 'string' || name.trim().length === 0)
-    throw new Error('remote name is required')
-
-  const normalizedName = normalizeRemoteName(name)
+  assertName(name)
+  const normalizedName = normalizeName(name)
 
   await testRcloneRemoteConfig(normalizedName, runtimePaths)
 }
 
 export async function createRcloneRemote(name, config, runtimePaths = getRuntimePaths()) {
-  const validateResult = validateRemote(name, config)
-  if (!validateResult.success) {
-    throw new Error('Rclone remote validation failed')
-  }
+  assertRcloneRemoteInput(name, config)
 
-  const normalizedName = normalizeRemoteName(name)
+  const normalizedName = normalizeName(name)
   const normalizedConfig = normalizeRemoteConfig(config)
 
   const remotes = await listRcloneRemotes(runtimePaths)
-  if (!remotes || typeof remotes !== 'object')
-    throw new Error('Failed to list remotes.')
+  if (!remotes || typeof remotes !== 'object') {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_OPERATION_FAILED, 'Failed to list rclone remotes.')
+  }
 
-  if (remotes.some(remote => remote.name === normalizedName))
-    throw new Error('Remote already exists.')
+  if (remotes.some(remote => remote.name === normalizedName)) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_REMOTE_EXISTS, 'Rclone remote already exists.', {
+      detail: `A remote named "${normalizedName}" already exists.`,
+      meta: {
+        name: normalizedName,
+      },
+    })
+  }
 
   await writeRcloneRemoteConfig(normalizedName, normalizedConfig, runtimePaths)
 }
 
 export async function updateRcloneRemote(name, config, runtimePaths = getRuntimePaths()) {
-  const validateResult = validateRemote(name, config)
-  if (!validateResult.success) {
-    throw new Error('Rclone remote validation failed')
-  }
+  assertRcloneRemoteInput(name, config)
 
-  const normalizedName = normalizeRemoteName(name)
+  const normalizedName = normalizeName(name)
   const normalizedConfig = normalizeRemoteConfig(config)
 
   const remotes = await listRcloneRemotes(runtimePaths)
-  if (!remotes || typeof remotes !== 'object')
-    throw new Error('Failed to list remotes.')
+  if (!remotes || typeof remotes !== 'object') {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_OPERATION_FAILED, 'Failed to list rclone remotes.')
+  }
 
-  if (remotes.some(remote => remote.name === normalizedName) === false)
-    throw new Error('Remote does not exist.')
+  if (remotes.some(remote => remote.name === normalizedName) === false) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_REMOTE_MISSING, 'Rclone remote does not exist.', {
+      detail: `A remote named "${normalizedName}" does not exist.`,
+      meta: {
+        name: normalizedName,
+      },
+    })
+  }
 
   await updateRcloneRemoteConfig(normalizedName, normalizedConfig, runtimePaths)
 }
 
 export async function deleteRcloneRemote(name, runtimePaths = getRuntimePaths()) {
-  if (!name || typeof name !== 'string' || name.trim().length === 0)
-    throw new Error('Remote name is required.')
-
-  const normalizedName = normalizeRemoteName(name)
+  assertName(name)
+  const normalizedName = normalizeName(name)
 
   const remotes = await listRcloneRemotes(runtimePaths)
-  if (!remotes || typeof remotes !== 'object')
-    throw new Error('Failed to list remotes.')
+  if (!remotes || typeof remotes !== 'object') {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_OPERATION_FAILED, 'Failed to list rclone remotes.')
+  }
 
-  if (remotes.some(remote => remote.name === normalizedName) === false)
-    throw new Error('Remote does not exist.')
+  if (remotes.some(remote => remote.name === normalizedName) === false) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_REMOTE_MISSING, 'Rclone remote does not exist.', {
+      detail: `A remote named "${normalizedName}" does not exist.`,
+      meta: {
+        name: normalizedName,
+      },
+    })
+  }
 
   await deleteRcloneRemoteConfig(normalizedName, runtimePaths)
 }
 
-// export async function renameRcloneRemote(name, expectedName, runtimePaths = getRuntimePaths()) {
-//   if (!name || typeof name !== 'string' || name.trim().length === 0
-//     || !expectedName || typeof expectedName !== 'string' || expectedName.trim().length === 0) {
-//     throw new Error('Invalid rclone operation request')
-//   }
+export async function renameRcloneRemote(name, expectedName, config = null, runtimePaths = getRuntimePaths()) {
+  assertName(name)
+  assertName(expectedName, 'expectedName')
+  const currentName = normalizeName(name)
+  const nextName = normalizeName(expectedName)
 
-//   name = normalizeRemoteName(name)
-//   expectedName = normalizeRemoteName(expectedName)
+  if (currentName === nextName)
+    return
 
-//   if (name === expectedName)
-//     return
+  if (config)
+    assertRemoteConfig(config)
 
-//   const remotes = await listRcloneRemotes(runtimePaths)
-//   if (!remotes || typeof remotes !== 'object')
-//     throw new Error('Failed to list remotes.')
+  const remotes = await listRcloneRemotes(runtimePaths)
+  if (!remotes || typeof remotes !== 'object') {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_OPERATION_FAILED, 'Failed to list rclone remotes.')
+  }
 
-//   if (remotes.some(remote => remote.name === name) === false)
-//     throw new Error('Remote does not exist.')
+  const sourceRemote = remotes.find(remote => remote.name === currentName)
+  if (!sourceRemote) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_REMOTE_MISSING, 'Rclone remote does not exist.', {
+      detail: `A remote named "${currentName}" does not exist.`,
+      meta: {
+        name: currentName,
+      },
+    })
+  }
 
-//   if (remotes.some(remote => remote.name === expectedName))
-//     throw new Error('The expected name has already been taken.')
+  if (remotes.some(remote => remote.name === nextName)) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_REMOTE_EXISTS, 'Rclone remote already exists.', {
+      detail: `A remote named "${nextName}" already exists.`,
+      meta: {
+        name: nextName,
+      },
+    })
+  }
 
-//   const config = remotes.find(remote => remote.name === name).config
+  const nextConfig = normalizeRemoteConfig(config ?? sourceRemote.config)
+  await writeRcloneRemoteConfig(nextName, nextConfig, runtimePaths)
 
-//   await createRcloneRemote(expectedName, config, runtimePaths)
+  try {
+    await deleteRcloneRemoteConfig(currentName, runtimePaths)
+  }
+  catch (error) {
+    try {
+      await deleteRcloneRemoteConfig(nextName, runtimePaths)
+    }
+    catch {}
 
-//   await deleteRcloneRemote(name, runtimePaths)
-// }
+    throwRcloneError(APP_ERROR_CODE.RCLONE_COMMAND_FAILED, 'Failed to rename rclone remote.', {
+      detail: getCommandErrorDetail(error),
+      cause: error,
+      meta: {
+        name: currentName,
+        expectedName: nextName,
+      },
+    })
+  }
+}

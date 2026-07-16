@@ -1,5 +1,6 @@
 export const APP_ERROR_CODE = Object.freeze({
   UNKNOWN: 'unknown',
+
   PATH_EMPTY: 'path.empty',
   PATH_NOT_FOUND: 'path.not_found',
   PATH_NOT_DIRECTORY: 'path.not_directory',
@@ -16,12 +17,19 @@ export const APP_ERROR_CODE = Object.freeze({
 
   SERVER_INVALID_OPERATION: 'server.invalid_operation',
   SERVER_VALIDATION_FAILED: 'server.validation_failed',
+  SERVER_ALREADY_EXISTS: 'server.already_exists',
+  SERVER_NOT_FOUND: 'server.not_found',
+  SERVER_CONNECTION_FAILED: 'server.connection_failed',
   SERVER_OPERATION_FAILED: 'server.operation_failed',
 
   RCLONE_UNSUPPORTED_PROTOCOL: 'rclone.unsupported_protocol',
   RCLONE_INVALID_OPERATION: 'rclone.invalid_operation',
+  RCLONE_INVALID_REMOTE: 'rclone.invalid_remote',
+  RCLONE_REMOTE_EXISTS: 'rclone.remote_exists',
+  RCLONE_REMOTE_MISSING: 'rclone.remote_missing',
+  RCLONE_COMMAND_FAILED: 'rclone.command_failed',
+  RCLONE_PARSE_FAILED: 'rclone.parse_failed',
   RCLONE_OPERATION_FAILED: 'rclone.operation_failed',
-
 })
 
 export class AppError extends Error {

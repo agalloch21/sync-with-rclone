@@ -1,5 +1,4 @@
 import EventEmitter from 'node:events'
-import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
 // import { loadAppConfig } from '../configuration/app-config';
 import * as serverOperations from '../configuration/server-operations.js'
 import * as taskOperations from '../configuration/task-operations.js'
@@ -44,66 +43,40 @@ export async function listServers() {
   return await serverOperations.listServerConnections()
 }
 
-export async function getServer(serverName) {
-  if (!serverName || typeof serverName !== 'string' || serverName.trim().length === 0) {
-    throwAppError(APP_ERROR_CODE.SERVER_INVALID_OPERATION, 'Invalid test server request.')
-  }
-
-  return await serverOperations.getServerConnection(serverName)
+export async function getServer(name) {
+  return await serverOperations.getServerConnection(name)
 }
 
-export async function testServerConnection(serverName) {
-  if (!serverName || typeof serverName !== 'string' || serverName.trim().length === 0) {
-    throwAppError(APP_ERROR_CODE.SERVER_INVALID_OPERATION, 'Invalid test server request.')
-  }
-
-  await serverOperations.testServerConnection(serverName)
+export async function testServerConnection(name) {
+  await serverOperations.testServerConnection(name)
 }
-export async function createServer(expectedServerName, protocolType, protocolFields) {
-  if (!expectedServerName || typeof expectedServerName !== 'string' || expectedServerName.trim().length === 0
-    || !protocolType || !protocolFields) {
-    throwAppError(APP_ERROR_CODE.SERVER_INVALID_OPERATION, 'Invalid create server request.')
-  }
-
-  await serverOperations.createServerConnection(expectedServerName, protocolType, protocolFields)
+export async function createServer(expectedName, protocolType, protocolFields) {
+  await serverOperations.createServerConnection(expectedName, protocolType, protocolFields)
 
   notifyConfigUpdate()
 }
 
-export async function updateServer(serverName, expectedServerName, protocolType, protocolFields) {
-  if (!serverName || typeof serverName !== 'string' || serverName.trim().length === 0
-    || !expectedServerName || typeof expectedServerName !== 'string' || expectedServerName.trim().length === 0
-    || !protocolType || !protocolFields) {
-    throwAppError(APP_ERROR_CODE.SERVER_INVALID_OPERATION, 'Invalid update server request.')
-  }
+export async function updateServer(name, expectedName, protocolType, protocolFields) {
+  const shouldRename = typeof name === 'string' && typeof expectedName === 'string'
+    ? name.trim() !== expectedName.trim()
+    : name !== expectedName
 
-  if (serverName.trim() === expectedServerName.trim()) {
-    await serverOperations.updateServerConnection(serverName, protocolType, protocolFields)
-  }
-  else {
-    await serverOperations.renameServerConnection(serverName, expectedServerName, protocolType, protocolFields)
-  }
+  if (shouldRename)
+    await serverOperations.renameServerConnection(name, expectedName, protocolType, protocolFields)
+  else
+    await serverOperations.updateServerConnection(name, protocolType, protocolFields)
 
   notifyConfigUpdate()
 }
 
-export async function deleteServer(serverName) {
-  if (!serverName || typeof serverName !== 'string' || serverName.trim().length === 0) {
-    throwAppError(APP_ERROR_CODE.SERVER_INVALID_OPERATION, 'Invalid delete server request.')
-  }
-
-  await serverOperations.deleteServerConnection(serverName)
+export async function deleteServer(name) {
+  await serverOperations.deleteServerConnection(name)
 
   notifyConfigUpdate()
 }
 
-export async function renameServer(serverName, expectedServerName) {
-  if (!serverName || typeof serverName !== 'string' || serverName.trim().length === 0
-    || !expectedServerName || typeof expectedServerName !== 'string' || expectedServerName.trim().length === 0) {
-    throwAppError(APP_ERROR_CODE.SERVER_INVALID_OPERATION, 'Invalid rename server request.')
-  }
-
-  await serverOperations.renameServerConnection(serverName, expectedServerName)
+export async function renameServer(name, expectedName) {
+  await serverOperations.renameServerConnection(name, expectedName)
 
   // update tasks target
 

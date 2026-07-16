@@ -36,5 +36,26 @@ test('sync task modal createServer handler returns failure OperationResult for i
   })
 
   assert.equal(result.success, false)
-  assert.equal(result.error.code, 'server.invalid_operation')
+  assert.equal(result.error.code, 'server.validation_failed')
+})
+
+test('sync task modal createServer handler returns server validation failure for malformed object payload', async () => {
+  const handlers = createSyncTaskModalHandlers()
+
+  const result = await handlers.createServerHandler(null, {
+    expectedServerName: 'synology',
+    protocolType: 'sftp',
+  })
+
+  assert.equal(result.success, false)
+  assert.equal(result.error.code, 'server.validation_failed')
+})
+
+test('sync task modal createServer handler rejects non-object IPC payload shape', async () => {
+  const handlers = createSyncTaskModalHandlers()
+
+  const result = await handlers.createServerHandler(null, null)
+
+  assert.equal(result.success, false)
+  assert.equal(result.error.code, 'ipc.invalid_payload')
 })

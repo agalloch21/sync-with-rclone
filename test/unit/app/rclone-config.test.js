@@ -3,10 +3,12 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import {
   createRcloneRemote,
   deleteRcloneRemote,
   listRcloneRemotes,
+  renameRcloneRemote,
   updateRcloneRemote,
 } from '#src/app/configuration/rclone-config.js'
 
@@ -150,7 +152,11 @@ test('createRcloneRemote throws when the remote already exists', async () => {
       user: 'xiaobo',
       pass: 'secret',
     }, fakeRclone.runtimePaths),
-    /Remote already exists/,
+    {
+      name: 'AppError',
+      code: APP_ERROR_CODE.RCLONE_REMOTE_EXISTS,
+      message: 'Rclone remote already exists.',
+    },
   )
 })
 
@@ -191,7 +197,30 @@ test('updateRcloneRemote throws when the remote is missing', async () => {
       user: 'xiaobo',
       pass: 'secret',
     }, fakeRclone.runtimePaths),
-    /Remote does not exist/,
+    {
+      name: 'AppError',
+      code: APP_ERROR_CODE.RCLONE_REMOTE_MISSING,
+      message: 'Rclone remote does not exist.',
+    },
+  )
+})
+
+test('createRcloneRemote throws AppError for invalid raw remote input', async () => {
+  const fakeRclone = await createFakeRclone()
+
+  await assert.rejects(
+    () => createRcloneRemote('', {
+      type: 'sftp',
+      host: 'nas.local',
+      port: 22,
+      user: 'xiaobo',
+      pass: 'secret',
+    }, fakeRclone.runtimePaths),
+    {
+      name: 'AppError',
+      code: APP_ERROR_CODE.RCLONE_INVALID_REMOTE,
+      message: 'Invalid rclone remote.',
+    },
   )
 })
 
@@ -205,4 +234,35 @@ test('deleteRcloneRemote validates existence before deleting', async () => {
   await deleteRcloneRemote('synology', fakeRclone.runtimePaths)
 
   assert.deepEqual(await fakeRclone.readState(), {})
+})
+
+test('renameRcloneRemote creates the target with updated config then deletes the old remote', async () => {
+  const fakeRclone = await createFakeRclone({
+    initialConfig: {
+      synology: { type: 'sftp', host: 'old.local', port: '22', user: 'old', pass: 'old' },
+    },
+  })
+
+  await renameRcloneRemote('synology', 'nas', {
+    type: 'sftp',
+    host: ' nas.local ',
+    port: 2222,
+    user: ' xiaobo ',
+    pass: ' secret ',
+  }, fakeRclone.runtimePaths)
+
+  assert.deepEqual(await fakeRclone.readState(), {
+    nas: {
+      type: 'sftp',
+      host: 'nas.local',
+      port: '2222',
+      user: 'xiaobo',
+      pass: 'secret',
+    },
+  })
+  assert.deepEqual((await fakeRclone.readCalls()).map(call => call.slice(2, 4)), [
+    ['config', 'dump'],
+    ['config', 'create'],
+    ['config', 'delete'],
+  ])
 })

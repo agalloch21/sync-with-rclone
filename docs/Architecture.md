@@ -443,7 +443,7 @@ copy 之外的示例：
 
 - `RcloneRemote` 的正式结构是 `{ name, config }`
 - `RcloneRemote.config` 是 rclone 配置的原始字段集合，包含 `type`
-- `rclone-config.js` 只负责读写 rclone remote，不负责生成 app/UI 使用的 server 展示字段
+- `rclone-config.js` 负责读写、重命名、测试 rclone remote，不负责生成 app/UI 使用的 server 展示字段
 - `ServerConnection` 的正式结构是 `{ name, type, address, status, config }`
 - `server-operations.js` 是 remote 和 server 之间的唯一转换层
 - `type` 从 `config.type` 派生
@@ -461,20 +461,22 @@ sequenceDiagram
   participant PR as protocol-registry.js
 
   APP->>SO: create/update/rename/delete server connection
-  SO->>PR: validateProtocolForm(protocolType, protocolFields)
-  SO->>SO: build rclone config or convert existing server to remote config
-  SO->>RC: create/update/delete raw rclone remote
-  RC-->>SO: raw remote result or adapter error
-  SO-->>APP: app-language success or AppError
+  SO->>SO: build rclone config and map server object shape
+  SO->>RC: create/update/rename/delete rclone remote
+  RC->>PR: validateProtocolForm(config.type, config fields)
+  RC-->>SO: raw remote result or RCLONE_* AppError
+  SO-->>APP: success or SERVER_* AppError
 ```
 
 当前职责边界：
 
 - `app-operations.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后调用 `notifyConfigUpdate()`
-- `server-operations.js` 负责 server-level operation flow、协议字段校验、remote/server 转换、连接测试和 rename rollback
-- `rclone-config.js` 负责 rclone config dump/create/update/delete/test，并返回 `{ name, config }` 形式的 raw remote
-- rename 使用 create-target 后 delete-source 的顺序；如果 delete-source 失败，会尝试删除新 target，避免同时留下新旧两个 server
-- rename 在没有新协议配置时会先读取 source server 的 config；如果 source 不存在，会在创建 target 之前抛出 `server.operation_failed`
+- `server-operations.js` 负责 server-level operation flow、remote/server 对象转换、创建后的连接测试，以及将 `RCLONE_*` 转成 `SERVER_*`
+- `rclone-config.js` 负责 rclone config dump/create/update/delete/rename/test，并返回 `{ name, config }` 形式的 raw remote
+- `name` 是 server 与 remote 共享的资源标识，不在 server 层转换；name 校验、normalize、same-name rename no-op 由 `rclone-config.js` 处理
+- 协议字段校验由 `rclone-config.js` 调用 `protocol-registry.js` 完成；server 层只把 `protocolType` 和 `protocolFields` 组装成 rclone config
+- rename 作为 rclone adapter operation 暴露；内部使用 create-target 后 delete-source 的顺序，如果 delete-source 失败，会尝试删除新 target，避免同时留下新旧两个 remote/server
+- server 层不直接暴露 `RCLONE_*`；例如 `RCLONE_REMOTE_MISSING` 会转成 `SERVER_NOT_FOUND`，`RCLONE_INVALID_REMOTE` 会转成 `SERVER_VALIDATION_FAILED`
 
 ### 4.9 `SyncTaskModalState`
 
@@ -507,6 +509,7 @@ sequenceDiagram
 - server 对象使用 app-level 结构 `{ name, type, address, status, config }`
 - 任何主窗口 renderer 的 UI 组合字段都不传给 modal
 - Electron Main 不重新组装 modal context，只校验 modal 名称并创建窗口
+- Electron Main 的 server IPC handler 只校验 payload 是否为 plain object；字段语义错误交给 app/server/rclone operation 返回 `SERVER_*`
 - `context.server` 和 `context.syncTask` 是 Electron Main 传给 sync-task modal 的纯数据
 - sync-task modal 的初始状态不通过 `additionalArguments` 传入 renderer
 - Electron Main 保存 `modalState`，preload 暴露 `window.syncTaskModal.getState()`，renderer 启动后异步读取

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { registerConfigUpdateListener, unregisterConfigUpdateListener } from '#src/app/main-window/app-operations.js'
 import { clearMainWindow, setMainWindow } from '../app-state.js'
-import { closeMessageBox, destroyMessageBox, openMessageBox } from '../message-box/window.js'
+import { createMessageBoxBridgeHandlers, destroyMessageBox } from '../message-box/window.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 import { createMainWindowHandlers } from './handler.js'
 
@@ -30,6 +30,7 @@ export function createMainWindow() {
   setMainWindow(mainWindow)
 
   const handlers = createMainWindowHandlers()
+  const messageBoxHandlers = createMessageBoxBridgeHandlers()
 
   registerConfigUpdateListener(refreshMainWindowData)
 
@@ -44,22 +45,13 @@ export function createMainWindow() {
     }
   }
 
-  function handleShowMessageBox(_event, options = {}) {
-    return openMessageBox(options)
-  }
-
-  function handleCloseMessageBox(_event, payload = {}) {
-    closeMessageBox(payload.action || 'close')
-    return { success: true }
-  }
-
   ipcMain.handle('main-window:get-data', handlers.getMainWindowDataHandler)
   ipcMain.handle('main-window:open-sync-task-modal', handlers.openSyncTaskModalHandler)
   ipcMain.handle('main-window:get-server', handlers.getServerHandler)
   ipcMain.handle('main-window:delete-server', handlers.deleteServerHandler)
   ipcMain.handle('main-window:delete-sync-task', handlers.deleteSyncTaskHandler)
-  ipcMain.handle('main-window:show-message-box', handleShowMessageBox)
-  ipcMain.handle('main-window:close-message-box', handleCloseMessageBox)
+  ipcMain.handle('main-window:show-message-box', messageBoxHandlers.showMessageBoxHandler)
+  ipcMain.handle('main-window:close-message-box', messageBoxHandlers.closeMessageBoxHandler)
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show()

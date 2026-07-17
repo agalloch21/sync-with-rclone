@@ -88,15 +88,14 @@ export function createMainWindowHandlers() {
 
   // async deleteSyncTaskHandler(_event, payload) {
   //   const taskLabel = payload?.displayName || payload?.localBasePath || 'selected task'
-  //   const action = await openMessageBox({
+  //   const messageBoxResult = await openMessageBox({
   //     mode: 'confirm',
+  //     level: 'warning',
   //     title: 'Delete Sync Task',
   //     message: `Delete task "${taskLabel}"?`,
   //     detail: 'This removes the task from config.json. It does not delete local or remote files.',
-  //     confirmLabel: 'Delete',
-  //     cancelLabel: 'Cancel',
   //   })
-  //   if (action.action !== 'confirm')
+  //   if (messageBoxResult !== 'confirmed')
   //     return { success: true, action: 'cancelled' }
 
   //   const taskReference = {
@@ -106,21 +105,21 @@ export function createMainWindowHandlers() {
   //   const result = await deleteTaskFromConfig(taskReference)
   //   if (!result.success) {
   //     await openMessageBox({
-  //       mode: 'error',
+  //       mode: 'message',
+  //       level: 'error',
   //       title: 'Delete Failed',
   //       message: `Could not delete "${taskLabel}".`,
   //       detail: result.detail || result.message || 'Failed to update config.json.',
-  //       okLabel: 'OK',
   //     })
   //     return result
   //   }
 
   //   await refreshAndNotifyAppModel()
   //   await openMessageBox({
-  //     mode: 'success',
+  //     mode: 'message',
+  //     level: 'success',
   //     title: 'Task Deleted',
   //     message: `Deleted "${taskLabel}".`,
-  //     okLabel: 'OK',
   //   })
   //   return result
   // },

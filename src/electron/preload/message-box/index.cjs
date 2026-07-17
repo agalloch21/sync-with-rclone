@@ -12,7 +12,10 @@ contextBridge.exposeInMainWorld('messageBox', {
     ipcRenderer.on('message-box:set-state', listener)
     return () => ipcRenderer.removeListener('message-box:set-state', listener)
   },
-  action(action) {
-    return ipcRenderer.invoke('message-box:action', { action })
+  onClickConfirm() {
+    return ipcRenderer.invoke('message-box:on-click-confirm')
+  },
+  onClickCancel() {
+    return ipcRenderer.invoke('message-box:on-click-cancel')
   },
 })

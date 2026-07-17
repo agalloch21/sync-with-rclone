@@ -65,3 +65,49 @@ test('updateServer sends plain protocol fields through preload', async () => {
     },
   })
 })
+
+test('deleteServer skips deletion when confirmation is cancelled', async () => {
+  let deleteCalled = false
+  const serverOperations = useServerOperations({
+    async deleteServer() {
+      deleteCalled = true
+      return { success: true }
+    },
+    async showMessageBox() {
+      return {
+        success: true,
+        value: 'cancelled',
+      }
+    },
+  })
+
+  const result = await serverOperations.deleteServer('synology')
+
+  assert.equal(result.success, true)
+  assert.equal(result.value, 'cancelled')
+  assert.equal(deleteCalled, false)
+})
+
+test('deleteServer sends payload after confirmation', async () => {
+  let receivedPayload = null
+  const serverOperations = useServerOperations({
+    async deleteServer(payload) {
+      receivedPayload = payload
+      structuredClone(payload)
+      return { success: true }
+    },
+    async showMessageBox() {
+      return {
+        success: true,
+        value: 'confirmed',
+      }
+    },
+  })
+
+  const result = await serverOperations.deleteServer('synology')
+
+  assert.equal(result.success, true)
+  assert.deepEqual(receivedPayload, {
+    serverName: 'synology',
+  })
+})

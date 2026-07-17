@@ -519,14 +519,10 @@ sequenceDiagram
 ```js
 {
   mode: "confirm",
+  level: "warning",
   title: "Delete Server",
   message: "Delete server \"synology\"?",
-  detail: "This removes the rclone remote from the local rclone configuration.",
-  confirmLabel: "Delete",
-  cancelLabel: "Cancel",
-  okLabel: "OK",
-  closeOnAction: true,
-  autoCloseMs: 0
+  detail: "This removes the rclone remote from the local rclone configuration."
 }
 ```
 
@@ -535,8 +531,12 @@ sequenceDiagram
 - message-box 是 Electron Main 里的进程级单例窗口
 - 同一时间只允许存在一个 message-box
 - message-box parent 由 `app-state.js` 选择：优先 active modal，其次 main window
-- message-box 支持 `confirm` / `progress` / `error` / `success`
-- 调用方通过 `openMessageBox(...)` / `updateMessageBox(...)` / `closeMessageBox(...)` 操作单例窗口
+- message-box `mode` 支持 `message` / `confirm` / `progress`
+- message-box `level` 支持 `info` / `warning` / `error` / `success`
+- message-box renderer 通过 `onClickConfirm()` / `onClickCancel()` 通知 Electron Main
+- Electron Main 内部 `openMessageBox(...)` 的 Promise 直接返回 result 字符串：`confirmed` / `cancelled` / `closed` / `replaced`
+- renderer 通过 `showMessageBox(payload)` 调用 IPC 时，返回值使用标准 OperationResult：`{ success: true, value: result }`
+- 调用方通过 `openMessageBox(...)` / `closeMessageBox(...)` 操作单例窗口；已有窗口再次 open 时由内部更新当前窗口状态
 - message-box renderer 的初始状态也不通过 `additionalArguments` 传入，而是通过 `window.messageBox.getState()` 读取
 
 ## 5. 数据契约在主要模块间的流转

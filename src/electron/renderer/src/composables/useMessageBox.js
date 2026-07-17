@@ -1,10 +1,12 @@
+import { MESSAGE_BOX_LEVEL, MESSAGE_BOX_MODE, MESSAGE_BOX_RESULT } from '#src/app/main-window/message-box-contract.js'
+
 export function useMessageBox(windowPreload) {
-  function showMessageBox(options = {}) {
-    return windowPreload?.showMessageBox?.(options)
+  function showMessageBox(payload = {}) {
+    return windowPreload?.showMessageBox?.(payload)
   }
 
-  function closeMessageBox(action = 'close') {
-    return windowPreload?.closeMessageBox?.(action)
+  function closeMessageBox(payload = { result: MESSAGE_BOX_RESULT.CLOSED }) {
+    return windowPreload?.closeMessageBox?.(payload)
   }
 
   function showProgressMessage({
@@ -13,11 +15,11 @@ export function useMessageBox(windowPreload) {
     detail = '',
   } = {}) {
     const promise = showMessageBox({
-      mode: 'progress',
+      mode: MESSAGE_BOX_MODE.PROGRESS,
+      level: MESSAGE_BOX_LEVEL.INFO,
       title,
       message,
       detail,
-      closeOnAction: false,
     })
     promise?.catch?.(() => {})
     return promise
@@ -27,14 +29,13 @@ export function useMessageBox(windowPreload) {
     title = 'Error',
     message = 'Something went wrong.',
     detail = '',
-    okLabel = 'OK',
   } = {}) {
     return showMessageBox({
-      mode: 'error',
+      mode: MESSAGE_BOX_MODE.MESSAGE,
+      level: MESSAGE_BOX_LEVEL.ERROR,
       title,
       message,
       detail,
-      okLabel,
     })
   }
 
@@ -42,14 +43,28 @@ export function useMessageBox(windowPreload) {
     title = 'Warning',
     message = 'Check your selection.',
     detail = '',
-    okLabel = 'OK',
   } = {}) {
     return showMessageBox({
-      mode: 'warning',
+      mode: MESSAGE_BOX_MODE.MESSAGE,
+      level: MESSAGE_BOX_LEVEL.WARNING,
       title,
       message,
       detail,
-      okLabel,
+    })
+  }
+
+  function showConfirmMessage({
+    title = 'Confirm',
+    message = 'Are you sure?',
+    detail = '',
+    level = MESSAGE_BOX_LEVEL.WARNING,
+  } = {}) {
+    return showMessageBox({
+      mode: MESSAGE_BOX_MODE.CONFIRM,
+      level,
+      title,
+      message,
+      detail,
     })
   }
 
@@ -57,6 +72,7 @@ export function useMessageBox(windowPreload) {
     showProgressMessage,
     showErrorMessage,
     showWarningMessage,
+    showConfirmMessage,
     closeMessageBox,
   }
 }

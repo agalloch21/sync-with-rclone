@@ -3,9 +3,12 @@ import { afterEach, test } from 'node:test'
 import {
   clearActiveModalWindow,
   clearMainWindow,
+  clearMessageBoxWindow,
   getMessageBoxParentWindow,
+  getMessageBoxWindow,
   setActiveModalWindow,
   setMainWindow,
+  setMessageBoxWindow,
 } from '#src/electron/main/app-state.js'
 
 function createWindowStub() {
@@ -23,6 +26,7 @@ function createWindowStub() {
 afterEach(() => {
   clearActiveModalWindow()
   clearMainWindow()
+  clearMessageBoxWindow()
 })
 
 test('getMessageBoxParentWindow prefers active modal over main window', () => {
@@ -48,4 +52,18 @@ test('clearing or destroying active modal falls back to main window', () => {
   setActiveModalWindow(modalWindow)
   modalWindow.destroy()
   assert.equal(getMessageBoxParentWindow(), mainWindow)
+})
+
+test('message box window is tracked separately from its parent window', () => {
+  const mainWindow = createWindowStub()
+  const messageBoxWindow = createWindowStub()
+
+  setMainWindow(mainWindow)
+  setMessageBoxWindow(messageBoxWindow)
+
+  assert.equal(getMessageBoxParentWindow(), mainWindow)
+  assert.equal(getMessageBoxWindow(), messageBoxWindow)
+
+  messageBoxWindow.destroy()
+  assert.equal(getMessageBoxWindow(), null)
 })

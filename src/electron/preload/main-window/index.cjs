@@ -16,11 +16,11 @@ contextBridge.exposeInMainWorld('mainWindow', {
   deleteSyncTask(payload) {
     return ipcRenderer.invoke('main-window:delete-sync-task', payload)
   },
-  showMessageBox(options = {}) {
-    return ipcRenderer.invoke('main-window:show-message-box', options)
+  showMessageBox(payload = {}) {
+    return ipcRenderer.invoke('main-window:show-message-box', payload)
   },
-  closeMessageBox(action = 'close') {
-    return ipcRenderer.invoke('main-window:close-message-box', { action })
+  closeMessageBox(payload = { result: 'closed' }) {
+    return ipcRenderer.invoke('main-window:close-message-box', payload)
   },
   onConfigUpdated(callback) {
     const listener = (_event, payload) => callback(payload)

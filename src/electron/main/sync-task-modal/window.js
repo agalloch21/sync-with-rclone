@@ -2,7 +2,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { clearActiveModalWindow, getMainWindow, setActiveModalWindow } from '../app-state.js'
-import { closeMessageBox, openMessageBox } from '../message-box/window.js'
+import { createMessageBoxBridgeHandlers } from '../message-box/window.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 import { createSyncTaskModalHandlers } from './handler.js'
 
@@ -33,18 +33,11 @@ export function createSyncTaskModalWindow(modalName, context = {}) {
   setActiveModalWindow(modalWindow)
 
   const handlers = createSyncTaskModalHandlers()
+  const messageBoxHandlers = createMessageBoxBridgeHandlers()
 
   function closeModal() {
     if (!modalWindow.isDestroyed())
       modalWindow.close()
-  }
-
-  function handleShowMessageBox(_event, options = {}) {
-    return openMessageBox(options)
-  }
-
-  function handleCloseMessageBox(_event, payload = {}) {
-    closeMessageBox(payload.action || 'close')
   }
 
   ipcMain.handle('sync-task-modal:get-state', () => modalState)
@@ -54,8 +47,8 @@ export function createSyncTaskModalWindow(modalName, context = {}) {
   ipcMain.handle('sync-task-modal:get-server', handlers.getServerHandler)
   ipcMain.handle('sync-task-modal:create-server', handlers.createServerHandler)
   ipcMain.handle('sync-task-modal:update-server', handlers.updateServerHandler)
-  ipcMain.handle('sync-task-modal:show-message-box', handleShowMessageBox)
-  ipcMain.handle('sync-task-modal:close-message-box', handleCloseMessageBox)
+  ipcMain.handle('sync-task-modal:show-message-box', messageBoxHandlers.showMessageBoxHandler)
+  ipcMain.handle('sync-task-modal:close-message-box', messageBoxHandlers.closeMessageBoxHandler)
 
   ipcMain.once('sync-task-modal:ready', (event, payload) => {
     if (!modalWindow.isDestroyed()) {

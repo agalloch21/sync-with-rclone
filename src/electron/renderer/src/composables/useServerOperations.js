@@ -1,4 +1,5 @@
 import { validateProtocolForm } from '#src/app/configuration/protocol-registry.js'
+import { MESSAGE_BOX_RESULT } from '#src/app/main-window/message-box-contract.js'
 import { toFailureResult } from '#src/app/operation-result.js'
 import { toRaw } from 'vue'
 import { useMessageBox } from './useMessageBox.js'
@@ -154,6 +155,15 @@ export function useServerOperations(windowPreload) {
     }
 
     try {
+      const confirmation = await messageBox.showConfirmMessage({
+        title: 'Delete Server',
+        message: `Delete server "${serverName}"?`,
+        detail: 'This removes the rclone remote from the local rclone configuration.',
+      })
+
+      if (!confirmation || confirmation.value !== MESSAGE_BOX_RESULT.CONFIRMED)
+        return confirmation || toFailureResult()
+
       const payload = { serverName }
       const result = await windowPreload?.deleteServer?.(payload)
       if (!result?.success)

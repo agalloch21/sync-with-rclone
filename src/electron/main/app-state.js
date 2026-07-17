@@ -1,6 +1,7 @@
 // Electron main-process runtime state only. Do not put app/domain mutations here.
 let mainWindow = null
 let activeModalWindow = null
+let messageBoxWindow = null
 
 function isUsableWindow(window) {
   return window && !window.isDestroyed?.()
@@ -30,6 +31,19 @@ export function getActiveModalWindow() {
 export function clearActiveModalWindow(window = activeModalWindow) {
   if (!window || window === activeModalWindow)
     activeModalWindow = null
+}
+
+export function setMessageBoxWindow(window) {
+  messageBoxWindow = window || null
+}
+
+export function getMessageBoxWindow() {
+  return isUsableWindow(messageBoxWindow) ? messageBoxWindow : null
+}
+
+export function clearMessageBoxWindow(window = messageBoxWindow) {
+  if (!window || window === messageBoxWindow)
+    messageBoxWindow = null
 }
 
 export function getMessageBoxParentWindow() {

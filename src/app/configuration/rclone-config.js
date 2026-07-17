@@ -209,6 +209,8 @@ async function deleteRcloneRemoteConfig(name, runtimePaths = getRuntimePaths()) 
   })
 }
 
+//* ================================ Exported Fucntions ==============================*/
+
 export async function listRcloneRemotes(runtimePaths = getRuntimePaths()) {
   const command = createRcloneCommand(runtimePaths, ['config', 'dump'])
 

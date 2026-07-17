@@ -4,6 +4,11 @@ import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { STEPS } from '#src/electron/main/sync-session/steps.js'
 
 export default {
+  common: {
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    ok: 'OK',
+  },
   appShell: {
     nav: {
       syncTasks: 'Sync Tasks',

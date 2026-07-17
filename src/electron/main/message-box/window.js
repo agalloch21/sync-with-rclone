@@ -1,64 +1,93 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getMessageBoxParentWindow } from '../app-state.js'
+import {
+  isMessageBoxLevel,
+  isMessageBoxMode,
+  isMessageBoxResult,
+  MESSAGE_BOX_LEVEL,
+  MESSAGE_BOX_MODE,
+  MESSAGE_BOX_RESULT,
+} from '#src/app/main-window/message-box-contract.js'
+import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
+import {
+  clearMessageBoxWindow,
+  getMessageBoxParentWindow,
+  getMessageBoxWindow,
+  setMessageBoxWindow,
+} from '../app-state.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 
-function normalizeState(options = {}) {
+function createMessageBoxState(payload = {}) {
+  const mode = isMessageBoxMode(payload.mode)
+    ? payload.mode
+    : MESSAGE_BOX_MODE.MESSAGE
+  const level = isMessageBoxLevel(payload.level)
+    ? payload.level
+    : MESSAGE_BOX_LEVEL.INFO
+
   return {
-    mode: options.mode || 'error',
-    title: options.title || 'Message',
-    message: options.message || '',
-    detail: options.detail || '',
-    confirmLabel: options.confirmLabel || 'Confirm',
-    cancelLabel: options.cancelLabel || 'Cancel',
-    okLabel: options.okLabel || 'OK',
-    closeOnAction: options.closeOnAction !== false,
+    mode,
+    level,
+
+    title: payload.title || 'Message',
+    message: payload.message || '',
+    detail: payload.detail || '',
   }
 }
 
 const { BrowserWindow, ipcMain } = require('electron')
 
-let messageWindow = null
 let currentState = null
 let pendingResolve = null
-let closingAction = 'close'
+let closingResult = MESSAGE_BOX_RESULT.CLOSED
 let handlersRegistered = false
 let readyHandler = null
 
-function settle(action) {
+function resolveMessageBox(result) {
   const resolve = pendingResolve
   pendingResolve = null
   if (resolve)
-    resolve({ action })
+    resolve(result)
+}
+
+function closeWithResult(result) {
+  const normalizedResult = isMessageBoxResult(result)
+    ? result
+    : MESSAGE_BOX_RESULT.CLOSED
+  const messageWindow = getMessageBoxWindow()
+
+  if (messageWindow) {
+    closingResult = normalizedResult
+    messageWindow.close()
+  }
+  else {
+    resolveMessageBox(normalizedResult)
+  }
 }
 
 function registerHandlers() {
   if (handlersRegistered)
     return
 
-  ipcMain.handle('message-box:get-state', () => currentState || normalizeState())
+  ipcMain.handle('message-box:get-state', () => currentState || createMessageBoxState())
 
-  ipcMain.handle('message-box:action', (_event, payload) => {
-    const action = payload?.action || 'close'
-    const shouldClose = currentState?.closeOnAction !== false || action === 'close'
+  ipcMain.handle('message-box:on-click-confirm', () => {
+    closeWithResult(MESSAGE_BOX_RESULT.CONFIRMED)
+    return { success: true }
+  })
 
-    if (shouldClose && messageWindow && !messageWindow.isDestroyed()) {
-      closingAction = action
-      messageWindow.close()
-    }
-    else {
-      settle(action)
-    }
-
-    return { success: true, action }
+  ipcMain.handle('message-box:on-click-cancel', () => {
+    closeWithResult(MESSAGE_BOX_RESULT.CANCELLED)
+    return { success: true }
   })
 
   readyHandler = () => {
-    if (messageWindow && !messageWindow.isDestroyed()) {
+    const messageWindow = getMessageBoxWindow()
+    if (messageWindow) {
       messageWindow.webContents.send('message-box:set-state', currentState)
       messageWindow.show()
     }
@@ -71,7 +100,7 @@ function registerHandlers() {
 function createWindow(state) {
   registerHandlers()
 
-  messageWindow = new BrowserWindow({
+  const messageWindow = new BrowserWindow({
     width: 420,
     height: 240,
     parent: getMessageBoxParentWindow(),
@@ -88,11 +117,12 @@ function createWindow(state) {
       preload: path.join(__dirname, '../../preload/message-box/index.cjs'),
     },
   })
+  setMessageBoxWindow(messageWindow)
 
   messageWindow.on('closed', () => {
-    messageWindow = null
-    settle(closingAction)
-    closingAction = 'close'
+    clearMessageBoxWindow(messageWindow)
+    resolveMessageBox(closingResult)
+    closingResult = MESSAGE_BOX_RESULT.CLOSED
   })
 
   messageWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {
@@ -114,32 +144,33 @@ function createWindow(state) {
     messageWindow.webContents.openDevTools({ mode: 'detach' })
 }
 
-export function updateMessageBox(options = {}) {
-  currentState = normalizeState({
+function updateMessageBox(payload = {}) {
+  currentState = createMessageBoxState({
     ...currentState,
-    ...options,
+    ...payload,
   })
 
-  if (messageWindow && !messageWindow.isDestroyed()) {
+  const messageWindow = getMessageBoxWindow()
+  if (messageWindow) {
     messageWindow.setTitle(currentState.title)
     messageWindow.webContents.send('message-box:set-state', currentState)
     messageWindow.focus()
   }
-
-  return { success: true }
 }
 
-export function openMessageBox(options = {}) {
-  currentState = normalizeState(options)
+//* ================================ Exported Functions ==============================*/
+
+export function openMessageBox(payload = {}) {
+  currentState = createMessageBoxState(payload)
 
   if (pendingResolve)
-    settle('replaced')
+    resolveMessageBox(MESSAGE_BOX_RESULT.REPLACED)
 
   const resultPromise = new Promise((resolve) => {
     pendingResolve = resolve
   })
 
-  if (messageWindow && !messageWindow.isDestroyed()) {
+  if (getMessageBoxWindow()) {
     updateMessageBox(currentState)
     return resultPromise
   }
@@ -148,25 +179,43 @@ export function openMessageBox(options = {}) {
   return resultPromise
 }
 
-export function closeMessageBox(action = 'close') {
-  if (messageWindow && !messageWindow.isDestroyed()) {
-    closingAction = action
-    messageWindow.close()
-  }
-  else {
-    settle(action)
-  }
+export function closeMessageBox(result = MESSAGE_BOX_RESULT.CLOSED) {
+  closeWithResult(result)
 }
 
-export function getMessageBoxWindow() {
-  return messageWindow
+export function createMessageBoxBridgeHandlers() {
+  async function showMessageBoxHandler(_event, payload = {}) {
+    try {
+      const result = await openMessageBox(payload)
+      return toSuccessfulResult(result)
+    }
+    catch (error) {
+      return toFailureResult(error)
+    }
+  }
+
+  function closeMessageBoxHandler(_event, payload = {}) {
+    try {
+      closeMessageBox(payload.result)
+      return toSuccessfulResult()
+    }
+    catch (error) {
+      return toFailureResult(error)
+    }
+  }
+
+  return {
+    showMessageBoxHandler,
+    closeMessageBoxHandler,
+  }
 }
 
 export function destroyMessageBox() {
-  closeMessageBox('close')
+  closeMessageBox()
   if (handlersRegistered) {
     ipcMain.removeHandler('message-box:get-state')
-    ipcMain.removeHandler('message-box:action')
+    ipcMain.removeHandler('message-box:on-click-confirm')
+    ipcMain.removeHandler('message-box:on-click-cancel')
     if (readyHandler)
       ipcMain.removeListener('message-box:ready', readyHandler)
     handlersRegistered = false

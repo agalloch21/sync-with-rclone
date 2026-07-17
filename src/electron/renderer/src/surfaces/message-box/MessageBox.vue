@@ -1,32 +1,47 @@
 <script setup>
+import { MESSAGE_BOX_LEVEL, MESSAGE_BOX_MODE } from '#src/app/main-window/message-box-contract.js'
 import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const state = ref({
-  mode: 'error',
+  mode: MESSAGE_BOX_MODE.MESSAGE,
+  level: MESSAGE_BOX_LEVEL.INFO,
   title: 'Message',
   message: '',
   detail: '',
-  confirmLabel: 'Confirm',
-  cancelLabel: 'Cancel',
-  okLabel: 'OK',
 })
 
 let unsubscribe = null
 
 const iconClass = computed(() => {
-  if (state.value.mode === 'progress')
+  if (state.value.mode === MESSAGE_BOX_MODE.PROGRESS)
     return 'icon-[lucide--loader-circle] animate-spin text-(--primary)'
-  if (state.value.mode === 'success')
+  if (state.value.level === MESSAGE_BOX_LEVEL.SUCCESS)
     return 'icon-[lucide--circle-check] text-(--success)'
-  if (state.value.mode === 'confirm' || state.value.mode === 'warning')
+  if (state.value.level === MESSAGE_BOX_LEVEL.WARNING)
     return 'icon-[lucide--circle-alert] text-(--warning)'
-  return 'icon-[lucide--circle-x] text-(--danger)'
+  if (state.value.level === MESSAGE_BOX_LEVEL.ERROR)
+    return 'icon-[lucide--circle-x] text-(--danger)'
+  return 'icon-[lucide--info] text-(--primary)'
 })
 
-function sendAction(action) {
-  window.messageBox?.action?.(action)
-}
+const buttons = computed(() => {
+  if (state.value.mode === MESSAGE_BOX_MODE.CONFIRM) {
+    return [
+      { key: 'cancel', label: t('common.cancel'), primary: false, onClick: () => window.messageBox?.onClickCancel?.() },
+      { key: 'confirm', label: t('common.confirm'), primary: true, onClick: () => window.messageBox?.onClickConfirm?.() },
+    ]
+  }
+  if (state.value.mode === MESSAGE_BOX_MODE.MESSAGE) {
+    return [
+      { key: 'ok', label: t('common.ok'), primary: true, onClick: () => window.messageBox?.onClickConfirm?.() },
+    ]
+  }
+  return []
+})
 
 onMounted(async () => {
   state.value = await window.messageBox?.getState?.() || state.value
@@ -64,19 +79,15 @@ onUnmounted(() => {
       </div>
     </main>
     <footer class="h-16 shrink-0 flex items-center justify-end gap-4 px-5 py-4 bg-(--surface-footer)">
-      <template v-if="state.mode === 'confirm'">
-        <Button :primary="true" :wide="true" @click="sendAction('confirm')">
-          {{ state.confirmLabel }}
-        </Button>
-        <Button @click="sendAction('cancel')">
-          {{ state.cancelLabel }}
-        </Button>
-      </template>
-      <template v-else-if="state.mode !== 'progress'">
-        <Button :primary="true" :wide="true" @click="sendAction('ok')">
-          {{ state.okLabel }}
-        </Button>
-      </template>
+      <Button
+        v-for="button in buttons"
+        :key="button.key"
+        :primary="button.primary"
+        :wide="button.primary"
+        @click="button.onClick"
+      >
+        {{ button.label }}
+      </Button>
     </footer>
   </div>
 </template>

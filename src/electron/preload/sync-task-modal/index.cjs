@@ -19,11 +19,11 @@ contextBridge.exposeInMainWorld('syncTaskModal', {
   updateServer(payload) {
     return ipcRenderer.invoke('sync-task-modal:update-server', payload)
   },
-  showMessageBox(options = {}) {
-    return ipcRenderer.invoke('sync-task-modal:show-message-box', options)
+  showMessageBox(payload = {}) {
+    return ipcRenderer.invoke('sync-task-modal:show-message-box', payload)
   },
-  closeMessageBox(action = 'close') {
-    return ipcRenderer.invoke('sync-task-modal:close-message-box', { action })
+  closeMessageBox(payload = { result: 'closed' }) {
+    return ipcRenderer.invoke('sync-task-modal:close-message-box', payload)
   },
 
   ready(payload) {

@@ -31,8 +31,8 @@ const iconClass = computed(() => {
 const buttons = computed(() => {
   if (state.value.mode === MESSAGE_BOX_MODE.CONFIRM) {
     return [
-      { key: 'cancel', label: t('common.cancel'), primary: false, onClick: () => window.messageBox?.onClickCancel?.() },
       { key: 'confirm', label: t('common.confirm'), primary: true, onClick: () => window.messageBox?.onClickConfirm?.() },
+      { key: 'cancel', label: t('common.cancel'), primary: false, onClick: () => window.messageBox?.onClickCancel?.() },
     ]
   }
   if (state.value.mode === MESSAGE_BOX_MODE.MESSAGE) {

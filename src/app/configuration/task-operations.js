@@ -64,7 +64,15 @@ function requireConfig(config) {
   return config
 }
 
-export async function createSyncTask(task, runtimePaths = getRuntimePaths()) {
+function normalizeServerName(name) {
+  if (typeof name !== 'string' || name.trim().length === 0)
+    throwAppError(APP_ERROR_CODE.SERVER_VALIDATION_FAILED, 'A server name is required.')
+
+  return name.trim()
+}
+
+export async function createSyncTask(task) {
+  const runtimePaths = getRuntimePaths()
   const config = requireConfig(await loadAppConfig(runtimePaths.configPath))
   const mapping = normalizeTaskMapping(task)
   assertNoTaskConflict(config.syncTasks, mapping)
@@ -86,7 +94,8 @@ export async function createSyncTask(task, runtimePaths = getRuntimePaths()) {
   return nextTask
 }
 
-export async function updateSyncTask(task, expectedTask, runtimePaths = getRuntimePaths()) {
+export async function updateSyncTask(task, expectedTask) {
+  const runtimePaths = getRuntimePaths()
   const config = requireConfig(await loadAppConfig(runtimePaths.configPath))
   assertTaskReference(task)
   const taskIndex = findTaskIndex(config.syncTasks, task)
@@ -114,7 +123,32 @@ export async function updateSyncTask(task, expectedTask, runtimePaths = getRunti
   return nextTask
 }
 
-export async function deleteTaskFromConfig(task, runtimePaths = getRuntimePaths()) {
+export async function retargetSyncTasks(serverName, expectedServerName) {
+  const currentName = normalizeServerName(serverName)
+  const nextName = normalizeServerName(expectedServerName)
+  const runtimePaths = getRuntimePaths()
+  const config = requireConfig(await loadAppConfig(runtimePaths.configPath))
+
+  if (currentName === nextName)
+    return config.syncTasks
+
+  const nextTasks = config.syncTasks.map(task => task.rcloneRemote === currentName
+    ? { ...task, rcloneRemote: nextName }
+    : task)
+
+  if (nextTasks.every((task, index) => task === config.syncTasks[index]))
+    return config.syncTasks
+
+  await saveAppConfig({
+    globalIgnorePatterns: config.globalIgnorePatterns,
+    syncTasks: nextTasks,
+  }, runtimePaths)
+
+  return nextTasks
+}
+
+export async function deleteTaskFromConfig(task) {
+  const runtimePaths = getRuntimePaths()
   assertTaskReference(task)
   const config = await loadAppConfig(runtimePaths.configPath)
   if (!config) {

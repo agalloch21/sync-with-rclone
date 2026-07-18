@@ -55,6 +55,21 @@ if (command[0] === 'config' && command[1] === 'dump') {
   process.stdout.write(JSON.stringify(readState()))
   process.exit(0)
 }
+if (command[0] === 'config' && command[1] === 'create') {
+  const state = readState()
+  const config = {}
+  for (let index = 4; index < command.length && command[index] !== '--obscure'; index += 2)
+    config[command[index]] = command[index + 1]
+  state[command[2]] = { type: command[3], ...config }
+  fs.writeFileSync(statePath, JSON.stringify(state, null, 2))
+  process.exit(0)
+}
+if (command[0] === 'config' && command[1] === 'delete') {
+  const state = readState()
+  delete state[command[2]]
+  fs.writeFileSync(statePath, JSON.stringify(state, null, 2))
+  process.exit(0)
+}
 process.exit(0)
 `, 'utf8')
   await fs.chmod(executablePath, 0o755)

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { getMainWindowData } from '#src/app/main-window/app-operations.js'
+import { getMainWindowData, updateServer } from '#src/app/main-window/app-operations.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('getMainWindowData returns servers and sync tasks from the current app operations', async () => {
@@ -75,5 +76,42 @@ test('getMainWindowData adds a missing server placeholder for task references wi
         config: null,
       },
     ])
+  })
+})
+
+test('updateServer retargets all sync tasks when the server is renamed', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {
+      synology: { type: 'sftp', host: 'old.local', port: '22', user: 'xiaobo', pass: 'secret' },
+    },
+    appConfig: {
+      globalIgnorePatterns: ['.DS_Store'],
+      syncTasks: [
+        {
+          displayName: 'Projects',
+          rcloneRemote: 'synology',
+          localBasePath: '/local/projects',
+          remoteBasePath: 'Projects',
+          ignorePatterns: [],
+        },
+        {
+          displayName: 'Other',
+          rcloneRemote: 'backup',
+          localBasePath: '/local/other',
+          remoteBasePath: 'Other',
+          ignorePatterns: [],
+        },
+      ],
+    },
+  }, async ({ configPath }) => {
+    await updateServer('synology', 'nas', 'sftp', {
+      host: 'nas.local',
+      port: 22,
+      user: 'xiaobo',
+      pass: 'secret',
+    })
+
+    const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
+    assert.deepEqual(saved.syncTasks.map(task => task.rcloneRemote), ['nas', 'backup'])
   })
 })

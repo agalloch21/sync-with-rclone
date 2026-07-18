@@ -65,11 +65,12 @@ export async function updateServer(name, expectedName, protocolType, protocolFie
     ? name.trim() !== expectedName.trim()
     : name !== expectedName
 
-  if (shouldRename)
-    await serverOperations.renameServerConnection(name, expectedName, protocolType, protocolFields)
-  else
-    await serverOperations.updateServerConnection(name, protocolType, protocolFields)
+  if (shouldRename) {
+    await renameServer(name, expectedName, protocolType, protocolFields)
+    return
+  }
 
+  await serverOperations.updateServerConnection(name, protocolType, protocolFields)
   notifyConfigUpdate()
 }
 
@@ -79,10 +80,9 @@ export async function deleteServer(name) {
   notifyConfigUpdate()
 }
 
-export async function renameServer(name, expectedName) {
-  await serverOperations.renameServerConnection(name, expectedName)
-
-  // update tasks target
+export async function renameServer(name, expectedName, protocolType = null, protocolFields = null) {
+  await serverOperations.renameServerConnection(name, expectedName, protocolType, protocolFields)
+  await taskOperations.retargetSyncTasks(name, expectedName)
 
   notifyConfigUpdate()
 }

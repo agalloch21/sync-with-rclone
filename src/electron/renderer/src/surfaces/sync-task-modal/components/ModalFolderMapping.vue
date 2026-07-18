@@ -91,7 +91,7 @@ async function submitMapping() {
       </div>
       <span class="icon-[custom--connection] text-3xl text-(--text-primary)" />
       <div class="folder-selection-dock">
-        <FolderSelection side="remote" :path="remoteBasePath" @select="selectRemoteFolder" />
+        <FolderSelection side="remote" :path="`${selectedServerName}:${remoteBasePath}`" @select="selectRemoteFolder" />
       </div>
     </div>
 

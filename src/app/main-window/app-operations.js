@@ -47,8 +47,8 @@ export async function getServer(name) {
   return await serverOperations.getServerConnection(name)
 }
 
-export async function getFolderTree(name) {
-  return await serverOperations.getFolderTree(name)
+export async function getFolderTree(name, folderPath = '') {
+  return await serverOperations.getFolderTree(name, folderPath)
 }
 
 export async function testServerConnection(name) {

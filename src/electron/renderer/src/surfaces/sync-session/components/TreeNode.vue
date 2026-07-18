@@ -26,20 +26,20 @@ const props = defineProps({
   },
 })
 
-const SINGLE_CLICK_DELAY_MS = 250
+const DOUBLE_CLICK_INTERVAL_MS = 250
 const detailsElement = ref(null)
-let singleClickTimer = null
+let doubleClickTimer = null
 
 function onToggle(event) {
   props.setNodeSelection(props.node, event.target.checked)
 }
 
-function clearPendingSingleClick() {
-  if (singleClickTimer === null)
+function clearDoubleClickWindow() {
+  if (doubleClickTimer === null)
     return
 
-  clearTimeout(singleClickTimer)
-  singleClickTimer = null
+  clearTimeout(doubleClickTimer)
+  doubleClickTimer = null
 }
 
 function toggleDirectory() {
@@ -47,24 +47,30 @@ function toggleDirectory() {
     detailsElement.value.open = !detailsElement.value.open
 }
 
+function toggleDirectoryFromUserAction() {
+  if (props.selectionMode === 'single')
+    props.setNodeSelection(props.node, true)
+  toggleDirectory()
+}
+
 function onDirectoryClick(event) {
   if (props.selectionMode === 'multiple')
     return
 
   event.preventDefault()
-  if (singleClickTimer !== null) {
-    clearPendingSingleClick()
+  if (doubleClickTimer !== null) {
+    clearDoubleClickWindow()
     toggleDirectory()
     return
   }
 
-  singleClickTimer = setTimeout(() => {
-    props.setNodeSelection(props.node, true)
-    singleClickTimer = null
-  }, SINGLE_CLICK_DELAY_MS)
+  props.setNodeSelection(props.node, true)
+  doubleClickTimer = setTimeout(() => {
+    doubleClickTimer = null
+  }, DOUBLE_CLICK_INTERVAL_MS)
 }
 
-onBeforeUnmount(clearPendingSingleClick)
+onBeforeUnmount(clearDoubleClickWindow)
 </script>
 
 <template>
@@ -77,7 +83,7 @@ onBeforeUnmount(clearPendingSingleClick)
         class="flex items-center list-none rounded-lg cursor-pointer focusable"
         @click="onDirectoryClick"
       >
-        <div class="row" :class="{ selected: selectionMode === 'single' && getSelectionState(node) === 'checked' }">
+        <div class="row" :class="{ selected: selectionMode === 'single' && getSelectionState(node) === 'checked', hovered: selectionMode === 'multiple' }">
           <input
             v-if="selectionMode === 'multiple'"
             type="checkbox"
@@ -92,9 +98,9 @@ onBeforeUnmount(clearPendingSingleClick)
               class="icon arrow fill-(--text-subtle) transition-transform"
               role="button"
               tabindex="0"
-              @click.stop.prevent="toggleDirectory"
-              @keydown.enter.stop.prevent="toggleDirectory"
-              @keydown.space.stop.prevent="toggleDirectory"
+              @click.stop.prevent="toggleDirectoryFromUserAction"
+              @keydown.enter.stop.prevent="toggleDirectoryFromUserAction"
+              @keydown.space.stop.prevent="toggleDirectoryFromUserAction"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
                 <path d="M9.69999 6L3.69999 12L2.29999 10.6L6.89999 6L2.29999 1.4L3.69999 0L9.69999 6Z" />
@@ -116,20 +122,32 @@ onBeforeUnmount(clearPendingSingleClick)
         border-l-(length:--left-edge-w) border-(--border-accent-fade)"
       >
         <TreeNode
-          v-for="child in node.children"
+          v-for="child in node.children || []"
           :key="child.path"
           :node="child"
           :get-selection-state="getSelectionState"
           :set-node-selection="setNodeSelection"
           :selection-mode="selectionMode"
         />
+        <li v-if="node.loadState === 'loading'" class="tree-status">
+          Loading folders...
+        </li>
+        <li v-else-if="node.loadState === 'error'" class="tree-status text-(--danger)">
+          {{ node.loadError || 'Failed to load folders. Select the folder to retry.' }}
+        </li>
+        <li v-else-if="node.loadState === 'idle'" class="tree-status">
+          Select this folder to load its contents.
+        </li>
+        <li v-else-if="node.loadState === 'loaded' && node.children?.length === 0" class="tree-status">
+          No subfolders.
+        </li>
       </ul>
     </details>
 
     <!-- row node-toggle -->
     <label
       v-else class="row"
-      :class="{ selected: selectionMode === 'single' && getSelectionState(node) === 'checked' }"
+      :class="{ selected: selectionMode === 'single' && getSelectionState(node) === 'checked', hovered: selectionMode === 'multiple' }"
       @click="selectionMode === 'single' && setNodeSelection(node, true)"
     >
       <input
@@ -190,10 +208,13 @@ input[type="checkbox"]{
 }
 
 .row{
-  @apply w-full flex px-(--row-indent) py-1 flex-row items-center  hover:bg-(--primary-soft) rounded-lg;
+  @apply w-full flex px-(--row-indent) py-1 flex-row items-center rounded-lg;
 }
 .row.selected{
   @apply bg-(--primary-soft);
+}
+.row.hovered{
+  @apply hover:bg-(--primary-soft);
 }
 .information{
 @apply ml-(--arrow-offset-to-align-with-checkbox) flex items-center gap-(--information-gap);
@@ -206,5 +227,8 @@ user-select:text;
 }
 .meta{
   @apply ml-4 flex justify-start items-center gap-3 text-xs text-(--text-subtle);
+}
+.tree-status{
+  @apply px-(--row-indent) py-1 text-xs text-(--text-subtle);
 }
 </style>

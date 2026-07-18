@@ -27,16 +27,6 @@ const closeVisible = computed(() => showFinalAcknowledgement.value)
     class="footer-stage flex flex-row justify-end items-center gap-6 px-6 py-4 relative"
   >
     <button
-      v-if="cancelVisible"
-      key="cancel"
-      :disabled="props.hasPendingCommand"
-      class="button-secondary clickable focusable"
-      @click="emit('onClickCancel')"
-    >
-      {{ $t('cancelButton') }}
-    </button>
-
-    <button
       v-if="confirmVisible"
       key="confirm"
       :disabled="props.hasPendingCommand"
@@ -44,6 +34,16 @@ const closeVisible = computed(() => showFinalAcknowledgement.value)
       @click="emit('onClickConfirm')"
     >
       {{ $t(`confirmButton.${mode}`) }}
+    </button>
+
+    <button
+      v-if="cancelVisible"
+      key="cancel"
+      :disabled="props.hasPendingCommand"
+      class="button-secondary clickable focusable"
+      @click="emit('onClickCancel')"
+    >
+      {{ $t('cancelButton') }}
     </button>
 
     <button

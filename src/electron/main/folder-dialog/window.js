@@ -51,9 +51,11 @@ function registerHandlers() {
     return
 
   ipcMain.handle('folder-dialog:get-state', () => currentState || createFolderDialogState())
-  ipcMain.handle('folder-dialog:list-tree', async () => {
+  ipcMain.handle('folder-dialog:list-tree', async (_event, payload = {}) => {
     try {
-      return toSuccessfulResult(await getFolderTree(currentState?.serverName))
+      if (!payload || typeof payload !== 'object' || typeof payload.path !== 'string')
+        throw new TypeError('A folder path is required.')
+      return toSuccessfulResult(await getFolderTree(currentState?.serverName, payload.path))
     }
     catch (error) {
       return toFailureResult(error)

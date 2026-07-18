@@ -17,14 +17,14 @@ test('buildFolderTree converts recursive rclone directories into sorted TreeNode
     name: 'synology',
     path: '',
     children: [
-      { type: 'directory', name: 'Archive', path: 'Archive', children: [] },
+      { type: 'directory', name: 'Archive', path: 'Archive', children: null },
       {
         type: 'directory',
         name: 'Projects',
         path: 'Projects',
         children: [
-          { type: 'directory', name: 'Alpha', path: 'Projects/Alpha', children: [] },
-          { type: 'directory', name: 'Zeta', path: 'Projects/Zeta', children: [] },
+          { type: 'directory', name: 'Alpha', path: 'Projects/Alpha', children: null },
+          { type: 'directory', name: 'Zeta', path: 'Projects/Zeta', children: null },
         ],
       },
     ],
@@ -49,6 +49,23 @@ test('buildFolderTree creates missing ancestors and normalizes separators', () =
   assert.equal(tree.children[0].children[0].path, 'Projects/Current')
 })
 
+test('buildFolderTree prefixes children with the requested folder path', () => {
+  const tree = buildFolderTree('synology', [
+    { Path: 'Alpha', IsDir: true },
+    { Path: 'Zeta', IsDir: true },
+  ], 'Projects')
+
+  assert.deepEqual(tree, {
+    type: 'directory',
+    name: 'Projects',
+    path: 'Projects',
+    children: [
+      { type: 'directory', name: 'Alpha', path: 'Projects/Alpha', children: null },
+      { type: 'directory', name: 'Zeta', path: 'Projects/Zeta', children: null },
+    ],
+  })
+})
+
 test('parseFolderTreeOutput rejects malformed and non-array JSON', () => {
   assert.throws(() => parseFolderTreeOutput('synology', '{broken'), error => error?.code === 'rclone.parse_failed')
   assert.throws(() => parseFolderTreeOutput('synology', '{}'), error => error?.code === 'rclone.parse_failed')
@@ -56,7 +73,7 @@ test('parseFolderTreeOutput rejects malformed and non-array JSON', () => {
 
 test('getRcloneFolderTree maps command failures to a stable rclone error', async () => {
   await assert.rejects(
-    () => getRcloneFolderTree('synology', { bundledRclonePath: process.execPath }),
+    () => getRcloneFolderTree('synology', '', { bundledRclonePath: process.execPath }),
     error => error?.code === 'rclone.command_failed',
   )
 })
@@ -76,5 +93,14 @@ test('getRcloneFolderTree limits the initial folder listing to one level', async
       '--no-mimetype',
       'synology:',
     ])
+  })
+})
+
+test('getRcloneFolderTree lists one level below the requested folder', async () => {
+  await withFakeAppRuntime({}, async ({ readCalls }) => {
+    await getRcloneFolderTree('synology', 'Projects/Current')
+    const calls = await readCalls()
+
+    assert.equal(calls[0].at(-1), 'synology:Projects/Current')
   })
 })

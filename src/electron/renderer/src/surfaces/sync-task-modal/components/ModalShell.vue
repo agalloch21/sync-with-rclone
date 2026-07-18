@@ -11,7 +11,7 @@ defineProps({
       {{ $t(`syncTasks.modals.${modalName}.title`) }}
     </header>
     <main class="main-dock min-h-0 flex-1 flex flex-col">
-      <div class="message-dock h-15 bg-(--primary) content-center px-5 text-(--on-primary) font-semibold">
+      <div class="message-dock h-15 bg-(--primary) content-center px-5 text-(--on-primary) font-normal">
         <!-- {{ message }} -->
         {{ $t(`syncTasks.modals.${modalName}.message`) }}
       </div>

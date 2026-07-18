@@ -81,7 +81,7 @@ test('sync task modal createSyncTask handler persists a mapping as an OperationR
 test('sync task modal updateSyncTask handler returns validation failures as an OperationResult', async () => {
   const handlers = createSyncTaskModalHandlers()
   const result = await handlers.updateSyncTaskHandler(null, {
-    taskReference: null,
+    task: null,
     expectedTask: null,
   })
 

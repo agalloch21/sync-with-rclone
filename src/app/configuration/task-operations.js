@@ -3,9 +3,9 @@ import { normalizeLocalPath, resolveLocalDirectoryPath, trimTrailingSlash } from
 import { getRuntimePaths } from '../runtime-paths.js'
 import { loadAppConfig, saveAppConfig } from './app-config.js'
 
-function taskMatchesReference(task, taskReference = {}) {
-  return task.rcloneRemote === taskReference.rcloneRemote
-    && task.localBasePath === taskReference.localBasePath
+function taskMatchesReference(candidate, task = {}) {
+  return candidate.rcloneRemote === task.rcloneRemote
+    && candidate.localBasePath === task.localBasePath
 }
 
 export async function listSyncTasks() {
@@ -24,11 +24,11 @@ function assertTaskInput(task) {
     throwAppError(APP_ERROR_CODE.REMOTE_FOLDER_PATH_REQUIRED, 'A remote folder path is required.')
 }
 
-function assertTaskReference(taskReference) {
-  if (!taskReference || typeof taskReference !== 'object' || Array.isArray(taskReference))
+function assertTaskReference(task) {
+  if (!task || typeof task !== 'object' || Array.isArray(task))
     throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, 'Invalid sync task reference.')
 
-  if (!taskReference.rcloneRemote || typeof taskReference.rcloneRemote !== 'string' || !taskReference.localBasePath)
+  if (!task.rcloneRemote || typeof task.rcloneRemote !== 'string' || !task.localBasePath)
     throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, 'A sync task reference requires a server and local folder.')
 }
 
@@ -41,8 +41,8 @@ function normalizeTaskMapping(task) {
   }
 }
 
-function findTaskIndex(tasks, taskReference) {
-  return tasks.findIndex(task => taskMatchesReference(task, taskReference))
+function findTaskIndex(tasks, task) {
+  return tasks.findIndex(candidate => taskMatchesReference(candidate, task))
 }
 
 function assertNoTaskConflict(tasks, candidate, excludedIndex = -1) {
@@ -86,13 +86,13 @@ export async function createSyncTask(task, runtimePaths = getRuntimePaths()) {
   return nextTask
 }
 
-export async function updateSyncTask(taskReference, expectedTask, runtimePaths = getRuntimePaths()) {
+export async function updateSyncTask(task, expectedTask, runtimePaths = getRuntimePaths()) {
   const config = requireConfig(await loadAppConfig(runtimePaths.configPath))
-  assertTaskReference(taskReference)
-  const taskIndex = findTaskIndex(config.syncTasks, taskReference)
+  assertTaskReference(task)
+  const taskIndex = findTaskIndex(config.syncTasks, task)
   if (taskIndex === -1) {
     throwAppError(APP_ERROR_CODE.SYNC_TASK_NOT_FOUND, 'Sync task was not found.', {
-      meta: taskReference,
+      meta: task,
     })
   }
 
@@ -114,7 +114,8 @@ export async function updateSyncTask(taskReference, expectedTask, runtimePaths =
   return nextTask
 }
 
-export async function deleteTaskFromConfig(taskReference, runtimePaths = getRuntimePaths()) {
+export async function deleteTaskFromConfig(task, runtimePaths = getRuntimePaths()) {
+  assertTaskReference(task)
   const config = await loadAppConfig(runtimePaths.configPath)
   if (!config) {
     return {
@@ -124,7 +125,7 @@ export async function deleteTaskFromConfig(taskReference, runtimePaths = getRunt
     }
   }
 
-  const nextTasks = config.syncTasks.filter(task => !taskMatchesReference(task, taskReference))
+  const nextTasks = config.syncTasks.filter(candidate => !taskMatchesReference(candidate, task))
   if (nextTasks.length === config.syncTasks.length) {
     return {
       success: false,

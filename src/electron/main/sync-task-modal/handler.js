@@ -91,7 +91,7 @@ export function createSyncTaskModalHandlers() {
   async function updateSyncTaskHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
-      return toSuccessfulResult(await updateSyncTask(payload.taskReference, payload.expectedTask))
+      return toSuccessfulResult(await updateSyncTask(payload.task, payload.expectedTask))
     }
     catch (error) {
       return toFailureResult(error)

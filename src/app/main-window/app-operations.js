@@ -98,8 +98,15 @@ export async function createSyncTask(task) {
   return result
 }
 
-export async function updateSyncTask(taskReference, expectedTask) {
-  const result = await taskOperations.updateSyncTask(taskReference, expectedTask)
+export async function updateSyncTask(task, expectedTask) {
+  const result = await taskOperations.updateSyncTask(task, expectedTask)
   notifyConfigUpdate()
+  return result
+}
+
+export async function deleteSyncTask(task) {
+  const result = await taskOperations.deleteTaskFromConfig(task)
+  if (result.success)
+    notifyConfigUpdate()
   return result
 }

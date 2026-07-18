@@ -4,12 +4,14 @@ import { unwrapResult } from '#src/app/operation-result.js'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
 import { useMessageBox } from '../../../composables/useMessageBox.js'
 import { useServerOperations } from '../../../composables/useServerOperations.js'
+import { useTaskOperations } from '../../../composables/useTaskOperations.js'
 import ActionBar from './ActionBar.vue'
 import ServerItem from './ServerItem.vue'
 import TaskItem from './TaskItem.vue'
 
 const messageBox = useMessageBox(window?.mainWindow)
 const serverOperations = useServerOperations(window?.mainWindow)
+const taskOperations = useTaskOperations(window?.mainWindow)
 
 const servers = ref([])
 const syncTasks = ref([])
@@ -109,8 +111,7 @@ async function openSyncTaskModal(modalName) {
   }
 
   if (modalName === SYNC_TASK_MODALS.CONFIRM_DELETE_TASK) {
-    // handleDeleteSyncTask()
-    // await taskOperations.deleteSyncTask(selectedSyncTask.value)
+    await taskOperations.deleteSyncTask(selectedSyncTask.value)
     return
   }
 

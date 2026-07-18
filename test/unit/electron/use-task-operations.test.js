@@ -56,7 +56,7 @@ test('createSyncTask and updateSyncTask send plain task payloads', async () => {
 
   assert.deepEqual(payloads, [
     { task },
-    { taskReference: task, expectedTask: { ...task, remoteBasePath: 'Next' } },
+    { task, expectedTask: { ...task, remoteBasePath: 'Next' } },
   ])
 })
 
@@ -108,4 +108,51 @@ test('updateSyncTask validates the task reference before invoking preload', asyn
   assert.equal(result.success, false)
   assert.equal(updateWasCalled, false)
   assert.equal(messages[0].title, 'Task Required')
+})
+
+test('deleteSyncTask skips deletion when confirmation is cancelled', async () => {
+  let deleteWasCalled = false
+  const operations = useTaskOperations(createPreload({
+    deleteSyncTask: async () => {
+      deleteWasCalled = true
+      return { success: true }
+    },
+    showMessageBox: async () => ({ success: true, value: 'cancelled' }),
+  }))
+
+  const result = await operations.deleteSyncTask({
+    displayName: 'Project',
+    rcloneRemote: 'synology',
+    localBasePath: '/local',
+  })
+
+  assert.deepEqual(result, { success: true, value: 'cancelled' })
+  assert.equal(deleteWasCalled, false)
+})
+
+test('deleteSyncTask sends its stable reference after confirmation', async () => {
+  let receivedPayload = null
+  const operations = useTaskOperations(createPreload({
+    deleteSyncTask: async (payload) => {
+      receivedPayload = payload
+      structuredClone(payload)
+      return { success: true }
+    },
+    showMessageBox: async () => ({ success: true, value: 'confirmed' }),
+  }))
+
+  const result = await operations.deleteSyncTask({
+    displayName: 'Project',
+    rcloneRemote: 'synology',
+    localBasePath: '/local',
+    remoteBasePath: 'Projects',
+  })
+
+  assert.equal(result.success, true)
+  assert.deepEqual(receivedPayload, {
+    task: {
+      rcloneRemote: 'synology',
+      localBasePath: '/local',
+    },
+  })
 })

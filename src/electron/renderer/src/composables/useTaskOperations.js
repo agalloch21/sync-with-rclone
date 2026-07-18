@@ -1,3 +1,4 @@
+import { MESSAGE_BOX_RESULT } from '#src/app/main-window/message-box-contract.js'
 import { toFailureResult } from '#src/app/operation-result.js'
 import { toRaw } from 'vue'
 import { useMessageBox } from './useMessageBox.js'
@@ -84,8 +85,8 @@ export function useTaskOperations(windowPreload) {
     return await invokeOperation(() => windowPreload?.createSyncTask?.({ task: toPlainObject(task) }))
   }
 
-  async function updateSyncTask(taskReference, expectedTask) {
-    if (!taskReference?.rcloneRemote || !taskReference?.localBasePath) {
+  async function updateSyncTask(task, expectedTask) {
+    if (!task?.rcloneRemote || !task?.localBasePath) {
       await messageBox.showWarningMessage({
         title: 'Task Required',
         message: 'Choose a sync task first.',
@@ -97,8 +98,45 @@ export function useTaskOperations(windowPreload) {
       return toFailureResult()
 
     return await invokeOperation(() => windowPreload?.updateSyncTask?.({
-      taskReference: toPlainObject(taskReference),
+      task: toPlainObject(task),
       expectedTask: toPlainObject(expectedTask),
+    }))
+  }
+
+  async function deleteSyncTask(task) {
+    if (!task?.rcloneRemote || !task?.localBasePath) {
+      await messageBox.showWarningMessage({
+        title: 'Task Required',
+        message: 'Choose a sync task first.',
+      })
+      return toFailureResult()
+    }
+
+    const taskLabel = task.displayName || task.localBasePath
+    let confirmation
+    try {
+      confirmation = await messageBox.showConfirmMessage({
+        title: 'Delete Sync Task',
+        message: `Delete task "${taskLabel}"?`,
+        detail: 'This removes the task from the configuration. It does not delete local or remote files.',
+      })
+    }
+    catch (error) {
+      await messageBox.showErrorMessage({
+        message: 'Something wrong when executing IPC functions.',
+        detail: error?.message,
+      })
+      return toFailureResult(error)
+    }
+
+    if (!confirmation || confirmation.value !== MESSAGE_BOX_RESULT.CONFIRMED)
+      return confirmation || toFailureResult()
+
+    return await invokeOperation(() => windowPreload?.deleteSyncTask?.({
+      task: toPlainObject({
+        rcloneRemote: task.rcloneRemote,
+        localBasePath: task.localBasePath,
+      }),
     }))
   }
 
@@ -107,5 +145,6 @@ export function useTaskOperations(windowPreload) {
     selectRemoteFolder,
     createSyncTask,
     updateSyncTask,
+    deleteSyncTask,
   }
 }

@@ -143,5 +143,7 @@ export default {
     [APP_ERROR_CODE.REMOTE_FOLDER_PATH_REQUIRED]: 'Remote folder path is required.',
     [APP_ERROR_CODE.REMOTE_FOLDER_PROBE_FAILED]: 'Failed to check remote folder: {remotePath}',
     [APP_ERROR_CODE.REMOTE_FOLDER_CREATE_FAILED]: 'Failed to create remote folder: {remotePath}',
+    [APP_ERROR_CODE.SYNC_TASK_ALREADY_EXISTS]: 'A sync task already uses this server and local folder.',
+    [APP_ERROR_CODE.SYNC_TASK_NOT_FOUND]: 'Sync task was not found.',
   },
 }

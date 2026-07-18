@@ -47,6 +47,10 @@ export async function getServer(name) {
   return await serverOperations.getServerConnection(name)
 }
 
+export async function getFolderTree(name) {
+  return await serverOperations.getFolderTree(name)
+}
+
 export async function testServerConnection(name) {
   await serverOperations.testServerConnection(name)
 }
@@ -86,4 +90,16 @@ export async function renameServer(name, expectedName) {
 //* ================================ Task Operations ==============================*/
 export async function listSyncTasks() {
   return await taskOperations.listSyncTasks()
+}
+
+export async function createSyncTask(task) {
+  const result = await taskOperations.createSyncTask(task)
+  notifyConfigUpdate()
+  return result
+}
+
+export async function updateSyncTask(taskReference, expectedTask) {
+  const result = await taskOperations.updateSyncTask(taskReference, expectedTask)
+  notifyConfigUpdate()
+  return result
 }

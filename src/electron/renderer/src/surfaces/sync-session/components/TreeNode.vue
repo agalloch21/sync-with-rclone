@@ -1,12 +1,9 @@
 <script setup>
 import { formatBytes } from '#src/electron/renderer/src/utils/format-bytes.js'
+import { onBeforeUnmount, ref } from 'vue'
 
 const props = defineProps({
   node: {
-    type: Object,
-    required: true,
-  },
-  selection: {
     type: Object,
     required: true,
   },
@@ -18,40 +15,93 @@ const props = defineProps({
     type: Function,
     required: true,
   },
+  selectionMode: {
+    type: String,
+    default: 'multiple',
+    validator: value => ['multiple', 'single'].includes(value),
+  },
   isOpen: {
     type: Boolean,
     default: false,
   },
 })
 
+const SINGLE_CLICK_DELAY_MS = 250
+const detailsElement = ref(null)
+let singleClickTimer = null
+
 function onToggle(event) {
   props.setNodeSelection(props.node, event.target.checked)
 }
+
+function clearPendingSingleClick() {
+  if (singleClickTimer === null)
+    return
+
+  clearTimeout(singleClickTimer)
+  singleClickTimer = null
+}
+
+function toggleDirectory() {
+  if (detailsElement.value)
+    detailsElement.value.open = !detailsElement.value.open
+}
+
+function onDirectoryClick(event) {
+  if (props.selectionMode === 'multiple')
+    return
+
+  event.preventDefault()
+  if (singleClickTimer !== null) {
+    clearPendingSingleClick()
+    toggleDirectory()
+    return
+  }
+
+  singleClickTimer = setTimeout(() => {
+    props.setNodeSelection(props.node, true)
+    singleClickTimer = null
+  }, SINGLE_CLICK_DELAY_MS)
+}
+
+onBeforeUnmount(clearPendingSingleClick)
 </script>
 
 <template>
   <li class="entry-root px-(--tree-indent) text-(--text-primary) text-sm">
     <details
-      v-if="node.type === 'directory'" :open="isOpen"
+      v-if="node.type === 'directory'" ref="detailsElement" :open="isOpen"
       class="open:[&_>_summary_.arrow]:rotate-90 open:[&_>_summary_.meta]:invisible"
     >
-      <summary class="flex items-center list-none rounded-lg cursor-pointer focusable ">
-        <div class="row">
+      <summary
+        class="flex items-center list-none rounded-lg cursor-pointer focusable"
+        @click="onDirectoryClick"
+      >
+        <div class="row" :class="{ selected: selectionMode === 'single' && getSelectionState(node) === 'checked' }">
           <input
+            v-if="selectionMode === 'multiple'"
             type="checkbox"
             class="focusable"
             :checked="getSelectionState(node) === 'checked'"
             :indeterminate.prop="getSelectionState(node) === 'partial'"
+            @click.stop
             @change="onToggle"
           >
-          <div class="information">
-            <div class="icon arrow fill-(--text-subtle) transition-transform">
+          <div class="information" :class="{ 'single-information': selectionMode === 'single' }">
+            <div
+              class="icon arrow fill-(--text-subtle) transition-transform"
+              role="button"
+              tabindex="0"
+              @click.stop.prevent="toggleDirectory"
+              @keydown.enter.stop.prevent="toggleDirectory"
+              @keydown.space.stop.prevent="toggleDirectory"
+            >
               <svg width="12" height="12" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
                 <path d="M9.69999 6L3.69999 12L2.29999 10.6L6.89999 6L2.29999 1.4L3.69999 0L9.69999 6Z" />
               </svg>
             </div>
             <span class="name">{{ node.name }}/</span>
-            <div class="meta">
+            <div v-if="node?.changes" class="meta">
               <div v-for="(value, key) in node?.changes" v-show="value > 0" :key="key" class="flex gap-1">
                 <div class="icon" :class="`${key}`" />
                 <span>{{ value }}</span>
@@ -69,23 +119,29 @@ function onToggle(event) {
           v-for="child in node.children"
           :key="child.path"
           :node="child"
-          :selection="selection"
           :get-selection-state="getSelectionState"
           :set-node-selection="setNodeSelection"
+          :selection-mode="selectionMode"
         />
       </ul>
     </details>
 
     <!-- row node-toggle -->
-    <label v-else class="row">
+    <label
+      v-else class="row"
+      :class="{ selected: selectionMode === 'single' && getSelectionState(node) === 'checked' }"
+      @click="selectionMode === 'single' && setNodeSelection(node, true)"
+    >
       <input
+        v-if="selectionMode === 'multiple'"
         type="checkbox"
         class="focusable"
         :checked="getSelectionState(node) === 'checked'"
         :indeterminate.prop="false"
+        @click.stop
         @change="onToggle"
       >
-      <div class="information">
+      <div class="information" :class="{ 'single-information': selectionMode === 'single' }">
         <div class="icon" :class="`${node.state}`" />
         <span class="name">{{ node.name }}</span>
         <div class="meta">
@@ -136,8 +192,14 @@ input[type="checkbox"]{
 .row{
   @apply w-full flex px-(--row-indent) py-1 flex-row items-center  hover:bg-(--primary-soft) rounded-lg;
 }
+.row.selected{
+  @apply bg-(--primary-soft);
+}
 .information{
 @apply ml-(--arrow-offset-to-align-with-checkbox) flex items-center gap-(--information-gap);
+}
+.information.single-information{
+  @apply ml-0;
 }
 .name{
 user-select:text;

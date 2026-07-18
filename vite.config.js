@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         mainPanel: path.resolve('src/electron/renderer/main-panel.html'),
         messageBox: path.resolve('src/electron/renderer/message-box.html'),
+        folderDialog: path.resolve('src/electron/renderer/folder-dialog.html'),
         syncSession: path.resolve('src/electron/renderer/sync-session.html'),
         syncTaskModal: path.resolve('src/electron/renderer/sync-task-modal.html'),
       },

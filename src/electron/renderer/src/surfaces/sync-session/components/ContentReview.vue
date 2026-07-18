@@ -127,7 +127,6 @@ watch(() => state.value?.review, (newValue, _) => {
       <TreeNode
         :key="state.review.tree.path"
         :node="state.review.tree"
-        :selection="selection"
         :get-selection-state="getSelectionState"
         :set-node-selection="setNodeSelection"
         :is-open="true"

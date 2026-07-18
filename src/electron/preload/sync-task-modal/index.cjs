@@ -19,6 +19,18 @@ contextBridge.exposeInMainWorld('syncTaskModal', {
   updateServer(payload) {
     return ipcRenderer.invoke('sync-task-modal:update-server', payload)
   },
+  createSyncTask(payload) {
+    return ipcRenderer.invoke('sync-task-modal:create-sync-task', payload)
+  },
+  updateSyncTask(payload) {
+    return ipcRenderer.invoke('sync-task-modal:update-sync-task', payload)
+  },
+  selectLocalFolder(payload = {}) {
+    return ipcRenderer.invoke('sync-task-modal:select-local-folder', payload)
+  },
+  selectRemoteFolder(payload = {}) {
+    return ipcRenderer.invoke('sync-task-modal:select-remote-folder', payload)
+  },
   showMessageBox(payload = {}) {
     return ipcRenderer.invoke('sync-task-modal:show-message-box', payload)
   },

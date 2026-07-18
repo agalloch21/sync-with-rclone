@@ -2,6 +2,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { clearActiveModalWindow, getMainWindow, setActiveModalWindow } from '../app-state.js'
+import { destroyFolderDialog } from '../folder-dialog/window.js'
 import { createMessageBoxBridgeHandlers } from '../message-box/window.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 import { createSyncTaskModalHandlers } from './handler.js'
@@ -47,6 +48,10 @@ export function createSyncTaskModalWindow(modalName, context = {}) {
   ipcMain.handle('sync-task-modal:get-server', handlers.getServerHandler)
   ipcMain.handle('sync-task-modal:create-server', handlers.createServerHandler)
   ipcMain.handle('sync-task-modal:update-server', handlers.updateServerHandler)
+  ipcMain.handle('sync-task-modal:create-sync-task', handlers.createSyncTaskHandler)
+  ipcMain.handle('sync-task-modal:update-sync-task', handlers.updateSyncTaskHandler)
+  ipcMain.handle('sync-task-modal:select-local-folder', handlers.selectLocalFolderHandler)
+  ipcMain.handle('sync-task-modal:select-remote-folder', handlers.selectRemoteFolderHandler)
   ipcMain.handle('sync-task-modal:show-message-box', messageBoxHandlers.showMessageBoxHandler)
   ipcMain.handle('sync-task-modal:close-message-box', messageBoxHandlers.closeMessageBoxHandler)
 
@@ -58,6 +63,7 @@ export function createSyncTaskModalWindow(modalName, context = {}) {
   })
 
   modalWindow.on('closed', () => {
+    destroyFolderDialog(modalWindow)
     clearActiveModalWindow(modalWindow)
     ipcMain.removeHandler('sync-task-modal:get-state')
     ipcMain.removeHandler('sync-task-modal:close')
@@ -65,6 +71,10 @@ export function createSyncTaskModalWindow(modalName, context = {}) {
     ipcMain.removeHandler('sync-task-modal:get-server')
     ipcMain.removeHandler('sync-task-modal:create-server')
     ipcMain.removeHandler('sync-task-modal:update-server')
+    ipcMain.removeHandler('sync-task-modal:create-sync-task')
+    ipcMain.removeHandler('sync-task-modal:update-sync-task')
+    ipcMain.removeHandler('sync-task-modal:select-local-folder')
+    ipcMain.removeHandler('sync-task-modal:select-remote-folder')
     ipcMain.removeHandler('sync-task-modal:show-message-box')
     ipcMain.removeHandler('sync-task-modal:close-message-box')
   })

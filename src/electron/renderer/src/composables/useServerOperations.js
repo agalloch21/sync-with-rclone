@@ -28,20 +28,24 @@ export function useServerOperations(windowPreload) {
     })
   }
 
-  async function listServers() {
+  async function invokeOperation(operation) {
     try {
-      const result = await windowPreload?.listServers?.()
+      const result = await operation()
       if (!result?.success)
         await showOperationWarning(result)
       return result
     }
     catch (error) {
       await messageBox.showErrorMessage({
-        message: `Something wrong when executing IPC functions.`,
+        message: 'Something wrong when executing IPC functions.',
         detail: error?.message,
       })
       return toFailureResult(error)
     }
+  }
+
+  async function listServers() {
+    return await invokeOperation(() => windowPreload?.listServers?.())
   }
 
   async function getServer(serverName) {
@@ -53,20 +57,8 @@ export function useServerOperations(windowPreload) {
       return toFailureResult()
     }
 
-    try {
-      const payload = { serverName }
-      const result = await windowPreload?.getServer?.(payload)
-      if (!result?.success)
-        await showOperationWarning(result)
-      return result
-    }
-    catch (error) {
-      await messageBox.showErrorMessage({
-        message: `Something wrong when executing IPC functions.`,
-        detail: error?.message,
-      })
-      return toFailureResult(error)
-    }
+    const payload = { serverName }
+    return await invokeOperation(() => windowPreload?.getServer?.(payload))
   }
 
   async function createServer(expectedServerName, protocolType, protocolFields) {
@@ -87,20 +79,8 @@ export function useServerOperations(windowPreload) {
       return toFailureResult()
     }
 
-    try {
-      const payload = { expectedServerName, protocolType, protocolFields: toPlainObject(protocolFields) }
-      const result = await windowPreload?.createServer?.(payload)
-      if (!result?.success)
-        await showOperationWarning(result)
-      return result
-    }
-    catch (error) {
-      await messageBox.showErrorMessage({
-        message: `Something wrong when executing IPC functions.`,
-        detail: error?.message,
-      })
-      return toFailureResult(error)
-    }
+    const payload = { expectedServerName, protocolType, protocolFields: toPlainObject(protocolFields) }
+    return await invokeOperation(() => windowPreload?.createServer?.(payload))
   }
 
   async function updateServer(serverName, expectedServerName, protocolType, protocolFields) {
@@ -129,20 +109,8 @@ export function useServerOperations(windowPreload) {
       return toFailureResult()
     }
 
-    try {
-      const payload = { serverName, expectedServerName, protocolType, protocolFields: toPlainObject(protocolFields) }
-      const result = await windowPreload?.updateServer?.(payload)
-      if (!result?.success)
-        await showOperationWarning(result)
-      return result
-    }
-    catch (error) {
-      await messageBox.showErrorMessage({
-        message: `Something wrong when executing IPC functions.`,
-        detail: error?.message,
-      })
-      return toFailureResult()
-    }
+    const payload = { serverName, expectedServerName, protocolType, protocolFields: toPlainObject(protocolFields) }
+    return await invokeOperation(() => windowPreload?.updateServer?.(payload))
   }
 
   async function deleteServer(serverName) {
@@ -154,29 +122,27 @@ export function useServerOperations(windowPreload) {
       return toFailureResult()
     }
 
+    let confirmation
     try {
-      const confirmation = await messageBox.showConfirmMessage({
+      confirmation = await messageBox.showConfirmMessage({
         title: 'Delete Server',
         message: `Delete server "${serverName}"?`,
         detail: 'This removes the rclone remote from the local rclone configuration.',
       })
-
-      if (!confirmation || confirmation.value !== MESSAGE_BOX_RESULT.CONFIRMED)
-        return confirmation || toFailureResult()
-
-      const payload = { serverName }
-      const result = await windowPreload?.deleteServer?.(payload)
-      if (!result?.success)
-        await showOperationWarning(result)
-      return result
     }
     catch (error) {
       await messageBox.showErrorMessage({
-        message: `Something wrong when executing IPC functions.`,
+        message: 'Something wrong when executing IPC functions.',
         detail: error?.message,
       })
-      return toFailureResult()
+      return toFailureResult(error)
     }
+
+    if (!confirmation || confirmation.value !== MESSAGE_BOX_RESULT.CONFIRMED)
+      return confirmation || toFailureResult()
+
+    const payload = { serverName }
+    return await invokeOperation(() => windowPreload?.deleteServer?.(payload))
   }
 
   return {

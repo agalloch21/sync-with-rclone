@@ -9,6 +9,9 @@ export const APP_ERROR_CODE = Object.freeze({
   CONFIG_NO_MATCHING_SYNC_TASK: 'config.no_matching_sync_task',
   CONFIG_REMOTE_PATH_OUTSIDE_TASK: 'config.remote_path_outside_task',
 
+  SYNC_TASK_ALREADY_EXISTS: 'sync_task.already_exists',
+  SYNC_TASK_NOT_FOUND: 'sync_task.not_found',
+
   REMOTE_FOLDER_PATH_REQUIRED: 'remote.folder_path_required',
   REMOTE_FOLDER_PROBE_FAILED: 'remote.folder_probe_failed',
   REMOTE_FOLDER_CREATE_FAILED: 'remote.folder_create_failed',

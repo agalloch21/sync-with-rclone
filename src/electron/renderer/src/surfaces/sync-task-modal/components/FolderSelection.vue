@@ -11,6 +11,8 @@ defineProps({
     default: '',
   },
 })
+
+defineEmits(['select'])
 </script>
 
 <template>
@@ -29,6 +31,6 @@ defineProps({
       </label>
     </div>
 
-    <InlineButton :text="$t('syncTasks.modals.common.changeFolder')" />
+    <InlineButton :text="$t('syncTasks.modals.common.changeFolder')" @click="$emit('select')" />
   </div>
 </template>

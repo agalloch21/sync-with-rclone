@@ -79,6 +79,15 @@ export function buildEmptyServerObject(name) {
   }
 }
 
+export async function getFolderTree(name) {
+  try {
+    return await rcloneRemotes.getRcloneFolderTree(name)
+  }
+  catch (error) {
+    throwServerErrorFromRclone(error, 'Failed to list server folders.', { name })
+  }
+}
+
 export async function listServerConnections() {
   try {
     const remotes = await rcloneRemotes.listRcloneRemotes()

@@ -1,5 +1,6 @@
 import { createRcloneCommand, runCommand } from '#src/core/rclone-command.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
+import { normalizeLocalPath, trimTrailingSlash } from '../path-utils.js'
 import { getRuntimePaths } from '../runtime-paths.js'
 import { getProtocolDefinition, validateProtocolForm } from './protocol-registry.js'
 
@@ -111,6 +112,73 @@ function parseRcloneRemotesFromConfigDump(stdout) {
       name,
       config: rawRemote || {},
     }))
+}
+
+function normalizeFolderPath(inputPath = '') {
+  return trimTrailingSlash(normalizeLocalPath(String(inputPath)).replace(/^\/+/, ''))
+}
+
+function createFolderNode(name, path) {
+  return {
+    type: 'directory',
+    name,
+    path,
+    children: [],
+  }
+}
+
+export function buildFolderTree(serverName, entries = []) {
+  const root = createFolderNode(serverName, '')
+  const nodesByPath = new Map([['', root]])
+
+  const paths = entries
+    .filter(entry => entry?.IsDir === true)
+    .map(entry => normalizeFolderPath(entry?.Path || entry?.Name || ''))
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right))
+
+  for (const entryPath of paths) {
+    const segments = entryPath.split('/').filter(Boolean)
+    let parentPath = ''
+
+    for (const segment of segments) {
+      const nodePath = parentPath ? `${parentPath}/${segment}` : segment
+      if (!nodesByPath.has(nodePath)) {
+        const node = createFolderNode(segment, nodePath)
+        nodesByPath.set(nodePath, node)
+        nodesByPath.get(parentPath).children.push(node)
+      }
+      parentPath = nodePath
+    }
+  }
+
+  for (const node of nodesByPath.values())
+    node.children.sort((left, right) => left.name.localeCompare(right.name))
+
+  return root
+}
+
+export function parseFolderTreeOutput(serverName, stdout) {
+  let entries
+  try {
+    entries = JSON.parse(stdout || '[]')
+  }
+  catch (error) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_PARSE_FAILED, 'Failed to parse server folders.', {
+      cause: error,
+      detail: 'rclone lsjson returned invalid JSON.',
+      meta: { serverName },
+    })
+  }
+
+  if (!Array.isArray(entries)) {
+    throwRcloneError(APP_ERROR_CODE.RCLONE_PARSE_FAILED, 'Failed to parse server folders.', {
+      detail: 'rclone lsjson did not return an array.',
+      meta: { serverName },
+    })
+  }
+
+  return buildFolderTree(serverName, entries)
 }
 
 function buildOptionArgs(options) {
@@ -226,6 +294,24 @@ export async function getRcloneRemote(name, runtimePaths = getRuntimePaths()) {
   const remotes = await listRcloneRemotes(runtimePaths)
 
   return remotes.find(remote => remote.name === normalizedName) || null
+}
+
+export async function getRcloneFolderTree(name, runtimePaths = getRuntimePaths()) {
+  assertName(name)
+  const serverName = normalizeName(name)
+  const command = createRcloneCommand(runtimePaths, [
+    'lsjson',
+    '--max-depth',
+    '1',
+    '--dirs-only',
+    '--no-mimetype',
+    `${serverName}:`,
+  ])
+
+  const result = await runRcloneOperation(command, 'Failed to list rclone folders.', {
+    name: serverName,
+  })
+  return parseFolderTreeOutput(serverName, result.stdout)
 }
 
 export async function testRcloneRemoteConnection(name, runtimePaths = getRuntimePaths()) {

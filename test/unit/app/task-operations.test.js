@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { createSyncTask, deleteTaskFromConfig, retargetSyncTasks, updateSyncTask } from '#src/app/configuration/task-operations.js'
+import { createSyncTask, deleteTaskFromConfig, listGlobalIgnorePatterns, retargetSyncTasks, updateGlobalIgnorePatterns, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/configuration/task-operations.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('deleteTaskFromConfig removes the selected task and preserves global ignore patterns', async () => {
@@ -119,6 +119,106 @@ test('updateSyncTask changes the mapping and preserves task metadata', async () 
     assert.equal(result.lastSyncMode, 'push')
     assert.equal(result.localBasePath, nextPath)
     assert.equal(result.remoteBasePath, 'Next')
+  })
+})
+
+test('updateSyncTaskIgnorePatterns changes patterns and preserves global patterns and task metadata', async () => {
+  const localPath = process.cwd()
+  await withFakeAppRuntime({
+    appConfig: {
+      globalIgnorePatterns: ['.DS_Store'],
+      syncTasks: [{
+        displayName: 'Project',
+        rcloneRemote: 'synology',
+        localBasePath: localPath,
+        remoteBasePath: 'Current',
+        ignorePatterns: ['old-pattern'],
+        lastSyncMode: 'pull',
+        lastSyncFolder: 'src',
+        lastSyncDate: '2026-07-20',
+      }],
+    },
+  }, async ({ configPath }) => {
+    const result = await updateSyncTaskIgnorePatterns({
+      rcloneRemote: 'synology',
+      localBasePath: localPath,
+    }, ['node_modules/', '*.tmp', '*.tmp'])
+
+    assert.deepEqual(result.ignorePatterns, ['node_modules/', '*.tmp', '*.tmp'])
+    assert.equal(result.displayName, 'Project')
+    assert.equal(result.lastSyncMode, 'pull')
+
+    const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
+    assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
+    assert.deepEqual(saved.syncTasks[0].ignorePatterns, ['node_modules/', '*.tmp', '*.tmp'])
+    assert.equal(saved.syncTasks[0].lastSyncFolder, 'src')
+    assert.equal(saved.syncTasks[0].lastSyncDate, '2026-07-20')
+  })
+})
+
+test('updateSyncTaskIgnorePatterns rejects non-string entries', async () => {
+  await withFakeAppRuntime({
+    appConfig: {
+      syncTasks: [{
+        rcloneRemote: 'synology',
+        localBasePath: '/local/current',
+        remoteBasePath: 'Current',
+        ignorePatterns: [],
+      }],
+    },
+  }, async () => {
+    await assert.rejects(() => updateSyncTaskIgnorePatterns({
+      rcloneRemote: 'synology',
+      localBasePath: path.resolve('/local/current'),
+    }, ['valid', 42]), error => error?.code === 'ipc.invalid_payload')
+  })
+})
+
+test('listGlobalIgnorePatterns reads global patterns through task operations', async () => {
+  await withFakeAppRuntime({
+    appConfig: {
+      globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+      syncTasks: [],
+    },
+  }, async () => {
+    assert.deepEqual(await listGlobalIgnorePatterns(), ['.DS_Store', 'Thumbs.db'])
+  })
+})
+
+test('updateGlobalIgnorePatterns changes global patterns and preserves sync tasks', async () => {
+  await withFakeAppRuntime({
+    appConfig: {
+      globalIgnorePatterns: ['old'],
+      syncTasks: [{
+        displayName: 'Project',
+        rcloneRemote: 'synology',
+        localBasePath: '/local/project',
+        remoteBasePath: 'Project',
+        ignorePatterns: ['task-only'],
+      }],
+    },
+  }, async ({ configPath }) => {
+    const result = await updateGlobalIgnorePatterns(['.DS_Store', '*.tmp', '*.tmp'])
+
+    assert.deepEqual(result, ['.DS_Store', '*.tmp', '*.tmp'])
+    const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
+    assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store', '*.tmp', '*.tmp'])
+    assert.equal(saved.syncTasks[0].displayName, 'Project')
+    assert.deepEqual(saved.syncTasks[0].ignorePatterns, ['task-only'])
+  })
+})
+
+test('updateGlobalIgnorePatterns rejects non-string entries', async () => {
+  await withFakeAppRuntime({
+    appConfig: {
+      globalIgnorePatterns: [],
+      syncTasks: [],
+    },
+  }, async () => {
+    await assert.rejects(
+      () => updateGlobalIgnorePatterns(['valid', null]),
+      error => error?.code === 'ipc.invalid_payload',
+    )
   })
 })
 

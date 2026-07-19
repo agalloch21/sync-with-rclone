@@ -89,6 +89,59 @@ test('sync task modal updateSyncTask handler returns validation failures as an O
   assert.equal(result.error.code, 'ipc.invalid_payload')
 })
 
+test('sync task modal updateSyncTaskIgnorePatterns handler updates only the pattern list', async () => {
+  await withFakeAppRuntime({
+    appConfig: {
+      globalIgnorePatterns: ['.DS_Store'],
+      syncTasks: [{
+        displayName: 'Project',
+        rcloneRemote: 'synology',
+        localBasePath: '/local/current',
+        remoteBasePath: 'Current',
+        ignorePatterns: ['old'],
+      }],
+    },
+  }, async () => {
+    const handlers = createSyncTaskModalHandlers()
+    const result = await handlers.updateSyncTaskIgnorePatternsHandler(null, {
+      task: {
+        rcloneRemote: 'synology',
+        localBasePath: '/local/current',
+      },
+      ignorePatterns: ['node_modules/', '*.tmp'],
+    })
+
+    assert.equal(result.success, true)
+    assert.deepEqual(result.value.ignorePatterns, ['node_modules/', '*.tmp'])
+    assert.equal(result.value.remoteBasePath, 'Current')
+  })
+})
+
+test('sync task modal updateSyncTaskIgnorePatterns handler rejects malformed patterns', async () => {
+  await withFakeAppRuntime({
+    appConfig: {
+      syncTasks: [{
+        rcloneRemote: 'synology',
+        localBasePath: '/local/current',
+        remoteBasePath: 'Current',
+        ignorePatterns: [],
+      }],
+    },
+  }, async () => {
+    const handlers = createSyncTaskModalHandlers()
+    const result = await handlers.updateSyncTaskIgnorePatternsHandler(null, {
+      task: {
+        rcloneRemote: 'synology',
+        localBasePath: '/local/current',
+      },
+      ignorePatterns: ['valid', null],
+    })
+
+    assert.equal(result.success, false)
+    assert.equal(result.error.code, 'ipc.invalid_payload')
+  })
+})
+
 test('local folder dialog uses the current path or the supplied home directory', () => {
   assert.deepEqual(createLocalFolderDialogOptions('/current', '/home/user'), {
     defaultPath: '/current',

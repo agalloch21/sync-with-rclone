@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
-import { createServer, createSyncTask, getServer, listServers, updateServer, updateSyncTask } from '#src/app/main-window/app-operations.js'
+import { createServer, createSyncTask, getServer, listServers, updateServer, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/main-window/app-operations.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import { getActiveModalWindow } from '../app-state.js'
 import { openFolderDialog } from '../folder-dialog/window.js'
@@ -98,6 +98,16 @@ export function createSyncTaskModalHandlers() {
     }
   }
 
+  async function updateSyncTaskIgnorePatternsHandler(_event, payload) {
+    try {
+      assertPayloadObject(payload)
+      return toSuccessfulResult(await updateSyncTaskIgnorePatterns(payload.task, payload.ignorePatterns))
+    }
+    catch (error) {
+      return toFailureResult(error)
+    }
+  }
+
   async function selectLocalFolderHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
@@ -130,6 +140,7 @@ export function createSyncTaskModalHandlers() {
     updateServerHandler,
     createSyncTaskHandler,
     updateSyncTaskHandler,
+    updateSyncTaskIgnorePatternsHandler,
     selectLocalFolderHandler,
     selectRemoteFolderHandler,
 

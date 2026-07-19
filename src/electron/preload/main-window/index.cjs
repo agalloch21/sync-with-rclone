@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld('mainWindow', {
   deleteSyncTask(payload) {
     return ipcRenderer.invoke('main-window:delete-sync-task', payload)
   },
+  updateGlobalIgnorePatterns(payload) {
+    return ipcRenderer.invoke('main-window:update-global-ignore-patterns', payload)
+  },
   showMessageBox(payload = {}) {
     return ipcRenderer.invoke('main-window:show-message-box', payload)
   },

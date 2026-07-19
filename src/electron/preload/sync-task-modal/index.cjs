@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('syncTaskModal', {
   updateSyncTask(payload) {
     return ipcRenderer.invoke('sync-task-modal:update-sync-task', payload)
   },
+  updateSyncTaskIgnorePatterns(payload) {
+    return ipcRenderer.invoke('sync-task-modal:update-sync-task-ignore-patterns', payload)
+  },
   selectLocalFolder(payload = {}) {
     return ipcRenderer.invoke('sync-task-modal:select-local-folder', payload)
   },

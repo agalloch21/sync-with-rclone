@@ -1,5 +1,64 @@
 <script setup lang="ts">
+import { unwrapResult } from '#src/app/operation-result.js'
+import { formatIgnorePatterns, parseIgnorePatterns, useTaskOperations } from '#src/electron/renderer/src/composables/useTaskOperations.js'
+import { onMounted, onUnmounted, ref } from 'vue'
+import { useMessageBox } from '../../../composables/useMessageBox.js'
 import Button from '../../shared/Button.vue'
+
+const messageBox = useMessageBox(window?.mainWindow)
+const taskOperations = useTaskOperations(window?.mainWindow)
+
+const globalPatternsText = ref('')
+const isLoading = ref(false)
+const isSubmitting = ref(false)
+
+let unsubscribeConfigUpdated = null
+
+onMounted(async () => {
+  isLoading.value = true
+  const result = await window.mainWindow?.getMainWindowData?.()
+  applyMainWindowData(result)
+  isLoading.value = false
+
+  unsubscribeConfigUpdated = window.mainWindow?.onConfigUpdated?.((result) => {
+    applyMainWindowData(result)
+  })
+})
+
+onUnmounted(() => {
+  unsubscribeConfigUpdated?.()
+})
+
+function applyMainWindowData(result) {
+  if (!result?.success) {
+    globalPatternsText.value = ''
+    messageBox.showErrorMessage({
+      title: 'Load Failed',
+      message: 'Could not load global ignore patterns.',
+      detail: result?.error?.detail || result?.error?.message || 'Failed to load configuration.',
+    })
+    return
+  }
+
+  const payload = unwrapResult(result)
+  globalPatternsText.value = formatIgnorePatterns(payload?.globalIgnorePatterns)
+}
+
+async function applyGlobalPatterns() {
+  if (isSubmitting.value)
+    return
+
+  const ignorePatterns = parseIgnorePatterns(globalPatternsText.value)
+  isSubmitting.value = true
+  try {
+    const result = await taskOperations.updateGlobalIgnorePatterns(ignorePatterns)
+    if (result?.success)
+      globalPatternsText.value = formatIgnorePatterns(unwrapResult(result))
+  }
+  finally {
+    isSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -11,28 +70,19 @@ import Button from '../../shared/Button.vue'
     </header>
     <main class="content-dock flex-1 flex flex-col gap-2">
       <textarea
+        v-model="globalPatternsText"
         class="pattern-area w-full h-full"
         placeholder="Type patterns here..."
+        :disabled="isLoading || isSubmitting"
         autofocus
-      >
-        .DS_Store,
-Thumbs.db,
-*.swp,
-*.swo,
-~$*,
-*.tmp,
-.vscode/,
-.idea/,
-.git/,
-node_modules/
-      </textarea>
+      />
       <p class="description">
         {{ $t('settingsPanel.globalPatterns.description') }}
       </p>
     </main>
     <footer class="footer-dock h-16 flex justify-end items-center">
       <Button
-        :primary="true" :wide="true"
+        :primary="true" :wide="true" :disabled="isLoading || isSubmitting" @click="applyGlobalPatterns"
       >
         {{ $t('settingsPanel.common.apply') }}
       </Button>

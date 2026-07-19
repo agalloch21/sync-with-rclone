@@ -13,6 +13,11 @@ export async function listSyncTasks() {
   return result?.syncTasks
 }
 
+export async function listGlobalIgnorePatterns() {
+  const result = await loadAppConfig()
+  return result?.globalIgnorePatterns || []
+}
+
 function assertTaskInput(task) {
   if (!task || typeof task !== 'object' || Array.isArray(task))
     throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, 'Invalid sync task payload.')
@@ -39,6 +44,11 @@ function normalizeTaskMapping(task) {
     localBasePath: resolveLocalDirectoryPath(task.localBasePath),
     remoteBasePath: trimTrailingSlash(normalizeLocalPath(task.remoteBasePath)),
   }
+}
+
+function assertIgnorePatterns(ignorePatterns) {
+  if (!Array.isArray(ignorePatterns) || ignorePatterns.some(pattern => typeof pattern !== 'string'))
+    throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, 'Ignore patterns must be an array of strings.')
 }
 
 function findTaskIndex(tasks, task) {
@@ -121,6 +131,47 @@ export async function updateSyncTask(task, expectedTask) {
   }, runtimePaths)
 
   return nextTask
+}
+
+export async function updateSyncTaskIgnorePatterns(task, ignorePatterns) {
+  const runtimePaths = getRuntimePaths()
+  const config = requireConfig(await loadAppConfig(runtimePaths.configPath))
+  assertTaskReference(task)
+  assertIgnorePatterns(ignorePatterns)
+
+  const taskIndex = findTaskIndex(config.syncTasks, task)
+  if (taskIndex === -1) {
+    throwAppError(APP_ERROR_CODE.SYNC_TASK_NOT_FOUND, 'Sync task was not found.', {
+      meta: task,
+    })
+  }
+
+  const nextTask = {
+    ...config.syncTasks[taskIndex],
+    ignorePatterns: [...ignorePatterns],
+  }
+  const nextTasks = [...config.syncTasks]
+  nextTasks[taskIndex] = nextTask
+
+  await saveAppConfig({
+    globalIgnorePatterns: config.globalIgnorePatterns,
+    syncTasks: nextTasks,
+  }, runtimePaths)
+
+  return nextTask
+}
+
+export async function updateGlobalIgnorePatterns(ignorePatterns) {
+  const runtimePaths = getRuntimePaths()
+  const config = requireConfig(await loadAppConfig(runtimePaths.configPath))
+  assertIgnorePatterns(ignorePatterns)
+
+  await saveAppConfig({
+    globalIgnorePatterns: [...ignorePatterns],
+    syncTasks: config.syncTasks,
+  }, runtimePaths)
+
+  return [...ignorePatterns]
 }
 
 export async function retargetSyncTasks(serverName, expectedServerName) {

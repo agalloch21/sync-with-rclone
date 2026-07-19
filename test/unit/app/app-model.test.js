@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { getMainWindowData, updateServer } from '#src/app/main-window/app-operations.js'
+import { getMainWindowData, updateGlobalIgnorePatterns, updateServer } from '#src/app/main-window/app-operations.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('getMainWindowData returns servers and sync tasks from the current app operations', async () => {
@@ -46,7 +46,37 @@ test('getMainWindowData returns servers and sync tasks from the current app oper
           lastSyncDate: null,
         },
       ],
+      globalIgnorePatterns: [],
     })
+  })
+})
+
+test('getMainWindowData returns global ignore patterns', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {},
+    appConfig: {
+      globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+      syncTasks: [],
+    },
+  }, async () => {
+    const data = await getMainWindowData()
+
+    assert.deepEqual(data.globalIgnorePatterns, ['.DS_Store', 'Thumbs.db'])
+  })
+})
+
+test('updateGlobalIgnorePatterns persists through app operations', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {},
+    appConfig: {
+      globalIgnorePatterns: ['old'],
+      syncTasks: [],
+    },
+  }, async ({ configPath }) => {
+    assert.deepEqual(await updateGlobalIgnorePatterns(['.DS_Store']), ['.DS_Store'])
+
+    const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
+    assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
   })
 })
 

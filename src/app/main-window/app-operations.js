@@ -1,5 +1,4 @@
 import EventEmitter from 'node:events'
-// import { loadAppConfig } from '../configuration/app-config';
 import * as serverOperations from '../configuration/server-operations.js'
 import * as taskOperations from '../configuration/task-operations.js'
 
@@ -19,6 +18,7 @@ export function notifyConfigUpdate() {
 export async function getMainWindowData() {
   const servers = await listServers()
   const syncTasks = await listSyncTasks()
+  const globalIgnorePatterns = await listGlobalIgnorePatterns()
 
   const serverByName = new Map(servers.map((server) => {
     return [server.name, server]
@@ -35,6 +35,7 @@ export async function getMainWindowData() {
   return {
     servers: [...serverByName.values()],
     syncTasks,
+    globalIgnorePatterns,
   }
 }
 
@@ -92,6 +93,10 @@ export async function listSyncTasks() {
   return await taskOperations.listSyncTasks()
 }
 
+export async function listGlobalIgnorePatterns() {
+  return await taskOperations.listGlobalIgnorePatterns()
+}
+
 export async function createSyncTask(task) {
   const result = await taskOperations.createSyncTask(task)
   notifyConfigUpdate()
@@ -100,6 +105,18 @@ export async function createSyncTask(task) {
 
 export async function updateSyncTask(task, expectedTask) {
   const result = await taskOperations.updateSyncTask(task, expectedTask)
+  notifyConfigUpdate()
+  return result
+}
+
+export async function updateSyncTaskIgnorePatterns(task, ignorePatterns) {
+  const result = await taskOperations.updateSyncTaskIgnorePatterns(task, ignorePatterns)
+  notifyConfigUpdate()
+  return result
+}
+
+export async function updateGlobalIgnorePatterns(ignorePatterns) {
+  const result = await taskOperations.updateGlobalIgnorePatterns(ignorePatterns)
   notifyConfigUpdate()
   return result
 }

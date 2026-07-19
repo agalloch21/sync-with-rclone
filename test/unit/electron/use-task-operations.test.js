@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { useTaskOperations } from '#src/electron/renderer/src/composables/useTaskOperations.js'
+import { formatIgnorePatterns, parseIgnorePatterns, useTaskOperations } from '#src/electron/renderer/src/composables/useTaskOperations.js'
 
 function createPreload(overrides = {}) {
   return {
@@ -8,6 +8,25 @@ function createPreload(overrides = {}) {
     ...overrides,
   }
 }
+
+test('parseIgnorePatterns accepts commas and line breaks as separators', () => {
+  assert.deepEqual(parseIgnorePatterns('node_modules/, .DS_Store\n*.tmp\r\n.git/'), [
+    'node_modules/',
+    '.DS_Store',
+    '*.tmp',
+    '.git/',
+  ])
+})
+
+test('parseIgnorePatterns trims entries, removes blanks, and preserves duplicates', () => {
+  assert.deepEqual(parseIgnorePatterns('  *.tmp  ,,\n*.tmp, \r\n'), ['*.tmp', '*.tmp'])
+  assert.deepEqual(parseIgnorePatterns(''), [])
+})
+
+test('formatIgnorePatterns displays patterns as comma-separated lines', () => {
+  assert.equal(formatIgnorePatterns(['.DS_Store', 'node_modules/']), '.DS_Store,\nnode_modules/')
+  assert.equal(formatIgnorePatterns([]), '')
+})
 
 test('selectLocalFolder sends the current path through the task operations composable', async () => {
   let receivedPayload = null
@@ -58,6 +77,49 @@ test('createSyncTask and updateSyncTask send plain task payloads', async () => {
     { task },
     { task, expectedTask: { ...task, remoteBasePath: 'Next' } },
   ])
+})
+
+test('updateSyncTaskIgnorePatterns sends a dedicated plain payload', async () => {
+  let receivedPayload = null
+  const operations = useTaskOperations(createPreload({
+    updateSyncTaskIgnorePatterns: async (payload) => {
+      receivedPayload = payload
+      structuredClone(payload)
+      return { success: true }
+    },
+  }))
+  const task = {
+    rcloneRemote: 'synology',
+    localBasePath: '/local',
+    remoteBasePath: 'Projects',
+    ignorePatterns: ['old'],
+  }
+
+  const result = await operations.updateSyncTaskIgnorePatterns(task, ['node_modules/', '*.tmp'])
+
+  assert.equal(result.success, true)
+  assert.deepEqual(receivedPayload, {
+    task,
+    ignorePatterns: ['node_modules/', '*.tmp'],
+  })
+})
+
+test('updateGlobalIgnorePatterns sends a dedicated plain payload', async () => {
+  let receivedPayload = null
+  const operations = useTaskOperations(createPreload({
+    updateGlobalIgnorePatterns: async (payload) => {
+      receivedPayload = payload
+      structuredClone(payload)
+      return { success: true, value: payload.ignorePatterns }
+    },
+  }))
+
+  const result = await operations.updateGlobalIgnorePatterns(['.DS_Store', '*.tmp'])
+
+  assert.deepEqual(result, { success: true, value: ['.DS_Store', '*.tmp'] })
+  assert.deepEqual(receivedPayload, {
+    ignorePatterns: ['.DS_Store', '*.tmp'],
+  })
 })
 
 test('createSyncTask validates the mapping before invoking preload', async () => {

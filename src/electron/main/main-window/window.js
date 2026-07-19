@@ -50,6 +50,7 @@ export function createMainWindow() {
   ipcMain.handle('main-window:get-server', handlers.getServerHandler)
   ipcMain.handle('main-window:delete-server', handlers.deleteServerHandler)
   ipcMain.handle('main-window:delete-sync-task', handlers.deleteSyncTaskHandler)
+  ipcMain.handle('main-window:update-global-ignore-patterns', handlers.updateGlobalIgnorePatternsHandler)
   ipcMain.handle('main-window:show-message-box', messageBoxHandlers.showMessageBoxHandler)
   ipcMain.handle('main-window:close-message-box', messageBoxHandlers.closeMessageBoxHandler)
 
@@ -67,6 +68,7 @@ export function createMainWindow() {
     ipcMain.removeHandler('main-window:get-server')
     ipcMain.removeHandler('main-window:delete-server')
     ipcMain.removeHandler('main-window:delete-sync-task')
+    ipcMain.removeHandler('main-window:update-global-ignore-patterns')
     ipcMain.removeHandler('main-window:show-message-box')
     ipcMain.removeHandler('main-window:close-message-box')
   })

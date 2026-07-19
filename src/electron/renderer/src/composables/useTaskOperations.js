@@ -3,6 +3,25 @@ import { toFailureResult } from '#src/app/operation-result.js'
 import { toRaw } from 'vue'
 import { useMessageBox } from './useMessageBox.js'
 
+export function formatIgnorePatterns(patterns) {
+  if (!Array.isArray(patterns))
+    return ''
+
+  return patterns
+    .filter(pattern => typeof pattern === 'string')
+    .join(',\n')
+}
+
+export function parseIgnorePatterns(value) {
+  if (typeof value !== 'string')
+    return []
+
+  return value
+    .split(/[,\r\n]+/)
+    .map(pattern => pattern.trim())
+    .filter(Boolean)
+}
+
 export function useTaskOperations(windowPreload) {
   const messageBox = useMessageBox(windowPreload)
 
@@ -103,6 +122,27 @@ export function useTaskOperations(windowPreload) {
     }))
   }
 
+  async function updateSyncTaskIgnorePatterns(task, ignorePatterns) {
+    if (!task?.rcloneRemote || !task?.localBasePath) {
+      await messageBox.showWarningMessage({
+        title: 'Task Required',
+        message: 'Choose a sync task first.',
+      })
+      return toFailureResult()
+    }
+
+    return await invokeOperation(() => windowPreload?.updateSyncTaskIgnorePatterns?.({
+      task: toPlainObject(task),
+      ignorePatterns: structuredClone(toRaw(ignorePatterns)),
+    }))
+  }
+
+  async function updateGlobalIgnorePatterns(ignorePatterns) {
+    return await invokeOperation(() => windowPreload?.updateGlobalIgnorePatterns?.({
+      ignorePatterns: structuredClone(toRaw(ignorePatterns)),
+    }))
+  }
+
   async function deleteSyncTask(task) {
     if (!task?.rcloneRemote || !task?.localBasePath) {
       await messageBox.showWarningMessage({
@@ -145,6 +185,8 @@ export function useTaskOperations(windowPreload) {
     selectRemoteFolder,
     createSyncTask,
     updateSyncTask,
+    updateSyncTaskIgnorePatterns,
+    updateGlobalIgnorePatterns,
     deleteSyncTask,
   }
 }

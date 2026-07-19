@@ -1,58 +1,75 @@
 <script setup lang="ts">
 import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
+import { formatIgnorePatterns, parseIgnorePatterns, useTaskOperations } from '#src/electron/renderer/src/composables/useTaskOperations.js'
+import { ref } from 'vue'
 import Button from '../../shared/Button.vue'
 import ModalShell from './ModalShell.vue'
 
-defineEmits(['onClickCancel'])
+const props = defineProps({
+  context: {
+    type: Object,
+    default: () => ({}),
+  },
+})
+
+const emit = defineEmits(['onClickCancel', 'onClickConfirm'])
+const taskOperations = useTaskOperations(window.syncTaskModal)
+
+const taskPatternsText = ref(formatIgnorePatterns(props.context?.selectedSyncTask?.ignorePatterns))
+const globalPatternsText = formatIgnorePatterns(props.context?.globalIgnorePatterns)
+const isSubmitting = ref(false)
+
+async function submitPatterns() {
+  if (isSubmitting.value)
+    return
+
+  const selectedSyncTask = props.context?.selectedSyncTask
+  const ignorePatterns = parseIgnorePatterns(taskPatternsText.value)
+
+  isSubmitting.value = true
+  try {
+    const result = await taskOperations.updateSyncTaskIgnorePatterns(selectedSyncTask, ignorePatterns)
+    if (result?.success)
+      emit('onClickConfirm')
+  }
+  finally {
+    isSubmitting.value = false
+  }
+}
 </script>
 
 <template>
   <ModalShell :title="$t('syncTasks.modals.editPatterns.title')" :message="$t('syncTasks.modals.editPatterns.message')">
     <div class="content-stage h-full w-full px-10 py-4 grid grid-rows-[max-content_1fr_max-content] grid-cols-[2fr_1fr] gap-x-8 gap-y-2 content-stretch">
-      <label class="col-start-1 title text-(--text-primary)">
+      <label for="task-ignore-patterns" class="col-start-1 title text-(--text-primary)">
         {{ $t(`syncTasks.modals.${SYNC_TASK_MODALS.EDIT_PATTERNS}.taskSpecificPatterns.title`) }}
       </label>
       <textarea
+        id="task-ignore-patterns"
+        v-model="taskPatternsText"
         class="pattern-area enabled-area "
         placeholder="Type patterns here..."
         autofocus
-      >
-.DS_Store,
-Thumbs.db,
-*.swp,
-*.swo,
-~$*,
-*.tmp,
-.vscode/,
-.idea/,
-.git/,
-node_modules/
-      </textarea>
+      />
       <p class="description text-(--text-subtle)">
         {{ $t(`syncTasks.modals.${SYNC_TASK_MODALS.EDIT_PATTERNS}.taskSpecificPatterns.description`) }}
       </p>
-      <label class="col-start-2 title text-gray-400">
+      <label for="global-ignore-patterns" class="col-start-2 title text-gray-400">
         {{ $t(`syncTasks.modals.${SYNC_TASK_MODALS.EDIT_PATTERNS}.globalPatterns.title`) }}
       </label>
-      <textarea class="pattern-area disabled-area" disabled>
-        .DS_Store,
-Thumbs.db,
-*.swp,
-*.swo,
-~$*,
-*.tmp,
-.vscode/,
-.idea/,
-.git/,
-node_modules/
-      </textarea>
+      <textarea
+        id="global-ignore-patterns"
+        class="pattern-area readonly-area"
+        :value="globalPatternsText"
+        readonly
+      />
       <p class="description text-gray-400">
         {{ $t(`syncTasks.modals.${SYNC_TASK_MODALS.EDIT_PATTERNS}.globalPatterns.description`) }}
       </p>
     </div>
 
     <template #footer>
-      <Button :primary="true" :wide="true">
+      <Button :primary="true" :wide="true" :disabled="isSubmitting" @click="submitPatterns">
         {{ $t('syncTasks.modals.common.confirm') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
@@ -78,8 +95,8 @@ node_modules/
   border-(--primary) outline-none ring-2 ring-blue-500/10;
 }
 
-.disabled-area{
-@apply disabled:bg-gray-50 disabled:text-gray-400;
+.readonly-area{
+@apply bg-gray-50 text-gray-400;
 }
 
 .description{

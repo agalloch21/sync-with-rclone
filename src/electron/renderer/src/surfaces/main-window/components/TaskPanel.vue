@@ -15,6 +15,7 @@ const taskOperations = useTaskOperations(window?.mainWindow)
 
 const servers = ref([])
 const syncTasks = ref([])
+const globalIgnorePatterns = ref([])
 const tasksByServerName = computed(() => {
   const groupedTasks = new Map()
   for (const syncTask of syncTasks.value) {
@@ -47,6 +48,7 @@ function applyMainWindowData(result) {
   if (!result?.success) {
     servers.value = []
     syncTasks.value = []
+    globalIgnorePatterns.value = []
     showTaskPanelLoadError(result?.error)
     return
   }
@@ -54,6 +56,7 @@ function applyMainWindowData(result) {
   const payload = unwrapResult(result)
   servers.value = payload?.servers || []
   syncTasks.value = payload?.syncTasks || []
+  globalIgnorePatterns.value = payload?.globalIgnorePatterns || []
 
   updateTaskPanelSelection()
 }
@@ -118,6 +121,7 @@ async function openSyncTaskModal(modalName) {
   window.mainWindow?.openSyncTaskModal?.(modalName, {
     selectedServer: createSerializableServer(selectedServer.value),
     selectedSyncTask: createSerializableSyncTask(selectedSyncTask.value),
+    globalIgnorePatterns: structuredClone(toRaw(globalIgnorePatterns.value)),
   })
 }
 </script>

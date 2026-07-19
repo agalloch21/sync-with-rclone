@@ -118,8 +118,6 @@ async function openSyncTaskModal(modalName) {
   window.mainWindow?.openSyncTaskModal?.(modalName, {
     selectedServer: createSerializableServer(selectedServer.value),
     selectedSyncTask: createSerializableSyncTask(selectedSyncTask.value),
-    // selectedServerName: selectedServer.value?.name || null
-    // selectedSyncTaskPath: selectedSyncTask..value?.name
   })
 }
 </script>

@@ -65,7 +65,15 @@ export default {
       },
       [SYNC_TASK_MODALS.EDIT_PATTERNS]: {
         title: 'Edit Patterns',
-        message: 'Edit the patterns',
+        message: 'Set extra ignore patterns for sync task',
+        taskSpecificPatterns: {
+          title: 'Task-specific Ignore Patterns',
+          description: 'These patterns will work in conjunction with .ignore file to filter files when syncing.',
+        },
+        globalPatterns: {
+          title: 'Global Ignore Patterns',
+          description: 'These patterns can be changed in settings panel.',
+        },
       },
       [SYNC_TASK_MODALS.CONFIRM_DELETE_SERVER]: {
         title: 'Delete Server',
@@ -75,6 +83,15 @@ export default {
         title: 'Delete Task',
         message: 'Confirm deleting this sync task',
       },
+    },
+  },
+  settingsPanel: {
+    common: {
+      apply: 'Apply',
+    },
+    globalPatterns: {
+      title: 'Global Ignore Patterns',
+      description: 'These patterns will be applied to all sync tasks.',
     },
   },
   [STEPS.ANALYZE]: {

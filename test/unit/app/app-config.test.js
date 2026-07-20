@@ -4,13 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { ensureAppConfig, getDefaultAppConfigPath, loadAppConfig, saveAppConfig } from '#src/app/configuration/app-config.js'
-import { getDefaultAppDirectory } from '#src/app/runtime-paths.js'
-
-test('getDefaultAppConfigPath uses the application name constant', () => {
-  const expectedPath = path.posix.join(getDefaultAppDirectory(), 'config', 'config.json')
-  assert.equal(getDefaultAppConfigPath(), expectedPath)
-})
+import { ensureAppConfig, loadAppConfig } from '#src/app/configuration/app-config.js'
 
 test('loadAppConfig reads and normalizes sync config', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-'))
@@ -154,29 +148,4 @@ test('ensureAppConfig does not overwrite an existing config', async () => {
     globalIgnorePatterns: ['keep'],
     syncTasks: [],
   })
-})
-
-test('saveAppConfig writes normalized config JSON', async () => {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-save-config-'))
-  const configPath = path.join(tempDir, 'config.json')
-
-  const saved = await saveAppConfig({
-    globalIgnorePatterns: ['.DS_Store'],
-    syncTasks: [
-      {
-        displayName: 'Projects',
-        rcloneRemote: 'synology',
-        localBasePath: './test/fixtures/local',
-        remoteBasePath: 'Projects',
-        ignorePatterns: [],
-      },
-    ],
-  }, { configPath })
-
-  assert.equal(saved.path, configPath)
-  assert.ok(path.isAbsolute(saved.syncTasks[0].localBasePath))
-  const savedContent = JSON.parse(await fs.readFile(configPath, 'utf8'))
-  assert.deepEqual(savedContent.globalIgnorePatterns, ['.DS_Store'])
-  assert.equal(savedContent.syncTasks[0].displayName, 'Projects')
-  assert.equal(Object.hasOwn(savedContent.syncTasks[0], 'name'), false)
 })

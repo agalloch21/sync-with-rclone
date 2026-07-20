@@ -6,6 +6,7 @@ export const APP_ERROR_CODE = Object.freeze({
   PATH_NOT_DIRECTORY: 'path.not_directory',
 
   CONFIG_LOAD_FAILED: 'config.load_failed',
+  CONFIG_UPDATE_IN_PROGRESS: 'config.update_in_progress',
   CONFIG_NO_MATCHING_SYNC_TASK: 'config.no_matching_sync_task',
   CONFIG_REMOTE_PATH_OUTSIDE_TASK: 'config.remote_path_outside_task',
 

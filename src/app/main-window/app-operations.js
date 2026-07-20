@@ -1,5 +1,6 @@
 import EventEmitter from 'node:events'
 import * as serverOperations from '../configuration/server-operations.js'
+import * as settingsOperations from '../configuration/settings-operations.js'
 import * as taskOperations from '../configuration/task-operations.js'
 
 export const configEventEmitter = new EventEmitter()
@@ -94,7 +95,7 @@ export async function listSyncTasks() {
 }
 
 export async function listGlobalIgnorePatterns() {
-  return await taskOperations.listGlobalIgnorePatterns()
+  return await settingsOperations.listGlobalIgnorePatterns()
 }
 
 export async function createSyncTask(task) {
@@ -116,7 +117,7 @@ export async function updateSyncTaskIgnorePatterns(task, ignorePatterns) {
 }
 
 export async function updateGlobalIgnorePatterns(ignorePatterns) {
-  const result = await taskOperations.updateGlobalIgnorePatterns(ignorePatterns)
+  const result = await settingsOperations.updateGlobalIgnorePatterns(ignorePatterns)
   notifyConfigUpdate()
   return result
 }

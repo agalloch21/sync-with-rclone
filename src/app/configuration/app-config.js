@@ -1,8 +1,13 @@
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
 import { normalizeLocalPath } from '../path-utils.js'
 import { getRuntimePaths } from '../runtime-paths.js'
+
+const updatingConfigPaths = new Set()
+
+//* ================================ App Config Helpers ==============================*/
 
 function getDefaultAppConfigPath() {
   return getRuntimePaths().configPath
@@ -53,6 +58,26 @@ function serializeAppConfig(config) {
   }, null, 2)}\n`
 }
 
+function requireConfig(config) {
+  if (!config)
+    throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Sync configuration does not exist.')
+
+  return config
+}
+
+//* ================================ Sync Task Helpers ==============================*/
+
+function taskMatchesReference(candidate, task = {}) {
+  return candidate.rcloneRemote === task.rcloneRemote
+    && candidate.localBasePath === task.localBasePath
+}
+
+function findTaskIndex(tasks, task) {
+  return tasks.findIndex(candidate => taskMatchesReference(candidate, task))
+}
+
+//* ================================ App Config File Operations ==============================*/
+
 export async function ensureAppConfig(runtimePaths = getRuntimePaths()) {
   await fs.mkdir(runtimePaths.configDirectory, { recursive: true })
 
@@ -92,17 +117,211 @@ export async function loadAppConfig(configPath = getDefaultAppConfigPath()) {
   }
 }
 
-export async function saveAppConfig(config, runtimePaths = getRuntimePaths()) {
+async function saveAppConfig(config, runtimePaths = getRuntimePaths()) {
   const normalizedConfig = normalizeAppConfig(config)
-  await fs.writeFile(runtimePaths.configPath, serializeAppConfig(normalizedConfig), 'utf8')
+  const configPath = runtimePaths.configPath
+  const temporaryPath = path.join(
+    path.dirname(configPath),
+    `.${path.basename(configPath)}.${process.pid}.${randomUUID()}.tmp`,
+  )
+
+  try {
+    await fs.writeFile(temporaryPath, serializeAppConfig(normalizedConfig), 'utf8')
+    await fs.rename(temporaryPath, configPath)
+  }
+  finally {
+    await fs.rm(temporaryPath, { force: true })
+  }
+
   return {
-    path: runtimePaths.configPath,
+    path: configPath,
     ...normalizedConfig,
   }
 }
 
-export {
-  getDefaultAppConfigPath,
-  normalizeAppConfig,
-  serializeAppConfig,
+async function updateAppConfig(mutator, runtimePaths = getRuntimePaths()) {
+  const configPath = runtimePaths.configPath
+  if (updatingConfigPaths.has(configPath)) {
+    throwAppError(
+      APP_ERROR_CODE.CONFIG_UPDATE_IN_PROGRESS,
+      'Another configuration update is already in progress.',
+      { meta: { configPath } },
+    )
+  }
+
+  updatingConfigPaths.add(configPath)
+
+  try {
+    const currentConfig = await loadAppConfig(configPath)
+    const nextConfig = await mutator(currentConfig)
+
+    if (nextConfig == null)
+      return currentConfig
+
+    return await saveAppConfig(nextConfig, runtimePaths)
+  }
+  finally {
+    updatingConfigPaths.delete(configPath)
+  }
+}
+
+//* ================================ Settings Operations ==============================*/
+
+export async function listGlobalIgnorePatterns() {
+  const config = await loadAppConfig()
+  return config?.globalIgnorePatterns || []
+}
+
+export async function updateGlobalIgnorePatterns(ignorePatterns) {
+  const savedConfig = await updateAppConfig((loadedConfig) => {
+    const config = requireConfig(loadedConfig)
+    return {
+      ...config,
+      globalIgnorePatterns: [...ignorePatterns],
+    }
+  })
+
+  return savedConfig.globalIgnorePatterns
+}
+
+//* ================================ Sync Task Operations ==============================*/
+
+export async function listSyncTasks() {
+  const config = await loadAppConfig()
+  return config?.syncTasks
+}
+
+export async function createSyncTask(task) {
+  const savedConfig = await updateAppConfig((loadedConfig) => {
+    const config = requireConfig(loadedConfig)
+    if (findTaskIndex(config.syncTasks, task) !== -1) {
+      throwAppError(APP_ERROR_CODE.SYNC_TASK_ALREADY_EXISTS, 'A sync task already uses this server and local folder.', {
+        meta: {
+          rcloneRemote: task.rcloneRemote,
+          localBasePath: task.localBasePath,
+        },
+      })
+    }
+
+    return {
+      ...config,
+      syncTasks: [...config.syncTasks, task],
+    }
+  })
+
+  return savedConfig.syncTasks.at(-1)
+}
+
+export async function updateSyncTask(task, expectedTask) {
+  let taskIndex
+  const savedConfig = await updateAppConfig((loadedConfig) => {
+    const config = requireConfig(loadedConfig)
+    taskIndex = findTaskIndex(config.syncTasks, task)
+    if (taskIndex === -1) {
+      throwAppError(APP_ERROR_CODE.SYNC_TASK_NOT_FOUND, 'Sync task was not found.', {
+        meta: task,
+      })
+    }
+
+    const conflictingIndex = findTaskIndex(config.syncTasks, expectedTask)
+    if (conflictingIndex !== -1 && conflictingIndex !== taskIndex) {
+      throwAppError(APP_ERROR_CODE.SYNC_TASK_ALREADY_EXISTS, 'A sync task already uses this server and local folder.', {
+        meta: {
+          rcloneRemote: expectedTask.rcloneRemote,
+          localBasePath: expectedTask.localBasePath,
+        },
+      })
+    }
+
+    const nextTasks = [...config.syncTasks]
+    nextTasks[taskIndex] = {
+      ...config.syncTasks[taskIndex],
+      ...expectedTask,
+    }
+
+    return {
+      ...config,
+      syncTasks: nextTasks,
+    }
+  })
+
+  return savedConfig.syncTasks[taskIndex]
+}
+
+export async function updateSyncTaskIgnorePatterns(task, ignorePatterns) {
+  let taskIndex
+  const savedConfig = await updateAppConfig((loadedConfig) => {
+    const config = requireConfig(loadedConfig)
+    taskIndex = findTaskIndex(config.syncTasks, task)
+    if (taskIndex === -1) {
+      throwAppError(APP_ERROR_CODE.SYNC_TASK_NOT_FOUND, 'Sync task was not found.', {
+        meta: task,
+      })
+    }
+
+    const nextTasks = [...config.syncTasks]
+    nextTasks[taskIndex] = {
+      ...config.syncTasks[taskIndex],
+      ignorePatterns: [...ignorePatterns],
+    }
+
+    return {
+      ...config,
+      syncTasks: nextTasks,
+    }
+  })
+
+  return savedConfig.syncTasks[taskIndex]
+}
+
+export async function retargetSyncTasks(serverName, expectedServerName) {
+  const savedConfig = await updateAppConfig((loadedConfig) => {
+    const config = requireConfig(loadedConfig)
+    const nextTasks = config.syncTasks.map(task => task.rcloneRemote === serverName
+      ? { ...task, rcloneRemote: expectedServerName }
+      : task)
+
+    if (nextTasks.every((task, index) => task === config.syncTasks[index]))
+      return null
+
+    return {
+      ...config,
+      syncTasks: nextTasks,
+    }
+  })
+
+  return savedConfig.syncTasks
+}
+
+export async function deleteSyncTask(task) {
+  let result
+
+  await updateAppConfig((config) => {
+    if (!config) {
+      result = {
+        success: false,
+        code: 'sync_task.config_missing',
+        message: 'Sync config does not exist.',
+      }
+      return null
+    }
+
+    const nextTasks = config.syncTasks.filter(candidate => !taskMatchesReference(candidate, task))
+    if (nextTasks.length === config.syncTasks.length) {
+      result = {
+        success: false,
+        code: 'sync_task.not_found',
+        message: 'Sync task was not found.',
+      }
+      return null
+    }
+
+    result = { success: true }
+    return {
+      ...config,
+      syncTasks: nextTasks,
+    }
+  })
+
+  return result
 }

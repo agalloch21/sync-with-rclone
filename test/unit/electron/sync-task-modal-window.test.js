@@ -60,6 +60,33 @@ test('sync task modal createServer handler rejects non-object IPC payload shape'
   assert.equal(result.error.code, 'ipc.invalid_payload')
 })
 
+test('sync task modal createServer handler delegates execution to the main progress controller', async () => {
+  await withFakeAppRuntime({}, async () => {
+    let receivedOperation = null
+    const handlers = createSyncTaskModalHandlers({
+      async runProgressOperation({ operation, execute }) {
+        receivedOperation = operation
+        await execute()
+        return { success: true }
+      },
+    })
+
+    const result = await handlers.createServerHandler(null, {
+      expectedServerName: 'synology',
+      protocolType: 'sftp',
+      protocolFields: {
+        host: 'nas.local',
+        port: 22,
+        user: 'xiaobo',
+        pass: 'secret',
+      },
+    })
+
+    assert.equal(result.success, true)
+    assert.equal(receivedOperation, 'server.create')
+  })
+})
+
 test('sync task modal createSyncTask handler persists a mapping as an OperationResult', async () => {
   await withFakeAppRuntime({
     appConfig: { globalIgnorePatterns: [], syncTasks: [] },

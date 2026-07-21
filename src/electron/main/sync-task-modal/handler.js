@@ -2,6 +2,7 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { createServer, createSyncTask, getServer, listServers, updateServer, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/main-window/app-operations.js'
+import { APP_OPERATION } from '#src/app/operation-progress-contract.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import { getActiveModalWindow } from '../app-state.js'
 import { openFolderDialog } from '../folder-dialog/window.js'
@@ -27,7 +28,17 @@ export function createLocalFolderDialogOptions(currentPath, homeDirectory = os.h
   }
 }
 
-export function createSyncTaskModalHandlers() {
+async function runHeadlessOperation({ execute }) {
+  try {
+    const value = await execute()
+    return value === undefined ? toSuccessfulResult() : toSuccessfulResult(value)
+  }
+  catch (error) {
+    return toFailureResult(error)
+  }
+}
+
+export function createSyncTaskModalHandlers({ runProgressOperation = runHeadlessOperation } = {}) {
   async function listServersHandler(_event) {
     try {
       const result = await listServers()
@@ -55,9 +66,10 @@ export function createSyncTaskModalHandlers() {
       assertPayloadObject(payload)
       const { expectedServerName, protocolType, protocolFields } = payload || {}
 
-      await createServer(expectedServerName, protocolType, protocolFields)
-
-      return toSuccessfulResult()
+      return await runProgressOperation({
+        operation: APP_OPERATION.CREATE_SERVER,
+        execute: () => createServer(expectedServerName, protocolType, protocolFields),
+      })
     }
     catch (error) {
       return toFailureResult(error)

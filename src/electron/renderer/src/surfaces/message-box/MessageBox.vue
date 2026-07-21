@@ -3,6 +3,7 @@ import { MESSAGE_BOX_LEVEL, MESSAGE_BOX_MODE } from '#src/app/main-window/messag
 import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getOperationProgressMessageKey } from './operation-progress-presentation.js'
 
 const { t } = useI18n()
 
@@ -10,11 +11,24 @@ const state = ref({
   mode: MESSAGE_BOX_MODE.MESSAGE,
   level: MESSAGE_BOX_LEVEL.INFO,
   title: 'Message',
+  titleKey: '',
   message: '',
+  messageKey: '',
   detail: '',
+  progress: null,
 })
 
 let unsubscribe = null
+
+const displayedTitle = computed(() => state.value.titleKey ? t(state.value.titleKey) : state.value.title)
+const displayedMessage = computed(() => {
+  const progressKey = getOperationProgressMessageKey(state.value.progress)
+  if (progressKey)
+    return t(progressKey)
+  if (state.value.messageKey)
+    return t(state.value.messageKey)
+  return state.value.message
+})
 
 const iconClass = computed(() => {
   if (state.value.mode === MESSAGE_BOX_MODE.PROGRESS)
@@ -63,7 +77,7 @@ onUnmounted(() => {
 <template>
   <div class="message-box-stage h-dvh min-h-0 flex flex-col bg-(--surface-muted) text-(--text-primary)">
     <header class="h-10 shrink-0 flex items-center justify-center bg-(--surface-soft) font-semibold">
-      {{ state.title }}
+      {{ displayedTitle }}
     </header>
     <main class="min-h-0 flex-1 px-6 py-5 flex gap-4 items-center">
       <div class="shrink-0 pt-0.5">
@@ -71,7 +85,7 @@ onUnmounted(() => {
       </div>
       <div class="min-w-0 flex-1 flex flex-col gap-2">
         <p class="text-sm font-semibold leading-5 break-words">
-          {{ state.message }}
+          {{ displayedMessage }}
         </p>
         <p v-if="state.detail" class="max-h-20 overflow-auto whitespace-pre-wrap break-words text-xs leading-4 text-(--text-subtle)">
           {{ state.detail }}

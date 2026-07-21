@@ -44,6 +44,19 @@ export function useServerOperations(windowPreload) {
     }
   }
 
+  async function invokeMainManagedOperation(operation) {
+    try {
+      return await operation()
+    }
+    catch (error) {
+      await messageBox.showErrorMessage({
+        message: 'Something wrong when executing IPC functions.',
+        detail: error?.message,
+      })
+      return toFailureResult(error)
+    }
+  }
+
   async function listServers() {
     return await invokeOperation(() => windowPreload?.listServers?.())
   }
@@ -80,7 +93,7 @@ export function useServerOperations(windowPreload) {
     }
 
     const payload = { expectedServerName, protocolType, protocolFields: toPlainObject(protocolFields) }
-    return await invokeOperation(() => windowPreload?.createServer?.(payload))
+    return await invokeMainManagedOperation(() => windowPreload?.createServer?.(payload))
   }
 
   async function updateServer(serverName, expectedServerName, protocolType, protocolFields) {

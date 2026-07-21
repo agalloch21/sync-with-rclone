@@ -34,8 +34,11 @@ function createMessageBoxState(payload = {}) {
     level,
 
     title: payload.title || 'Message',
+    titleKey: payload.titleKey || '',
     message: payload.message || '',
+    messageKey: payload.messageKey || '',
     detail: payload.detail || '',
+    progress: payload.progress || null,
   }
 }
 
@@ -144,7 +147,7 @@ function createWindow(state) {
     messageWindow.webContents.openDevTools({ mode: 'detach' })
 }
 
-function updateMessageBox(payload = {}) {
+export function updateMessageBox(payload = {}) {
   currentState = createMessageBoxState({
     ...currentState,
     ...payload,

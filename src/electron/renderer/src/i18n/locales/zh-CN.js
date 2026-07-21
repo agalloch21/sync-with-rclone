@@ -6,6 +6,33 @@ export default {
     confirm: '确认',
     ok: '确定',
   },
+  operationProgress: {
+    common: {
+      title: '处理中',
+      preparing: '正在准备操作…',
+      failedTitle: '操作失败',
+      errorTitle: '错误',
+      failedMessage: '操作失败。',
+    },
+    createServer: {
+      title: '正在创建服务器',
+      save: {
+        started: '正在保存服务器配置…',
+        succeeded: '服务器配置已保存。',
+        failed: '保存服务器配置失败。',
+      },
+      testConnection: {
+        started: '正在测试服务器连接…',
+        succeeded: '服务器连接成功。',
+        failed: '服务器连接失败。',
+      },
+      rollback: {
+        started: '正在移除临时服务器配置…',
+        succeeded: '临时服务器配置已移除。',
+        failed: '移除临时服务器配置失败。',
+      },
+    },
+  },
   review: {
     title: '检查同步差异',
   },

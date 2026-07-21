@@ -17,6 +17,33 @@ export default {
     },
     version: 'version',
   },
+  operationProgress: {
+    common: {
+      title: 'Working',
+      preparing: 'Preparing the operation...',
+      failedTitle: 'Operation Failed',
+      errorTitle: 'Error',
+      failedMessage: 'The operation failed.',
+    },
+    createServer: {
+      title: 'Creating Server',
+      save: {
+        started: 'Saving the server configuration...',
+        succeeded: 'Server configuration saved.',
+        failed: 'Failed to save the server configuration.',
+      },
+      testConnection: {
+        started: 'Testing the server connection...',
+        succeeded: 'Server connection succeeded.',
+        failed: 'Server connection failed.',
+      },
+      rollback: {
+        started: 'Removing the temporary server configuration...',
+        succeeded: 'Temporary server configuration removed.',
+        failed: 'Failed to remove the temporary server configuration.',
+      },
+    },
+  },
   syncTasks: {
     task: {
       extra: {

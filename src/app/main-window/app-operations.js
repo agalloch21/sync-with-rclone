@@ -56,8 +56,8 @@ export async function getFolderTree(name, folderPath = '') {
 export async function testServerConnection(name) {
   await serverOperations.testServerConnection(name)
 }
-export async function createServer(expectedName, protocolType, protocolFields) {
-  await serverOperations.createServerConnection(expectedName, protocolType, protocolFields)
+export async function createServer(expectedName, protocolType, protocolFields, onProgress) {
+  await serverOperations.createServerConnection(expectedName, protocolType, protocolFields, onProgress)
 
   notifyConfigUpdate()
 }

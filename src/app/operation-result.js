@@ -3,7 +3,7 @@ import { AppError } from './app-errors.js'
 export function toSuccessfulResult(value) {
   return {
     success: true,
-    ...(value !== null && { value }),
+    ...((value !== undefined && value !== null) && { value }),
   }
 }
 

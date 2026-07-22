@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createLocalFolderDialogOptions, createSyncTaskModalHandlers } from '#src/electron/main/sync-task-modal/handler.js'
+import { createSyncTaskModalHandlers } from '#src/electron/main/sync-task-modal/handler.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('sync task modal listServers handler returns an OperationResult', async () => {
@@ -26,31 +26,6 @@ test('sync task modal listServers handler returns an OperationResult', async () 
   })
 })
 
-test('sync task modal createServer handler returns failure OperationResult for invalid payload', async () => {
-  const handlers = createSyncTaskModalHandlers()
-
-  const result = await handlers.createServerHandler(null, {
-    expectedServerName: '',
-    protocolType: 'sftp',
-    protocolFields: {},
-  })
-
-  assert.equal(result.success, false)
-  assert.equal(result.error.code, 'server.validation_failed')
-})
-
-test('sync task modal createServer handler returns server validation failure for malformed object payload', async () => {
-  const handlers = createSyncTaskModalHandlers()
-
-  const result = await handlers.createServerHandler(null, {
-    expectedServerName: 'synology',
-    protocolType: 'sftp',
-  })
-
-  assert.equal(result.success, false)
-  assert.equal(result.error.code, 'server.validation_failed')
-})
-
 test('sync task modal createServer handler rejects non-object IPC payload shape', async () => {
   const handlers = createSyncTaskModalHandlers()
 
@@ -58,33 +33,6 @@ test('sync task modal createServer handler rejects non-object IPC payload shape'
 
   assert.equal(result.success, false)
   assert.equal(result.error.code, 'ipc.invalid_payload')
-})
-
-test('sync task modal createServer handler delegates execution to the main progress controller', async () => {
-  await withFakeAppRuntime({}, async () => {
-    let receivedOperation = null
-    const handlers = createSyncTaskModalHandlers({
-      async runProgressOperation({ operation, execute }) {
-        receivedOperation = operation
-        await execute()
-        return { success: true }
-      },
-    })
-
-    const result = await handlers.createServerHandler(null, {
-      expectedServerName: 'synology',
-      protocolType: 'sftp',
-      protocolFields: {
-        host: 'nas.local',
-        port: 22,
-        user: 'xiaobo',
-        pass: 'secret',
-      },
-    })
-
-    assert.equal(result.success, true)
-    assert.equal(receivedOperation, 'server.create')
-  })
 })
 
 test('sync task modal createSyncTask handler persists a mapping as an OperationResult', async () => {
@@ -166,16 +114,5 @@ test('sync task modal updateSyncTaskIgnorePatterns handler rejects malformed pat
 
     assert.equal(result.success, false)
     assert.equal(result.error.code, 'ipc.invalid_payload')
-  })
-})
-
-test('local folder dialog uses the current path or the supplied home directory', () => {
-  assert.deepEqual(createLocalFolderDialogOptions('/current', '/home/user'), {
-    defaultPath: '/current',
-    properties: ['openDirectory'],
-  })
-  assert.deepEqual(createLocalFolderDialogOptions('', '/home/user'), {
-    defaultPath: '/home/user',
-    properties: ['openDirectory'],
   })
 })

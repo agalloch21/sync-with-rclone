@@ -3,8 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { clearActiveModalWindow, getMainWindow, setActiveModalWindow } from '../app-state.js'
 import { destroyFolderDialog } from '../folder-dialog/window.js'
-import { closeMessageBox, createMessageBoxBridgeHandlers, openMessageBox, updateMessageBox } from '../message-box/window.js'
-import { createOperationProgressDialogController } from '../operation-progress-dialog.js'
+import { createMessageBoxBridgeHandlers } from '../message-box/window.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 import { createSyncTaskModalHandlers } from './handler.js'
 
@@ -34,14 +33,7 @@ export function createSyncTaskModalWindow(modalName, context = {}) {
   })
   setActiveModalWindow(modalWindow)
 
-  const runProgressOperation = createOperationProgressDialogController({
-    openMessageBox,
-    updateMessageBox,
-    closeMessageBox,
-  })
-  const handlers = createSyncTaskModalHandlers({
-    runProgressOperation,
-  })
+  const handlers = createSyncTaskModalHandlers()
   const messageBoxHandlers = createMessageBoxBridgeHandlers()
 
   function closeModal() {

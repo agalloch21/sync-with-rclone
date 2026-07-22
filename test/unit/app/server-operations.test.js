@@ -10,7 +10,6 @@ import {
   renameServerConnection,
   updateServerConnection,
 } from '#src/app/configuration/server-operations.js'
-import { APP_OPERATION, runWithOperationProgress } from '#src/app/operation-progress.js'
 
 const originalEnv = {}
 const originalResourcesPath = process.resourcesPath
@@ -145,16 +144,12 @@ test('createServerConnection validates, creates, and tests a server connection',
   const runtime = await createFakeRuntime()
   const events = []
 
-  await runWithOperationProgress({
-    operationId: 'create-server-success',
-    operation: APP_OPERATION.CREATE_SERVER,
-    publish: event => events.push(event),
-  }, () => createServerConnection('synology', 'sftp', {
+  await createServerConnection('synology', 'sftp', {
     host: ' nas.local ',
     port: '22',
     user: ' xiaobo ',
     pass: ' secret ',
-  }))
+  }, step => events.push(step))
 
   assert.deepEqual(await runtime.readState(), {
     synology: {
@@ -170,12 +165,7 @@ test('createServerConnection validates, creates, and tests a server connection',
     ['config', 'create'],
     ['lsf', '--max-depth'],
   ])
-  assert.deepEqual(events.map(({ step, status }) => [step, status]), [
-    ['server.save', 'started'],
-    ['server.save', 'succeeded'],
-    ['server.testConnection', 'started'],
-    ['server.testConnection', 'succeeded'],
-  ])
+  assert.deepEqual(events, ['save', 'testConnection'])
 })
 
 test('listServerConnections removes password fields from server config', async () => {
@@ -206,16 +196,12 @@ test('createServerConnection rolls back the remote when connection testing fails
   const events = []
 
   await assert.rejects(
-    () => runWithOperationProgress({
-      operationId: 'create-server-failure',
-      operation: APP_OPERATION.CREATE_SERVER,
-      publish: event => events.push(event),
-    }, () => createServerConnection('synology', 'sftp', {
+    () => createServerConnection('synology', 'sftp', {
       host: 'nas.local',
       port: 22,
       user: 'xiaobo',
       pass: 'secret',
-    })),
+    }, step => events.push(step)),
     {
       name: 'AppError',
       code: APP_ERROR_CODE.SERVER_CONNECTION_FAILED,
@@ -223,14 +209,7 @@ test('createServerConnection rolls back the remote when connection testing fails
     },
   )
   assert.deepEqual(await runtime.readState(), {})
-  assert.deepEqual(events.map(({ step, status }) => [step, status]), [
-    ['server.save', 'started'],
-    ['server.save', 'succeeded'],
-    ['server.testConnection', 'started'],
-    ['server.testConnection', 'failed'],
-    ['server.rollback', 'started'],
-    ['server.rollback', 'succeeded'],
-  ])
+  assert.deepEqual(events, ['save', 'testConnection', 'rollback'])
 })
 
 test('createServerConnection reports a failed rollback without replacing the connection error', async () => {
@@ -238,30 +217,19 @@ test('createServerConnection reports a failed rollback without replacing the con
   const events = []
 
   await assert.rejects(
-    () => runWithOperationProgress({
-      operationId: 'create-server-rollback-failure',
-      operation: APP_OPERATION.CREATE_SERVER,
-      publish: event => events.push(event),
-    }, () => createServerConnection('synology', 'sftp', {
+    () => createServerConnection('synology', 'sftp', {
       host: 'nas.local',
       port: 22,
       user: 'xiaobo',
       pass: 'secret',
-    })),
+    }, step => events.push(step)),
     {
       name: 'AppError',
       code: APP_ERROR_CODE.SERVER_CONNECTION_FAILED,
       message: 'Server connection failed.',
     },
   )
-  assert.deepEqual(events.map(({ step, status }) => [step, status]), [
-    ['server.save', 'started'],
-    ['server.save', 'succeeded'],
-    ['server.testConnection', 'started'],
-    ['server.testConnection', 'failed'],
-    ['server.rollback', 'started'],
-    ['server.rollback', 'failed'],
-  ])
+  assert.deepEqual(events, ['save', 'testConnection', 'rollback'])
   assert.deepEqual(await runtime.readState(), {
     synology: {
       type: 'sftp',
@@ -282,26 +250,19 @@ test('createServerConnection maps duplicate backend remote to server already exi
 
   const events = []
   await assert.rejects(
-    () => runWithOperationProgress({
-      operationId: 'create-server-duplicate',
-      operation: APP_OPERATION.CREATE_SERVER,
-      publish: event => events.push(event),
-    }, () => createServerConnection('synology', 'sftp', {
+    () => createServerConnection('synology', 'sftp', {
       host: 'nas.local',
       port: 22,
       user: 'xiaobo',
       pass: 'secret',
-    })),
+    }, step => events.push(step)),
     {
       name: 'AppError',
       code: APP_ERROR_CODE.SERVER_ALREADY_EXISTS,
       message: 'Server already exists.',
     },
   )
-  assert.deepEqual(events.map(({ step, status }) => [step, status]), [
-    ['server.save', 'started'],
-    ['server.save', 'failed'],
-  ])
+  assert.deepEqual(events, ['save'])
 })
 
 test('updateServerConnection maps missing backend remote to server not found', async () => {

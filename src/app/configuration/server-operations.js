@@ -1,5 +1,4 @@
 import { APP_ERROR_CODE, getErrorCode, throwAppError } from '../app-errors.js'
-import { OPERATION_PROGRESS_STATUS, reportOperationProgress, SERVER_CREATE_PROGRESS_STEP } from '../operation-progress.js'
 import { getProtocolDefinition } from './protocol-registry.js'
 import * as rcloneRemotes from './rclone-config.js'
 
@@ -127,64 +126,31 @@ export async function testServerConnection(name) {
   }
 }
 
-export async function createServerConnection(expectedName, protocolType, protocolFields) {
+export async function createServerConnection(expectedName, protocolType, protocolFields, onProgress) {
   const config = buildRcloneConfig(protocolType, protocolFields)
 
-  reportOperationProgress({
-    step: SERVER_CREATE_PROGRESS_STEP.SAVE,
-    status: OPERATION_PROGRESS_STATUS.STARTED,
-  })
   try {
+    onProgress?.('save')
     await rcloneRemotes.createRcloneRemote(expectedName, config)
-    reportOperationProgress({
-      step: SERVER_CREATE_PROGRESS_STEP.SAVE,
-      status: OPERATION_PROGRESS_STATUS.SUCCEEDED,
-    })
   }
   catch (error) {
-    reportOperationProgress({
-      step: SERVER_CREATE_PROGRESS_STEP.SAVE,
-      status: OPERATION_PROGRESS_STATUS.FAILED,
-    })
     throwServerErrorFromRclone(error, 'Failed to create server.', {
       name: expectedName,
     })
   }
 
-  reportOperationProgress({
-    step: SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION,
-    status: OPERATION_PROGRESS_STATUS.STARTED,
-  })
   try {
+    onProgress?.('testConnection')
     await rcloneRemotes.testRcloneRemoteConnection(expectedName)
-    reportOperationProgress({
-      step: SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION,
-      status: OPERATION_PROGRESS_STATUS.SUCCEEDED,
-    })
   }
   catch (error) {
-    reportOperationProgress({
-      step: SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION,
-      status: OPERATION_PROGRESS_STATUS.FAILED,
-    })
     let rollbackError = null
-    reportOperationProgress({
-      step: SERVER_CREATE_PROGRESS_STEP.ROLLBACK,
-      status: OPERATION_PROGRESS_STATUS.STARTED,
-    })
     try {
+      onProgress?.('rollback')
       await rcloneRemotes.deleteRcloneRemote(expectedName)
-      reportOperationProgress({
-        step: SERVER_CREATE_PROGRESS_STEP.ROLLBACK,
-        status: OPERATION_PROGRESS_STATUS.SUCCEEDED,
-      })
     }
     catch (caughtRollbackError) {
       rollbackError = caughtRollbackError
-      reportOperationProgress({
-        step: SERVER_CREATE_PROGRESS_STEP.ROLLBACK,
-        status: OPERATION_PROGRESS_STATUS.FAILED,
-      })
     }
     throwServerError(APP_ERROR_CODE.SERVER_CONNECTION_FAILED, 'Server connection failed.', {
       cause: error,

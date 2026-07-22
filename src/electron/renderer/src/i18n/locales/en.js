@@ -1,5 +1,6 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
+import { APP_OPERATION } from '#src/app/operation-progress-contract.js'
 import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { STEPS } from '#src/electron/main/sync-session/steps.js'
 
@@ -21,26 +22,19 @@ export default {
     common: {
       title: 'Working',
       preparing: 'Preparing the operation...',
+      start: 'Operation starts.',
+      finish: 'Operation successfully finishes.',
+
       failedTitle: 'Operation Failed',
       errorTitle: 'Error',
       failedMessage: 'The operation failed.',
     },
-    createServer: {
+    [APP_OPERATION.CREATE_SERVER]: {
       title: 'Creating Server',
-      save: {
-        started: 'Saving the server configuration...',
-        succeeded: 'Server configuration saved.',
-        failed: 'Failed to save the server configuration.',
-      },
-      testConnection: {
-        started: 'Testing the server connection...',
-        succeeded: 'Server connection succeeded.',
-        failed: 'Server connection failed.',
-      },
-      rollback: {
-        started: 'Removing the temporary server configuration...',
-        succeeded: 'Temporary server configuration removed.',
-        failed: 'Failed to remove the temporary server configuration.',
+      steps: {
+        save: 'Saving the server configuration...',
+        testConnection: 'Testing the server connection...',
+        rollback: 'Something is wrong. Removing the temporary server configuration...',
       },
     },
   },
@@ -189,5 +183,13 @@ export default {
     [APP_ERROR_CODE.REMOTE_FOLDER_CREATE_FAILED]: 'Failed to create remote folder: {remotePath}',
     [APP_ERROR_CODE.SYNC_TASK_ALREADY_EXISTS]: 'A sync task already uses this server and local folder.',
     [APP_ERROR_CODE.SYNC_TASK_NOT_FOUND]: 'Sync task was not found.',
+    server: {
+      invalid_operation: 'Invalid server operation.',
+      validation_failed: 'Server validation failed.',
+      already_exists: 'Server already exists.',
+      not_found: 'Server does not exist.',
+      connection_failed: 'Server connection failed.',
+      operation_failed: 'Server operation failed.',
+    },
   },
 }

@@ -3,7 +3,6 @@ import { MESSAGE_BOX_LEVEL, MESSAGE_BOX_MODE } from '#src/app/main-window/messag
 import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getOperationProgressMessageKey } from './operation-progress-presentation.js'
 
 const { t } = useI18n()
 
@@ -15,16 +14,17 @@ const state = ref({
   message: '',
   messageKey: '',
   detail: '',
-  progress: null,
+  detailKey: '',
+  // progress: null,
 })
 
 let unsubscribe = null
 
 const displayedTitle = computed(() => state.value.titleKey ? t(state.value.titleKey) : state.value.title)
 const displayedMessage = computed(() => {
-  const progressKey = getOperationProgressMessageKey(state.value.progress)
-  if (progressKey)
-    return t(progressKey)
+  // const progressKey = getOperationProgressMessageKey(state.value.progress)
+  // if (progressKey)
+  //   return t(progressKey)
   if (state.value.messageKey)
     return t(state.value.messageKey)
   return state.value.message

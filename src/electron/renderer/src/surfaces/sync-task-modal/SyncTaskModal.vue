@@ -48,7 +48,7 @@ onMounted(async () => {
 
   await nextTick()
   await document.fonts.ready
-  window.syncTaskModal?.ready?.({ title: t(`syncTasks.modals.${modalName.value}.title`, '') })
+  window.syncTaskModal?.ready?.({ title: t(`syncTaskModal.${modalName.value}.title`, '') })
 })
 </script>
 

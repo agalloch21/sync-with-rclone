@@ -1,4 +1,4 @@
-export default {
+const messageBox = {
   messageBox: {
     levels: {
       info: { title: 'Message' },
@@ -18,3 +18,5 @@ export default {
     },
   },
 }
+
+export default messageBox

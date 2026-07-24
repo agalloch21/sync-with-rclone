@@ -92,7 +92,7 @@ async function submitServer() {
 </script>
 
 <template>
-  <ModalShell :modal-name="modalName" :title="$t(`syncTasks.modals.${modalName}.title`)" :message="$t(`syncTasks.modals.${modalName}.message`)">
+  <ModalShell :modal-name="modalName" :title="$t(`syncTaskModal.${modalName}.title`)" :message="$t(`syncTaskModal.${modalName}.message`)">
     <div class="content-stage flex justify-center items-center">
       <div class="protocol-form-grid">
         <!-- Name -->
@@ -145,10 +145,10 @@ async function submitServer() {
 
     <template #footer>
       <Button :primary="true" :wide="true" :disabled="isSubmitting" @click="submitServer">
-        {{ mode === ACTION_MODE.EDIT ? $t('syncTasks.modals.common.confirm') : $t('syncTasks.modals.common.next') }}
+        {{ mode === ACTION_MODE.EDIT ? $t('syncTaskModal.common.confirm') : $t('syncTaskModal.common.next') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
-        {{ $t('syncTasks.modals.common.cancel') }}
+        {{ $t('syncTaskModal.common.cancel') }}
       </Button>
     </template>
   </ModalShell>

@@ -38,7 +38,7 @@ function getTaskDisplayName(syncTask) {
         <div class="extra-info-row">
           <dt class="extra-info-property">
             <span class="extra-info-icon icon-[lucide--link] " />
-            <span class="extra-info-label">{{ $t('syncTasks.task.extra.remoteFolderLabel') }}:</span>
+            <span class="extra-info-label">{{ $t('syncTasksPanel.taskItem.mappedTo') }}:</span>
           </dt>
           <dd class="break-all line-clamp-2">
             {{ props.syncTask?.rcloneRemote }}:{{ props.syncTask?.remoteBasePath }}
@@ -47,7 +47,7 @@ function getTaskDisplayName(syncTask) {
         <div class="extra-info-row">
           <dt class="extra-info-property">
             <span class="icon-[lucide--folder-clock] extra-info-icon" />
-            <span class="extra-info-label">{{ $t('syncTasks.task.extra.lastSyncLabel') }}:</span>
+            <span class="extra-info-label">{{ $t('syncTasksPanel.taskItem.lastSync') }}:</span>
           </dt>
           <dd class="flex flex-col">
             <p class="break-all line-clamp-1">

@@ -1,15 +1,15 @@
 <script setup>
-import { ref, shallowRef } from 'vue'
+import { ref } from 'vue'
 
 import LogPanel from './components/LogPanel.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import SideBar from './components/Sidebar.vue'
-import TaskPanel from './components/TaskPanel.vue'
+import SyncTasksPanel from './components/SyncTasksPanel.vue'
 
 const panels = [
   {
     name: 'syncTasks',
-    component: TaskPanel,
+    component: SyncTasksPanel,
   },
   {
     name: 'logs',

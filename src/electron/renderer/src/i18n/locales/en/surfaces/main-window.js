@@ -7,6 +7,18 @@ const mainWindow = {
     },
     version: 'version',
   },
+  syncTasksPanel: {
+    taskItem: {
+      mappedTo: 'Mapped to',
+      lastSync: 'Last Sync',
+    },
+    actions: {
+      create: 'Create',
+      edit: 'Edit',
+      editPatterns: 'Patterns',
+      delete: 'Delete',
+    },
+  },
   settingsPanel: {
     common: {
       apply: 'Apply',

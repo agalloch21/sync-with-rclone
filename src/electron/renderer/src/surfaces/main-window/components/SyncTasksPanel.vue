@@ -49,7 +49,7 @@ function applyMainWindowData(result) {
     servers.value = []
     syncTasks.value = []
     globalIgnorePatterns.value = []
-    showTaskPanelLoadError(result?.error)
+    showSyncTasksPanelLoadError(result?.error)
     return
   }
 
@@ -58,14 +58,14 @@ function applyMainWindowData(result) {
   syncTasks.value = payload?.syncTasks || []
   globalIgnorePatterns.value = payload?.globalIgnorePatterns || []
 
-  updateTaskPanelSelection()
+  updateSyncTasksPanelSelection()
 }
 
 function getSyncTasksByServer(serverName) {
   return tasksByServerName.value.get(serverName) || []
 }
 
-function updateTaskPanelSelection() {
+function updateSyncTasksPanelSelection() {
   const previousSyncTask = selectedSyncTask.value
   const previousServer = selectedServer.value
   const nextServer = servers.value.find(server => server.name === previousServer?.name) || servers.value?.[0] || null
@@ -77,7 +77,7 @@ function updateTaskPanelSelection() {
   selectedSyncTask.value = nextSyncTask || null
 }
 
-function showTaskPanelLoadError(error) {
+function showSyncTasksPanelLoadError(error) {
   messageBox.error(error)
 }
 

@@ -84,7 +84,7 @@ async function submitMapping() {
 </script>
 
 <template>
-  <ModalShell :modal-name="modalName" :title="$t(`syncTasks.modals.${modalName}.title`)" :message="$t(`syncTasks.modals.${modalName}.message`)">
+  <ModalShell :modal-name="modalName" :title="$t(`syncTaskModal.${modalName}.title`)" :message="$t(`syncTaskModal.${modalName}.message`)">
     <div class="content-stage h-full flex justify-center items-center gap-5">
       <div class="folder-selection-dock">
         <FolderSelection side="local" :path="localBasePath" @select="selectLocalFolder" />
@@ -97,10 +97,10 @@ async function submitMapping() {
 
     <template #footer>
       <Button :primary="true" :wide="true" :disabled="isSubmitting || isSelectingFolder" @click="submitMapping">
-        {{ $t('syncTasks.modals.common.confirm') }}
+        {{ $t('syncTaskModal.common.confirm') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
-        {{ $t('syncTasks.modals.common.cancel') }}
+        {{ $t('syncTaskModal.common.cancel') }}
       </Button>
     </template>
   </ModalShell>

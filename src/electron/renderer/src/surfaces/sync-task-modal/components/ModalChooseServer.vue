@@ -66,7 +66,7 @@ function getServerLabel(server) {
 </script>
 
 <template>
-  <ModalShell :title="$t('syncTasks.modals.chooseServer.title')" :message="$t('syncTasks.modals.chooseServer.message')">
+  <ModalShell :title="$t('syncTaskModal.chooseServer.title')" :message="$t('syncTaskModal.chooseServer.message')">
     <div class="content-stage h-full flex justify-center items-center">
       <div class="flex flex-col justify-center gap-8">
         <!-- Option 1 -->
@@ -124,10 +124,10 @@ function getServerLabel(server) {
     </div>
     <template #footer>
       <Button :primary="true" :wide="true" @click="onClickNext">
-        {{ $t('syncTasks.modals.common.next') }}
+        {{ $t('syncTaskModal.common.next') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
-        {{ $t('syncTasks.modals.common.cancel') }}
+        {{ $t('syncTaskModal.common.cancel') }}
       </Button>
     </template>
   </ModalShell>

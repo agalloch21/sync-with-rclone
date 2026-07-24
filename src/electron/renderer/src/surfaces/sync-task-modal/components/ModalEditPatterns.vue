@@ -39,10 +39,10 @@ async function submitPatterns() {
 </script>
 
 <template>
-  <ModalShell :title="$t('syncTasks.modals.editPatterns.title')" :message="$t('syncTasks.modals.editPatterns.message')">
+  <ModalShell :title="$t('syncTaskModal.editPatterns.title')" :message="$t('syncTaskModal.editPatterns.message')">
     <div class="content-stage h-full w-full px-10 py-4 grid grid-rows-[max-content_1fr_max-content] grid-cols-[2fr_1fr] gap-x-8 gap-y-2 content-stretch">
       <label for="task-ignore-patterns" class="col-start-1 title text-(--text-primary)">
-        {{ $t(`syncTasks.modals.${SYNC_TASK_MODALS.EDIT_PATTERNS}.taskSpecificPatterns.title`) }}
+        {{ $t(`syncTaskModal.${SYNC_TASK_MODALS.EDIT_PATTERNS}.taskSpecificPatterns.title`) }}
       </label>
       <textarea
         id="task-ignore-patterns"
@@ -52,10 +52,10 @@ async function submitPatterns() {
         autofocus
       />
       <p class="description text-(--text-subtle)">
-        {{ $t(`syncTasks.modals.${SYNC_TASK_MODALS.EDIT_PATTERNS}.taskSpecificPatterns.description`) }}
+        {{ $t(`syncTaskModal.${SYNC_TASK_MODALS.EDIT_PATTERNS}.taskSpecificPatterns.description`) }}
       </p>
       <label for="global-ignore-patterns" class="col-start-2 title text-gray-400">
-        {{ $t(`syncTasks.modals.${SYNC_TASK_MODALS.EDIT_PATTERNS}.globalPatterns.title`) }}
+        {{ $t(`syncTaskModal.${SYNC_TASK_MODALS.EDIT_PATTERNS}.globalPatterns.title`) }}
       </label>
       <textarea
         id="global-ignore-patterns"
@@ -64,16 +64,16 @@ async function submitPatterns() {
         readonly
       />
       <p class="description text-gray-400">
-        {{ $t(`syncTasks.modals.${SYNC_TASK_MODALS.EDIT_PATTERNS}.globalPatterns.description`) }}
+        {{ $t(`syncTaskModal.${SYNC_TASK_MODALS.EDIT_PATTERNS}.globalPatterns.description`) }}
       </p>
     </div>
 
     <template #footer>
       <Button :primary="true" :wide="true" :disabled="isSubmitting" @click="submitPatterns">
-        {{ $t('syncTasks.modals.common.confirm') }}
+        {{ $t('syncTaskModal.common.confirm') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
-        {{ $t('syncTasks.modals.common.cancel') }}
+        {{ $t('syncTaskModal.common.cancel') }}
       </Button>
     </template>
   </ModalShell>

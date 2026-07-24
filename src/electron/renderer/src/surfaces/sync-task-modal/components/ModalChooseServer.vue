@@ -1,16 +1,16 @@
 <script setup>
 import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
 import { unwrapResult } from '#src/app/operation-result.js'
-import { useMessageBox } from '#src/electron/renderer/src/composables/useMessageBox.js'
 import { useServerOperations } from '#src/electron/renderer/src/composables/useServerOperations.js'
+import { useTaskOperations } from '#src/electron/renderer/src/composables/useTaskOperations.js'
 import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import ModalShell from './ModalShell.vue'
 
 const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
 
-const messageBox = useMessageBox(window?.syncTaskModal)
 const serverOperations = useServerOperations(window?.syncTaskModal)
+const taskOperations = useTaskOperations(window?.syncTaskModal)
 
 const SERVER_PLAN = Object.freeze({
   CREATE_NEW: 'create-new-server',
@@ -31,11 +31,6 @@ async function loadServers() {
 
   const result = await serverOperations.listServers()
   if (!result?.success) {
-    await messageBox.showErrorMessage({
-      title: 'Load Failed',
-      message: 'Could not load servers.',
-      detail: result?.detail || result?.message || 'Failed to load servers.',
-    })
     isLoading.value = false
     return
   }
@@ -53,13 +48,8 @@ async function loadServers() {
 
 async function onClickNext() {
   if (selectedPlan.value === SERVER_PLAN.CHOOSE_FROM_EXISTING) {
-    if (!selectedServerName.value) {
-      await messageBox.showWarningMessage({
-        title: 'Server Required',
-        message: 'Choose a remote server first.',
-      })
+    if (!await taskOperations.validateServerName(selectedServerName.value))
       return
-    }
 
     emit('onClickNext', SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING, {
       selectedServer: servers.value.find(server => server.name === selectedServerName.value),

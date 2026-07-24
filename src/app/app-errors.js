@@ -18,6 +18,7 @@ export const APP_ERROR_CODE = Object.freeze({
   REMOTE_FOLDER_CREATE_FAILED: 'remote.folder_create_failed',
 
   IPC_INVALID_PAYLOAD: 'ipc.invalid_payload',
+  IPC_UNAVAILABLE: 'ipc.unavailable',
 
   SERVER_INVALID_OPERATION: 'server.invalid_operation',
   SERVER_VALIDATION_FAILED: 'server.validation_failed',

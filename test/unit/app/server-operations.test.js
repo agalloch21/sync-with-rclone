@@ -10,6 +10,7 @@ import {
   renameServerConnection,
   updateServerConnection,
 } from '#src/app/configuration/server-operations.js'
+import { SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-progress-contract.js'
 
 const originalEnv = {}
 const originalResourcesPath = process.resourcesPath
@@ -165,7 +166,10 @@ test('createServerConnection validates, creates, and tests a server connection',
     ['config', 'create'],
     ['lsf', '--max-depth'],
   ])
-  assert.deepEqual(events, ['save', 'testConnection'])
+  assert.deepEqual(events, [
+    SERVER_CREATE_PROGRESS_STEP.SAVE,
+    SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION,
+  ])
 })
 
 test('listServerConnections removes password fields from server config', async () => {
@@ -209,7 +213,11 @@ test('createServerConnection rolls back the remote when connection testing fails
     },
   )
   assert.deepEqual(await runtime.readState(), {})
-  assert.deepEqual(events, ['save', 'testConnection', 'rollback'])
+  assert.deepEqual(events, [
+    SERVER_CREATE_PROGRESS_STEP.SAVE,
+    SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION,
+    SERVER_CREATE_PROGRESS_STEP.ROLLBACK,
+  ])
 })
 
 test('createServerConnection reports a failed rollback without replacing the connection error', async () => {
@@ -229,7 +237,11 @@ test('createServerConnection reports a failed rollback without replacing the con
       message: 'Server connection failed.',
     },
   )
-  assert.deepEqual(events, ['save', 'testConnection', 'rollback'])
+  assert.deepEqual(events, [
+    SERVER_CREATE_PROGRESS_STEP.SAVE,
+    SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION,
+    SERVER_CREATE_PROGRESS_STEP.ROLLBACK,
+  ])
   assert.deepEqual(await runtime.readState(), {
     synology: {
       type: 'sftp',

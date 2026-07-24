@@ -3,8 +3,7 @@ import { createDefaultProtocolForm, getDefaultProtocolType, getProtocolDefinitio
 import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { useServerOperations } from '#src/electron/renderer/src/composables/useServerOperations.js'
-import { computed, onMounted, ref, watch } from 'vue'
-import { useMessageBox } from '../../../composables/useMessageBox.js'
+import { ref } from 'vue'
 import Button from '../../shared/Button.vue'
 import ModalShell from './ModalShell.vue'
 
@@ -21,7 +20,6 @@ const props = defineProps({
 
 const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
 
-const messageBox = useMessageBox(window.syncTaskModal)
 const serverOperations = useServerOperations(window.syncTaskModal)
 
 const ACTION_MODE = {
@@ -82,12 +80,8 @@ async function submitServer() {
     }
     else {
       const result = await serverOperations.getServer(expectedServerName.value)
-      if (!result.success) {
-        await messageBox.showWarningMessage({
-          message: 'Something wrong',
-        })
+      if (!result.success)
         return
-      }
 
       emit('onClickNext', SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING, {
         selectedServer: unwrapResult(result),

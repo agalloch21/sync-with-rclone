@@ -1,3 +1,5 @@
+import { APP_ERROR_CODE } from '#src/app/app-errors.js'
+import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import { MESSAGE_BOX_RESULT } from '#src/app/main-window/message-box-contract.js'
 import { toFailureResult } from '#src/app/operation-result.js'
 import { toRaw } from 'vue'
@@ -30,8 +32,9 @@ export function useTaskOperations(windowPreload) {
   }
 
   async function showOperationWarning(result) {
-    await messageBox.showWarningMessage({
-      message: result?.error?.message,
+    await messageBox.error({
+      ...result?.error,
+      code: result?.error?.code || APP_ERROR_CODE.UNKNOWN,
       detail: result?.error?.detail,
     })
   }
@@ -44,8 +47,8 @@ export function useTaskOperations(windowPreload) {
       return result
     }
     catch (error) {
-      await messageBox.showErrorMessage({
-        message: 'Something wrong when executing IPC functions.',
+      await messageBox.error({
+        code: APP_ERROR_CODE.IPC_UNAVAILABLE,
         detail: error?.message,
       })
       return toFailureResult(error)
@@ -56,10 +59,7 @@ export function useTaskOperations(windowPreload) {
     if (typeof serverName === 'string' && serverName.trim().length > 0)
       return true
 
-    await messageBox.showWarningMessage({
-      title: 'Server Required',
-      message: 'Choose a server first.',
-    })
+    await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_SERVER_REQUIRED)
     return false
   }
 
@@ -68,18 +68,12 @@ export function useTaskOperations(windowPreload) {
       return false
 
     if (typeof task.localBasePath !== 'string' || task.localBasePath.trim().length === 0) {
-      await messageBox.showWarningMessage({
-        title: 'Local Folder Required',
-        message: 'Choose a local folder first.',
-      })
+      await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_LOCAL_FOLDER_REQUIRED)
       return false
     }
 
     if (typeof task.remoteBasePath !== 'string') {
-      await messageBox.showWarningMessage({
-        title: 'Server Folder Required',
-        message: 'Choose a server folder first.',
-      })
+      await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_REMOTE_FOLDER_REQUIRED)
       return false
     }
 
@@ -106,10 +100,7 @@ export function useTaskOperations(windowPreload) {
 
   async function updateSyncTask(task, expectedTask) {
     if (!task?.rcloneRemote || !task?.localBasePath) {
-      await messageBox.showWarningMessage({
-        title: 'Task Required',
-        message: 'Choose a sync task first.',
-      })
+      await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_REQUIRED)
       return toFailureResult()
     }
 
@@ -124,10 +115,7 @@ export function useTaskOperations(windowPreload) {
 
   async function updateSyncTaskIgnorePatterns(task, ignorePatterns) {
     if (!task?.rcloneRemote || !task?.localBasePath) {
-      await messageBox.showWarningMessage({
-        title: 'Task Required',
-        message: 'Choose a sync task first.',
-      })
+      await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_REQUIRED)
       return toFailureResult()
     }
 
@@ -145,25 +133,20 @@ export function useTaskOperations(windowPreload) {
 
   async function deleteSyncTask(task) {
     if (!task?.rcloneRemote || !task?.localBasePath) {
-      await messageBox.showWarningMessage({
-        title: 'Task Required',
-        message: 'Choose a sync task first.',
-      })
+      await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_REQUIRED)
       return toFailureResult()
     }
 
     const taskLabel = task.displayName || task.localBasePath
     let confirmation
     try {
-      confirmation = await messageBox.showConfirmMessage({
-        title: 'Delete Sync Task',
-        message: `Delete task "${taskLabel}"?`,
-        detail: 'This removes the task from the configuration. It does not delete local or remote files.',
+      confirmation = await messageBox.confirm(APP_MESSAGE_CODE.SYNC_TASK_DELETE_CONFIRMATION, {
+        params: { taskLabel },
       })
     }
     catch (error) {
-      await messageBox.showErrorMessage({
-        message: 'Something wrong when executing IPC functions.',
+      await messageBox.error({
+        code: APP_ERROR_CODE.IPC_UNAVAILABLE,
         detail: error?.message,
       })
       return toFailureResult(error)
@@ -181,6 +164,7 @@ export function useTaskOperations(windowPreload) {
   }
 
   return {
+    validateServerName,
     selectLocalFolder,
     selectRemoteFolder,
     createSyncTask,

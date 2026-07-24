@@ -1,78 +1,54 @@
-import { MESSAGE_BOX_LEVEL, MESSAGE_BOX_MODE, MESSAGE_BOX_RESULT } from '#src/app/main-window/message-box-contract.js'
+import {
+  createMessageBoxErrorState,
+  MESSAGE_BOX_LEVEL,
+  MESSAGE_BOX_MODE,
+} from '#src/app/main-window/message-box-contract.js'
 
 export function useMessageBox(windowPreload) {
   function showMessageBox(payload = {}) {
     return windowPreload?.showMessageBox?.(payload)
   }
 
-  function closeMessageBox(payload = { result: MESSAGE_BOX_RESULT.CLOSED }) {
-    return windowPreload?.closeMessageBox?.(payload)
-  }
-
-  function showProgressMessage({
-    title = 'Working',
-    message = 'Please wait...',
-    detail = '',
-  } = {}) {
-    const promise = showMessageBox({
-      mode: MESSAGE_BOX_MODE.PROGRESS,
-      level: MESSAGE_BOX_LEVEL.INFO,
-      title,
-      message,
-      detail,
-    })
-    promise?.catch?.(() => {})
-    return promise
-  }
-
-  function showErrorMessage({
-    title = 'Error',
-    message = 'Something went wrong.',
-    detail = '',
-  } = {}) {
+  function notify(level, code, options = {}) {
     return showMessageBox({
       mode: MESSAGE_BOX_MODE.MESSAGE,
-      level: MESSAGE_BOX_LEVEL.ERROR,
-      title,
-      message,
-      detail,
+      level,
+      key: `messages.${code}`,
+      ...(options.params !== undefined && { params: options.params }),
+      ...(options.detail !== undefined && { detail: options.detail }),
     })
   }
 
-  function showWarningMessage({
-    title = 'Warning',
-    message = 'Check your selection.',
-    detail = '',
-  } = {}) {
-    return showMessageBox({
-      mode: MESSAGE_BOX_MODE.MESSAGE,
-      level: MESSAGE_BOX_LEVEL.WARNING,
-      title,
-      message,
-      detail,
-    })
+  function information(code, options) {
+    return notify(MESSAGE_BOX_LEVEL.INFO, code, options)
   }
 
-  function showConfirmMessage({
-    title = 'Confirm',
-    message = 'Are you sure?',
-    detail = '',
-    level = MESSAGE_BOX_LEVEL.WARNING,
-  } = {}) {
+  function warning(code, options) {
+    return notify(MESSAGE_BOX_LEVEL.WARNING, code, options)
+  }
+
+  function success(code, options) {
+    return notify(MESSAGE_BOX_LEVEL.SUCCESS, code, options)
+  }
+
+  function confirm(code, options = {}) {
     return showMessageBox({
       mode: MESSAGE_BOX_MODE.CONFIRM,
-      level,
-      title,
-      message,
-      detail,
+      key: `messages.${code}`,
+      ...(options.params !== undefined && { params: options.params }),
+      ...(options.detail !== undefined && { detail: options.detail }),
     })
+  }
+
+  function error(errorLike = {}) {
+    return showMessageBox(createMessageBoxErrorState(errorLike))
   }
 
   return {
-    showProgressMessage,
-    showErrorMessage,
-    showWarningMessage,
-    showConfirmMessage,
-    closeMessageBox,
+    information,
+    warning,
+    success,
+    confirm,
+    error,
   }
 }

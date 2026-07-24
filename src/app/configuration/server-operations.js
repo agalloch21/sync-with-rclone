@@ -1,4 +1,5 @@
 import { APP_ERROR_CODE, getErrorCode, throwAppError } from '../app-errors.js'
+import { SERVER_CREATE_PROGRESS_STEP } from '../operation-progress-contract.js'
 import { getProtocolDefinition } from './protocol-registry.js'
 import * as rcloneRemotes from './rclone-config.js'
 
@@ -130,7 +131,7 @@ export async function createServerConnection(expectedName, protocolType, protoco
   const config = buildRcloneConfig(protocolType, protocolFields)
 
   try {
-    onProgress?.('save')
+    onProgress?.(SERVER_CREATE_PROGRESS_STEP.SAVE)
     await rcloneRemotes.createRcloneRemote(expectedName, config)
   }
   catch (error) {
@@ -140,13 +141,13 @@ export async function createServerConnection(expectedName, protocolType, protoco
   }
 
   try {
-    onProgress?.('testConnection')
+    onProgress?.(SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION)
     await rcloneRemotes.testRcloneRemoteConnection(expectedName)
   }
   catch (error) {
     let rollbackError = null
     try {
-      onProgress?.('rollback')
+      onProgress?.(SERVER_CREATE_PROGRESS_STEP.ROLLBACK)
       await rcloneRemotes.deleteRcloneRemote(expectedName)
     }
     catch (caughtRollbackError) {

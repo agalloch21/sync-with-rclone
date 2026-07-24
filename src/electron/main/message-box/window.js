@@ -2,12 +2,9 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  isMessageBoxLevel,
-  isMessageBoxMode,
   isMessageBoxResult,
-  MESSAGE_BOX_LEVEL,
-  MESSAGE_BOX_MODE,
   MESSAGE_BOX_RESULT,
+  normalizeMessageBoxState,
 } from '#src/app/main-window/message-box-contract.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import {
@@ -22,24 +19,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 
 function createMessageBoxState(payload = {}) {
-  const mode = isMessageBoxMode(payload.mode)
-    ? payload.mode
-    : MESSAGE_BOX_MODE.MESSAGE
-  const level = isMessageBoxLevel(payload.level)
-    ? payload.level
-    : MESSAGE_BOX_LEVEL.INFO
+  return normalizeMessageBoxState(payload)
+}
 
-  return {
-    mode,
-    level,
-
-    title: payload.title || 'Message',
-    titleKey: payload.titleKey || '',
-    message: payload.message || '',
-    messageKey: payload.messageKey || '',
-    detail: payload.detail || '',
-    progress: payload.progress || null,
-  }
+function createDefaultMessageBoxState() {
+  return createMessageBoxState({
+    text: {
+      message: '',
+    },
+  })
 }
 
 const { BrowserWindow, ipcMain } = require('electron')
@@ -76,7 +64,7 @@ function registerHandlers() {
   if (handlersRegistered)
     return
 
-  ipcMain.handle('message-box:get-state', () => currentState || createMessageBoxState())
+  ipcMain.handle('message-box:get-state', () => currentState || createDefaultMessageBoxState())
 
   ipcMain.handle('message-box:on-click-confirm', () => {
     closeWithResult(MESSAGE_BOX_RESULT.CONFIRMED)
@@ -100,7 +88,7 @@ function registerHandlers() {
   handlersRegistered = true
 }
 
-function createWindow(state) {
+function createWindow() {
   registerHandlers()
 
   const messageWindow = new BrowserWindow({
@@ -114,7 +102,7 @@ function createWindow(state) {
     maximizable: false,
     fullscreenable: false,
     resizable: false,
-    title: state.title,
+    title: 'Message',
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, '../../preload/message-box/index.cjs'),
@@ -148,14 +136,10 @@ function createWindow(state) {
 }
 
 export function updateMessageBox(payload = {}) {
-  currentState = createMessageBoxState({
-    ...currentState,
-    ...payload,
-  })
+  currentState = createMessageBoxState(payload)
 
   const messageWindow = getMessageBoxWindow()
   if (messageWindow) {
-    messageWindow.setTitle(currentState.title)
     messageWindow.webContents.send('message-box:set-state', currentState)
     messageWindow.focus()
   }
@@ -178,7 +162,7 @@ export function openMessageBox(payload = {}) {
     return resultPromise
   }
 
-  createWindow(currentState)
+  createWindow()
   return resultPromise
 }
 

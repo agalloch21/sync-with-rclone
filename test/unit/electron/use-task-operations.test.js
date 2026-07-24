@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import { formatIgnorePatterns, parseIgnorePatterns, useTaskOperations } from '#src/electron/renderer/src/composables/useTaskOperations.js'
 
 function createPreload(overrides = {}) {
@@ -144,7 +145,7 @@ test('createSyncTask validates the mapping before invoking preload', async () =>
 
   assert.equal(result.success, false)
   assert.equal(createWasCalled, false)
-  assert.equal(messages[0].title, 'Local Folder Required')
+  assert.equal(messages[0].key, `messages.${APP_MESSAGE_CODE.SYNC_TASK_LOCAL_FOLDER_REQUIRED}`)
 })
 
 test('updateSyncTask validates the task reference before invoking preload', async () => {
@@ -169,7 +170,7 @@ test('updateSyncTask validates the task reference before invoking preload', asyn
 
   assert.equal(result.success, false)
   assert.equal(updateWasCalled, false)
-  assert.equal(messages[0].title, 'Task Required')
+  assert.equal(messages[0].key, `messages.${APP_MESSAGE_CODE.SYNC_TASK_REQUIRED}`)
 })
 
 test('deleteSyncTask skips deletion when confirmation is cancelled', async () => {
@@ -194,13 +195,17 @@ test('deleteSyncTask skips deletion when confirmation is cancelled', async () =>
 
 test('deleteSyncTask sends its stable reference after confirmation', async () => {
   let receivedPayload = null
+  let confirmationPayload = null
   const operations = useTaskOperations(createPreload({
     deleteSyncTask: async (payload) => {
       receivedPayload = payload
       structuredClone(payload)
       return { success: true }
     },
-    showMessageBox: async () => ({ success: true, value: 'confirmed' }),
+    showMessageBox: async (payload) => {
+      confirmationPayload = payload
+      return { success: true, value: 'confirmed' }
+    },
   }))
 
   const result = await operations.deleteSyncTask({
@@ -217,4 +222,10 @@ test('deleteSyncTask sends its stable reference after confirmation', async () =>
       localBasePath: '/local',
     },
   })
+  assert.deepEqual(confirmationPayload, {
+    mode: 'confirm',
+    key: `messages.${APP_MESSAGE_CODE.SYNC_TASK_DELETE_CONFIRMATION}`,
+    params: { taskLabel: 'Project' },
+  })
+  assert.equal(Object.hasOwn(confirmationPayload, 'level'), false)
 })

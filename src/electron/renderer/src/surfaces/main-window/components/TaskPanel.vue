@@ -78,11 +78,7 @@ function updateTaskPanelSelection() {
 }
 
 function showTaskPanelLoadError(error) {
-  messageBox.showErrorMessage({
-    title: 'Load Failed',
-    message: 'Could not load sync tasks.',
-    detail: error || 'Failed to load sync tasks.',
-  })
+  messageBox.error(error)
 }
 
 function onSelectServer(server) {

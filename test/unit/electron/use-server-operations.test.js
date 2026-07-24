@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { MESSAGE_BOX_LEVEL, MESSAGE_BOX_MODE } from '#src/app/main-window/message-box-contract.js'
+import { APP_ERROR_CODE } from '#src/app/app-errors.js'
+import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
+import {
+  MESSAGE_BOX_LEVEL,
+  MESSAGE_BOX_MODE,
+} from '#src/app/main-window/message-box-contract.js'
 import { useServerOperations } from '#src/electron/renderer/src/composables/useServerOperations.js'
 import { reactive } from 'vue'
 
@@ -84,7 +89,13 @@ test('createServer presents an IPC rejection because main-process handling did n
   assert.equal(result.success, false)
   assert.equal(messages.at(-1).mode, MESSAGE_BOX_MODE.MESSAGE)
   assert.equal(messages.at(-1).level, MESSAGE_BOX_LEVEL.ERROR)
-  assert.equal(messages.at(-1).detail, 'IPC unavailable')
+  assert.deepEqual(messages.at(-1), {
+    mode: MESSAGE_BOX_MODE.MESSAGE,
+    level: MESSAGE_BOX_LEVEL.ERROR,
+    key: `errors.${APP_ERROR_CODE.IPC_UNAVAILABLE}`,
+    params: {},
+    detail: 'IPC unavailable',
+  })
 })
 
 test('createServer does not open progress UI when validation fails', async () => {
@@ -158,13 +169,15 @@ test('deleteServer skips deletion when confirmation is cancelled', async () => {
 
 test('deleteServer sends payload after confirmation', async () => {
   let receivedPayload = null
+  let confirmationPayload = null
   const serverOperations = useServerOperations({
     async deleteServer(payload) {
       receivedPayload = payload
       structuredClone(payload)
       return { success: true }
     },
-    async showMessageBox() {
+    async showMessageBox(payload) {
+      confirmationPayload = payload
       return {
         success: true,
         value: 'confirmed',
@@ -178,4 +191,10 @@ test('deleteServer sends payload after confirmation', async () => {
   assert.deepEqual(receivedPayload, {
     serverName: 'synology',
   })
+  assert.deepEqual(confirmationPayload, {
+    mode: MESSAGE_BOX_MODE.CONFIRM,
+    key: `messages.${APP_MESSAGE_CODE.SERVER_DELETE_CONFIRMATION}`,
+    params: { serverName: 'synology' },
+  })
+  assert.equal(Object.hasOwn(confirmationPayload, 'level'), false)
 })

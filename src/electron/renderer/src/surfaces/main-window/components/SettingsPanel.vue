@@ -32,11 +32,7 @@ onUnmounted(() => {
 function applyMainWindowData(result) {
   if (!result?.success) {
     globalPatternsText.value = ''
-    messageBox.showErrorMessage({
-      title: 'Load Failed',
-      message: 'Could not load global ignore patterns.',
-      detail: result?.error?.detail || result?.error?.message || 'Failed to load configuration.',
-    })
+    messageBox.error(result?.error)
     return
   }
 

@@ -1,5 +1,5 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { defineLocaleTree } from '../../locale-tree.js'
+import { defineLocaleTree } from '../locale-tree.js'
 
 export default {
   errors: defineLocaleTree({

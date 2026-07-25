@@ -1,8 +1,8 @@
 import {
-  createMessageBoxErrorState,
-  MESSAGE_BOX_LEVEL,
-  MESSAGE_BOX_MODE,
-} from '#src/app/main-window/message-box-contract.js'
+  createOperationErrorReportState,
+  OPERATION_REPORT_LEVEL,
+  OPERATION_REPORT_MODE,
+} from '#src/app/operation-report-contract.js'
 
 export function useMessageBox(windowPreload) {
   function showMessageBox(payload = {}) {
@@ -11,7 +11,7 @@ export function useMessageBox(windowPreload) {
 
   function notify(level, code, options = {}) {
     return showMessageBox({
-      mode: MESSAGE_BOX_MODE.MESSAGE,
+      mode: OPERATION_REPORT_MODE.MESSAGE,
       level,
       key: `messages.${code}`,
       ...(options.params !== undefined && { params: options.params }),
@@ -20,20 +20,20 @@ export function useMessageBox(windowPreload) {
   }
 
   function information(code, options) {
-    return notify(MESSAGE_BOX_LEVEL.INFO, code, options)
+    return notify(OPERATION_REPORT_LEVEL.INFO, code, options)
   }
 
   function warning(code, options) {
-    return notify(MESSAGE_BOX_LEVEL.WARNING, code, options)
+    return notify(OPERATION_REPORT_LEVEL.WARNING, code, options)
   }
 
   function success(code, options) {
-    return notify(MESSAGE_BOX_LEVEL.SUCCESS, code, options)
+    return notify(OPERATION_REPORT_LEVEL.SUCCESS, code, options)
   }
 
   function confirm(code, options = {}) {
     return showMessageBox({
-      mode: MESSAGE_BOX_MODE.CONFIRM,
+      mode: OPERATION_REPORT_MODE.CONFIRM,
       key: `messages.${code}`,
       ...(options.params !== undefined && { params: options.params }),
       ...(options.detail !== undefined && { detail: options.detail }),
@@ -41,7 +41,7 @@ export function useMessageBox(windowPreload) {
   }
 
   function error(errorLike = {}) {
-    return showMessageBox(createMessageBoxErrorState(errorLike))
+    return showMessageBox(createOperationErrorReportState(errorLike))
   }
 
   return {

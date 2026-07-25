@@ -1,16 +1,16 @@
 import {
-  MESSAGE_BOX_LEVEL,
-  MESSAGE_BOX_MODE,
-} from '#src/app/main-window/message-box-contract.js'
+  OPERATION_REPORT_LEVEL,
+  OPERATION_REPORT_MODE,
+} from '#src/app/operation-report-contract.js'
 
 function translateIfPresent(te, t, key, params, fallback) {
   return te(key) ? t(key, params) : fallback
 }
 
 function getDefaultTitle(state, te, t) {
-  if (state.mode === MESSAGE_BOX_MODE.CONFIRM)
+  if (state.mode === OPERATION_REPORT_MODE.CONFIRM)
     return t('messageBox.confirmation.title')
-  if (state.mode === MESSAGE_BOX_MODE.PROGRESS)
+  if (state.mode === OPERATION_REPORT_MODE.PROGRESS)
     return t('messageBox.progress.title')
 
   const key = `messageBox.levels.${state.level}.title`
@@ -18,7 +18,7 @@ function getDefaultTitle(state, te, t) {
 }
 
 function getFallbackMessage(state, t) {
-  if (state.mode === MESSAGE_BOX_MODE.PROGRESS)
+  if (state.mode === OPERATION_REPORT_MODE.PROGRESS)
     return t('messageBox.progress.message')
 
   return t('messageBox.fallback.message')
@@ -64,15 +64,15 @@ function resolveKeyedPresentation(state, te, t) {
 }
 
 export function resolveMessageBoxIconClass(state) {
-  if (state.mode === MESSAGE_BOX_MODE.CONFIRM)
+  if (state.mode === OPERATION_REPORT_MODE.CONFIRM)
     return 'icon-[lucide--circle-question-mark] text-(--primary)'
-  if (state.mode === MESSAGE_BOX_MODE.PROGRESS)
+  if (state.mode === OPERATION_REPORT_MODE.PROGRESS)
     return 'icon-[lucide--loader-circle] animate-spin text-(--primary)'
-  if (state.level === MESSAGE_BOX_LEVEL.SUCCESS)
+  if (state.level === OPERATION_REPORT_LEVEL.SUCCESS)
     return 'icon-[lucide--circle-check] text-(--success)'
-  if (state.level === MESSAGE_BOX_LEVEL.WARNING)
+  if (state.level === OPERATION_REPORT_LEVEL.WARNING)
     return 'icon-[lucide--circle-alert] text-(--warning)'
-  if (state.level === MESSAGE_BOX_LEVEL.ERROR)
+  if (state.level === OPERATION_REPORT_LEVEL.ERROR)
     return 'icon-[lucide--circle-x] text-(--danger)'
   return 'icon-[lucide--info] text-(--primary)'
 }

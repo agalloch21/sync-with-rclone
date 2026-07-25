@@ -297,48 +297,60 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant U as 用户
-  participant MW as Main Window Renderer
+  participant R as Renderer / Composable
   participant MP as Main Window Preload
   participant EM as Electron Main
   participant APP as App Layer
   participant MB as Message Box
   participant M as Sync Task Modal
 
-  U->>MW: 点击 create / edit / delete
-  MW->>MP: openSyncTaskModal(modalName, context)
+  U->>R: 点击 create / edit
+  R->>MP: openSyncTaskModal(modalName, context)
   MP->>EM: invoke main-window:open-sync-task-modal
-  EM->>EM: 读取 main window 作为 parent
-  EM->>M: 创建 sync-task modal
+  EM->>M: 创建 modal 并保存 plain context
   M->>EM: getState()
-  EM-->>M: 返回 modalName + context
-  M->>EM: invoke create/update/delete
-  EM->>MB: confirm / progress / error / success
+  EM-->>M: modalName + context
+  U->>M: 提交操作
+  M->>M: composable 进行 UI 预校验
+  M->>EM: invoke app operation
   EM->>APP: 执行 server/task operation
-  APP-->>EM: notifyConfigUpdate()
-  EM-->>MW: main-window:config-updated
-  MW->>MP: getData()
-  MP->>EM: invoke main-window:get-data
-  EM->>APP: getMainWindowData()
-  EM-->>MW: 返回最新 MainWindowData
+  APP-->>EM: result / throw AppError
+  EM-->>M: OperationResult
+  opt 普通 operation 失败
+    M->>MB: useMessageBox.error(error)
+  end
+  opt 修改成功
+    APP-->>EM: notifyConfigUpdate()
+    EM-->>R: main-window:config-updated
+    R->>MP: getData()
+    MP->>EM: invoke main-window:get-data
+    EM->>APP: getMainWindowData()
+    EM-->>R: 最新 MainWindowData
+  end
 ```
 
 当前结论：
 
 - 主窗口 renderer 传完整的 plain `server` 和 `syncTask` 对象；`server.tasks` 只属于主窗口组合视图，不传给 modal
 - Electron Main 不重新组装 modal context，只校验 modal 名称并创建窗口
-- Electron Main 负责 modal 生命周期、message-box 生命周期和流程推进
+- Electron Main 负责 modal 和 message-box 的窗口生命周期；app operation 的返回值或异常负责业务控制流
 - sync-task modal renderer 不直接读取 app config，也不直接调用 rclone
 - App Layer 提供应用操作：组合主窗口数据、读写 app config、读写 rclone config、删除 task
 - server/syncTask 修改成功后，App Layer 发出 config update 通知，主窗口 renderer 再读取 `MainWindowData`
 - message-box 只作为临时状态窗口，不替换普通 modal 的内容
+- 普通 validation/message/confirmation 由 renderer 的 `useMessageBox()` facade 发起
+- 需要观察 operation 进度时，shell 使用 `createOperationReporter(operation, display)`
+- reporter 组装完整 `OperationReportState`；Electron Main 注入由 message-box functions 适配的 GUI display，CLI 注入带 Vue I18n 的 terminal display
+- 同一个失败只展示一次：main-managed progress operation 由 reporter 展示；普通 operation 的失败由 renderer composable 展示
 
-## 12. Edit Server 流程
+## 12. Create Server 与 operation progress
 
 ```mermaid
 sequenceDiagram
   participant U as 用户
   participant M as Sync Task Modal
   participant EM as Electron Main
+  participant OR as Operation Reporter
   participant MB as Message Box
   participant APP as App Layer
   participant SO as Server Operations
@@ -347,21 +359,34 @@ sequenceDiagram
 
   U->>M: 点击 Next
   M->>M: UI 表单预校验
-  M->>EM: updateServer(payload)
-  EM->>APP: updateServer(serverName, expectedServerName, protocolType, protocolFields)
-  APP->>APP: 判断 same-name update 或 rename-with-update
-  APP->>SO: updateServerConnection(...) 或 renameServerConnection(...)
-  SO->>SO: 生成 rclone config 并转义 SERVER_* 错误
-  SO->>RC: updateRcloneRemote(...) 或 renameRcloneRemote(...)
-  RC->>RC: 校验 name / expectedName / config 并 normalize
-  RC->>RC: rename 时 create target + delete source，失败时 rollback target
-  alt 测试失败
-    EM->>MB: error
+  alt 预校验失败
+    M->>MB: warning(APP_MESSAGE_CODE, params/detail)
+  else 预校验通过
+    M->>EM: createServer(payload)
+    EM->>OR: createOperationReporter(createServer, { open, update, close })
+    OR->>MB: progress operations.createServer
+    EM->>APP: createServer(..., reporter.step)
+    APP->>SO: createServerConnection(..., onProgress)
+    SO->>OR: step(save)
+    OR->>MB: operations.createServer.steps.save
+    SO->>RC: createRcloneRemote(...)
+    SO->>OR: step(testConnection)
+    OR->>MB: operations.createServer.steps.testConnection
+    SO->>RC: testRcloneRemoteConnection(...)
+  end
+  alt connection test 失败
+    SO->>OR: step(rollback)
+    OR->>MB: operations.createServer.steps.rollback
+    SO->>RC: deleteRcloneRemote(...)
+    APP-->>EM: throw AppError
+    EM->>OR: error(error)
+    OR->>MB: errors.${error.code}
     EM-->>M: success=false
-  else 测试成功
-    EM->>MB: close
-    APP-->>EM: notifyConfigUpdate()
+  else 创建成功
+    APP-->>EM: notifyConfigUpdate() + return
     EM-->>MW: main-window:config-updated
+    EM->>OR: succeed(false)
+    OR->>MB: close
     EM-->>M: success=true
     M->>EM: close modal
   end
@@ -369,55 +394,94 @@ sequenceDiagram
 
 关键点：
 
-- 表单校验失败时不打开 message-box
-- UI 表单预校验只用于即时提示；官方字段语义错误由 server/rclone operation 返回
-- 连接测试和保存过程中的状态只显示在 message-box
-- 失败时保留 Edit Server modal，让用户继续修改表单
-- 成功时关闭 message-box，通知主窗口重新读取数据，然后关闭 modal
-- `app-operations.js` 负责判断保存动作是同名 update 还是 rename
-- `server-operations.js` 负责 app-level server 与 raw rclone remote 的对象转换，并把 `RCLONE_*` 转成 `SERVER_*`
-- `name` 是 server 与 remote 共享的资源标识；server 层不单独校验或 normalize name
-- `rclone-config.js` 负责 raw rclone remote 的输入校验、normalize、读写和 rename adapter operation
-- rename-with-update 由 `renameRcloneRemote()` 封装：先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote
+- UI 表单预校验只用于即时反馈；当前 composable 会用 semantic warning code 展示验证消息
+- Electron Main 在调用 app operation 前创建 reporter；reporter 组装 operation-level state 并调用 display 的 `open`
+- app/server operation 只通过 callback 上报 `save` / `testConnection` / `rollback` step，不依赖 message-box
+- reporter 把 operation/step code 组装成完整 `operations.*` locale key；GUI/CLI surface 不重复理解 key 结构
+- 创建失败由 reporter 组装 error state 并调用 display 的 `update`；renderer 不再打开第二个 contextual error
+- 失败时保留 Create Server modal，让用户继续修改表单
+- 成功时 app operation 先发出 config update；handler 随后关闭 message-box 并返回成功，modal 再关闭
+- success acknowledgement 由 caller 表达、reporter 编排、surface function 实现；当前 create-server 成功不要求 acknowledgement
+- CLI 接入同一 app operation 时复用相同 reporter，并注入 `createCliOperationReportDisplay()`；完整 state 由 CLI 的 Vue I18n instance 翻译后输出到 terminal
 
-## 13. Delete Server / Delete Task 流程
+## 13. Edit Server 流程
 
 ```mermaid
 sequenceDiagram
   participant U as 用户
   participant M as Sync Task Modal
   participant EM as Electron Main
+  participant APP as App Layer
+  participant SO as Server Operations
+  participant RC as rclone-config.js
+  participant MB as Message Box
+
+  U->>M: 点击 Confirm
+  M->>M: UI 表单预校验
+  M->>EM: updateServer(payload)
+  EM->>APP: updateServer(...)
+  APP->>APP: 判断 same-name update 或 rename-with-update
+  APP->>SO: updateServerConnection(...) 或 renameServerConnection(...)
+  SO->>RC: updateRcloneRemote(...) 或 renameRcloneRemote(...)
+  alt 失败
+    EM-->>M: OperationResult success=false
+    M->>MB: useMessageBox.error(result.error)
+  else 成功
+    APP-->>EM: notifyConfigUpdate()
+    EM-->>M: OperationResult success=true
+    M->>EM: close modal
+  end
+```
+
+关键点：
+
+- 当前只有 create-server 接入 `createOperationReporter()`；update-server 仍是普通 IPC operation
+- `app-operations.js` 负责判断保存动作是同名 update 还是 rename
+- `server-operations.js` 负责 app-level server 与 raw rclone remote 的对象转换，并把 `RCLONE_*` 转成 `SERVER_*`
+- `rclone-config.js` 负责 raw rclone remote 的输入校验、normalize、读写和 rename adapter operation
+- rename-with-update 先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote
+- 普通 operation 失败由 renderer composable 调用 `messageBox.error(error)` 展示一次
+
+## 14. Delete Server / Delete Task 流程
+
+```mermaid
+sequenceDiagram
+  participant U as 用户
+  participant R as Main Window Renderer
+  participant EM as Electron Main
   participant MB as Message Box
   participant APP as App Layer
   participant MW as Main Window Renderer
 
-  U->>M: 点击 Confirm
-  M->>EM: deleteServer(serverName) / deleteSyncTask(taskReference)
-  alt 删除 server 且仍被 task 使用
-    EM->>MB: error
-    EM-->>M: success=false
-  else 可以继续
-    EM->>MB: confirm
-    U->>MB: Confirm / Cancel
-    alt Cancel
-      EM-->>M: cancelled
-    else Confirm
-      EM->>APP: 删除 rclone remote 或 config task
+  U->>R: 点击 Delete
+  R->>MB: confirm(messageCode, params)
+  MB-->>R: confirmed / cancelled / closed
+  alt 未确认
+    R->>R: 不调用 delete operation
+  else confirmed
+    R->>EM: deleteServer(payload) / deleteSyncTask(payload)
+    EM->>APP: 删除 rclone remote 或 config task
+    alt 删除失败
+      EM-->>R: OperationResult success=false
+      R->>MB: error(result.error)
+    else 删除成功
       APP-->>EM: notifyConfigUpdate()
       EM-->>MW: main-window:config-updated
-      EM->>MB: success
-      EM-->>M: success=true
+      EM-->>R: OperationResult success=true
     end
   end
 ```
 
 关键点：
 
-- server 与 task 引用关系的完整处理将在 task operation 重建时补齐
+- confirmation 属于 renderer intent：`confirm()` 自动使用 `messages.` 前缀，并传入 `serverName` / `taskLabel` 插值参数
+- confirm state 不携带 level，使用中性的 question icon
+- Electron Main 只在用户确认后收到 delete IPC，不重复决定是否需要确认
 - task 删除只修改 `config.json`，不删除本地或远端文件
 - 删除成功后由 App Layer 发出 config update 通知，主窗口 renderer 重新读取数据
+- 删除失败通过 `errors.${error.code}` 展示一次
 
-## 14. 当前阶段限制
+## 15. 当前阶段限制
 
 当前流程文档只把这些写成已成立事实：
 

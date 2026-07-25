@@ -3,9 +3,9 @@ import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import {
-  MESSAGE_BOX_LEVEL,
-  MESSAGE_BOX_MODE,
-} from '#src/app/main-window/message-box-contract.js'
+  OPERATION_REPORT_LEVEL,
+  OPERATION_REPORT_MODE,
+} from '#src/app/operation-report-contract.js'
 import { useServerOperations } from '#src/electron/renderer/src/composables/useServerOperations.js'
 import { reactive } from 'vue'
 
@@ -87,11 +87,11 @@ test('createServer presents an IPC rejection because main-process handling did n
   })
 
   assert.equal(result.success, false)
-  assert.equal(messages.at(-1).mode, MESSAGE_BOX_MODE.MESSAGE)
-  assert.equal(messages.at(-1).level, MESSAGE_BOX_LEVEL.ERROR)
+  assert.equal(messages.at(-1).mode, OPERATION_REPORT_MODE.MESSAGE)
+  assert.equal(messages.at(-1).level, OPERATION_REPORT_LEVEL.ERROR)
   assert.deepEqual(messages.at(-1), {
-    mode: MESSAGE_BOX_MODE.MESSAGE,
-    level: MESSAGE_BOX_LEVEL.ERROR,
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.ERROR,
     key: `errors.${APP_ERROR_CODE.IPC_UNAVAILABLE}`,
     params: {},
     detail: 'IPC unavailable',
@@ -102,7 +102,7 @@ test('createServer does not open progress UI when validation fails', async () =>
   let progressOpened = false
   const serverOperations = useServerOperations({
     async showMessageBox(payload) {
-      if (payload.mode === MESSAGE_BOX_MODE.PROGRESS)
+      if (payload.mode === OPERATION_REPORT_MODE.PROGRESS)
         progressOpened = true
     },
   })
@@ -192,7 +192,7 @@ test('deleteServer sends payload after confirmation', async () => {
     serverName: 'synology',
   })
   assert.deepEqual(confirmationPayload, {
-    mode: MESSAGE_BOX_MODE.CONFIRM,
+    mode: OPERATION_REPORT_MODE.CONFIRM,
     key: `messages.${APP_MESSAGE_CODE.SERVER_DELETE_CONFIRMATION}`,
     params: { serverName: 'synology' },
   })

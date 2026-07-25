@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import {
-  MESSAGE_BOX_LEVEL,
-  MESSAGE_BOX_MODE,
-} from '#src/app/main-window/message-box-contract.js'
-import { APP_OPERATION, SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-progress-contract.js'
+  OPERATION_REPORT_LEVEL,
+  OPERATION_REPORT_MODE,
+} from '#src/app/operation-report-contract.js'
+import { APP_OPERATION, SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-reporter.js'
 import en from '#src/electron/renderer/src/i18n/locales/en/index.js'
 import {
   resolveMessageBoxIconClass,
@@ -25,7 +25,7 @@ function resolve(state) {
 
 test('message-box presentation resolves a complete key and interpolation', () => {
   assert.deepEqual(resolve({
-    mode: MESSAGE_BOX_MODE.CONFIRM,
+    mode: OPERATION_REPORT_MODE.CONFIRM,
     key: `messages.${APP_MESSAGE_CODE.SERVER_DELETE_CONFIRMATION}`,
     params: { serverName: 'synology' },
   }), {
@@ -37,7 +37,7 @@ test('message-box presentation resolves a complete key and interpolation', () =>
 
 test('message-box presentation resolves string and object locale entries', () => {
   assert.deepEqual(resolve({
-    mode: MESSAGE_BOX_MODE.PROGRESS,
+    mode: OPERATION_REPORT_MODE.PROGRESS,
     key: `operations.${APP_OPERATION.CREATE_SERVER}.steps.${SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION}`,
   }), {
     title: 'Creating Server',
@@ -46,8 +46,8 @@ test('message-box presentation resolves string and object locale entries', () =>
   })
 
   assert.deepEqual(resolve({
-    mode: MESSAGE_BOX_MODE.MESSAGE,
-    level: MESSAGE_BOX_LEVEL.SUCCESS,
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.SUCCESS,
     key: `operations.${APP_OPERATION.CREATE_SERVER}.succeeded`,
   }), {
     title: 'Creating Server',
@@ -58,7 +58,7 @@ test('message-box presentation resolves string and object locale entries', () =>
 
 test('message-box presentation uses generic fallbacks without interpreting key prefixes', () => {
   assert.deepEqual(resolve({
-    mode: MESSAGE_BOX_MODE.PROGRESS,
+    mode: OPERATION_REPORT_MODE.PROGRESS,
     key: 'anything.missing',
   }), {
     title: 'Working',
@@ -67,8 +67,8 @@ test('message-box presentation uses generic fallbacks without interpreting key p
   })
 
   assert.deepEqual(resolve({
-    mode: MESSAGE_BOX_MODE.MESSAGE,
-    level: MESSAGE_BOX_LEVEL.ERROR,
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.ERROR,
     key: 'anything.missing',
   }), {
     title: 'Error',
@@ -79,15 +79,15 @@ test('message-box presentation uses generic fallbacks without interpreting key p
 
 test('message-box presentation inherits a title from the nearest locale ancestor', () => {
   assert.equal(resolve({
-    mode: MESSAGE_BOX_MODE.PROGRESS,
+    mode: OPERATION_REPORT_MODE.PROGRESS,
     key: `operations.${APP_OPERATION.CREATE_SERVER}.steps.${SERVER_CREATE_PROGRESS_STEP.SAVE}`,
   }).title, 'Creating Server')
 })
 
 test('message-box presentation supports restricted literal text and runtime detail', () => {
   assert.deepEqual(resolve({
-    mode: MESSAGE_BOX_MODE.MESSAGE,
-    level: MESSAGE_BOX_LEVEL.ERROR,
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.ERROR,
     text: {
       title: 'External Error',
       message: 'External text',
@@ -100,7 +100,7 @@ test('message-box presentation supports restricted literal text and runtime deta
   })
 
   assert.equal(resolve({
-    mode: MESSAGE_BOX_MODE.CONFIRM,
+    mode: OPERATION_REPORT_MODE.CONFIRM,
     key: `messages.${APP_MESSAGE_CODE.SERVER_DELETE_CONFIRMATION}`,
     detail: 'Runtime detail',
   }).detail, 'Runtime detail')
@@ -108,7 +108,7 @@ test('message-box presentation supports restricted literal text and runtime deta
 
 test('message-box presentation uses a neutral question icon for confirmation', () => {
   assert.match(resolveMessageBoxIconClass({
-    mode: MESSAGE_BOX_MODE.CONFIRM,
+    mode: OPERATION_REPORT_MODE.CONFIRM,
     key: `messages.${APP_MESSAGE_CODE.SERVER_DELETE_CONFIRMATION}`,
   }), /question/)
 })

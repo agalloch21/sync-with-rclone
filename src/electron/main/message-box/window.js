@@ -2,10 +2,10 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  isMessageBoxResult,
-  MESSAGE_BOX_RESULT,
-  normalizeMessageBoxState,
-} from '#src/app/main-window/message-box-contract.js'
+  isOperationReportAcknowledgement,
+  normalizeOperationReportState,
+  OPERATION_REPORT_ACKNOWLEDGEMENT,
+} from '#src/app/operation-report-contract.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import {
   clearMessageBoxWindow,
@@ -19,7 +19,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 
 function createMessageBoxState(payload = {}) {
-  return normalizeMessageBoxState(payload)
+  return normalizeOperationReportState(payload)
 }
 
 function createDefaultMessageBoxState() {
@@ -34,7 +34,7 @@ const { BrowserWindow, ipcMain } = require('electron')
 
 let currentState = null
 let pendingResolve = null
-let closingResult = MESSAGE_BOX_RESULT.CLOSED
+let closingResult = OPERATION_REPORT_ACKNOWLEDGEMENT.CLOSED
 let handlersRegistered = false
 let readyHandler = null
 
@@ -46,9 +46,9 @@ function resolveMessageBox(result) {
 }
 
 function closeWithResult(result) {
-  const normalizedResult = isMessageBoxResult(result)
+  const normalizedResult = isOperationReportAcknowledgement(result)
     ? result
-    : MESSAGE_BOX_RESULT.CLOSED
+    : OPERATION_REPORT_ACKNOWLEDGEMENT.CLOSED
   const messageWindow = getMessageBoxWindow()
 
   if (messageWindow) {
@@ -67,12 +67,12 @@ function registerHandlers() {
   ipcMain.handle('message-box:get-state', () => currentState || createDefaultMessageBoxState())
 
   ipcMain.handle('message-box:on-click-confirm', () => {
-    closeWithResult(MESSAGE_BOX_RESULT.CONFIRMED)
+    closeWithResult(OPERATION_REPORT_ACKNOWLEDGEMENT.CONFIRMED)
     return { success: true }
   })
 
   ipcMain.handle('message-box:on-click-cancel', () => {
-    closeWithResult(MESSAGE_BOX_RESULT.CANCELLED)
+    closeWithResult(OPERATION_REPORT_ACKNOWLEDGEMENT.CANCELLED)
     return { success: true }
   })
 
@@ -113,7 +113,7 @@ function createWindow() {
   messageWindow.on('closed', () => {
     clearMessageBoxWindow(messageWindow)
     resolveMessageBox(closingResult)
-    closingResult = MESSAGE_BOX_RESULT.CLOSED
+    closingResult = OPERATION_REPORT_ACKNOWLEDGEMENT.CLOSED
   })
 
   messageWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {
@@ -151,7 +151,7 @@ export function openMessageBox(payload = {}) {
   currentState = createMessageBoxState(payload)
 
   if (pendingResolve)
-    resolveMessageBox(MESSAGE_BOX_RESULT.REPLACED)
+    resolveMessageBox(OPERATION_REPORT_ACKNOWLEDGEMENT.REPLACED)
 
   const resultPromise = new Promise((resolve) => {
     pendingResolve = resolve
@@ -166,7 +166,7 @@ export function openMessageBox(payload = {}) {
   return resultPromise
 }
 
-export function closeMessageBox(result = MESSAGE_BOX_RESULT.CLOSED) {
+export function closeMessageBox(result = OPERATION_REPORT_ACKNOWLEDGEMENT.CLOSED) {
   closeWithResult(result)
 }
 

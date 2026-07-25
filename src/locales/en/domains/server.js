@@ -1,7 +1,7 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
-import { APP_OPERATION, SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-progress-contract.js'
-import { defineLocaleTree } from '../../../locale-tree.js'
+import { APP_OPERATION, SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-reporter.js'
+import { defineLocaleTree } from '../../locale-tree.js'
 
 export default {
   messages: defineLocaleTree({

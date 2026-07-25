@@ -1,12 +1,12 @@
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
-import { createServer, createSyncTask, getServer, listServers, updateServer, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/main-window/app-operations.js'
-import { APP_OPERATION } from '#src/app/operation-progress-contract.js'
+import { createServer, createSyncTask, getServer, listServers, updateServer, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/app-operations.js'
+import { APP_OPERATION, createOperationReporter } from '#src/app/operation-reporter.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import { getActiveModalWindow } from '../app-state.js'
 import { openFolderDialog } from '../folder-dialog/window.js'
-import { createOperationReporter } from '../message-box/operation-reporter.js'
+import { closeMessageBox, openMessageBox, updateMessageBox } from '../message-box/window.js'
 
 const require = createRequire(import.meta.url)
 
@@ -30,19 +30,24 @@ function createLocalFolderDialogOptions(currentPath, homeDirectory = os.homedir(
 }
 
 async function runProgressOperation(operation, execute, needAcknowledgement = false) {
-  const reporter = createOperationReporter(operation)
+  const reporter = createOperationReporter(operation, {
+    open: openMessageBox,
+    update: updateMessageBox,
+    close: closeMessageBox,
+  })
 
+  let value
   try {
-    const value = await execute(reporter.step)
-    await reporter.succeed(needAcknowledgement)
-
-    return toSuccessfulResult(value)
+    value = await execute(reporter.step)
   }
   catch (error) {
     const result = toFailureResult(error)
     await reporter.error(error)
     return result
   }
+
+  await reporter.succeed(needAcknowledgement)
+  return toSuccessfulResult(value)
 }
 
 export function createSyncTaskModalHandlers() {

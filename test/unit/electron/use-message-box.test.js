@@ -3,9 +3,9 @@ import test from 'node:test'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import {
-  MESSAGE_BOX_LEVEL,
-  MESSAGE_BOX_MODE,
-} from '#src/app/main-window/message-box-contract.js'
+  OPERATION_REPORT_LEVEL,
+  OPERATION_REPORT_MODE,
+} from '#src/app/operation-report-contract.js'
 import { useMessageBox } from '#src/electron/renderer/src/composables/useMessageBox.js'
 
 function createMessageBox() {
@@ -30,19 +30,19 @@ test('message facade exposes semantic level methods over message content', async
 
   assert.deepEqual(payloads, [
     {
-      mode: MESSAGE_BOX_MODE.MESSAGE,
-      level: MESSAGE_BOX_LEVEL.INFO,
+      mode: OPERATION_REPORT_MODE.MESSAGE,
+      level: OPERATION_REPORT_LEVEL.INFO,
       key: `messages.${APP_MESSAGE_CODE.SERVER_NAME_INVALID}`,
     },
     {
-      mode: MESSAGE_BOX_MODE.MESSAGE,
-      level: MESSAGE_BOX_LEVEL.WARNING,
+      mode: OPERATION_REPORT_MODE.MESSAGE,
+      level: OPERATION_REPORT_LEVEL.WARNING,
       key: `messages.${APP_MESSAGE_CODE.SERVER_NAME_INVALID}`,
       params: { serverName: 'synology' },
     },
     {
-      mode: MESSAGE_BOX_MODE.MESSAGE,
-      level: MESSAGE_BOX_LEVEL.SUCCESS,
+      mode: OPERATION_REPORT_MODE.MESSAGE,
+      level: OPERATION_REPORT_LEVEL.SUCCESS,
       key: `messages.${APP_MESSAGE_CODE.SERVER_NAME_INVALID}`,
     },
   ])
@@ -56,7 +56,7 @@ test('message facade emits neutral confirmation without a level', async () => {
   })
 
   assert.deepEqual(payloads[0], {
-    mode: MESSAGE_BOX_MODE.CONFIRM,
+    mode: OPERATION_REPORT_MODE.CONFIRM,
     key: `messages.${APP_MESSAGE_CODE.SERVER_DELETE_CONFIRMATION}`,
     params: { serverName: 'synology' },
   })
@@ -74,15 +74,15 @@ test('message facade normalizes application and unexpected errors as errors', as
   await messageBox.error(new Error('Socket closed.'))
 
   assert.deepEqual(payloads[0], {
-    mode: MESSAGE_BOX_MODE.MESSAGE,
-    level: MESSAGE_BOX_LEVEL.ERROR,
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.ERROR,
     key: `errors.${APP_ERROR_CODE.SERVER_CONNECTION_FAILED}`,
     params: { serverName: 'synology' },
     detail: 'Connection failed.',
   })
   assert.deepEqual(payloads[1], {
-    mode: MESSAGE_BOX_MODE.MESSAGE,
-    level: MESSAGE_BOX_LEVEL.ERROR,
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.ERROR,
     key: `errors.${APP_ERROR_CODE.UNKNOWN}`,
     params: {},
     detail: 'Socket closed.',

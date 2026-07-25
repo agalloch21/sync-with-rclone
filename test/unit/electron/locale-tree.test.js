@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { defineLocaleTree } from '#src/electron/renderer/src/i18n/locale-tree.js'
+import { defineLocaleTree } from '#src/locales/locale-tree.js'
 
 test('defineLocaleTree expands dotted codes and preserves nested locale values', () => {
   assert.deepEqual(defineLocaleTree({

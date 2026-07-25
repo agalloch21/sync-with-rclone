@@ -1,5 +1,5 @@
 import { APP_ERROR_CODE, getErrorCode, throwAppError } from '../app-errors.js'
-import { SERVER_CREATE_PROGRESS_STEP } from '../operation-progress-contract.js'
+import { SERVER_CREATE_PROGRESS_STEP } from '../operation-reporter.js'
 import { getProtocolDefinition } from './protocol-registry.js'
 import * as rcloneRemotes from './rclone-config.js'
 

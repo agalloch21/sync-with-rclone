@@ -10,7 +10,7 @@ import {
   renameServerConnection,
   updateServerConnection,
 } from '#src/app/configuration/server-operations.js'
-import { SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-progress-contract.js'
+import { SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-reporter.js'
 
 const originalEnv = {}
 const originalResourcesPath = process.resourcesPath

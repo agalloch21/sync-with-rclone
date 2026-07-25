@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { getMainWindowData, updateGlobalIgnorePatterns, updateServer } from '#src/app/main-window/app-operations.js'
+import { getMainWindowData, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-operations.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('getMainWindowData returns servers and sync tasks from the current app operations', async () => {

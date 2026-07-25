@@ -1,6 +1,6 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
-import { defineLocaleTree } from '../../../locale-tree.js'
+import { defineLocaleTree } from '../../locale-tree.js'
 
 export default {
   messages: defineLocaleTree({

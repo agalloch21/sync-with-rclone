@@ -1,8 +1,8 @@
 <script setup>
 import {
-  MESSAGE_BOX_LEVEL,
-  MESSAGE_BOX_MODE,
-} from '#src/app/main-window/message-box-contract.js'
+  OPERATION_REPORT_LEVEL,
+  OPERATION_REPORT_MODE,
+} from '#src/app/operation-report-contract.js'
 import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
 import { computed, onMounted, onUnmounted, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -11,8 +11,8 @@ import { resolveMessageBoxIconClass, resolveMessageBoxPresentation } from './Mes
 const { t, te } = useI18n()
 
 const state = ref({
-  mode: MESSAGE_BOX_MODE.MESSAGE,
-  level: MESSAGE_BOX_LEVEL.INFO,
+  mode: OPERATION_REPORT_MODE.MESSAGE,
+  level: OPERATION_REPORT_LEVEL.INFO,
   text: {
     message: '',
   },
@@ -29,13 +29,13 @@ watchEffect(() => {
 const iconClass = computed(() => resolveMessageBoxIconClass(state.value))
 
 const buttons = computed(() => {
-  if (state.value.mode === MESSAGE_BOX_MODE.CONFIRM) {
+  if (state.value.mode === OPERATION_REPORT_MODE.CONFIRM) {
     return [
       { key: 'confirm', label: t('common.confirm'), primary: true, onClick: () => window.messageBox?.onClickConfirm?.() },
       { key: 'cancel', label: t('common.cancel'), primary: false, onClick: () => window.messageBox?.onClickCancel?.() },
     ]
   }
-  if (state.value.mode === MESSAGE_BOX_MODE.MESSAGE) {
+  if (state.value.mode === OPERATION_REPORT_MODE.MESSAGE) {
     return [
       { key: 'ok', label: t('common.ok'), primary: true, onClick: () => window.messageBox?.onClickConfirm?.() },
     ]

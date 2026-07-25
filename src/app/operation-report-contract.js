@@ -1,19 +1,19 @@
-import { APP_ERROR_CODE } from '../app-errors.js'
+import { APP_ERROR_CODE } from './app-errors.js'
 
-export const MESSAGE_BOX_MODE = Object.freeze({
+export const OPERATION_REPORT_MODE = Object.freeze({
   MESSAGE: 'message',
   CONFIRM: 'confirm',
   PROGRESS: 'progress',
 })
 
-export const MESSAGE_BOX_LEVEL = Object.freeze({
+export const OPERATION_REPORT_LEVEL = Object.freeze({
   INFO: 'info',
   WARNING: 'warning',
   ERROR: 'error',
   SUCCESS: 'success',
 })
 
-export const MESSAGE_BOX_RESULT = Object.freeze({
+export const OPERATION_REPORT_ACKNOWLEDGEMENT = Object.freeze({
   CONFIRMED: 'confirmed',
   CANCELLED: 'cancelled',
   CLOSED: 'closed',
@@ -62,7 +62,7 @@ function hasValidDetail(state) {
   return state.detail === undefined || typeof state.detail === 'string'
 }
 
-function isMessageBoxText(value) {
+function isOperationReportText(value) {
   return isPlainObject(value)
     && typeof value.message === 'string'
     && (value.title === undefined || typeof value.title === 'string')
@@ -79,21 +79,21 @@ function formatErrorDetail(error) {
   return error?.message || ''
 }
 
-export function isMessageBoxMode(value) {
-  return Object.values(MESSAGE_BOX_MODE).includes(value)
+export function isOperationReportMode(value) {
+  return Object.values(OPERATION_REPORT_MODE).includes(value)
 }
 
-export function isMessageBoxLevel(value) {
-  return Object.values(MESSAGE_BOX_LEVEL).includes(value)
+export function isOperationReportLevel(value) {
+  return Object.values(OPERATION_REPORT_LEVEL).includes(value)
 }
 
-export function isMessageBoxResult(value) {
-  return Object.values(MESSAGE_BOX_RESULT).includes(value)
+export function isOperationReportAcknowledgement(value) {
+  return Object.values(OPERATION_REPORT_ACKNOWLEDGEMENT).includes(value)
 }
 
-export function isMessageBoxState(value) {
+export function isOperationReportState(value) {
   if (!isPlainObject(value)
-    || !isMessageBoxMode(value.mode)
+    || !isOperationReportMode(value.mode)
     || !hasValidParams(value)
     || !hasValidDetail(value)) {
     return false
@@ -106,30 +106,30 @@ export function isMessageBoxState(value) {
     return false
   if (hasKey && !isNonEmptyString(value.key))
     return false
-  if (hasText && !isMessageBoxText(value.text))
+  if (hasText && !isOperationReportText(value.text))
     return false
   if (hasText && value.params !== undefined)
     return false
 
-  if (value.mode === MESSAGE_BOX_MODE.MESSAGE)
-    return isMessageBoxLevel(value.level)
+  if (value.mode === OPERATION_REPORT_MODE.MESSAGE)
+    return isOperationReportLevel(value.level)
 
   return value.level === undefined
 }
 
-export function normalizeMessageBoxState(payload = {}) {
+export function normalizeOperationReportState(payload = {}) {
   if (!isPlainObject(payload))
-    throw new TypeError('Message-box state must be an object.')
+    throw new TypeError('Operation report state must be an object.')
 
-  const mode = payload.mode ?? MESSAGE_BOX_MODE.MESSAGE
+  const mode = payload.mode ?? OPERATION_REPORT_MODE.MESSAGE
 
-  if (!isMessageBoxMode(mode))
-    throw new TypeError(`Invalid message-box mode: ${mode}`)
-  if (mode !== MESSAGE_BOX_MODE.MESSAGE && payload.level !== undefined)
-    throw new TypeError(`Message-box level is not valid for ${mode} mode.`)
+  if (!isOperationReportMode(mode))
+    throw new TypeError(`Invalid operation report mode: ${mode}`)
+  if (mode !== OPERATION_REPORT_MODE.MESSAGE && payload.level !== undefined)
+    throw new TypeError(`Operation report level is not valid for ${mode} mode.`)
 
-  const level = mode === MESSAGE_BOX_MODE.MESSAGE
-    ? payload.level ?? MESSAGE_BOX_LEVEL.INFO
+  const level = mode === OPERATION_REPORT_MODE.MESSAGE
+    ? payload.level ?? OPERATION_REPORT_LEVEL.INFO
     : undefined
   const state = {
     mode,
@@ -140,16 +140,16 @@ export function normalizeMessageBoxState(payload = {}) {
     ...(payload.text !== undefined && { text: payload.text }),
   }
 
-  if (!isMessageBoxState(state))
-    throw new TypeError('Invalid message-box state.')
+  if (!isOperationReportState(state))
+    throw new TypeError('Invalid operation report state.')
 
   return state
 }
 
-export function createMessageBoxErrorState(error = {}) {
+export function createOperationErrorReportState(error = {}) {
   return {
-    mode: MESSAGE_BOX_MODE.MESSAGE,
-    level: MESSAGE_BOX_LEVEL.ERROR,
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.ERROR,
     key: `errors.${error?.code || APP_ERROR_CODE.UNKNOWN}`,
     params: error?.meta || {},
     detail: formatErrorDetail(error),

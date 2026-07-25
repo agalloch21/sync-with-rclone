@@ -4,11 +4,11 @@ import { createRequire } from 'node:module'
 import test from 'node:test'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
 import {
-  MESSAGE_BOX_LEVEL,
-  MESSAGE_BOX_MODE,
-  MESSAGE_BOX_RESULT,
-} from '#src/app/main-window/message-box-contract.js'
-import { APP_OPERATION, SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-progress-contract.js'
+  OPERATION_REPORT_ACKNOWLEDGEMENT,
+  OPERATION_REPORT_LEVEL,
+  OPERATION_REPORT_MODE,
+} from '#src/app/operation-report-contract.js'
+import { APP_OPERATION, createOperationReporter, SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-reporter.js'
 
 const ipcHandlers = new Map()
 const ipcMain = new EventEmitter()
@@ -49,7 +49,15 @@ require.cache[electronModulePath] = {
   },
 }
 
-const { createOperationReporter } = await import('#src/electron/main/message-box/operation-reporter.js')
+const messageBox = await import('#src/electron/main/message-box/window.js')
+
+function openCreateServerProgress() {
+  return createOperationReporter(APP_OPERATION.CREATE_SERVER, {
+    open: messageBox.openMessageBox,
+    update: messageBox.updateMessageBox,
+    close: messageBox.closeMessageBox,
+  })
+}
 
 function revealMessageBox() {
   ipcMain.emit('message-box:ready')
@@ -62,32 +70,32 @@ async function acknowledge(promise) {
 }
 
 test('operation progress opens, updates, and succeeds without message levels while running', async () => {
-  const progress = createOperationReporter(APP_OPERATION.CREATE_SERVER)
+  const progress = openCreateServerProgress()
 
   assert.deepEqual(revealMessageBox(), {
-    mode: MESSAGE_BOX_MODE.PROGRESS,
+    mode: OPERATION_REPORT_MODE.PROGRESS,
     key: `operations.${APP_OPERATION.CREATE_SERVER}`,
   })
 
   assert.equal('update' in progress, false)
   progress.step(SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION, { serverName: 'synology' })
   assert.deepEqual(latestWindow.sent.at(-1), {
-    mode: MESSAGE_BOX_MODE.PROGRESS,
+    mode: OPERATION_REPORT_MODE.PROGRESS,
     key: `operations.${APP_OPERATION.CREATE_SERVER}.steps.${SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION}`,
     params: { serverName: 'synology' },
   })
 
   const succeeded = progress.succeed(true)
   assert.deepEqual(latestWindow.sent.at(-1), {
-    mode: MESSAGE_BOX_MODE.MESSAGE,
-    level: MESSAGE_BOX_LEVEL.SUCCESS,
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.SUCCESS,
     key: `operations.${APP_OPERATION.CREATE_SERVER}.succeeded`,
   })
   await acknowledge(succeeded)
 })
 
 test('operation progress closes immediately for unacknowledged success', async () => {
-  const progress = createOperationReporter(APP_OPERATION.CREATE_SERVER)
+  const progress = openCreateServerProgress()
   revealMessageBox()
 
   await progress.succeed(false)
@@ -95,7 +103,7 @@ test('operation progress closes immediately for unacknowledged success', async (
 })
 
 test('operation progress presents application and unexpected errors with error severity', async () => {
-  const expectedProgress = createOperationReporter(APP_OPERATION.CREATE_SERVER)
+  const expectedProgress = openCreateServerProgress()
   revealMessageBox()
   const expected = expectedProgress.error(new AppError({
     code: APP_ERROR_CODE.SERVER_CONNECTION_FAILED,
@@ -104,21 +112,21 @@ test('operation progress presents application and unexpected errors with error s
   }))
 
   assert.deepEqual(latestWindow.sent.at(-1), {
-    mode: MESSAGE_BOX_MODE.MESSAGE,
-    level: MESSAGE_BOX_LEVEL.ERROR,
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.ERROR,
     key: `errors.${APP_ERROR_CODE.SERVER_CONNECTION_FAILED}`,
     params: {},
     detail: 'Authentication rejected.',
   })
   await acknowledge(expected)
 
-  const unexpectedProgress = createOperationReporter(APP_OPERATION.CREATE_SERVER)
+  const unexpectedProgress = openCreateServerProgress()
   revealMessageBox()
   const unexpected = unexpectedProgress.error(new Error('Socket closed.'))
 
   assert.deepEqual(latestWindow.sent.at(-1), {
-    mode: MESSAGE_BOX_MODE.MESSAGE,
-    level: MESSAGE_BOX_LEVEL.ERROR,
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.ERROR,
     key: `errors.${APP_ERROR_CODE.UNKNOWN}`,
     params: {},
     detail: 'Socket closed.',
@@ -127,10 +135,10 @@ test('operation progress presents application and unexpected errors with error s
 })
 
 test('operation progress exposes explicit close behavior', async () => {
-  const progress = createOperationReporter(APP_OPERATION.CREATE_SERVER)
+  const progress = openCreateServerProgress()
   revealMessageBox()
 
-  await progress.close(MESSAGE_BOX_RESULT.CANCELLED)
+  await progress.close(OPERATION_REPORT_ACKNOWLEDGEMENT.CANCELLED)
 
   assert.equal(latestWindow.destroyed, true)
 })

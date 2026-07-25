@@ -1,4 +1,4 @@
-import { listServers } from '#src/app/main-window/app-operations.js'
+import { listServers } from '#src/app/app-operations.js'
 import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
 import { startSync } from '#src/app/sync-session/start-sync.js'
 import { SYNC_RESULT } from '#src/core/contract.js'

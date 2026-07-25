@@ -1,7 +1,7 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import { validateProtocolForm } from '#src/app/configuration/protocol-registry.js'
-import { MESSAGE_BOX_RESULT } from '#src/app/main-window/message-box-contract.js'
+import { OPERATION_REPORT_ACKNOWLEDGEMENT } from '#src/app/operation-report-contract.js'
 import { toFailureResult } from '#src/app/operation-result.js'
 import { toRaw } from 'vue'
 import { useMessageBox } from './useMessageBox.js'
@@ -135,7 +135,7 @@ export function useServerOperations(windowPreload) {
       return toFailureResult(error)
     }
 
-    if (!confirmation || confirmation.value !== MESSAGE_BOX_RESULT.CONFIRMED)
+    if (!confirmation || confirmation.value !== OPERATION_REPORT_ACKNOWLEDGEMENT.CONFIRMED)
       return confirmation || toFailureResult()
 
     const payload = { serverName }

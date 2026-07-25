@@ -1,3 +1,4 @@
+// Shared locale definitions are consumed by both renderer and CLI shells.
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value))
     return false

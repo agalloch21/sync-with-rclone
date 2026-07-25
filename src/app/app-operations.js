@@ -1,7 +1,7 @@
 import EventEmitter from 'node:events'
-import * as serverOperations from '../configuration/server-operations.js'
-import * as settingsOperations from '../configuration/settings-operations.js'
-import * as taskOperations from '../configuration/task-operations.js'
+import * as serverOperations from './configuration/server-operations.js'
+import * as settingsOperations from './configuration/settings-operations.js'
+import * as taskOperations from './configuration/task-operations.js'
 
 export const configEventEmitter = new EventEmitter()
 

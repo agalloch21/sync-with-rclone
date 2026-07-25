@@ -1,5 +1,5 @@
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
-import { deleteServer, deleteSyncTask, getMainWindowData, getServer, updateGlobalIgnorePatterns } from '#src/app/main-window/app-operations.js'
+import { deleteServer, deleteSyncTask, getMainWindowData, getServer, updateGlobalIgnorePatterns } from '#src/app/app-operations.js'
 import { isValidSyncTaskModal } from '#src/app/main-window/modal-contract.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import { getActiveModalWindow } from '../app-state.js'

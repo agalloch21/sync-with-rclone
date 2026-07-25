@@ -43,6 +43,7 @@ src/           // 运行时代码
   cli/         // CLI入口、终端review、终端输出，可独立承接主流程
   core/        // Snapshot、Diff、SyncPlan、Apply、rclone 执行封装
   electron/    // 当前桌面主壳层，包含 Electron main、preload、renderer
+  locales/     // GUI / CLI 共用的业务 message、error、operation 翻译
 scripts/       // 非运行时代码
   dev/         // 开发启动脚本
   build/       // 打包校验、产物准备脚本
@@ -53,6 +54,7 @@ resources/     // bundled binaries、图标等静态资源
 **层级边界:**
 - core 不读取 Electron API，不解析配置文件
 - app 负责把 shell 的输入整理成 core 的输入
+- `src/app/app-operations.js` 是 GUI、CLI 和未来 agent/automation shell 调用应用能力的统一入口
 - electron 负责桌面壳层和窗口，不直接承担同步业务
 - cli 负责命令行壳层和终端交互
 - cli 不作为 Electron UI 的下层依赖；UI 通过 Electron Main 调用 app 层能力
@@ -400,7 +402,7 @@ copy 之外的示例：
 说明：
 
 - `MainWindowData` 是主窗口 renderer 的当前只读展示数据
-- `src/app/main-window/app-operations.js` 通过 `getMainWindowData()` 组合 server 列表和 sync task 列表
+- `src/app/app-operations.js` 通过 `getMainWindowData()` 组合 server 列表和 sync task 列表
 - server connection 由 `src/app/configuration/server-operations.js` 从 rclone remote 转换而来，对外结构固定为 `{ name, type, address, status, config }`
 - sync task 来源于 `src/app/configuration/app-config.js` 中的 `config.json`
 - 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
@@ -514,30 +516,218 @@ sequenceDiagram
 - sync-task modal 的初始状态不通过 `additionalArguments` 传入 renderer
 - Electron Main 保存 `modalState`，preload 暴露 `window.syncTaskModal.getState()`，renderer 启动后异步读取
 
-### 4.10 `MessageBoxState`
+### 4.10 `OperationReportState`
+
+完整错误契约见 [ErrorHandling.md](./ErrorHandling.md)。
 
 ```js
 {
-  mode: "confirm",
+  mode: "message",
   level: "warning",
-  title: "Delete Server",
-  message: "Delete server \"synology\"?",
-  detail: "This removes the rclone remote from the local rclone configuration."
+  key: "errors.server.already_exists",
+  params: {
+    serverName: "synology"
+  },
+  detail: "The server name is already in use."
 }
 ```
 
-说明：
+`OperationReportState` 是 operation reporter 与各类展示 surface 之间的最小契约：
 
-- message-box 是 Electron Main 里的进程级单例窗口
-- 同一时间只允许存在一个 message-box
-- message-box parent 由 `app-state.js` 选择：优先 active modal，其次 main window
-- message-box `mode` 支持 `message` / `confirm` / `progress`
-- message-box `level` 支持 `info` / `warning` / `error` / `success`
-- message-box renderer 通过 `onClickConfirm()` / `onClickCancel()` 通知 Electron Main
-- Electron Main 内部 `openMessageBox(...)` 的 Promise 直接返回 result 字符串：`confirmed` / `cancelled` / `closed` / `replaced`
-- renderer 通过 `showMessageBox(payload)` 调用 IPC 时，返回值使用标准 OperationResult：`{ success: true, value: result }`
-- 调用方通过 `openMessageBox(...)` / `closeMessageBox(...)` 操作单例窗口；已有窗口再次 open 时由内部更新当前窗口状态
-- message-box renderer 的初始状态也不通过 `additionalArguments` 传入，而是通过 `window.messageBox.getState()` 读取
+```ts
+type OperationReportState = {
+  mode: 'message' | 'confirm' | 'progress'
+  level?: 'info' | 'warning' | 'error' | 'success'
+  key?: string
+  params?: Record<string, SerializableValue>
+  detail?: string
+  text?: {
+    title?: string
+    message: string
+  }
+}
+```
+
+约束：
+
+- `key` 和 `text` 必须且只能出现一个
+- `level` 只属于 `message` mode；`confirm` 和运行中的 `progress` 不携带 level
+- `params` 必须是可序列化 plain object
+- `detail` 是可选的运行时补充信息；它会覆盖 locale 中同一 key 的 detail
+- `text` 只用于外部文本或非预期运行时文本，不用于普通内部 UI 文案
+- `normalizeOperationReportState()` 会补全 message mode 的默认 level，并对非法内部状态直接抛错
+
+语义 key 由调用 facade 完整生成：
+
+```text
+messages.${messageCode}
+errors.${errorCode}
+operations.${operation}
+operations.${operation}.steps.${step}
+operations.${operation}.succeeded
+```
+
+message-box renderer 不解释 code 类型，也不为 key 增加前缀。它只把收到的完整 key 解析成 `{ title, message, detail }`：
+
+- title 从当前 key 或最近的祖先 key 继承
+- message 优先读取 `${key}.message`，也允许 key 本身是 string
+- 找不到翻译时使用 message-box surface 的通用 fallback，不显示原始 key
+- confirm 使用中性的问号图标
+- progress 使用 loading 图标
+- message 根据 level 选择 info / warning / error / success 图标
+- renderer 根据解析后的 title 更新 document/native window title
+
+### 4.10.1 普通消息 facade 与 operation progress facade
+
+普通 renderer 交互使用 `useMessageBox(windowPreload)`：
+
+```js
+messageBox.information(code, options)
+messageBox.warning(code, options)
+messageBox.success(code, options)
+messageBox.confirm(code, options)
+messageBox.error(error)
+```
+
+- `information` / `warning` / `success` 通过内部 `notify()` 生成 message mode，并增加 `messages.` 前缀
+- `confirm` 生成无 level 的 confirm mode，并增加 `messages.` 前缀
+- `error` 接受 `AppError`、序列化 error 或普通 error，并增加 `errors.` 前缀
+- renderer caller 只表达展示意图、稳定 code 和插值参数，不构造 `mode`、`level` 或完整 locale key
+
+Operation progress 的正式 kit 位于 app 层：
+
+```js
+const reporter = createOperationReporter(
+  APP_OPERATION.CREATE_SERVER,
+  {
+    open,
+    update,
+    close,
+  },
+)
+
+try {
+  await execute(reporter.step)
+  await reporter.succeed()
+}
+catch (error) {
+  await reporter.error(error)
+}
+
+// A caller may use reporter.close(result) as an alternative terminal event.
+```
+
+- `createOperationReporter()` 是系统级 operation progress kit
+- reporter 接受中性的 `open` / `update` / `close` display interface，不依赖 message-box
+- reporter 自己组装完整 `OperationReportState`，包括 `mode`、`level`、完整 locale key、params 和 error detail
+- surface function 不需要理解 operation、step、success 或 error 的结构，只负责展示收到的 state
+- `step(code, params)` 明确表示 step progress；未来 percentage/count progress 需要在 reporter 中增加对应 semantic method，不能伪装成 step
+- `succeed(needAcknowledgement)` 由 reporter 决定关闭或更新为 success state，并复用最初 `open()` 返回的 acknowledgement
+- app operation 仍然只接收 callback，不依赖 reporter 或任何具体 surface
+- 当前 `createServer` operation 保留 callback-based `save` / `testConnection` / `rollback` 进度上报
+
+Electron Main 把 `src/electron/main/message-box/window.js` 的三个 GUI 函数适配为 display interface：
+
+- `open: openMessageBox` 创建/替换 GUI message-box 并返回 acknowledgement Promise
+- `update: updateMessageBox` 原子替换 GUI state
+- `close: closeMessageBox` 关闭 GUI window 并 settle acknowledgement
+- GUI function 不包含 operation-specific key assembly
+
+CLI 使用 `src/cli/operation-report-display.js` 暴露同一中性 interface：
+
+- `open(state)` / `update(state)` 接收 reporter 组装好的完整 state，`close(result)` 结束展示
+- CLI display 使用 `src/cli/i18n.js` 创建真实 Vue I18n instance
+- locale 从 `LC_ALL` / `LC_MESSAGES` / `LANG` 解析，支持 `en` 和 `zh-CN`，fallback 为 English
+- CLI 从共享 `src/locales/` 读取 operation/error translation，不依赖 Electron renderer
+- terminal surface 输出翻译后的 message/detail；initial acknowledgement 立即 resolve，不阻塞命令执行
+
+### 4.10.2 Message-box 生命周期
+
+- message-box 是 Electron Main 里的进程级单例窗口，同一时间只允许存在一个
+- parent 由 `app-state.js` 选择：优先 active modal，其次 main window
+- Electron Main 内部 `openMessageBox(...)` 的 Promise 返回 `confirmed` / `cancelled` / `closed` / `replaced`
+- 这些 lifecycle 值属于 `OPERATION_REPORT_ACKNOWLEDGEMENT`，表示展示交互如何结束；它们不是 `operation-result.js` 定义的业务执行结果
+- renderer 通过 preload 的 `showMessageBox(payload)` 打开普通消息或确认框，IPC 返回标准 `OperationResult`
+- 已有窗口再次 open 时，旧 Promise 以 `replaced` settle，新 state 原子替换当前 state
+- `updateMessageBox()` 替换完整 state，不依赖旧 state 拼接 title/message
+- message-box renderer 通过 `getState()` 读取初始状态，通过 state event 接收后续替换
+- message-box renderer 通过 confirm/cancel bridge 通知 Electron Main；Electron Main 拥有最终关闭和 Promise settle
+
+### 4.11 语义 code 与 locale 组织
+
+稳定 code 是程序契约，locale 文案是展示实现。三类 code 使用各自已有的命名惯例：
+
+```text
+APP_ERROR_CODE      server.already_exists
+APP_MESSAGE_CODE    server.delete_confirmation
+APP_OPERATION       createServer
+progress step       testConnection
+```
+
+- error/message code 使用带 domain namespace 的点分 snake_case
+- operation 和 step 是 JavaScript operation 名称，使用 camelCase
+- caller 使用 `APP_ERROR_CODE`、`APP_MESSAGE_CODE`、`APP_OPERATION` 和对应 step 常量，不手写正式 code
+- typed locale root 防止不同类别发生碰撞：`errors`、`messages`、`operations`
+- error/message code 的点只表达 domain namespace；operation progress 的 `steps` 由 `reporter.step()` 明确赋予语义
+
+`defineLocaleTree(entries)` 让 canonical dotted code 可以直接定义 nested locale tree：
+
+```js
+messages: defineLocaleTree({
+  [APP_MESSAGE_CODE.SERVER_DELETE_CONFIRMATION]: {
+    title: 'Delete Server',
+    message: 'Delete server "{serverName}"?',
+  },
+})
+```
+
+它在 locale module import 时运行一次，并拒绝空 segment、不安全 segment 和 path/value collision。它不是运行时翻译器；实际翻译仍由 Vue I18n 在 renderer 中完成。
+
+locale 先按是否跨 shell 共享，再按 ownership 组织：
+
+```text
+src/locales/
+  locale-tree.js
+  <locale>/
+    index.js
+    infrastructure.js
+    domains/
+      server.js
+      sync-task.js
+
+src/electron/renderer/src/i18n/locales/<locale>/
+  index.js
+  common.js
+  surfaces/
+    main-window.js
+    message-box.js
+    sync-session.js
+    sync-task-modal.js
+```
+
+- shared domain module 拥有该 domain 的 messages、errors 和 operations，GUI/CLI 共用
+- shared `infrastructure.js` 拥有 path/config/remote/ipc/rclone 等基础设施 errors
+- renderer surface module 只拥有 Electron UI surface 的固定文案
+- `surfaces/message-box.js` 只定义 level title、confirmation/progress chrome 和 fallback，不承载业务文案
+- shared locale `index.js` 组合 `messages` / `errors` / `operations` typed roots
+- renderer locale `index.js` 再把 shared locale 与 common/surface fragments 组合
+- English 和 Chinese 必须保持相同 key shape；English fallback 只是运行时安全网，不替代 locale parity
+
+对应实现入口：
+
+```text
+src/app/app-errors.js
+src/app/app-messages.js
+src/app/app-operations.js
+src/app/operation-report-contract.js
+src/app/operation-reporter.js
+src/cli/i18n.js
+src/cli/operation-report-display.js
+src/electron/main/message-box/window.js
+src/electron/renderer/src/composables/useMessageBox.js
+src/electron/renderer/src/surfaces/message-box/MessageBox.presentation.js
+src/locales/locale-tree.js
+```
 
 ## 5. 数据契约在主要模块间的流转
 

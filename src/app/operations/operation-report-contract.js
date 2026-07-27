@@ -1,4 +1,4 @@
-import { APP_ERROR_CODE } from './app-errors.js'
+import { APP_ERROR_CODE } from '../app-errors.js'
 
 export const OPERATION_REPORT_MODE = Object.freeze({
   MESSAGE: 'message',

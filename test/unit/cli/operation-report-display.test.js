@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
+import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
 import {
-  APP_OPERATION,
-  createOperationReporter,
   SERVER_CREATE_PROGRESS_STEP,
-} from '#src/app/operation-reporter.js'
+  SERVER_OPERATION,
+} from '#src/app/operations/server-operation-contract.js'
 import { createCliI18n, resolveCliLocale } from '#src/cli/i18n.js'
 import { createCliOperationReportDisplay } from '#src/cli/operation-report-display.js'
 
@@ -27,7 +27,7 @@ function createOutput() {
 test('CLI operation report display renders reporter states through Vue I18n', async () => {
   const output = createOutput()
   const reporter = createOperationReporter(
-    APP_OPERATION.CREATE_SERVER,
+    SERVER_OPERATION.CREATE,
     createCliOperationReportDisplay({
       output,
       i18n: createCliI18n('en'),
@@ -48,7 +48,7 @@ test('CLI operation report display renders reporter states through Vue I18n', as
 test('CLI operation report display supports Chinese and translated errors', async () => {
   const output = createOutput()
   const reporter = createOperationReporter(
-    APP_OPERATION.CREATE_SERVER,
+    SERVER_OPERATION.CREATE,
     createCliOperationReportDisplay({
       output,
       i18n: createCliI18n('zh-CN'),

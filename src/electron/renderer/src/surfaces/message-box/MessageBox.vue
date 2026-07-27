@@ -2,7 +2,7 @@
 import {
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operation-report-contract.js'
+} from '#src/app/operations/operation-report-contract.js'
 import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
 import { computed, onMounted, onUnmounted, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'

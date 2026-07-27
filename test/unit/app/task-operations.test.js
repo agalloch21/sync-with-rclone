@@ -2,7 +2,18 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { createSyncTask, deleteTaskFromConfig, retargetSyncTasks, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/configuration/task-operations.js'
+import {
+  SYNC_TASK_DELETE_PROGRESS_STEP,
+  SYNC_TASK_RETARGET_PROGRESS_STEP,
+  SYNC_TASK_SAVE_PROGRESS_STEP,
+} from '#src/app/operations/task-operation-contract.js'
+import {
+  createSyncTask,
+  deleteTaskFromConfig,
+  retargetSyncTasks,
+  updateSyncTask,
+  updateSyncTaskIgnorePatterns,
+} from '#src/app/operations/task-operations.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('deleteTaskFromConfig removes the selected task and preserves global ignore patterns', async () => {
@@ -27,15 +38,19 @@ test('deleteTaskFromConfig removes the selected task and preserves global ignore
       ],
     },
   }, async ({ configPath }) => {
-    assert.deepEqual(await deleteTaskFromConfig({
+    const progress = []
+    const deletedTask = await deleteTaskFromConfig({
       rcloneRemote: 'synology',
       localBasePath: path.resolve('/local/a'),
-    }), { success: true })
+    }, step => progress.push(step))
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
+    assert.equal(deletedTask.displayName, 'A')
+    assert.equal(deletedTask.localBasePath, path.resolve('/local/a'))
     assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
     assert.deepEqual(saved.syncTasks.map(task => task.displayName), ['B'])
     assert.deepEqual(saved.syncTasks[0].ignorePatterns, ['node_modules/'])
+    assert.deepEqual(progress, [SYNC_TASK_DELETE_PROGRESS_STEP.DELETE])
   })
 })
 
@@ -51,14 +66,13 @@ test('deleteTaskFromConfig returns an error when the task does not exist', async
       }],
     },
   }, async () => {
-    assert.deepEqual(await deleteTaskFromConfig({
-      rcloneRemote: 'synology',
-      localBasePath: path.resolve('/local/missing'),
-    }), {
-      success: false,
-      code: 'sync_task.not_found',
-      message: 'Sync task was not found.',
-    })
+    await assert.rejects(
+      () => deleteTaskFromConfig({
+        rcloneRemote: 'synology',
+        localBasePath: path.resolve('/local/missing'),
+      }),
+      error => error?.code === 'sync_task.not_found',
+    )
   })
 })
 
@@ -69,11 +83,12 @@ test('createSyncTask saves a normalized mapping with default metadata', async ()
     const localPath = path.join(tempDir, 'local')
     await fs.mkdir(localPath)
 
+    const progress = []
     const result = await createSyncTask({
       rcloneRemote: ' synology ',
       localBasePath: localPath,
       remoteBasePath: 'Projects\\Current/',
-    })
+    }, step => progress.push(step))
 
     assert.equal(result.rcloneRemote, 'synology')
     assert.equal(result.remoteBasePath, 'Projects/Current')
@@ -83,6 +98,7 @@ test('createSyncTask saves a normalized mapping with default metadata', async ()
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
     assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
     assert.equal(saved.syncTasks[0].localBasePath, localPath)
+    assert.deepEqual(progress, [SYNC_TASK_SAVE_PROGRESS_STEP.SAVE])
   })
 })
 
@@ -228,7 +244,8 @@ test('retargetSyncTasks updates every task for the renamed server and preserves 
       ],
     },
   }, async ({ configPath }) => {
-    await retargetSyncTasks(' synology ', ' nas ')
+    const progress = []
+    await retargetSyncTasks(' synology ', ' nas ', step => progress.push(step))
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
     assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
@@ -243,5 +260,6 @@ test('retargetSyncTasks updates every task for the renamed server and preserves 
       lastSyncFolder: 'src',
       lastSyncDate: '2026-07-19',
     })
+    assert.deepEqual(progress, [SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET])
   })
 })

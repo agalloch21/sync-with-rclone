@@ -1,6 +1,9 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
-import { APP_OPERATION, SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-reporter.js'
+import {
+  SERVER_CREATE_PROGRESS_STEP,
+  SERVER_OPERATION,
+} from '#src/app/operations/server-operation-contract.js'
 import { defineLocaleTree } from '../../locale-tree.js'
 
 export default {
@@ -32,7 +35,7 @@ export default {
     [APP_ERROR_CODE.SERVER_OPERATION_FAILED]: '服务器操作失败。',
   }),
   operations: {
-    [APP_OPERATION.CREATE_SERVER]: {
+    [SERVER_OPERATION.CREATE]: {
       title: '正在创建服务器',
       message: '正在准备创建服务器…',
       steps: {

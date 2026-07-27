@@ -294,34 +294,22 @@ export async function retargetSyncTasks(serverName, expectedServerName) {
 }
 
 export async function deleteSyncTask(task) {
-  let result
-
-  await updateAppConfig((config) => {
-    if (!config) {
-      result = {
-        success: false,
-        code: 'sync_task.config_missing',
-        message: 'Sync config does not exist.',
-      }
-      return null
+  let deletedTask
+  await updateAppConfig((loadedConfig) => {
+    const config = requireConfig(loadedConfig)
+    const taskIndex = findTaskIndex(config.syncTasks, task)
+    if (taskIndex === -1) {
+      throwAppError(APP_ERROR_CODE.SYNC_TASK_NOT_FOUND, 'Sync task was not found.', {
+        meta: task,
+      })
     }
 
-    const nextTasks = config.syncTasks.filter(candidate => !taskMatchesReference(candidate, task))
-    if (nextTasks.length === config.syncTasks.length) {
-      result = {
-        success: false,
-        code: 'sync_task.not_found',
-        message: 'Sync task was not found.',
-      }
-      return null
-    }
-
-    result = { success: true }
+    deletedTask = config.syncTasks[taskIndex]
     return {
       ...config,
-      syncTasks: nextTasks,
+      syncTasks: config.syncTasks.filter((_candidate, index) => index !== taskIndex),
     }
   })
 
-  return result
+  return deletedTask
 }

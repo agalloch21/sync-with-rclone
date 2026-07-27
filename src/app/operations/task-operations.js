@@ -1,6 +1,11 @@
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
+import * as appConfig from '../configuration/app-config.js'
 import { normalizeLocalPath, resolveLocalDirectoryPath, trimTrailingSlash } from '../path-utils.js'
-import * as appConfig from './app-config.js'
+import {
+  SYNC_TASK_DELETE_PROGRESS_STEP,
+  SYNC_TASK_RETARGET_PROGRESS_STEP,
+  SYNC_TASK_SAVE_PROGRESS_STEP,
+} from './task-operation-contract.js'
 
 function assertTaskInput(task) {
   if (!task || typeof task !== 'object' || Array.isArray(task))
@@ -46,7 +51,7 @@ export async function listSyncTasks() {
   return await appConfig.listSyncTasks()
 }
 
-export async function createSyncTask(task) {
+export async function createSyncTask(task, onProgress) {
   const mapping = normalizeTaskMapping(task)
   const nextTask = {
     displayName: '',
@@ -57,32 +62,37 @@ export async function createSyncTask(task) {
     lastSyncDate: null,
   }
 
+  onProgress?.(SYNC_TASK_SAVE_PROGRESS_STEP.SAVE)
   return await appConfig.createSyncTask(nextTask)
 }
 
-export async function updateSyncTask(task, expectedTask) {
+export async function updateSyncTask(task, expectedTask, onProgress) {
   assertTaskReference(task)
   const mapping = normalizeTaskMapping(expectedTask)
+  onProgress?.(SYNC_TASK_SAVE_PROGRESS_STEP.SAVE)
   return await appConfig.updateSyncTask(task, mapping)
 }
 
-export async function updateSyncTaskIgnorePatterns(task, ignorePatterns) {
+export async function updateSyncTaskIgnorePatterns(task, ignorePatterns, onProgress) {
   assertTaskReference(task)
   assertIgnorePatterns(ignorePatterns)
+  onProgress?.(SYNC_TASK_SAVE_PROGRESS_STEP.SAVE)
   return await appConfig.updateSyncTaskIgnorePatterns(task, ignorePatterns)
 }
 
-export async function retargetSyncTasks(serverName, expectedServerName) {
+export async function retargetSyncTasks(serverName, expectedServerName, onProgress) {
   const currentName = normalizeServerName(serverName)
   const nextName = normalizeServerName(expectedServerName)
 
   if (currentName === nextName)
     return await appConfig.listSyncTasks()
 
+  onProgress?.(SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET)
   return await appConfig.retargetSyncTasks(currentName, nextName)
 }
 
-export async function deleteTaskFromConfig(task) {
+export async function deleteTaskFromConfig(task, onProgress) {
   assertTaskReference(task)
+  onProgress?.(SYNC_TASK_DELETE_PROGRESS_STEP.DELETE)
   return await appConfig.deleteSyncTask(task)
 }

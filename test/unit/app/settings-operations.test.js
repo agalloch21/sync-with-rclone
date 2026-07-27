@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { listGlobalIgnorePatterns, updateGlobalIgnorePatterns } from '#src/app/configuration/settings-operations.js'
+import { listGlobalIgnorePatterns, updateGlobalIgnorePatterns } from '#src/app/operations/settings-operations.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('listGlobalIgnorePatterns reads global patterns through settings operations', async () => {

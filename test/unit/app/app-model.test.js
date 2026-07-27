@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { getMainWindowData, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-operations.js'
+import { deleteSyncTask, getMainWindowData, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-operations.js'
+import { SERVER_UPDATE_PROGRESS_STEP } from '#src/app/operations/server-operation-contract.js'
+import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/operations/task-operation-contract.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('getMainWindowData returns servers and sync tasks from the current app operations', async () => {
@@ -134,14 +136,56 @@ test('updateServer retargets all sync tasks when the server is renamed', async (
       ],
     },
   }, async ({ configPath }) => {
+    const progress = []
     await updateServer('synology', 'nas', 'sftp', {
       host: 'nas.local',
       port: 22,
       user: 'xiaobo',
       pass: 'secret',
-    })
+    }, step => progress.push(step))
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
     assert.deepEqual(saved.syncTasks.map(task => task.rcloneRemote), ['nas', 'backup'])
+    assert.deepEqual(progress, [
+      SERVER_UPDATE_PROGRESS_STEP.SAVE,
+      SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET,
+    ])
+  })
+})
+
+test('updateServer reports only the save step when the server name is unchanged', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {
+      synology: { type: 'sftp', host: 'old.local' },
+    },
+    appConfig: {
+      syncTasks: [],
+    },
+  }, async () => {
+    const progress = []
+    await updateServer('synology', 'synology', 'sftp', {
+      host: 'nas.local',
+      port: 22,
+      user: 'xiaobo',
+      pass: 'secret',
+    }, step => progress.push(step))
+
+    assert.deepEqual(progress, [SERVER_UPDATE_PROGRESS_STEP.SAVE])
+  })
+})
+
+test('deleteSyncTask throws when the requested task was not deleted', async () => {
+  await withFakeAppRuntime({
+    appConfig: {
+      syncTasks: [],
+    },
+  }, async () => {
+    await assert.rejects(
+      () => deleteSyncTask({
+        rcloneRemote: 'synology',
+        localBasePath: '/local/missing',
+      }),
+      error => error?.code === 'sync_task.not_found',
+    )
   })
 })

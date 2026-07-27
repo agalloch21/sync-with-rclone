@@ -80,6 +80,31 @@ test('createSyncTask and updateSyncTask send plain task payloads', async () => {
   ])
 })
 
+test('task mutations do not present failures already handled by the main process', async () => {
+  let messageShown = false
+  const operations = useTaskOperations(createPreload({
+    createSyncTask: async () => ({
+      success: false,
+      error: {
+        code: 'sync_task.already_exists',
+        message: 'Task already exists.',
+      },
+    }),
+    showMessageBox: async () => {
+      messageShown = true
+    },
+  }))
+
+  const result = await operations.createSyncTask({
+    rcloneRemote: 'synology',
+    localBasePath: '/local',
+    remoteBasePath: 'Projects',
+  })
+
+  assert.equal(result.success, false)
+  assert.equal(messageShown, false)
+})
+
 test('updateSyncTaskIgnorePatterns sends a dedicated plain payload', async () => {
   let receivedPayload = null
   const operations = useTaskOperations(createPreload({

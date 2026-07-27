@@ -5,7 +5,7 @@ import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import {
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operation-report-contract.js'
+} from '#src/app/operations/operation-report-contract.js'
 import { useServerOperations } from '#src/electron/renderer/src/composables/useServerOperations.js'
 import { reactive } from 'vue'
 
@@ -143,6 +143,34 @@ test('updateServer sends plain protocol fields through preload', async () => {
       pass: 'secret',
     },
   })
+})
+
+test('updateServer does not present a failure already handled by the main process', async () => {
+  let messageShown = false
+  const serverOperations = useServerOperations({
+    async updateServer() {
+      return {
+        success: false,
+        error: {
+          code: APP_ERROR_CODE.SERVER_OPERATION_FAILED,
+          message: 'Server update failed.',
+        },
+      }
+    },
+    async showMessageBox() {
+      messageShown = true
+    },
+  })
+
+  const result = await serverOperations.updateServer('synology', 'synology', 'sftp', {
+    host: 'nas.local',
+    port: 22,
+    user: 'xiaobo',
+    pass: 'secret',
+  })
+
+  assert.equal(result.success, false)
+  assert.equal(messageShown, false)
 })
 
 test('deleteServer skips deletion when confirmation is cancelled', async () => {

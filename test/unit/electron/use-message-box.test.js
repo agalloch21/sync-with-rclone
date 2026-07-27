@@ -5,7 +5,7 @@ import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import {
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operation-report-contract.js'
+} from '#src/app/operations/operation-report-contract.js'
 import { useMessageBox } from '#src/electron/renderer/src/composables/useMessageBox.js'
 
 function createMessageBox() {

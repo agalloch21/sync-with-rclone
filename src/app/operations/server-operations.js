@@ -1,7 +1,12 @@
 import { APP_ERROR_CODE, getErrorCode, throwAppError } from '../app-errors.js'
-import { SERVER_CREATE_PROGRESS_STEP } from '../operation-reporter.js'
-import { getProtocolDefinition } from './protocol-registry.js'
-import * as rcloneRemotes from './rclone-config.js'
+import { getProtocolDefinition } from '../configuration/protocol-registry.js'
+import * as rcloneRemotes from '../configuration/rclone-config.js'
+import {
+  SERVER_CREATE_PROGRESS_STEP,
+  SERVER_DELETE_PROGRESS_STEP,
+  SERVER_TEST_PROGRESS_STEP,
+  SERVER_UPDATE_PROGRESS_STEP,
+} from './server-operation-contract.js'
 
 function buildRcloneConfig(protocolType, protocolFields) {
   return { type: protocolType, ...protocolFields }
@@ -113,8 +118,9 @@ export async function getServerConnection(name) {
   }
 }
 
-export async function testServerConnection(name) {
+export async function testServerConnection(name, onProgress) {
   try {
+    onProgress?.(SERVER_TEST_PROGRESS_STEP.TEST_CONNECTION)
     await rcloneRemotes.testRcloneRemoteConnection(name)
   }
   catch (error) {
@@ -164,10 +170,11 @@ export async function createServerConnection(expectedName, protocolType, protoco
   }
 }
 
-export async function updateServerConnection(name, protocolType, protocolFields) {
+export async function updateServerConnection(name, protocolType, protocolFields, onProgress) {
   const config = buildRcloneConfig(protocolType, protocolFields)
 
   try {
+    onProgress?.(SERVER_UPDATE_PROGRESS_STEP.SAVE)
     await rcloneRemotes.updateRcloneRemote(name, config)
   }
   catch (error) {
@@ -177,8 +184,9 @@ export async function updateServerConnection(name, protocolType, protocolFields)
   }
 }
 
-export async function deleteServerConnection(name) {
+export async function deleteServerConnection(name, onProgress) {
   try {
+    onProgress?.(SERVER_DELETE_PROGRESS_STEP.DELETE)
     await rcloneRemotes.deleteRcloneRemote(name)
   }
   catch (error) {
@@ -188,12 +196,19 @@ export async function deleteServerConnection(name) {
   }
 }
 
-export async function renameServerConnection(name, expectedName, protocolType = null, protocolFields = null) {
+export async function renameServerConnection(
+  name,
+  expectedName,
+  protocolType = null,
+  protocolFields = null,
+  onProgress,
+) {
   const config = protocolType == null && protocolFields == null
     ? null
     : buildRcloneConfig(protocolType, protocolFields)
 
   try {
+    onProgress?.(SERVER_UPDATE_PROGRESS_STEP.SAVE)
     await rcloneRemotes.renameRcloneRemote(name, expectedName, config)
   }
   catch (error) {

@@ -1,6 +1,13 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
-import { APP_OPERATION, SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-reporter.js'
+import {
+  SERVER_CREATE_PROGRESS_STEP,
+  SERVER_DELETE_PROGRESS_STEP,
+  SERVER_OPERATION,
+  SERVER_TEST_PROGRESS_STEP,
+  SERVER_UPDATE_PROGRESS_STEP,
+} from '#src/app/operations/server-operation-contract.js'
+import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/operations/task-operation-contract.js'
 import { defineLocaleTree } from '../../locale-tree.js'
 
 export default {
@@ -32,7 +39,17 @@ export default {
     [APP_ERROR_CODE.SERVER_OPERATION_FAILED]: 'Server operation failed.',
   }),
   operations: {
-    [APP_OPERATION.CREATE_SERVER]: {
+    [SERVER_OPERATION.TEST]: {
+      title: 'Testing Server',
+      message: 'Preparing the server connection test...',
+      steps: {
+        [SERVER_TEST_PROGRESS_STEP.TEST_CONNECTION]: 'Testing the server connection...',
+      },
+      succeeded: {
+        message: 'The server connection test succeeded.',
+      },
+    },
+    [SERVER_OPERATION.CREATE]: {
       title: 'Creating Server',
       message: 'Preparing server creation...',
       steps: {
@@ -42,6 +59,27 @@ export default {
       },
       succeeded: {
         message: 'The server was created successfully.',
+      },
+    },
+    [SERVER_OPERATION.UPDATE]: {
+      title: 'Updating Server',
+      message: 'Preparing the server update...',
+      steps: {
+        [SERVER_UPDATE_PROGRESS_STEP.SAVE]: 'Saving the server configuration...',
+        [SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET]: 'Updating sync task references...',
+      },
+      succeeded: {
+        message: 'The server was updated successfully.',
+      },
+    },
+    [SERVER_OPERATION.DELETE]: {
+      title: 'Deleting Server',
+      message: 'Deleting the server configuration...',
+      steps: {
+        [SERVER_DELETE_PROGRESS_STEP.DELETE]: 'Deleting the server configuration...',
+      },
+      succeeded: {
+        message: 'The server was deleted successfully.',
       },
     },
   },

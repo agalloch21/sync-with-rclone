@@ -2,8 +2,11 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { createServer, createSyncTask, getServer, listServers, updateServer, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/app-operations.js'
-import { APP_OPERATION, createOperationReporter } from '#src/app/operation-reporter.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
+import { createOperationErrorReportState } from '#src/app/operations/operation-report-contract.js'
+import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
+import { SERVER_OPERATION } from '#src/app/operations/server-operation-contract.js'
+import { SYNC_TASK_OPERATION } from '#src/app/operations/task-operation-contract.js'
 import { getActiveModalWindow } from '../app-state.js'
 import { openFolderDialog } from '../folder-dialog/window.js'
 import { closeMessageBox, openMessageBox, updateMessageBox } from '../message-box/window.js'
@@ -29,7 +32,7 @@ function createLocalFolderDialogOptions(currentPath, homeDirectory = os.homedir(
   }
 }
 
-async function runProgressOperation(operation, execute, needAcknowledgement = false) {
+async function runReportedOperation(operation, execute) {
   const reporter = createOperationReporter(operation, {
     open: openMessageBox,
     update: updateMessageBox,
@@ -41,13 +44,17 @@ async function runProgressOperation(operation, execute, needAcknowledgement = fa
     value = await execute(reporter.step)
   }
   catch (error) {
-    const result = toFailureResult(error)
     await reporter.error(error)
-    return result
+    return toFailureResult(error)
   }
 
-  await reporter.succeed(needAcknowledgement)
+  await reporter.succeed(true)
   return toSuccessfulResult(value)
+}
+
+async function reportRequestError(error) {
+  await openMessageBox(createOperationErrorReportState(error))
+  return toFailureResult(error)
 }
 
 export function createSyncTaskModalHandlers() {
@@ -57,7 +64,7 @@ export function createSyncTaskModalHandlers() {
       return toSuccessfulResult(result)
     }
     catch (error) {
-      return toFailureResult(error)
+      return await reportRequestError(error)
     }
   }
 
@@ -69,67 +76,80 @@ export function createSyncTaskModalHandlers() {
       return toSuccessfulResult(result)
     }
     catch (error) {
-      return toFailureResult(error)
+      return await reportRequestError(error)
     }
   }
 
   async function createServerHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
-      const { expectedServerName, protocolType, protocolFields } = payload || {}
-
-      return await runProgressOperation(
-        APP_OPERATION.CREATE_SERVER,
-        onProgress => createServer(expectedServerName, protocolType, protocolFields, onProgress),
-      )
     }
     catch (error) {
-      return toFailureResult(error)
+      return await reportRequestError(error)
     }
+
+    const { expectedServerName, protocolType, protocolFields } = payload
+    return await runReportedOperation(
+      SERVER_OPERATION.CREATE,
+      onProgress => createServer(expectedServerName, protocolType, protocolFields, onProgress),
+    )
   }
 
   async function updateServerHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
-      const { serverName, expectedServerName, protocolType, protocolFields } = payload || {}
-
-      await updateServer(serverName, expectedServerName, protocolType, protocolFields)
-
-      return toSuccessfulResult()
     }
     catch (error) {
-      return toFailureResult(error)
+      return await reportRequestError(error)
     }
+
+    const { serverName, expectedServerName, protocolType, protocolFields } = payload
+    return await runReportedOperation(
+      SERVER_OPERATION.UPDATE,
+      onProgress => updateServer(serverName, expectedServerName, protocolType, protocolFields, onProgress),
+    )
   }
 
   async function createSyncTaskHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
-      return toSuccessfulResult(await createSyncTask(payload.task))
     }
     catch (error) {
-      return toFailureResult(error)
+      return await reportRequestError(error)
     }
+
+    return await runReportedOperation(
+      SYNC_TASK_OPERATION.CREATE,
+      onProgress => createSyncTask(payload.task, onProgress),
+    )
   }
 
   async function updateSyncTaskHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
-      return toSuccessfulResult(await updateSyncTask(payload.task, payload.expectedTask))
     }
     catch (error) {
-      return toFailureResult(error)
+      return await reportRequestError(error)
     }
+
+    return await runReportedOperation(
+      SYNC_TASK_OPERATION.UPDATE,
+      onProgress => updateSyncTask(payload.task, payload.expectedTask, onProgress),
+    )
   }
 
   async function updateSyncTaskIgnorePatternsHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
-      return toSuccessfulResult(await updateSyncTaskIgnorePatterns(payload.task, payload.ignorePatterns))
     }
     catch (error) {
-      return toFailureResult(error)
+      return await reportRequestError(error)
     }
+
+    return await runReportedOperation(
+      SYNC_TASK_OPERATION.UPDATE_IGNORE_PATTERNS,
+      onProgress => updateSyncTaskIgnorePatterns(payload.task, payload.ignorePatterns, onProgress),
+    )
   }
 
   async function selectLocalFolderHandler(_event, payload) {
@@ -142,7 +162,7 @@ export function createSyncTaskModalHandlers() {
       return toSuccessfulResult(selectedPath)
     }
     catch (error) {
-      return toFailureResult(error)
+      return await reportRequestError(error)
     }
   }
 
@@ -153,7 +173,7 @@ export function createSyncTaskModalHandlers() {
       return toSuccessfulResult(selectedPath)
     }
     catch (error) {
-      return toFailureResult(error)
+      return await reportRequestError(error)
     }
   }
 

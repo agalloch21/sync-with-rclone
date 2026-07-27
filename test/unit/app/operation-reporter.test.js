@@ -5,12 +5,12 @@ import {
   OPERATION_REPORT_ACKNOWLEDGEMENT,
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operation-report-contract.js'
+} from '#src/app/operations/operation-report-contract.js'
+import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
 import {
-  APP_OPERATION,
-  createOperationReporter,
   SERVER_CREATE_PROGRESS_STEP,
-} from '#src/app/operation-reporter.js'
+  SERVER_OPERATION,
+} from '#src/app/operations/server-operation-contract.js'
 
 function createDisplayCalls() {
   const calls = []
@@ -33,7 +33,7 @@ function createDisplayCalls() {
 
 test('createOperationReporter assembles operation and step report states', () => {
   const { calls, display } = createDisplayCalls()
-  const reporter = createOperationReporter(APP_OPERATION.CREATE_SERVER, display)
+  const reporter = createOperationReporter(SERVER_OPERATION.CREATE, display)
 
   reporter.step(SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION, { serverName: 'synology' })
 
@@ -42,14 +42,14 @@ test('createOperationReporter assembles operation and step report states', () =>
       method: 'open',
       state: {
         mode: OPERATION_REPORT_MODE.PROGRESS,
-        key: `operations.${APP_OPERATION.CREATE_SERVER}`,
+        key: `operations.${SERVER_OPERATION.CREATE}`,
       },
     },
     {
       method: 'update',
       state: {
         mode: OPERATION_REPORT_MODE.PROGRESS,
-        key: `operations.${APP_OPERATION.CREATE_SERVER}.steps.${SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION}`,
+        key: `operations.${SERVER_OPERATION.CREATE}.steps.${SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION}`,
         params: { serverName: 'synology' },
       },
     },
@@ -58,19 +58,19 @@ test('createOperationReporter assembles operation and step report states', () =>
 
 test('createOperationReporter assembles success, error, and close states', async () => {
   const successCalls = createDisplayCalls()
-  const successReporter = createOperationReporter(APP_OPERATION.CREATE_SERVER, successCalls.display)
+  const successReporter = createOperationReporter(SERVER_OPERATION.CREATE, successCalls.display)
   await successReporter.succeed(true)
   assert.deepEqual(successCalls.calls.at(-1), {
     method: 'update',
     state: {
       mode: OPERATION_REPORT_MODE.MESSAGE,
       level: OPERATION_REPORT_LEVEL.SUCCESS,
-      key: `operations.${APP_OPERATION.CREATE_SERVER}.succeeded`,
+      key: `operations.${SERVER_OPERATION.CREATE}.succeeded`,
     },
   })
 
   const errorCalls = createDisplayCalls()
-  const errorReporter = createOperationReporter(APP_OPERATION.CREATE_SERVER, errorCalls.display)
+  const errorReporter = createOperationReporter(SERVER_OPERATION.CREATE, errorCalls.display)
   await errorReporter.error(new AppError({
     code: APP_ERROR_CODE.SERVER_CONNECTION_FAILED,
     message: 'Connection failed.',
@@ -88,7 +88,7 @@ test('createOperationReporter assembles success, error, and close states', async
   })
 
   const closeCalls = createDisplayCalls()
-  const closeReporter = createOperationReporter(APP_OPERATION.CREATE_SERVER, closeCalls.display)
+  const closeReporter = createOperationReporter(SERVER_OPERATION.CREATE, closeCalls.display)
   await closeReporter.close(OPERATION_REPORT_ACKNOWLEDGEMENT.CANCELLED)
   assert.deepEqual(closeCalls.calls.at(-1), {
     method: 'close',
@@ -98,7 +98,7 @@ test('createOperationReporter assembles success, error, and close states', async
 
 test('createOperationReporter closes unacknowledged success and validates dependencies', async () => {
   const { calls, display } = createDisplayCalls()
-  const reporter = createOperationReporter(APP_OPERATION.CREATE_SERVER, display)
+  const reporter = createOperationReporter(SERVER_OPERATION.CREATE, display)
   await reporter.succeed(false)
   assert.deepEqual(calls.at(-1), {
     method: 'close',
@@ -110,7 +110,7 @@ test('createOperationReporter closes unacknowledged success and validates depend
     /Operation must be a non-empty string/,
   )
   assert.throws(
-    () => createOperationReporter(APP_OPERATION.CREATE_SERVER, {}),
+    () => createOperationReporter(SERVER_OPERATION.CREATE, {}),
     /requires open/,
   )
 })

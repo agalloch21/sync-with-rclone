@@ -1,5 +1,5 @@
 const { app, dialog } = require('electron')
-const { isCliCommandMode, runCliCommand } = require('./cli-dispatch.cjs')
+const { isCliCommandMode, runCliCommand } = require('../../cli/dispatch.cjs')
 // const { initializeMacSetupIfNeeded } = require('./macos-dmg-initialization.cjs')
 
 let isSyncInProgress = false

@@ -2,7 +2,7 @@ import {
   createOperationErrorReportState,
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operation-report-contract.js'
+} from '#src/app/operations/operation-report-contract.js'
 
 export function useMessageBox(windowPreload) {
   function showMessageBox(payload = {}) {

@@ -1,12 +1,12 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import {
   isOperationReportAcknowledgement,
   normalizeOperationReportState,
   OPERATION_REPORT_ACKNOWLEDGEMENT,
-} from '#src/app/operation-report-contract.js'
-import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
+} from '#src/app/operations/operation-report-contract.js'
 import {
   clearMessageBoxWindow,
   getMessageBoxParentWindow,

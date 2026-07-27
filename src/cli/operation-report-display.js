@@ -3,7 +3,7 @@ import {
   OPERATION_REPORT_ACKNOWLEDGEMENT,
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operation-report-contract.js'
+} from '#src/app/operations/operation-report-contract.js'
 import { createCliI18n } from './i18n.js'
 
 function translateIfPresent(i18n, key, params) {

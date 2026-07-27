@@ -4,8 +4,11 @@ import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import {
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operation-report-contract.js'
-import { APP_OPERATION, SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-reporter.js'
+} from '#src/app/operations/operation-report-contract.js'
+import {
+  SERVER_CREATE_PROGRESS_STEP,
+  SERVER_OPERATION,
+} from '#src/app/operations/server-operation-contract.js'
 import en from '#src/electron/renderer/src/i18n/locales/en/index.js'
 import {
   resolveMessageBoxIconClass,
@@ -38,7 +41,7 @@ test('message-box presentation resolves a complete key and interpolation', () =>
 test('message-box presentation resolves string and object locale entries', () => {
   assert.deepEqual(resolve({
     mode: OPERATION_REPORT_MODE.PROGRESS,
-    key: `operations.${APP_OPERATION.CREATE_SERVER}.steps.${SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION}`,
+    key: `operations.${SERVER_OPERATION.CREATE}.steps.${SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION}`,
   }), {
     title: 'Creating Server',
     message: 'Testing the server connection...',
@@ -48,7 +51,7 @@ test('message-box presentation resolves string and object locale entries', () =>
   assert.deepEqual(resolve({
     mode: OPERATION_REPORT_MODE.MESSAGE,
     level: OPERATION_REPORT_LEVEL.SUCCESS,
-    key: `operations.${APP_OPERATION.CREATE_SERVER}.succeeded`,
+    key: `operations.${SERVER_OPERATION.CREATE}.succeeded`,
   }), {
     title: 'Creating Server',
     message: 'The server was created successfully.',
@@ -80,7 +83,7 @@ test('message-box presentation uses generic fallbacks without interpreting key p
 test('message-box presentation inherits a title from the nearest locale ancestor', () => {
   assert.equal(resolve({
     mode: OPERATION_REPORT_MODE.PROGRESS,
-    key: `operations.${APP_OPERATION.CREATE_SERVER}.steps.${SERVER_CREATE_PROGRESS_STEP.SAVE}`,
+    key: `operations.${SERVER_OPERATION.CREATE}.steps.${SERVER_CREATE_PROGRESS_STEP.SAVE}`,
   }).title, 'Creating Server')
 })
 

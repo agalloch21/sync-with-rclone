@@ -5,12 +5,19 @@ import path from 'node:path'
 import { afterEach, test } from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import {
+  SERVER_CREATE_PROGRESS_STEP,
+  SERVER_DELETE_PROGRESS_STEP,
+  SERVER_TEST_PROGRESS_STEP,
+  SERVER_UPDATE_PROGRESS_STEP,
+} from '#src/app/operations/server-operation-contract.js'
+import {
   createServerConnection,
+  deleteServerConnection,
   listServerConnections,
   renameServerConnection,
+  testServerConnection,
   updateServerConnection,
-} from '#src/app/configuration/server-operations.js'
-import { SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-reporter.js'
+} from '#src/app/operations/server-operations.js'
 
 const originalEnv = {}
 const originalResourcesPath = process.resourcesPath
@@ -195,6 +202,19 @@ test('listServerConnections removes password fields from server config', async (
   ])
 })
 
+test('testServerConnection emits its connection-test step inside the server operation', async () => {
+  await createFakeRuntime({
+    initialConfig: {
+      synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
+    },
+  })
+  const progress = []
+
+  await testServerConnection('synology', step => progress.push(step))
+
+  assert.deepEqual(progress, [SERVER_TEST_PROGRESS_STEP.TEST_CONNECTION])
+})
+
 test('createServerConnection rolls back the remote when connection testing fails', async () => {
   const runtime = await createFakeRuntime({ failLsf: true })
   const events = []
@@ -339,12 +359,13 @@ test('updateServerConnection updates an existing server connection', async () =>
     },
   })
 
+  const progress = []
   await updateServerConnection('synology', 'sftp', {
     host: 'nas.local',
     port: 2222,
     user: 'xiaobo',
     pass: 'secret',
-  })
+  }, step => progress.push(step))
 
   assert.deepEqual(await runtime.readState(), {
     synology: {
@@ -355,6 +376,21 @@ test('updateServerConnection updates an existing server connection', async () =>
       pass: 'secret',
     },
   })
+  assert.deepEqual(progress, [SERVER_UPDATE_PROGRESS_STEP.SAVE])
+})
+
+test('deleteServerConnection emits its delete step inside the server operation', async () => {
+  const runtime = await createFakeRuntime({
+    initialConfig: {
+      synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
+    },
+  })
+
+  const progress = []
+  await deleteServerConnection('synology', step => progress.push(step))
+
+  assert.deepEqual(await runtime.readState(), {})
+  assert.deepEqual(progress, [SERVER_DELETE_PROGRESS_STEP.DELETE])
 })
 
 test('renameServerConnection creates the target from server config then deletes the old server', async () => {
@@ -364,7 +400,8 @@ test('renameServerConnection creates the target from server config then deletes 
     },
   })
 
-  await renameServerConnection('synology', 'nas')
+  const progress = []
+  await renameServerConnection('synology', 'nas', null, null, step => progress.push(step))
 
   assert.deepEqual(await runtime.readState(), {
     nas: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
@@ -374,6 +411,7 @@ test('renameServerConnection creates the target from server config then deletes 
     ['config', 'create'],
     ['config', 'delete'],
   ])
+  assert.deepEqual(progress, [SERVER_UPDATE_PROGRESS_STEP.SAVE])
 })
 
 test('renameServerConnection writes updated config when protocol input is provided', async () => {

@@ -1,8 +1,8 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import { validateProtocolForm } from '#src/app/configuration/protocol-registry.js'
-import { OPERATION_REPORT_ACKNOWLEDGEMENT } from '#src/app/operation-report-contract.js'
 import { toFailureResult } from '#src/app/operation-result.js'
+import { OPERATION_REPORT_ACKNOWLEDGEMENT } from '#src/app/operations/operation-report-contract.js'
 import { toRaw } from 'vue'
 import { useMessageBox } from './useMessageBox.js'
 
@@ -15,41 +15,13 @@ export function useServerOperations(windowPreload) {
       .join('\n')
   }
 
-  function getErrorDetail(error = {}) {
-    return formatErrorFields(error.fields) || error.detail
-  }
-
   function toPlainObject(value) {
     return structuredClone(toRaw(value || {}))
   }
 
-  async function showOperationWarning(result) {
-    await messageBox.error({
-      ...result?.error,
-      code: result?.error?.code || APP_ERROR_CODE.UNKNOWN,
-      detail: getErrorDetail(result?.error),
-    })
-  }
-
-  async function invokeOperation(operation) {
+  async function invokeRequest(request) {
     try {
-      const result = await operation()
-      if (!result?.success)
-        await showOperationWarning(result)
-      return result
-    }
-    catch (error) {
-      await messageBox.error({
-        code: APP_ERROR_CODE.IPC_UNAVAILABLE,
-        detail: error?.message,
-      })
-      return toFailureResult(error)
-    }
-  }
-
-  async function invokeMainManagedOperation(operation) {
-    try {
-      return await operation()
+      return await request()
     }
     catch (error) {
       await messageBox.error({
@@ -61,7 +33,7 @@ export function useServerOperations(windowPreload) {
   }
 
   async function listServers() {
-    return await invokeOperation(() => windowPreload?.listServers?.())
+    return await invokeRequest(() => windowPreload?.listServers?.())
   }
 
   async function getServer(serverName) {
@@ -71,7 +43,7 @@ export function useServerOperations(windowPreload) {
     }
 
     const payload = { serverName }
-    return await invokeOperation(() => windowPreload?.getServer?.(payload))
+    return await invokeRequest(() => windowPreload?.getServer?.(payload))
   }
 
   async function createServer(expectedServerName, protocolType, protocolFields) {
@@ -89,7 +61,7 @@ export function useServerOperations(windowPreload) {
     }
 
     const payload = { expectedServerName, protocolType, protocolFields: toPlainObject(protocolFields) }
-    return await invokeMainManagedOperation(() => windowPreload?.createServer?.(payload))
+    return await invokeRequest(() => windowPreload?.createServer?.(payload))
   }
 
   async function updateServer(serverName, expectedServerName, protocolType, protocolFields) {
@@ -112,7 +84,7 @@ export function useServerOperations(windowPreload) {
     }
 
     const payload = { serverName, expectedServerName, protocolType, protocolFields: toPlainObject(protocolFields) }
-    return await invokeOperation(() => windowPreload?.updateServer?.(payload))
+    return await invokeRequest(() => windowPreload?.updateServer?.(payload))
   }
 
   async function deleteServer(serverName) {
@@ -139,7 +111,7 @@ export function useServerOperations(windowPreload) {
       return confirmation || toFailureResult()
 
     const payload = { serverName }
-    return await invokeOperation(() => windowPreload?.deleteServer?.(payload))
+    return await invokeRequest(() => windowPreload?.deleteServer?.(payload))
   }
 
   return {

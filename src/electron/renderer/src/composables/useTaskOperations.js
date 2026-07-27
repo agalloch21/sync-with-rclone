@@ -1,7 +1,7 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
-import { OPERATION_REPORT_ACKNOWLEDGEMENT } from '#src/app/operation-report-contract.js'
 import { toFailureResult } from '#src/app/operation-result.js'
+import { OPERATION_REPORT_ACKNOWLEDGEMENT } from '#src/app/operations/operation-report-contract.js'
 import { toRaw } from 'vue'
 import { useMessageBox } from './useMessageBox.js'
 
@@ -31,20 +31,9 @@ export function useTaskOperations(windowPreload) {
     return structuredClone(toRaw(value || {}))
   }
 
-  async function showOperationWarning(result) {
-    await messageBox.error({
-      ...result?.error,
-      code: result?.error?.code || APP_ERROR_CODE.UNKNOWN,
-      detail: result?.error?.detail,
-    })
-  }
-
-  async function invokeOperation(operation) {
+  async function invokeRequest(request) {
     try {
-      const result = await operation()
-      if (!result?.success)
-        await showOperationWarning(result)
-      return result
+      return await request()
     }
     catch (error) {
       await messageBox.error({
@@ -81,21 +70,21 @@ export function useTaskOperations(windowPreload) {
   }
 
   async function selectLocalFolder(currentPath = '') {
-    return await invokeOperation(() => windowPreload?.selectLocalFolder?.({ currentPath }))
+    return await invokeRequest(() => windowPreload?.selectLocalFolder?.({ currentPath }))
   }
 
   async function selectRemoteFolder(serverName, currentPath = '') {
     if (!await validateServerName(serverName))
       return toFailureResult()
 
-    return await invokeOperation(() => windowPreload?.selectRemoteFolder?.({ serverName, currentPath }))
+    return await invokeRequest(() => windowPreload?.selectRemoteFolder?.({ serverName, currentPath }))
   }
 
   async function createSyncTask(task) {
     if (!await validateTaskMapping(task))
       return toFailureResult()
 
-    return await invokeOperation(() => windowPreload?.createSyncTask?.({ task: toPlainObject(task) }))
+    return await invokeRequest(() => windowPreload?.createSyncTask?.({ task: toPlainObject(task) }))
   }
 
   async function updateSyncTask(task, expectedTask) {
@@ -107,7 +96,7 @@ export function useTaskOperations(windowPreload) {
     if (!await validateTaskMapping(expectedTask))
       return toFailureResult()
 
-    return await invokeOperation(() => windowPreload?.updateSyncTask?.({
+    return await invokeRequest(() => windowPreload?.updateSyncTask?.({
       task: toPlainObject(task),
       expectedTask: toPlainObject(expectedTask),
     }))
@@ -119,14 +108,14 @@ export function useTaskOperations(windowPreload) {
       return toFailureResult()
     }
 
-    return await invokeOperation(() => windowPreload?.updateSyncTaskIgnorePatterns?.({
+    return await invokeRequest(() => windowPreload?.updateSyncTaskIgnorePatterns?.({
       task: toPlainObject(task),
       ignorePatterns: structuredClone(toRaw(ignorePatterns)),
     }))
   }
 
   async function updateGlobalIgnorePatterns(ignorePatterns) {
-    return await invokeOperation(() => windowPreload?.updateGlobalIgnorePatterns?.({
+    return await invokeRequest(() => windowPreload?.updateGlobalIgnorePatterns?.({
       ignorePatterns: structuredClone(toRaw(ignorePatterns)),
     }))
   }
@@ -155,7 +144,7 @@ export function useTaskOperations(windowPreload) {
     if (!confirmation || confirmation.value !== OPERATION_REPORT_ACKNOWLEDGEMENT.CONFIRMED)
       return confirmation || toFailureResult()
 
-    return await invokeOperation(() => windowPreload?.deleteSyncTask?.({
+    return await invokeRequest(() => windowPreload?.deleteSyncTask?.({
       task: toPlainObject({
         rcloneRemote: task.rcloneRemote,
         localBasePath: task.localBasePath,

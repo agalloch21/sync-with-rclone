@@ -7,8 +7,12 @@ import {
   OPERATION_REPORT_ACKNOWLEDGEMENT,
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operation-report-contract.js'
-import { APP_OPERATION, createOperationReporter, SERVER_CREATE_PROGRESS_STEP } from '#src/app/operation-reporter.js'
+} from '#src/app/operations/operation-report-contract.js'
+import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
+import {
+  SERVER_CREATE_PROGRESS_STEP,
+  SERVER_OPERATION,
+} from '#src/app/operations/server-operation-contract.js'
 
 const ipcHandlers = new Map()
 const ipcMain = new EventEmitter()
@@ -52,7 +56,7 @@ require.cache[electronModulePath] = {
 const messageBox = await import('#src/electron/main/message-box/window.js')
 
 function openCreateServerProgress() {
-  return createOperationReporter(APP_OPERATION.CREATE_SERVER, {
+  return createOperationReporter(SERVER_OPERATION.CREATE, {
     open: messageBox.openMessageBox,
     update: messageBox.updateMessageBox,
     close: messageBox.closeMessageBox,
@@ -74,14 +78,14 @@ test('operation progress opens, updates, and succeeds without message levels whi
 
   assert.deepEqual(revealMessageBox(), {
     mode: OPERATION_REPORT_MODE.PROGRESS,
-    key: `operations.${APP_OPERATION.CREATE_SERVER}`,
+    key: `operations.${SERVER_OPERATION.CREATE}`,
   })
 
   assert.equal('update' in progress, false)
   progress.step(SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION, { serverName: 'synology' })
   assert.deepEqual(latestWindow.sent.at(-1), {
     mode: OPERATION_REPORT_MODE.PROGRESS,
-    key: `operations.${APP_OPERATION.CREATE_SERVER}.steps.${SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION}`,
+    key: `operations.${SERVER_OPERATION.CREATE}.steps.${SERVER_CREATE_PROGRESS_STEP.TEST_CONNECTION}`,
     params: { serverName: 'synology' },
   })
 
@@ -89,7 +93,7 @@ test('operation progress opens, updates, and succeeds without message levels whi
   assert.deepEqual(latestWindow.sent.at(-1), {
     mode: OPERATION_REPORT_MODE.MESSAGE,
     level: OPERATION_REPORT_LEVEL.SUCCESS,
-    key: `operations.${APP_OPERATION.CREATE_SERVER}.succeeded`,
+    key: `operations.${SERVER_OPERATION.CREATE}.succeeded`,
   })
   await acknowledge(succeeded)
 })

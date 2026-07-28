@@ -49,6 +49,8 @@ const operationSummary = computed(() => t(`result.${result.value}.message`, { sy
 const showOperationDetail = ref(false)
 
 // failed
+const logFileName = computed(() => state.value?.final?.logPath?.split(/[\\/]/).pop() || '')
+
 const errorMessages = computed(() => {
   if (result.value === SYNC_RESULT.FAILED) {
     const final = state.value?.final
@@ -64,9 +66,6 @@ const errorMessages = computed(() => {
     const lines = errorString.split(/\r?\n/)
       .filter(line => line.trim() !== '')
 
-    // if (state.value?.final?.logPath)
-    //   lines.push(`${t('result.failed.logPath', { path: state.value?.final?.logPath })}`)
-
     return lines
   }
   return []
@@ -74,8 +73,8 @@ const errorMessages = computed(() => {
 
 function showLogInFolder() {
   if (state.value?.final?.logPath)
-    window.syncSession.showItemInFolder(state.value?.final?.logPath)
-};
+    window.syncSession.showLogInFolder()
+}
 </script>
 
 <template>
@@ -133,10 +132,11 @@ function showLogInFolder() {
             {{ msg }}
           </p>
         </div>
-        <p v-if="state.final?.logPath && state.final?.logPath.length > 0">
+        <p v-if="state.final?.logPath">
           {{ $t('result.failed.logPath') }}
-          <span class="underline inline-block ml-0.5 align-middle break-all cursor-pointer" @click.prevent="showLogInFolder">{{ state.final?.logPath?.split('/').pop() }}
-          </span>
+          <button class="underline cursor-pointer ml-0.5 break-all" type="button" @click="showLogInFolder">
+            {{ logFileName }}
+          </button>
         </p>
       </div>
     </div>

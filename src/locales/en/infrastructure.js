@@ -11,6 +11,7 @@ export default {
     [APP_ERROR_CODE.CONFIG_UPDATE_IN_PROGRESS]: 'Another configuration update is already in progress.',
     [APP_ERROR_CODE.CONFIG_NO_MATCHING_SYNC_TASK]: 'No sync task matches local path: {path}',
     [APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_TASK]: 'Remote path must stay within sync task "{syncTaskName}": {remotePath}',
+    [APP_ERROR_CODE.SYNC_SESSION_OVERLAP]: 'Another sync session is already using an overlapping local or remote folder.',
     [APP_ERROR_CODE.REMOTE_FOLDER_PATH_REQUIRED]: 'Remote folder path is required.',
     [APP_ERROR_CODE.REMOTE_FOLDER_PROBE_FAILED]: 'Failed to check remote folder: {remotePath}',
     [APP_ERROR_CODE.REMOTE_FOLDER_CREATE_FAILED]: 'Failed to create remote folder: {remotePath}',

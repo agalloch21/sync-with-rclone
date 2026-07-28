@@ -1,14 +1,19 @@
 const { app, dialog } = require('electron')
-const { isCliCommandMode, runCliCommand } = require('../../cli/dispatch.cjs')
+const {
+  classifyLaunch,
+  isDesktopLaunchRequest,
+  runCliCommand,
+} = require('./launch-dispatch.cjs')
 // const { initializeMacSetupIfNeeded } = require('./macos-dmg-initialization.cjs')
 
-let isSyncInProgress = false
-const SESSION_FLAGS = new Set(['--session', '--sync-session'])
+let desktopApplication = null
+const initialLaunch = classifyLaunch(process.argv)
+const isCliMode = initialLaunch.type === 'cli'
 
 async function showStartupError(error) {
   console.error(error)
 
-  if (isCliCommandMode(process.argv)) {
+  if (isCliMode) {
     app.exit(1)
     return
   }
@@ -23,47 +28,66 @@ async function showStartupError(error) {
   app.exit(1)
 }
 
-app.whenReady().then(main).catch(showStartupError)
-
-app.on('window-all-closed', () => {
-  if (isSyncInProgress)
-    return
-
-  app.quit()
-})
-
-async function main() {
-  const argv = process.argv.slice(1)
+async function ensureConfiguration() {
   const { ensureAppConfig } = await import('#src/app/configuration/app-config.js')
-
   await ensureAppConfig()
-
-  if (argv.some(arg => SESSION_FLAGS.has(arg)))
-    return runSyncSessionMode(argv)
-
-  if (isCliCommandMode(process.argv)) {
-    const exitCode = await runCliCommand(process.argv)
-    app.exit(exitCode)
-    return
-  }
-
-  const { runMainWindow } = await import('./main-window/runner.js')
-  await runMainWindow()
 }
 
-async function runSyncSessionMode(argv) {
-  const { runSyncSession } = await import('./sync-session/runner.js')
-  isSyncInProgress = true
-  let exitCode = 1
-  try {
-    exitCode = await runSyncSession(argv)
-  }
-  finally {
-    isSyncInProgress = false
-  }
+async function runCliMode() {
+  await ensureConfiguration()
+  const exitCode = await runCliCommand(initialLaunch.argv)
+  app.exit(exitCode)
+}
 
-  if (exitCode)
-    app.exit(exitCode)
-  else
+async function runDesktopMode(initialRequest) {
+  await ensureConfiguration()
+  const { createDesktopApplication } = await import('./desktop-application.js')
+  desktopApplication = createDesktopApplication({ app })
+  await desktopApplication.routeLaunch(initialRequest)
+  return desktopApplication
+}
+
+if (isCliMode) {
+  app.whenReady()
+    .then(runCliMode)
+    .catch(showStartupError)
+}
+else {
+  const hasSingleInstanceLock = app.requestSingleInstanceLock({
+    launchRequest: initialLaunch,
+  })
+
+  if (!hasSingleInstanceLock) {
     app.quit()
+  }
+  else {
+    const desktopReady = app.whenReady()
+      .then(() => runDesktopMode(initialLaunch))
+
+    desktopReady.catch(showStartupError)
+
+    app.on('second-instance', (_event, argv, _workingDirectory, additionalData) => {
+      const request = isDesktopLaunchRequest(additionalData?.launchRequest)
+        ? additionalData.launchRequest
+        : classifyLaunch(argv)
+
+      desktopReady
+        .then(desktop => desktop.routeLaunch(request))
+        .catch(showStartupError)
+    })
+
+    app.on('activate', () => {
+      desktopReady
+        .then(desktop => desktop.ensureMainWindow())
+        .catch(showStartupError)
+    })
+
+    app.on('window-all-closed', () => {
+      desktopApplication?.handleWindowAllClosed()
+    })
+
+    app.on('before-quit', () => {
+      desktopApplication?.beginQuit()
+    })
+  }
 }

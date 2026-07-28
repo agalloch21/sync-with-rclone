@@ -265,15 +265,9 @@ fi
 
 echo "  Remote path: \$REMOTE_PATH" >> "\$LOG_FILE"
 
-# Execute the sync executable
-"$EXECUTABLE" --session --mode=$mode --folder="\$FOLDER_PATH" --remote-path="\$REMOTE_PATH" >> "\$LOG_FILE" 2&gt;&amp;1
-EXIT_CODE=\$?
-
-if [ \$EXIT_CODE -ne 0 ]; then
-    echo "\$(date '+%Y-%m-%d %H:%M:%S') - Sync failed with exit code \$EXIT_CODE" >> "\$LOG_FILE"
-else
-    echo "\$(date '+%Y-%m-%d %H:%M:%S') - Sync completed successfully" >> "\$LOG_FILE"
-fi
+# Submit the sync request without waiting for the session to finish
+nohup "$EXECUTABLE" --session --mode=$mode --folder="\$FOLDER_PATH" --remote-path="\$REMOTE_PATH" &lt; /dev/null >> "\$LOG_FILE" 2&gt;&amp;1 &amp;
+echo "\$(date '+%Y-%m-%d %H:%M:%S') - Sync request submitted" >> "\$LOG_FILE"
 
 exit 0</string>
 					<key>CheckedForUserDefaultShell</key>
@@ -455,12 +449,8 @@ fi
 FOLDER_PATH=\$(cd "\$FOLDER_PATH" &amp;&amp; pwd)
 
 # Execute the sync executable
-"$EXECUTABLE" --session --mode=$mode --folder="\$FOLDER_PATH" >> "\$LOG_FILE" 2&gt;&amp;1
-EXIT_CODE=\$?
-
-if [ \$EXIT_CODE -ne 0 ]; then
-    echo "\$(date '+%Y-%m-%d %H:%M:%S') - Sync failed with exit code \$EXIT_CODE" >> "\$LOG_FILE"
-fi
+nohup "$EXECUTABLE" --session --mode=$mode --folder="\$FOLDER_PATH" &lt; /dev/null >> "\$LOG_FILE" 2&gt;&amp;1 &amp;
+echo "\$(date '+%Y-%m-%d %H:%M:%S') - Sync request submitted" >> "\$LOG_FILE"
 
 exit 0</string>
 					<key>CheckedForUserDefaultShell</key>
@@ -870,23 +860,18 @@ export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PAT
 FOLDER="$1"
 REMOTE="$2"
 LOGFILE="$3"
-echo "Starting sync..."
+echo "Submitting sync request..."
 echo "  Mode: %%MODE%%"
 echo "  Folder: $FOLDER"
 echo "  Remote: $REMOTE"
 echo
-"%%EXECUTABLE%%" --session --mode=%%MODE%% --folder="$FOLDER" --remote-path="$REMOTE" 2&gt;&amp;1 | tee -a "$LOGFILE"
-EXIT_CODE=${PIPESTATUS[0]}
+nohup "%%EXECUTABLE%%" --session --mode=%%MODE%% --folder="$FOLDER" --remote-path="$REMOTE" &lt; /dev/null &gt;&gt; "$LOGFILE" 2&gt;&amp;1 &amp;
 echo
-echo "Log: $LOGFILE"
-if [ $EXIT_CODE -eq 0 ]; then
-  echo "Completed successfully."
-else
-  echo "Failed with exit code $EXIT_CODE"
-fi
+echo "Sync request submitted."
+echo "Launcher log: $LOGFILE"
 echo
 read -n 1 -s -p "Press any key to close..."
-exit $EXIT_CODE
+exit 0
 EOSINNER
 chmod +x "$RUNNER"
 
@@ -918,22 +903,17 @@ cat &gt; "$RUNNER" &lt;&lt;'"'"'EOSINNER'"'"'
 export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 FOLDER="$1"
 LOGFILE="$2"
-echo "Starting sync..."
+echo "Submitting sync request..."
 echo "  Mode: %%MODE%%"
 echo "  Folder: $FOLDER"
 echo
-"%%EXECUTABLE%%" --session --mode=%%MODE%% --folder="$FOLDER" 2&gt;&amp;1 | tee -a "$LOGFILE"
-EXIT_CODE=${PIPESTATUS[0]}
+nohup "%%EXECUTABLE%%" --session --mode=%%MODE%% --folder="$FOLDER" &lt; /dev/null &gt;&gt; "$LOGFILE" 2&gt;&amp;1 &amp;
 echo
-echo "Log: $LOGFILE"
-if [ $EXIT_CODE -eq 0 ]; then
-  echo "Completed successfully."
-else
-  echo "Failed with exit code $EXIT_CODE"
-fi
+echo "Sync request submitted."
+echo "Launcher log: $LOGFILE"
 echo
 read -n 1 -s -p "Press any key to close..."
-exit $EXIT_CODE
+exit 0
 EOSINNER
 chmod +x "$RUNNER"
 

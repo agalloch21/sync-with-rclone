@@ -1,0 +1,17 @@
+module.exports = Object.freeze([
+  'sync',
+  'list-servers',
+  'get-server',
+  'list-server-folders',
+  'test-server',
+  'create-server',
+  'update-server',
+  'delete-server',
+  'list-tasks',
+  'create-task',
+  'update-task',
+  'update-task-ignore-patterns',
+  'delete-task',
+  'list-global-ignore-patterns',
+  'update-global-ignore-patterns',
+])

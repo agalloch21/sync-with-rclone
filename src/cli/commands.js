@@ -5,26 +5,11 @@ import { SYNC_TASK_OPERATION } from '#src/app/operations/task-operation-contract
 import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
 import { startSync } from '#src/app/sync-session/start-sync.js'
 import { SYNC_RESULT } from '#src/core/contract.js'
+import CLI_COMMAND_NAMES from './command-names.cjs'
 import { createCliOperationReportDisplay } from './operation-report-display.js'
 import { reviewDiffInCli } from './review.js'
 
-const COMMANDS = new Set([
-  'sync',
-  'list-servers',
-  'get-server',
-  'list-server-folders',
-  'test-server',
-  'create-server',
-  'update-server',
-  'delete-server',
-  'list-tasks',
-  'create-task',
-  'update-task',
-  'update-task-ignore-patterns',
-  'delete-task',
-  'list-global-ignore-patterns',
-  'update-global-ignore-patterns',
-])
+const COMMANDS = new Set(CLI_COMMAND_NAMES)
 
 function hasJsonFlag(argv) {
   return argv.includes('--json')
@@ -122,13 +107,8 @@ function toTaskRows(syncTasks) {
   }))
 }
 
-function getOperations(runtime) {
-  return runtime?.operations || appOperations
-}
-
-async function runReportedOperation(operation, execute, output, runtime) {
-  const display = runtime?.operationReportDisplay
-    || createCliOperationReportDisplay({ output })
+async function runReportedOperation(operation, execute, output) {
+  const display = createCliOperationReportDisplay({ output })
   const reporter = createOperationReporter(operation, display)
 
   try {
@@ -142,10 +122,9 @@ async function runReportedOperation(operation, execute, output, runtime) {
   }
 }
 
-async function runSync(argv, output, runtime) {
+async function runSync(argv, output) {
   const options = parseSyncArgs(argv)
-  const runStartSync = runtime?.dependents?.startSync || startSync
-  const result = await runStartSync(options, {
+  const result = await startSync(options, {
     interactions: {
       reviewDiff: reviewDiffInCli,
     },
@@ -161,8 +140,8 @@ async function runSync(argv, output, runtime) {
   return 0
 }
 
-async function runListServers(json, output, operations) {
-  const servers = await operations.listServers()
+async function runListServers(json, output) {
+  const servers = await appOperations.listServers()
 
   if (json)
     printJson(output, { servers })
@@ -172,9 +151,9 @@ async function runListServers(json, output, operations) {
   return 0
 }
 
-async function runGetServer(args, json, output, operations) {
+async function runGetServer(args, json, output) {
   requireArguments(args, 1, 'get-server <server>')
-  const server = await operations.getServer(args[0])
+  const server = await appOperations.getServer(args[0])
 
   if (json)
     printJson(output, { server })
@@ -184,9 +163,9 @@ async function runGetServer(args, json, output, operations) {
   return 0
 }
 
-async function runListServerFolders(args, json, output, operations) {
+async function runListServerFolders(args, json, output) {
   requireArguments(args, 1, 'list-server-folders <server> [folder]')
-  const tree = await operations.getFolderTree(args[0], args[1] || '')
+  const tree = await appOperations.getFolderTree(args[0], args[1] || '')
 
   if (json)
     printJson(output, { tree })
@@ -196,52 +175,48 @@ async function runListServerFolders(args, json, output, operations) {
   return 0
 }
 
-async function runTestServer(args, output, operations, runtime) {
+async function runTestServer(args, output) {
   requireArguments(args, 1, 'test-server <server>')
   return await runReportedOperation(
     SERVER_OPERATION.TEST,
-    onProgress => operations.testServerConnection(args[0], onProgress),
+    onProgress => appOperations.testServerConnection(args[0], onProgress),
     output,
-    runtime,
   )
 }
 
-async function runCreateServer(args, output, operations, runtime) {
+async function runCreateServer(args, output) {
   requireArguments(args, 2, 'create-server <server> <protocol> [field=value ...]')
   const [name, protocolType, ...fieldEntries] = args
   const protocolFields = parseProtocolFields(fieldEntries)
   return await runReportedOperation(
     SERVER_OPERATION.CREATE,
-    onProgress => operations.createServer(name, protocolType, protocolFields, onProgress),
+    onProgress => appOperations.createServer(name, protocolType, protocolFields, onProgress),
     output,
-    runtime,
   )
 }
 
-async function runUpdateServer(args, output, operations, runtime) {
+async function runUpdateServer(args, output) {
   requireArguments(args, 3, 'update-server <server> <new-server> <protocol> [field=value ...]')
   const [name, expectedName, protocolType, ...fieldEntries] = args
   const protocolFields = parseProtocolFields(fieldEntries)
   return await runReportedOperation(
     SERVER_OPERATION.UPDATE,
-    onProgress => operations.updateServer(name, expectedName, protocolType, protocolFields, onProgress),
+    onProgress => appOperations.updateServer(name, expectedName, protocolType, protocolFields, onProgress),
     output,
-    runtime,
   )
 }
 
-async function runDeleteServer(args, output, operations, runtime) {
+async function runDeleteServer(args, output) {
   requireArguments(args, 1, 'delete-server <server>')
   return await runReportedOperation(
     SERVER_OPERATION.DELETE,
-    onProgress => operations.deleteServer(args[0], onProgress),
+    onProgress => appOperations.deleteServer(args[0], onProgress),
     output,
-    runtime,
   )
 }
 
-async function runListTasks(json, output, operations) {
-  const syncTasks = await operations.listSyncTasks()
+async function runListTasks(json, output) {
+  const syncTasks = await appOperations.listSyncTasks()
 
   if (json)
     printJson(output, { syncTasks })
@@ -251,18 +226,17 @@ async function runListTasks(json, output, operations) {
   return 0
 }
 
-async function runCreateTask(args, output, operations, runtime) {
+async function runCreateTask(args, output) {
   requireArguments(args, 3, 'create-task <server> <local-folder> <remote-folder>')
   const task = createTaskMapping(args[0], args[1], args[2])
   return await runReportedOperation(
     SYNC_TASK_OPERATION.CREATE,
-    onProgress => operations.createSyncTask(task, onProgress),
+    onProgress => appOperations.createSyncTask(task, onProgress),
     output,
-    runtime,
   )
 }
 
-async function runUpdateTask(args, output, operations, runtime) {
+async function runUpdateTask(args, output) {
   requireArguments(
     args,
     5,
@@ -272,13 +246,12 @@ async function runUpdateTask(args, output, operations, runtime) {
   const expectedTask = createTaskMapping(args[2], args[3], args[4])
   return await runReportedOperation(
     SYNC_TASK_OPERATION.UPDATE,
-    onProgress => operations.updateSyncTask(task, expectedTask, onProgress),
+    onProgress => appOperations.updateSyncTask(task, expectedTask, onProgress),
     output,
-    runtime,
   )
 }
 
-async function runUpdateTaskIgnorePatterns(args, output, operations, runtime) {
+async function runUpdateTaskIgnorePatterns(args, output) {
   requireArguments(
     args,
     2,
@@ -287,25 +260,23 @@ async function runUpdateTaskIgnorePatterns(args, output, operations, runtime) {
   const task = createTaskReference(args[0], args[1])
   return await runReportedOperation(
     SYNC_TASK_OPERATION.UPDATE_IGNORE_PATTERNS,
-    onProgress => operations.updateSyncTaskIgnorePatterns(task, args.slice(2), onProgress),
+    onProgress => appOperations.updateSyncTaskIgnorePatterns(task, args.slice(2), onProgress),
     output,
-    runtime,
   )
 }
 
-async function runDeleteTask(args, output, operations, runtime) {
+async function runDeleteTask(args, output) {
   requireArguments(args, 2, 'delete-task <server> <local-folder>')
   const task = createTaskReference(args[0], args[1])
   return await runReportedOperation(
     SYNC_TASK_OPERATION.DELETE,
-    onProgress => operations.deleteSyncTask(task, onProgress),
+    onProgress => appOperations.deleteSyncTask(task, onProgress),
     output,
-    runtime,
   )
 }
 
-async function runListGlobalIgnorePatterns(json, output, operations) {
-  const globalIgnorePatterns = await operations.listGlobalIgnorePatterns()
+async function runListGlobalIgnorePatterns(json, output) {
+  const globalIgnorePatterns = await appOperations.listGlobalIgnorePatterns()
 
   if (json)
     printJson(output, { globalIgnorePatterns })
@@ -315,51 +286,53 @@ async function runListGlobalIgnorePatterns(json, output, operations) {
   return 0
 }
 
-async function runUpdateGlobalIgnorePatterns(args, output, operations) {
-  await operations.updateGlobalIgnorePatterns(args)
+async function runUpdateGlobalIgnorePatterns(args, output) {
+  await appOperations.updateGlobalIgnorePatterns(args)
   output.log('Global ignore patterns updated.')
   return 0
 }
 
-export async function runCli(argv = process.argv.slice(2), output = console, runtime = {}) {
+export async function runCli(argv = process.argv.slice(2), output = console) {
   const [firstArg, ...restArgs] = argv
-  const command = COMMANDS.has(firstArg) ? firstArg : 'sync'
-  const commandArgs = command === firstArg ? restArgs : argv
-  const json = hasJsonFlag(commandArgs)
-  const cleanArgs = stripCliFlags(commandArgs)
-  const operations = getOperations(runtime)
 
   try {
-    if (command === 'list-servers')
-      return await runListServers(json, output, operations)
-    if (command === 'get-server')
-      return await runGetServer(cleanArgs, json, output, operations)
-    if (command === 'list-server-folders')
-      return await runListServerFolders(cleanArgs, json, output, operations)
-    if (command === 'test-server')
-      return await runTestServer(cleanArgs, output, operations, runtime)
-    if (command === 'create-server')
-      return await runCreateServer(cleanArgs, output, operations, runtime)
-    if (command === 'update-server')
-      return await runUpdateServer(cleanArgs, output, operations, runtime)
-    if (command === 'delete-server')
-      return await runDeleteServer(cleanArgs, output, operations, runtime)
-    if (command === 'list-tasks')
-      return await runListTasks(json, output, operations)
-    if (command === 'create-task')
-      return await runCreateTask(cleanArgs, output, operations, runtime)
-    if (command === 'update-task')
-      return await runUpdateTask(cleanArgs, output, operations, runtime)
-    if (command === 'update-task-ignore-patterns')
-      return await runUpdateTaskIgnorePatterns(cleanArgs, output, operations, runtime)
-    if (command === 'delete-task')
-      return await runDeleteTask(cleanArgs, output, operations, runtime)
-    if (command === 'list-global-ignore-patterns')
-      return await runListGlobalIgnorePatterns(json, output, operations)
-    if (command === 'update-global-ignore-patterns')
-      return await runUpdateGlobalIgnorePatterns(cleanArgs, output, operations)
+    if (!COMMANDS.has(firstArg))
+      throw new Error(`Unknown command: ${firstArg || '(missing)'}`)
 
-    return await runSync(cleanArgs, output, runtime)
+    const command = firstArg
+    const json = hasJsonFlag(restArgs)
+    const cleanArgs = stripCliFlags(restArgs)
+
+    if (command === 'list-servers')
+      return await runListServers(json, output)
+    if (command === 'get-server')
+      return await runGetServer(cleanArgs, json, output)
+    if (command === 'list-server-folders')
+      return await runListServerFolders(cleanArgs, json, output)
+    if (command === 'test-server')
+      return await runTestServer(cleanArgs, output)
+    if (command === 'create-server')
+      return await runCreateServer(cleanArgs, output)
+    if (command === 'update-server')
+      return await runUpdateServer(cleanArgs, output)
+    if (command === 'delete-server')
+      return await runDeleteServer(cleanArgs, output)
+    if (command === 'list-tasks')
+      return await runListTasks(json, output)
+    if (command === 'create-task')
+      return await runCreateTask(cleanArgs, output)
+    if (command === 'update-task')
+      return await runUpdateTask(cleanArgs, output)
+    if (command === 'update-task-ignore-patterns')
+      return await runUpdateTaskIgnorePatterns(cleanArgs, output)
+    if (command === 'delete-task')
+      return await runDeleteTask(cleanArgs, output)
+    if (command === 'list-global-ignore-patterns')
+      return await runListGlobalIgnorePatterns(json, output)
+    if (command === 'update-global-ignore-patterns')
+      return await runUpdateGlobalIgnorePatterns(cleanArgs, output)
+
+    return await runSync(cleanArgs, output)
   }
   catch (error) {
     output.error(`Error: ${error.message}`)

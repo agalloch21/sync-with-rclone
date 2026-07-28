@@ -61,7 +61,7 @@ resources/     // bundled binaries、图标等静态资源
 - Electron Main 在进程入口处把命令行参数分发给 cli 壳层，这是打包入口职责，不代表 UI 依赖 cli
 - cli 和 electron 都只能依赖 app / core，不允许 app / core 反向依赖 cli 或 electron
 
-当前打包方向采用“一个 Electron 可执行文件，两个运行模式”：
+当前打包方向采用一个 Electron 可执行文件，区分 GUI 单实例入口和独立 CLI 入口：
 
 ```text
 sync-with-rclone                 -> 启动桌面 UI
@@ -70,7 +70,11 @@ sync-with-rclone list-servers    -> 命令模式，列出 servers
 sync-with-rclone sync push ...   -> 命令模式，执行同步
 ```
 
-在这个模式下，`src/cli/` 仍然是独立的命令行壳层：它负责参数路由、终端输出和终端 review。`src/electron/main/index.cjs` 只是产品可执行文件的统一入口，可以根据 argv 选择进入桌面窗口、同步会话窗口或命令模式。Renderer 不调用 `src/cli/`，它只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
+`src/electron/main/launch-dispatch.cjs` 统一分类 main、session 和 CLI 启动。入口先识别显式 `--session`，其余启动只有在首个应用参数是正式 CLI 子命令时才进入 CLI。参数后部出现命令同名的路径或值不会改变启动类型，顶级 `push` / `pull` 不再作为 CLI 命令兼容。
+
+GUI 启动通过 `requestSingleInstanceLock()` 汇入一个 Electron Main 进程。这个进程可以持有零或一个主窗口，以及多个互不冲突的 sync-session 窗口。普通启动创建或聚焦主窗口；`--session` 启动只提交同步会话。CLI 命令不参与 GUI 单实例锁，仍然作为独立命令行壳层负责参数路由、终端输出和终端 review。
+
+`src/electron/main/index.cjs` 是产品可执行文件的统一入口。Renderer 不调用 `src/cli/`，只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
 
 
 ## 3. Electron、Vite、Renderer、Core 的关系
@@ -117,6 +121,16 @@ sequenceDiagram
 - 打包后可以由同一个 Electron 可执行文件承接 CLI 命令；这是入口分发，不改变 CLI 与 Electron UI 的依赖边界
 - `Electron Main` 使用 `startSync(...)` 的返回值推进 final 流程，不依赖 `session.result` event 推进控制流
 - `Renderer` 负责按钮 pending 和重复点击防护；`Electron Main` 负责窗口生命周期和同步取消适配
+
+### 3.1 GUI 窗口与会话生命周期
+
+- 第二次 GUI 启动通过 single-instance `additionalData` 传递规范化 launch request，不依赖可能被 Chromium 重排的 argv。
+- 主窗口是可重建的进程级单例；关闭主窗口不会取消活跃同步。
+- session manager 先解析只读 `SyncSessionContext`，再以本地和远程根路径执行原子 admission。
+- 任一侧路径相同或存在祖先/后代关系时拒绝新会话，聚焦已有会话，并写入 `sync_session.overlap` failed history。
+- admission 成功后，每个窗口继续使用独立 channel prefix、UI state、review Promise 和 AbortController。
+- session manager 在最后一个 session 清理后检查 Electron 窗口；没有窗口且不是显式 shutdown 时直接退出应用，不需要向 DesktopApplication 回传 idle 事件。
+- 最后一个 session 完成且没有主窗口时，Electron Main 在 terminal history 写入完成后退出。
 
 ## 4. 关键数据契约
 
@@ -377,7 +391,7 @@ copy 之外的示例：
 - `startSync` 把 core phase event 转换成 `SESSION_EVENT.PROGRESS`
 - `startSync` 返回 `SyncSessionResult`
 - `startSync` 会 emit `SESSION_EVENT.RESULT` 作为观察事件，但 Electron final 流程由返回值驱动
-- failed result 只在 `quick-actions.log` 已存在时携带 `logPath`；直接启动 Electron 时没有该日志文件就不向 renderer 暴露日志路径
+- failed result 在 `quick-actions.log` 已存在时携带其路径；会话窗口通过 Electron shell 在文件管理器中定位该文件，不负责创建或导航主窗口
 
 ### 4.8 `MainWindowData`
 
@@ -759,6 +773,13 @@ sequenceDiagram
 - `return` 是控制流。`startSync(...)` 的返回值决定 Electron 是否展示 final、进程退出码和后续收尾。
 - `events.eventListener` 是观察流。它用于展示 context、progress 和调试，不作为流程推进条件。
 - `interactions.reviewDiff` 是业务等待点。它是 core 在 review 阶段继续执行所需的外部输入。
+
+Progress 与 operation history 保持分离：
+
+- `SESSION_EVENT.PROGRESS` 只进入对应 session window，不写入 history。
+- operation history 每个 session 只保存一条 started 和一条 succeeded / failed / cancelled。
+- GUI sessions 与主窗口位于同一进程，因此 history emitter 可以实时通知 Logs panel。
+- 独立 CLI 写入的 history 仍通过刷新或重新打开 Logs panel 读取。
 
 ## 6. 打包与安装
 

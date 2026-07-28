@@ -3,16 +3,14 @@ import path from 'node:path'
 import { PHASE_EVENT, SYNC_RESULT } from '#src/core/contract.js'
 import { syncCore } from '#src/core/sync-engine.js'
 import { getErrorCode, getErrorDetail } from '../app-errors.js'
-import { loadAppConfig } from '../configuration/app-config.js'
 import {
   OPERATION_HISTORY_STATUS,
   runOperationWithHistory,
 } from '../operations/operation-history.js'
-import { resolveLocalDirectoryPath } from '../path-utils.js'
 import { getRuntimePaths } from '../runtime-paths.js'
 import { SESSION_EVENT, SYNC_SESSION_OPERATION } from './contract.js'
 import { ensureRemoteFolderExists } from './ensure-remote-folder.js'
-import { resolveSyncTask } from './resolve-sync-task.js'
+import { resolveSyncContext } from './resolve-sync-context.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
@@ -36,7 +34,7 @@ function enrichFailedSessionResult(sessionResult, error, runtimePaths) {
   sessionResult.errorDetails = getErrorDetail(error)
 
   if (runtimePaths?.logDirectory) {
-    const logPath = path.posix.join(runtimePaths.logDirectory, 'quick-actions.log')
+    const logPath = path.join(runtimePaths.logDirectory, 'quick-actions.log')
     if (fs.existsSync(logPath))
       sessionResult.logPath = logPath
   }
@@ -44,13 +42,13 @@ function enrichFailedSessionResult(sessionResult, error, runtimePaths) {
   return sessionResult
 }
 
-async function startSyncImpl(options, runtime = {}, cancelSignal = null) {
+async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepared = null) {
   assertRuntimeContract(runtime)
 
   const emit = runtime.events?.eventListener || (() => {})
-  let runtimePaths = null
+  let runtimePaths = prepared?.runtimePaths || null
 
-  const resolvedContext = {
+  let resolvedContext = prepared?.context || {
     mode: options.mode,
     localFolderPath: options.localFolderPath,
     remoteFolderPath: options.remoteFolderPath,
@@ -60,20 +58,14 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null) {
   try {
     emit({ type: SESSION_EVENT.STARTED })
 
-    const { bypassConfig = false } = options
-    if (bypassConfig && !options.remoteFolderPath) {
-      throw new Error('remoteFolderPath is required when bypassConfig is enabled')
-    }
+    if (prepared?.error)
+      throw prepared.error
 
-    runtimePaths = getRuntimePaths()
-    const config = bypassConfig ? null : await loadAppConfig(runtimePaths.configPath)
+    const resolution = prepared || await resolveSyncContext(options)
+    runtimePaths = resolution.runtimePaths
+    resolvedContext = resolution.context
 
-    const resolvedTask = bypassConfig ? null : resolveSyncTask(config, options.localFolderPath, options.remoteFolderPath)
-    resolvedContext.localFolderPath = resolvedTask ? resolvedTask.localFolderPath : resolveLocalDirectoryPath(options.localFolderPath)
-    resolvedContext.remoteFolderPath = resolvedTask ? resolvedTask.remoteFolderPath : options.remoteFolderPath
-    resolvedContext.extraIgnorePatterns = resolvedTask ? resolvedTask.extraIgnorePatterns : []
-
-    if (resolvedTask && resolvedContext.mode === 'push') {
+    if (resolution.resolvedTask && resolvedContext.mode === 'push') {
       await ensureRemoteFolderExists(
         resolvedContext.remoteFolderPath,
         runtimePaths,
@@ -157,6 +149,21 @@ function getSyncOperation(mode) {
   return SYNC_SESSION_OPERATION.UNKNOWN
 }
 
+function getSyncSubject(options, context = null) {
+  return {
+    type: 'sync',
+    mode: typeof options?.mode === 'string' ? options.mode : '',
+    localFolderPath: typeof context?.localFolderPath === 'string'
+      ? context.localFolderPath
+      : typeof options?.localFolderPath === 'string' ? options.localFolderPath : '',
+    ...((typeof context?.remoteFolderPath === 'string' || typeof options?.remoteFolderPath === 'string') && {
+      remoteFolderPath: typeof context?.remoteFolderPath === 'string'
+        ? context.remoteFolderPath
+        : options.remoteFolderPath,
+    }),
+  }
+}
+
 function resolveSyncHistoryResult(result) {
   if (result?.result === SYNC_RESULT.CANCELLED) {
     return {
@@ -179,17 +186,30 @@ function resolveSyncHistoryResult(result) {
   }
 }
 
-export async function startSync(options, runtime = {}, cancelSignal = null) {
+export async function recordRejectedSync(options, context, error) {
   return await runOperationWithHistory({
     operation: getSyncOperation(options?.mode),
-    subject: {
-      type: 'sync',
-      mode: typeof options?.mode === 'string' ? options.mode : '',
-      localFolderPath: typeof options?.localFolderPath === 'string' ? options.localFolderPath : '',
-      ...(typeof options?.remoteFolderPath === 'string' && {
-        remoteFolderPath: options.remoteFolderPath,
-      }),
-    },
+    subject: getSyncSubject(options, context),
+  }, async () => {
+    throw error
+  })
+}
+
+export async function startSync(options, runtime = {}, cancelSignal = null, prepared = null) {
+  let resolution = prepared
+  if (!resolution) {
+    const runtimePaths = getRuntimePaths()
+    try {
+      resolution = await resolveSyncContext(options, runtimePaths)
+    }
+    catch (error) {
+      resolution = { error, runtimePaths }
+    }
+  }
+
+  return await runOperationWithHistory({
+    operation: getSyncOperation(options?.mode),
+    subject: getSyncSubject(options, resolution?.context),
     resolveResult: resolveSyncHistoryResult,
-  }, () => startSyncImpl(options, runtime, cancelSignal))
+  }, () => startSyncImpl(options, runtime, cancelSignal, resolution))
 }

@@ -290,7 +290,40 @@ sequenceDiagram
 - cancelled 是正常运行结果；failed 会导致桌面入口以失败码退出
 - review 阶段取消可以直接收尾；进入执行阶段后的取消可按策略展示 final acknowledgement
 - cancelled final acknowledgement 会展示已执行操作的汇总，并允许展开查看每个 operation 的执行状态
-- failed final acknowledgement 会展示错误信息；只有 `quick-actions.log` 文件实际存在时才展示可打开的日志入口
+- failed final acknowledgement 会展示错误信息；当 launcher 日志存在时，可在文件管理器中定位 `quick-actions.log`
+
+## 10.1 多窗口启动与会话 admission
+
+```mermaid
+sequenceDiagram
+  participant OS as App / Quick Action
+  participant EI as Electron Instance
+  participant SM as Session Manager
+  participant SW as Session Window
+  participant MW as Main Window
+  participant H as Operation History
+
+  OS->>EI: normal launch or --session request
+  alt normal launch
+    EI->>MW: create / restore / focus singleton
+  else session launch
+    EI->>SM: resolve local and remote roots
+    alt roots are disjoint
+      SM->>SW: create independent session
+      SW->>H: started then terminal record
+    else roots overlap
+      SM->>SW: focus existing session
+      SM->>H: started then failed overlap record
+    end
+  end
+```
+
+关键点：
+
+- Quick Action 启动不主动创建主窗口。
+- 每个 session 的 progress channel 独立，history 不持久化 progress sample。
+- 关闭主窗口不会终止 session；没有窗口且没有活跃 session 时应用退出。
+- session 失败页只在 `quick-actions.log` 存在时提供文件定位入口，不创建或导航主窗口。
 
 ## 11. 主窗口配置管理流程
 
@@ -487,6 +520,7 @@ sequenceDiagram
 
 - 右键菜单注册已经接入安装器脚本
 - sync-session Electron 链已打通
+- GUI 使用单一 Electron Main 进程承载可选主窗口和多个互不重叠的 sync-session
 - 配置默认读取安装目录下的 `config/`
 - 打包后的 session argv 会先由 `--session` 进入同步窗口，再按 `--mode`、`--local`、`--remote` 解析，避免额外参数导致位置漂移
 

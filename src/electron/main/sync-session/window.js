@@ -22,7 +22,7 @@ export function createSessionWindow() {
     cancelSync: `${channelPrefix}:cancel-sync`,
     closeWindow: `${channelPrefix}:close-window`,
     // command
-    showItemInFolder: `${channelPrefix}:show-item-in-folder`,
+    showLogInFolder: `${channelPrefix}:show-log-in-folder`,
   }
 
   let uiState = {
@@ -207,22 +207,23 @@ export function createSessionWindow() {
     return { success: true, action: 'final-acknowledged' }
   }
 
-  function showItemInFolder(_event, filePath) {
-    shell.showItemInFolder(filePath)
+  function showLogInFolder() {
+    if (uiState.final?.logPath)
+      shell.showItemInFolder(uiState.final.logPath)
   }
 
   ipcMain.handle(channels.getState, () => uiState)
   ipcMain.handle(channels.cancelSync, handleCancel)
   ipcMain.handle(channels.confirmSync, handleConfirm)
   ipcMain.handle(channels.closeWindow, handleClose)
-  ipcMain.on(channels.showItemInFolder, showItemInFolder)
+  ipcMain.on(channels.showLogInFolder, showLogInFolder)
 
   const cleanup = () => {
     ipcMain.removeHandler(channels.getState)
     ipcMain.removeHandler(channels.cancelSync, handleCancel)
     ipcMain.removeHandler(channels.confirmSync, handleConfirm)
     ipcMain.removeHandler(channels.closeWindow, handleClose)
-    ipcMain.removeListener(channels.showItemInFolder, showItemInFolder)
+    ipcMain.removeListener(channels.showLogInFolder, showLogInFolder)
   }
 
   function closeWindow() {
@@ -236,6 +237,16 @@ export function createSessionWindow() {
 
     if (!sessionWindow.isDestroyed())
       sessionWindow.close()
+  }
+
+  function focusWindow() {
+    if (sessionWindow.isDestroyed())
+      return
+
+    if (sessionWindow.isMinimized())
+      sessionWindow.restore()
+    sessionWindow.show()
+    sessionWindow.focus()
   }
 
   sessionWindow.on('closed', () => {
@@ -275,6 +286,7 @@ export function createSessionWindow() {
     showFinalAcknowledgement,
 
     closeWindow,
+    focusWindow,
     cancelSignal: cancelController.signal,
     abortSession,
   }

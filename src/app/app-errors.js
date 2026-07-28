@@ -12,6 +12,7 @@ export const APP_ERROR_CODE = Object.freeze({
 
   SYNC_TASK_ALREADY_EXISTS: 'sync_task.already_exists',
   SYNC_TASK_NOT_FOUND: 'sync_task.not_found',
+  SYNC_SESSION_OVERLAP: 'sync_session.overlap',
 
   REMOTE_FOLDER_PATH_REQUIRED: 'remote.folder_path_required',
   REMOTE_FOLDER_PROBE_FAILED: 'remote.folder_probe_failed',

@@ -47,21 +47,21 @@ npm run build:renderer
 CLI 是当前保留的命令行壳层，可独立承接主流程，也方便测试和排查
 
 ```bash
-npm run start:cli
+npm run dev:cli -- <command>
 # 或
-node src/cli/index.js
+node src/cli/index.js <command>
 
 #如果需要直接带参数运行，可参考主流程的调用方式，例如：
-node ./src/cli/index.js --mode=push --local=<local-path> --remote=<remote-path>
+node ./src/cli/index.js sync --mode=push --local=<local-path> --remote=<remote-path>
 
 # 如果你想跳过 config.json，直接按显式 local/remote 运行：
-node ./src/cli/index.js --bypass-config --mode=push --local=<local-path> --remote=<remote-path>
+node ./src/cli/index.js sync --bypass-config --mode=push --local=<local-path> --remote=<remote-path>
 
-# 简写版
-node ./src/cli/index.js [--bypass-config] push <local-path> <remote-path>
+# positional sync 参数仍可用于明确的 sync 子命令
+node ./src/cli/index.js sync push <local-path> <remote-path>
 ```
 
-当前推荐使用带名字的参数。
+CLI 必须显式提供 `sync`、`list-tasks` 等正式子命令；同步参数推荐使用带名字的写法。
 Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv，主流程现在会优先解析 `--mode`、`--local`、`--remote`，避免因为参数位置漂移而取错值。
 
 
@@ -69,15 +69,8 @@ Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv�
 Electron 是当前桌面主入口，用于桌面 UI、右键菜单、sync-session 窗口和打包后的命令模式。
 
 ```bash
-npm run start:desktop
-# 或
-electron .
-
-#如果需要按实际同步动作传入参数，可直接运行桌面入口，例如：
+# 如果需要按实际同步动作传入参数，可直接运行桌面入口，例如：
 node ./src/electron/main/index.js --session --mode=push --local=<local-path> --remote=<remote-path>
-
-# 简写版
-node ./src/electron/main/index.js --session push <local-path> <remote-path>
 ```
 
 这条命令会由 Node 入口转交给 Electron，再进入桌面链路。
@@ -98,17 +91,23 @@ npm run dev
 
 # 如果需要预览右键菜单打开的同步会话窗口：
 npm run dev:session -- --mode=push --folder=<local-path>
+
+# 主窗口已经运行时，可以继续提交更多互不重叠的会话：
+npm run dev:session -- --mode=pull --folder=<another-local-path>
 ```
 
 这条命令会：
 
-- 启动 Vite dev server
+- 在没有 dev server 时启动 Vite；已有本项目 Vite 时直接复用
 - 等待 dev server 就绪后自动启动 Electron
 - 让桌面 renderer 在开发时改走 Vite 页面
+- 把后续 session 请求交给同一个 Electron Main 进程
 
 这样保存 renderer 源码后，窗口会自动刷新，能实时看到变化。
 
 如果需要查看 renderer 调试信息，开发模式会默认打开 Electron DevTools。
+
+macOS Finder Quick Action 只负责异步提交同步请求。同步进度和结果由 session window 展示；失败时如果 `quick-actions.log` 存在，可以从会话窗口在 Finder 中定位该文件。结构化操作记录仍保存在主窗口 Logs panel。
 
 ---
 

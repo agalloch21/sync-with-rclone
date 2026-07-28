@@ -9,9 +9,11 @@ import {
   defineAppOperation,
   listOperationHistory,
   OPERATION_HISTORY_STATUS,
+  registerOperationHistoryListener,
   runOperationWithHistory,
+  unregisterOperationHistoryListener,
 } from '#src/app/operations/operation-history.js'
-import { startSync } from '#src/app/sync-session/start-sync.js'
+import { recordRejectedSync, startSync } from '#src/app/sync-session/start-sync.js'
 
 async function withHistoryRuntime(callback) {
   const appRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-history-'))
@@ -119,8 +121,12 @@ test('operation history reader skips malformed lines and applies its limit newes
   })
 })
 
-test('startSync records its existing failed result without changing the sync contract', async () => {
-  await withHistoryRuntime(async () => {
+test('startSync records its failed result and exposes an existing launcher log', async () => {
+  await withHistoryRuntime(async (appRoot) => {
+    const logPath = path.join(appRoot, 'logs', 'quick-actions.log')
+    await fs.mkdir(path.dirname(logPath), { recursive: true })
+    await fs.writeFile(logPath, 'request submitted\n', 'utf8')
+
     const result = await startSync({
       mode: 'push',
       localFolderPath: '/local/project',
@@ -129,10 +135,94 @@ test('startSync records its existing failed result without changing the sync con
 
     assert.equal(result.result, 'failed')
     assert.equal(result.message, 'remoteFolderPath is required when bypassConfig is enabled')
+    assert.equal(result.logPath, logPath)
 
     const records = await listOperationHistory()
     assert.equal(records[0].operation, 'syncPush')
     assert.equal(records[0].status, OPERATION_HISTORY_STATUS.FAILED)
     assert.equal(records[1].status, OPERATION_HISTORY_STATUS.STARTED)
+  })
+})
+
+test('startSync records resolved sync roots and rejected sessions as compact lifecycle records', async () => {
+  await withHistoryRuntime(async () => {
+    const expectedError = new AppError({
+      code: APP_ERROR_CODE.SYNC_SESSION_OVERLAP,
+      message: 'Overlapping sync session.',
+    })
+    const options = {
+      mode: 'push',
+      localFolderPath: 'relative/input',
+      remoteFolderPath: 'nas:input',
+      bypassConfig: true,
+    }
+    const context = {
+      mode: 'push',
+      localFolderPath: '/resolved/input',
+      remoteFolderPath: 'nas:resolved/input',
+      extraIgnorePatterns: [],
+    }
+
+    const published = []
+    const listener = record => published.push(record)
+    registerOperationHistoryListener(listener)
+    try {
+      await assert.rejects(
+        () => recordRejectedSync(options, context, expectedError),
+        error => error === expectedError,
+      )
+    }
+    finally {
+      unregisterOperationHistoryListener(listener)
+    }
+
+    const records = await listOperationHistory()
+    assert.equal(records.length, 2)
+    assert.deepEqual(records[0].subject, {
+      type: 'sync',
+      mode: 'push',
+      localFolderPath: '/resolved/input',
+      remoteFolderPath: 'nas:resolved/input',
+    })
+    assert.equal(records[0].status, OPERATION_HISTORY_STATUS.FAILED)
+    assert.equal(records[1].status, OPERATION_HISTORY_STATUS.STARTED)
+    assert.equal(Object.hasOwn(records[0], 'progress'), false)
+    assert.deepEqual(published.map(record => record.status), [
+      OPERATION_HISTORY_STATUS.STARTED,
+      OPERATION_HISTORY_STATUS.FAILED,
+    ])
+  })
+})
+
+test('startSync uses a prepared resolved context in admitted-session history', async () => {
+  await withHistoryRuntime(async () => {
+    const options = {
+      mode: 'push',
+      localFolderPath: 'raw/input',
+      remoteFolderPath: 'nas:raw/input',
+      bypassConfig: true,
+    }
+    const prepared = {
+      context: {
+        mode: 'push',
+        localFolderPath: '/missing/resolved/input',
+        remoteFolderPath: 'nas:resolved/input',
+        extraIgnorePatterns: [],
+      },
+      runtimePaths: {},
+      resolvedTask: null,
+    }
+
+    const result = await startSync(options, {}, null, prepared)
+    assert.equal(result.result, 'failed')
+
+    const records = await listOperationHistory()
+    assert.deepEqual(records[0].subject, {
+      type: 'sync',
+      mode: 'push',
+      localFolderPath: '/missing/resolved/input',
+      remoteFolderPath: 'nas:resolved/input',
+    })
+    assert.equal(records[0].status, OPERATION_HISTORY_STATUS.FAILED)
   })
 })

@@ -14,8 +14,7 @@
     "build:renderer": "vite build",
     "dev": "node scripts/dev/dev-electron.js",
     "dev:session": "node scripts/dev/dev-electron.js --session",
-    "dev:renderer": "vite --host 127.0.0.1 --strictPort",
-    "dev:desktop": "node scripts/dev/dev-electron.js --session",
+    "dev:cli": "node src/cli/index.js",
     "build:icons": "node scripts/build/generate-icons.js",
     "verify:assets": "node scripts/build/verify-assets.js",
     "verify:build": "node scripts/build/verify-build.js",
@@ -33,8 +32,6 @@
     "dist:pkg:x64": "node scripts/build/build-mac.js pkg x64",
     "pack:pkg": "node scripts/build/build-mac.js pkg arm64",
     "pack:pkg:x64": "node scripts/build/build-mac.js pkg x64",
-    "start:cli": "node src/cli/index.js",
-    "start:desktop": "electron .",
     "test": "node --test"
   },
   "build": {

@@ -4,9 +4,13 @@ import { PHASE_EVENT, SYNC_RESULT } from '#src/core/contract.js'
 import { syncCore } from '#src/core/sync-engine.js'
 import { getErrorCode, getErrorDetail } from '../app-errors.js'
 import { loadAppConfig } from '../configuration/app-config.js'
+import {
+  OPERATION_HISTORY_STATUS,
+  runOperationWithHistory,
+} from '../operations/operation-history.js'
 import { resolveLocalDirectoryPath } from '../path-utils.js'
 import { getRuntimePaths } from '../runtime-paths.js'
-import { SESSION_EVENT } from './contract.js'
+import { SESSION_EVENT, SYNC_SESSION_OPERATION } from './contract.js'
 import { ensureRemoteFolderExists } from './ensure-remote-folder.js'
 import { resolveSyncTask } from './resolve-sync-task.js'
 
@@ -40,7 +44,7 @@ function enrichFailedSessionResult(sessionResult, error, runtimePaths) {
   return sessionResult
 }
 
-export async function startSync(options, runtime = {}, cancelSignal = null) {
+async function startSyncImpl(options, runtime = {}, cancelSignal = null) {
   assertRuntimeContract(runtime)
 
   const emit = runtime.events?.eventListener || (() => {})
@@ -143,4 +147,49 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
   emit({ type: SESSION_EVENT.RESULT, ...sessionResult })
 
   return sessionResult
+}
+
+function getSyncOperation(mode) {
+  if (mode === 'push')
+    return SYNC_SESSION_OPERATION.PUSH
+  if (mode === 'pull')
+    return SYNC_SESSION_OPERATION.PULL
+  return SYNC_SESSION_OPERATION.UNKNOWN
+}
+
+function resolveSyncHistoryResult(result) {
+  if (result?.result === SYNC_RESULT.CANCELLED) {
+    return {
+      status: OPERATION_HISTORY_STATUS.CANCELLED,
+    }
+  }
+
+  if (result?.result === SYNC_RESULT.FAILED) {
+    return {
+      status: OPERATION_HISTORY_STATUS.FAILED,
+      error: result?.error || {
+        code: result?.errorCode,
+        message: result?.message,
+      },
+    }
+  }
+
+  return {
+    status: OPERATION_HISTORY_STATUS.SUCCEEDED,
+  }
+}
+
+export async function startSync(options, runtime = {}, cancelSignal = null) {
+  return await runOperationWithHistory({
+    operation: getSyncOperation(options?.mode),
+    subject: {
+      type: 'sync',
+      mode: typeof options?.mode === 'string' ? options.mode : '',
+      localFolderPath: typeof options?.localFolderPath === 'string' ? options.localFolderPath : '',
+      ...(typeof options?.remoteFolderPath === 'string' && {
+        remoteFolderPath: options.remoteFolderPath,
+      }),
+    },
+    resolveResult: resolveSyncHistoryResult,
+  }, () => startSyncImpl(options, runtime, cancelSignal))
 }

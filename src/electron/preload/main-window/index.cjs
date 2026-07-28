@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld('mainWindow', {
   getMainWindowData() {
     return ipcRenderer.invoke('main-window:get-data')
   },
+  getOperationHistory(payload = {}) {
+    return ipcRenderer.invoke('main-window:get-operation-history', payload)
+  },
   getServer(payload) {
     return ipcRenderer.invoke('main-window:get-server', payload)
   },
@@ -29,5 +32,10 @@ contextBridge.exposeInMainWorld('mainWindow', {
     const listener = (_event, payload) => callback(payload)
     ipcRenderer.on('main-window:config-updated', listener)
     return () => ipcRenderer.removeListener('main-window:config-updated', listener)
+  },
+  onOperationHistoryUpdated(callback) {
+    const listener = (_event, payload) => callback(payload)
+    ipcRenderer.on('main-window:operation-history-updated', listener)
+    return () => ipcRenderer.removeListener('main-window:operation-history-updated', listener)
   },
 })

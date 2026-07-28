@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { registerConfigUpdateListener, unregisterConfigUpdateListener } from '#src/app/app-operations.js'
+import { registerOperationHistoryListener, unregisterOperationHistoryListener } from '#src/app/operations/operation-history.js'
 import { clearMainWindow, setMainWindow } from '../app-state.js'
 import { createMessageBoxBridgeHandlers, destroyMessageBox } from '../message-box/window.js'
 import { loadRendererEntry } from '../renderer-entry.js'
@@ -33,6 +34,7 @@ export function createMainWindow() {
   const messageBoxHandlers = createMessageBoxBridgeHandlers()
 
   registerConfigUpdateListener(refreshMainWindowData)
+  registerOperationHistoryListener(publishOperationHistoryUpdate)
 
   async function refreshMainWindowData() {
     const payload = await handlers.getMainWindowDataHandler()
@@ -45,7 +47,18 @@ export function createMainWindow() {
     }
   }
 
+  function publishOperationHistoryUpdate(record) {
+    try {
+      if (!mainWindow.isDestroyed())
+        mainWindow.webContents.send('main-window:operation-history-updated', record)
+    }
+    catch (error) {
+      console.error(error)
+    }
+  }
+
   ipcMain.handle('main-window:get-data', handlers.getMainWindowDataHandler)
+  ipcMain.handle('main-window:get-operation-history', handlers.getOperationHistoryHandler)
   ipcMain.handle('main-window:open-sync-task-modal', handlers.openSyncTaskModalHandler)
   ipcMain.handle('main-window:get-server', handlers.getServerHandler)
   ipcMain.handle('main-window:delete-server', handlers.deleteServerHandler)
@@ -62,8 +75,10 @@ export function createMainWindow() {
     destroyMessageBox()
     clearMainWindow(mainWindow)
     unregisterConfigUpdateListener(refreshMainWindowData)
+    unregisterOperationHistoryListener(publishOperationHistoryUpdate)
 
     ipcMain.removeHandler('main-window:get-data')
+    ipcMain.removeHandler('main-window:get-operation-history')
     ipcMain.removeHandler('main-window:open-sync-task-modal')
     ipcMain.removeHandler('main-window:get-server')
     ipcMain.removeHandler('main-window:delete-server')

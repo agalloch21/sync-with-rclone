@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { deleteSyncTask, getMainWindowData, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-operations.js'
+import { deleteSyncTask, getMainWindowData, listOperationHistory, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-operations.js'
 import { SERVER_UPDATE_PROGRESS_STEP } from '#src/app/operations/server-operation-contract.js'
 import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/operations/task-operation-contract.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
@@ -150,6 +150,11 @@ test('updateServer retargets all sync tasks when the server is renamed', async (
       SERVER_UPDATE_PROGRESS_STEP.SAVE,
       SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET,
     ])
+
+    const history = await listOperationHistory()
+    assert.deepEqual(history.map(record => record.status), ['succeeded', 'started'])
+    assert.equal(history[0].operation, 'updateServer')
+    assert.equal(JSON.stringify(history).includes('secret'), false)
   })
 })
 

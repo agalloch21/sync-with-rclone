@@ -5,6 +5,12 @@ export const SESSION_EVENT = {
   RESULT: 'session.result',
 }
 
+export const SYNC_SESSION_OPERATION = {
+  PUSH: 'syncPush',
+  PULL: 'syncPull',
+  UNKNOWN: 'sync',
+}
+
 /**
  * @typedef {object} AppSyncOptions
  * @property {'push' | 'pull'} mode

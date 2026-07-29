@@ -1,12 +1,4 @@
-import { PHASES } from '#src/core/contract.js'
-
-export const SESSION_STATES = {
-  IDLE: 'idle',
-  RUNNING: 'running',
-  COMPLETED: 'completed',
-  CANCELLED: 'cancelled',
-  ERROR: 'error',
-}
+import { SYNC_PHASES } from '#src/app/sync-session/contract.js'
 
 export const STEPS = {
   ANALYZE: 'analyze',
@@ -17,17 +9,17 @@ export const STEP_META = {
   [STEPS.ANALYZE]: {
     index: 1,
     keyPrefix: `step.${STEPS.ANALYZE}.`,
-    phases: [PHASES.PREPARATION, PHASES.BUILD_LOCAL_SNAPSHOT, PHASES.BUILD_REMOTE_SNAPSHOT, PHASES.COMPARE_SNAPSHOT],
+    phases: [SYNC_PHASES.PREPARATION, SYNC_PHASES.BUILD_LOCAL_SNAPSHOT, SYNC_PHASES.BUILD_REMOTE_SNAPSHOT, SYNC_PHASES.COMPARE_SNAPSHOT],
   },
   [STEPS.REVIEW]: {
     index: 2,
     keyPrefix: `step.${STEPS.REVIEW}.`,
-    phases: [PHASES.REVIEW_DIFFERENCES],
+    phases: [SYNC_PHASES.REVIEW_DIFFERENCES],
   },
   [STEPS.SYNC]: {
     index: 3,
     keyPrefix: `step.${STEPS.SYNC}.`,
-    phases: [PHASES.GENERATE_PLAN, PHASES.APPLY_PLAN],
+    phases: [SYNC_PHASES.GENERATE_PLAN, SYNC_PHASES.APPLY_PLAN],
   },
 }
 

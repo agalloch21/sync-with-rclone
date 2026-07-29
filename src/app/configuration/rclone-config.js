@@ -1,4 +1,4 @@
-import { createRcloneCommand, runCommand } from '#src/core/rclone-command.js'
+import { createRcloneCommand, runCommand } from '#src/infrastructure/rclone/rclone-command.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
 import { normalizeLocalPath, trimTrailingSlash } from '../path-utils.js'
 import { getRuntimePaths } from '../runtime-paths.js'

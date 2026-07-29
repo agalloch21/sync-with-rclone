@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildRemoteSnapshot } from '#src/core/build-remote-snapshot.js'
+import { buildRemoteSnapshot } from '#src/infrastructure/rclone/build-remote-snapshot.js'
 
 const REMOTE_NAME = 'fake-remote'
 

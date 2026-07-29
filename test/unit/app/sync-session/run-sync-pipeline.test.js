@@ -2,19 +2,19 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
-import { PHASES, SYNC_CANCEL_REASON, SYNC_RESULT } from '#src/core/contract.js'
-import { syncCore } from '#src/core/sync-engine.js'
+import { SYNC_CANCEL_REASON, SYNC_PHASES, SYNC_RESULT } from '#src/app/sync-session/contract.js'
+import { runSyncPipeline } from '#src/app/sync-session/run-sync-pipeline.js'
 
 function readFirstBatchPath(args) {
   const batchFilePath = args[args.indexOf('--files-from') + 1]
   return fs.readFileSync(batchFilePath, 'utf8').trim().split(/\r?\n/)[0]
 }
 
-test('syncCore converts apply cancellation into a cancelled result with apply metadata', async () => {
+test('runSyncPipeline converts apply cancellation into a cancelled result with apply metadata', async () => {
   const abortController = new AbortController()
   let confirmedPath = ''
 
-  const result = await syncCore({
+  const result = await runSyncPipeline({
     mode: 'push',
     localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
     remoteFolderPath: 'fake-remote:compare-push',
@@ -35,7 +35,7 @@ test('syncCore converts apply cancellation into a cancelled result with apply me
 
   assert.equal(result.result, SYNC_RESULT.CANCELLED)
   assert.equal(result.reason, SYNC_CANCEL_REASON.ABORT_SIGNAL)
-  assert.equal(result.phase, PHASES.APPLY_PLAN)
+  assert.equal(result.phase, SYNC_PHASES.APPLY_PLAN)
   assert.ok(result.operations.length > 0)
   assert.ok(result.operations.some(operation => (
     operation.path === confirmedPath
@@ -44,10 +44,10 @@ test('syncCore converts apply cancellation into a cancelled result with apply me
   )))
 })
 
-test('syncCore returns apply operations when apply fails', async () => {
+test('runSyncPipeline returns apply operations when apply fails', async () => {
   let confirmedPath = ''
 
-  const result = await syncCore({
+  const result = await runSyncPipeline({
     mode: 'push',
     localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
     remoteFolderPath: 'fake-remote:compare-push',
@@ -66,7 +66,7 @@ test('syncCore returns apply operations when apply fails', async () => {
   })
 
   assert.equal(result.result, SYNC_RESULT.FAILED)
-  assert.equal(result.phase, PHASES.APPLY_PLAN)
+  assert.equal(result.phase, SYNC_PHASES.APPLY_PLAN)
   assert.equal(result.message, 'copy failed')
   assert.ok(result.operations.some(operation => (
     operation.path === confirmedPath

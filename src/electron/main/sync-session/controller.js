@@ -1,7 +1,7 @@
 import { startSync } from '#src/app/app-api.js'
+import { SYNC_PHASES, SYNC_RESULT } from '#src/app/sync-session/contract.js'
 import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
 import { resolveSyncContext } from '#src/app/sync-session/resolve-sync-context.js'
-import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { createSessionWindow } from './window.js'
 
 function parseSessionOptions(argv = []) {
@@ -32,7 +32,7 @@ export function startSyncSession(request) {
 
       if (syncResult.result === SYNC_RESULT.COMPLETED
         || syncResult.result === SYNC_RESULT.FAILED
-        || (syncResult.result === SYNC_RESULT.CANCELLED && (syncResult.phase === PHASES.APPLY_PLAN || syncResult.phase === PHASES.GENERATE_PLAN))) {
+        || (syncResult.result === SYNC_RESULT.CANCELLED && (syncResult.phase === SYNC_PHASES.APPLY_PLAN || syncResult.phase === SYNC_PHASES.GENERATE_PLAN))) {
         await sessionWindowHooks.showFinalAcknowledgement(syncResult)
       }
     }

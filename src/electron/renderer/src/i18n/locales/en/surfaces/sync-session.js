@@ -1,17 +1,17 @@
-import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
+import { SYNC_PHASES, SYNC_RESULT } from '#src/app/sync-session/contract.js'
 import { STEPS } from '#src/electron/main/sync-session/steps.js'
 
 const syncSession = {
   [STEPS.ANALYZE]: { title: 'Analyze' },
   [STEPS.REVIEW]: { title: 'Review' },
   [STEPS.SYNC]: { title: 'Sync' },
-  [PHASES.PREPARATION]: 'Normalizing options',
-  [PHASES.BUILD_LOCAL_SNAPSHOT]: 'Building local snapshot',
-  [PHASES.BUILD_REMOTE_SNAPSHOT]: 'Building remote snapshot',
-  [PHASES.COMPARE_SNAPSHOT]: 'Comparing snapshots',
-  [PHASES.REVIEW_DIFFERENCES]: 'Preparing differences review',
-  [PHASES.GENERATE_PLAN]: 'Preparing operations',
-  [PHASES.APPLY_PLAN]: 'Syncing',
+  [SYNC_PHASES.PREPARATION]: 'Normalizing options',
+  [SYNC_PHASES.BUILD_LOCAL_SNAPSHOT]: 'Building local snapshot',
+  [SYNC_PHASES.BUILD_REMOTE_SNAPSHOT]: 'Building remote snapshot',
+  [SYNC_PHASES.COMPARE_SNAPSHOT]: 'Comparing snapshots',
+  [SYNC_PHASES.REVIEW_DIFFERENCES]: 'Preparing differences review',
+  [SYNC_PHASES.GENERATE_PLAN]: 'Preparing operations',
+  [SYNC_PHASES.APPLY_PLAN]: 'Syncing',
   windowTitle: 'Sync Session',
   context: {
     local: 'LOCAL',

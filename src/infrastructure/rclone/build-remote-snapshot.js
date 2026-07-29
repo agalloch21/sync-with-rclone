@@ -7,7 +7,7 @@ import { createRcloneCommand } from './rclone-command.js'
 
 function getDefaultBundledRclonePath() {
   const currentFilePath = fileURLToPath(import.meta.url)
-  const projectRoot = path.posix.resolve(path.posix.dirname(currentFilePath).replaceAll(path.sep, path.posix.sep), '../..')
+  const projectRoot = path.posix.resolve(path.posix.dirname(currentFilePath).replaceAll(path.sep, path.posix.sep), '../../..')
 
   if (process.platform === 'darwin' && process.arch === 'arm64')
     return path.posix.join(projectRoot, 'resources/binaries/rclone-osx-arm64')

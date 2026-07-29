@@ -7,7 +7,7 @@
 - `shell`
 - `app`
 - `domain`
-- `core`
+- `infrastructure`
 - `rclone`
 
 
@@ -15,18 +15,18 @@
 sequenceDiagram
   participant U as 用户 / 系统右键菜单
   participant S as CLI / Electron Shell
-  participant A as App Layer
+  participant A as App / Sync Session
   participant D as Synchronization Domain
-  participant C as Core
+  participant I as Infrastructure
   participant RC as rclone Process
 
   U->>S: 触发动作并传入路径
   S->>A: 请求开始同步
-  A->>C: 提供明确的同步输入
-  C->>D: 比较 Snapshot / 构建 SyncPlan
-  C->>RC: 扫描远端 / 执行同步
-  RC-->>C: 返回结果
-  C-->>A: 返回 completed / cancelled / failed 结果
+  A->>I: 扫描本地和远端
+  I->>RC: 扫描远端 / 执行同步
+  RC-->>I: 返回结果
+  I-->>A: 返回 Snapshot / Apply 结果
+  A->>D: 比较 Snapshot / 构建 SyncPlan
   A-->>S: 返回可展示结果
 ```
 
@@ -34,22 +34,26 @@ sequenceDiagram
 
 - `electron` 是当前桌面壳层
 - `cli` 是当前保留的命令行壳层
-- `app` 是 shell 和 `core` 之间的编排层
+- `app/sync-session` 拥有从 context resolution 到最终结果的同步会话和 pipeline 编排
 - `domain/synchronization` 保存不依赖 shell、文件系统或 rclone 的同步模型和规则
-- `core` 暂时保存尚未拆分的扫描、执行和同步流水线，并调用外部 `rclone` 进程
+- `infrastructure/filesystem` 负责读取本地文件系统并构建 Snapshot
+- `infrastructure/rclone` 负责 rclone 命令、远端 Snapshot 和 SyncPlan 执行
 
 
 ## 2. 目录职责
 
 ```text
 src/           // 运行时代码
-  app/         // shell 和 core 之间的应用编排层
+  app/         // shell-neutral application use cases 和编排
     events/    // shell-neutral application notifications
+    sync-session/ // 同步会话、pipeline、contract、phase reporting 和 review serialization
   cli/         // CLI入口、终端review、终端输出，可独立承接主流程
-  core/        // 过渡目录：扫描、Apply、rclone 执行封装和同步流水线
   domain/
     synchronization/ // Snapshot、Diff 比较和 SyncPlan 构建规则
   electron/    // 当前桌面主壳层，包含 Electron main、preload、renderer
+  infrastructure/
+    filesystem/ // 本地文件扫描
+    rclone/      // rclone 命令、远端扫描和 SyncPlan 执行
   locales/     // GUI / CLI 共用的业务 message、error、operation 翻译
 scripts/       // 非运行时代码
   dev/         // 开发启动脚本
@@ -60,14 +64,14 @@ resources/     // bundled binaries、图标等静态资源
 
 **层级边界:**
 - domain 不读取 Electron API、配置文件、文件系统或 rclone
-- core 不读取 Electron API，不解析配置文件；其中纯同步规则已经下沉到 domain
-- app 负责把 shell 的输入整理成 core 的输入
+- infrastructure 不读取 Electron API，也不拥有 application session 生命周期
+- app 不读取 Electron API；它解析 shell 输入、管理同步用例并协调 domain 和 infrastructure
 - `src/app/app-api.js` 是 GUI、CLI 和未来 agent/automation shell 调用应用能力的统一入口；普通 query、command 和 `startSync()` 都从这里导出
 - electron 负责桌面壳层和窗口，不直接承担同步业务
 - cli 负责命令行壳层和终端交互
 - cli 不作为 Electron UI 的下层依赖；UI 通过 Electron Main 调用 app 层能力
 - Electron Main 在进程入口处把命令行参数分发给 cli 壳层，这是打包入口职责，不代表 UI 依赖 cli
-- cli 和 electron 都只能依赖 app / core / domain，不允许 app / core / domain 反向依赖 cli 或 electron
+- cli 和 electron 通过 app 调用应用能力；app 可以依赖 domain 和 infrastructure，domain / infrastructure 不反向依赖 shell
 
 当前打包方向采用一个 Electron 可执行文件，区分 GUI 单实例入口和独立 CLI 入口：
 
@@ -85,7 +89,7 @@ GUI 启动通过 `requestSingleInstanceLock()` 汇入一个 Electron Main 进程
 `src/electron/main/index.cjs` 是产品可执行文件的统一入口。Renderer 不调用 `src/cli/`，只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
 
 
-## 3. Electron、Vite、Renderer、Core 的关系
+## 3. Electron、Vite、Renderer、Application 的关系
 
 当前需要重点理解的是桌面运行链路：
 
@@ -95,22 +99,20 @@ sequenceDiagram
   participant EM as Electron Main
   participant PL as Preload
   participant RD as Renderer
-  participant APP as App Layer
-  participant CORE as Core
+  participant APP as App / Sync Session
   participant RC as rclone Process
 
   OS->>EM: 启动 Electron 并传入动作与路径
   EM->>APP: 调用 startSync(...)
-  APP->>CORE: 调用 syncCore(...)
-  CORE->>EM: 通过 interaction 请求 reviewDiff(...)
+  APP->>APP: runSyncPipeline(...)
+  APP->>EM: 通过 interaction 请求 reviewDiff(...)
   EM->>PL: 注入 bridge
   PL->>RD: 暴露最小 API
   RD-->>EM: 返回 ReviewResult
   EM->>APP: 恢复主流程
-  APP->>CORE: 继续 build plan / apply
-  CORE->>RC: 调用 rclone
-  RC-->>CORE: 返回执行结果
-  CORE-->>APP: 返回 SyncCoreResult
+  APP->>APP: 继续 build plan / apply
+  APP->>RC: 通过 infrastructure 调用 rclone
+  RC-->>APP: 返回执行结果
   APP-->>EM: 返回 SyncSessionResult
   EM->>RD: 展示 final acknowledgement
   RD-->>EM: acknowledge close
@@ -118,16 +120,16 @@ sequenceDiagram
 
 需要特别记住：
 
-- `Renderer` 不直接调用 `core`
+- `Renderer` 不直接调用 domain 或 infrastructure
 - `Renderer` 通过 `preload` 暴露的 bridge 与 `Electron Main` 通信
 - `Electron Main` 再去调用 `app`
-- `app` 再去调用 `core`
-- `core` 再去调用外部 `rclone` 进程
+- `app/sync-session` 协调 domain 与 infrastructure
+- infrastructure 调用外部 `rclone` 进程
 - `Vite` 的作用不是参与运行时通信，而是把 renderer 源码编译成 Electron 可加载的页面
 - `CLI` 不是为了测试临时补出来的旁路，而是当前架构下的独立 shell 入口
-- `CLI` 的存在也使 core 更容易独立运行、测试和排查
+- `CLI` 的存在也使 shell-neutral application flow 更容易独立运行、测试和排查
 - 打包后可以由同一个 Electron 可执行文件承接 CLI 命令；这是入口分发，不改变 CLI 与 Electron UI 的依赖边界
-- `Electron Main` 使用 `startSync(...)` 的返回值推进 final 流程，不依赖 `session.result` event 推进控制流
+- `Electron Main` 使用 `startSync(...)` 的返回值推进 final 流程，不依赖 `sync.session.result` event 推进控制流
 - `Renderer` 负责按钮 pending 和重复点击防护；`Electron Main` 负责窗口生命周期和同步取消适配
 
 ### 3.1 GUI 窗口与会话生命周期
@@ -335,7 +337,7 @@ export const DiffState = Object.freeze({
 - `activity` 当前固定为 `start` / `copy` / `delete` / `cleanup` / `complete`
 - `index` 是当前 activity 在固定 activity 列表中的位置，`total` 是固定 activity 总数
 - `measurement` 只在 copy 阶段有字节进度；其他 activity 为 `null`
-- UI 可以用 `index` 和 copy 阶段的 `measurement` 推导整体进度条，但 core 不直接暴露一个最终百分比
+- UI 可以用 `index` 和 copy 阶段的 `measurement` 推导整体进度条，但 sync pipeline 不直接暴露一个最终百分比
 - 这个结构表达当前正在发生的 apply 状态，不包含完整 UI 步骤列表
 
 copy 之外的示例：
@@ -349,7 +351,7 @@ copy 之外的示例：
 }
 ```
 
-### 4.6 `SyncCoreRuntime`
+### 4.6 `SyncPipelineRuntime`
 
 ```js
 {
@@ -360,9 +362,7 @@ copy 之外的示例：
     reviewDiff(diffSnapshot) {}
   },
   dependents: {
-    runCommand(command, args) {},
-    createBatchFile(paths) {},
-    removeBatchFile(filePath) {}
+    runCommand(command, args) {}
   }
 }
 ```
@@ -370,11 +370,11 @@ copy 之外的示例：
 说明：
 
 - `events.eventListener` 是观察流，用于进度、日志和 UI 展示，不推进主流程
-- `interactions.reviewDiff` 是业务等待点，`syncCore` 必须等待它返回 `ReviewResult` 才能继续
-- `dependents` 是外部执行能力注入，主要用于测试和替换 rclone / batch file 相关能力
-- `syncCore` 会 emit phase 级事件，事件类型定义在 `src/core/contract.js` 的 `PHASE_EVENT`
+- `interactions.reviewDiff` 是业务等待点，`runSyncPipeline` 必须等待它返回 `ReviewResult` 才能继续
+- `dependents.runCommand` 是 application session 向 rclone infrastructure 提供的可替换命令执行能力
+- `runSyncPipeline` 会 emit `sync.phase.*` 事件，事件类型定义在 `src/app/sync-session/contract.js` 的 `SYNC_PHASE_EVENT`
 - apply 阶段的 progress payload 使用 `ApplyProgress`
-- `syncCore` 返回 `SyncCoreResult`，结果值定义在 `SYNC_RESULT`
+- `runSyncPipeline` 返回 `SyncPipelineResult`，结果值定义在 `SYNC_RESULT`
 
 ### 4.7 `SyncSessionRuntime`
 
@@ -387,9 +387,7 @@ copy 之外的示例：
     reviewDiff(diffSnapshot) {}
   },
   dependents: {
-    runCommand(command, args) {},
-    createBatchFile(paths) {},
-    removeBatchFile(filePath) {}
+    runCommand(command, args) {}
   }
 }
 ```
@@ -398,9 +396,9 @@ copy 之外的示例：
 
 - `startSync` 是 app 层 synchronization use case
 - `startSync` 负责读取配置、解析同步任务、生成 `SyncSessionContext`
-- `startSync` 把 core phase event 转换成 `SESSION_EVENT.PROGRESS`
+- `startSync` 把 pipeline phase event 转换成 `SYNC_SESSION_EVENT.PROGRESS`
 - `startSync` 返回 `SyncSessionResult`
-- `startSync` 会 emit `SESSION_EVENT.RESULT` 作为观察事件，但 Electron final 流程由返回值驱动
+- `startSync` 会 emit `SYNC_SESSION_EVENT.RESULT`（值为 `sync.session.result`）作为观察事件，但 Electron final 流程由返回值驱动
 - failed result 在 `quick-actions.log` 已存在时携带其路径；会话窗口通过 Electron shell 在文件管理器中定位该文件，不负责创建或导航主窗口
 
 ### 4.8 `MainWindowData`
@@ -761,27 +759,25 @@ src/locales/locale-tree.js
 
 ```mermaid
 sequenceDiagram
-  participant APP as App
-  participant CORE as Core
+  participant APP as App / Sync Session
   participant DOMAIN as Domain / Synchronization
+  participant FS as Infrastructure / Filesystem
+  participant RCLONE as Infrastructure / rclone
   participant SHELL as CLI / Electron Main
-  participant APPLY as Apply
 
-  APP->>CORE: SyncCoreOptions + SyncCoreRuntime
-  APP-->>SHELL: emit session.context-resolved
-  CORE->>CORE: buildLocalSnapshot(...)
-  CORE-->>APP: emit phase event
-  CORE->>CORE: buildRemoteSnapshot(...)
-  CORE-->>APP: emit phase event
-  CORE->>DOMAIN: compareSnapshots(...)
-  DOMAIN-->>CORE: DiffSnapshot
-  CORE-->>SHELL: interaction.reviewDiff(DiffSnapshot)
-  SHELL-->>CORE: ReviewResult
-  CORE->>DOMAIN: buildSyncPlan(...)
-  DOMAIN-->>CORE: SyncPlan
-  CORE-->>APPLY: SyncPlan
-  APPLY-->>CORE: applied result
-  CORE-->>APP: SyncCoreResult
+  APP-->>SHELL: emit sync.session.context-resolved
+  APP->>FS: buildLocalSnapshot(...)
+  FS-->>APP: local Snapshot
+  APP->>RCLONE: buildRemoteSnapshot(...)
+  RCLONE-->>APP: remote Snapshot
+  APP->>DOMAIN: compareSnapshots(...)
+  DOMAIN-->>APP: DiffSnapshot
+  APP-->>SHELL: interaction.reviewDiff(DiffSnapshot)
+  SHELL-->>APP: ReviewResult
+  APP->>DOMAIN: buildSyncPlan(...)
+  DOMAIN-->>APP: SyncPlan
+  APP->>RCLONE: applySyncPlan(...)
+  RCLONE-->>APP: applied result
   APP-->>SHELL: SyncSessionResult
 ```
 
@@ -789,11 +785,11 @@ sequenceDiagram
 
 - `return` 是控制流。`startSync(...)` 的返回值决定 Electron 是否展示 final、进程退出码和后续收尾。
 - `events.eventListener` 是观察流。它用于展示 context、progress 和调试，不作为流程推进条件。
-- `interactions.reviewDiff` 是业务等待点。它是 core 在 review 阶段继续执行所需的外部输入。
+- `interactions.reviewDiff` 是业务等待点。它是 application sync pipeline 在 review 阶段继续执行所需的外部输入。
 
 Progress 与 operation history 保持分离：
 
-- `SESSION_EVENT.PROGRESS` 只进入对应 session window，不写入 history。
+- `SYNC_SESSION_EVENT.PROGRESS`（值为 `sync.session.progress`）只进入对应 session window，不写入 history。
 - operation history 每个 session 只保存一条 started 和一条 succeeded / failed / cancelled。
 - GUI sessions 与主窗口位于同一进程，因此 history emitter 可以实时通知 Logs panel。
 - 独立 CLI 写入的 history 仍通过刷新或重新打开 Logs panel 读取。

@@ -3,7 +3,7 @@ import { createOperationReporter } from '#src/app/operations/operation-reporter.
 import { SERVER_OPERATION } from '#src/app/operations/server-operation-contract.js'
 import { SYNC_TASK_OPERATION } from '#src/app/operations/task-operation-contract.js'
 import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
-import { SYNC_RESULT } from '#src/core/contract.js'
+import { SYNC_RESULT } from '#src/app/sync-session/contract.js'
 import CLI_COMMAND_NAMES from './command-names.cjs'
 import { createCliOperationReportDisplay } from './operation-report-display.js'
 import { reviewDiffInCli } from './review.js'

@@ -6,25 +6,23 @@
 sequenceDiagram
   participant U as 用户
   participant S as Shell
-  participant A as App
-  participant C as Core
+  participant A as App / Sync Session
   participant W as Sync Session UI
 
   U->>S: 触发 Push / Pull / Push To... / Pull From...
   S->>A: 传入动作类型和本地路径
   A->>A: 读取配置并解析本次同步上下文
-  A-->>S: emit session.context-resolved
+  A-->>S: emit sync.session.context-resolved
   S->>W: 展示当前同步上下文
-  A->>C: 调用 syncCore(...)
-  C->>C: 生成 DiffSnapshot
-  C-->>S: interaction.reviewDiff(diffSnapshot)
+  A->>A: 调用 runSyncPipeline(...)
+  A->>A: 生成 DiffSnapshot
+  A-->>S: interaction.reviewDiff(diffSnapshot)
   S->>W: 切换到 review step
   W->>U: 展示差异树
   U->>W: 勾选并确认/取消
   W-->>S: 返回 ReviewResult
-  S-->>C: 恢复执行
-  C->>C: 生成并执行 SyncPlan
-  C-->>A: 返回 SyncCoreResult
+  S-->>A: 恢复执行
+  A->>A: 生成并执行 SyncPlan
   A-->>S: 返回 SyncSessionResult
   S->>W: 按需展示 final acknowledgement
 ```
@@ -76,23 +74,22 @@ sequenceDiagram
 sequenceDiagram
   participant U as 用户
   participant S as Shell
-  participant A as App
-  participant C as Core
+  participant A as App / Sync Session
   participant W as Sync Session UI
 
   U->>S: 触发 Push
   S->>A: 传入本地路径
   A->>A: 解析默认远端目标路径
-  A->>C: 发起 Push
-  C->>C: 扫描本地与远端
-  C->>C: 生成 DiffSnapshot
-  C-->>S: interaction.reviewDiff(diffSnapshot)
+  A->>A: 发起 Push pipeline
+  A->>A: 扫描本地与远端
+  A->>A: 生成 DiffSnapshot
+  A-->>S: interaction.reviewDiff(diffSnapshot)
   S->>W: 展示 review step
   W->>U: 展示差异树
   U->>W: 勾选并确认/取消
   W-->>S: 返回 ReviewResult
-  S-->>C: 恢复执行
-  C->>C: 生成并执行 SyncPlan
+  S-->>A: 恢复执行
+  A->>A: 生成并执行 SyncPlan
 ```
 
 `Push` 的关键点是：
@@ -106,23 +103,22 @@ sequenceDiagram
 sequenceDiagram
   participant U as 用户
   participant S as Shell
-  participant A as App
-  participant C as Core
+  participant A as App / Sync Session
   participant W as Sync Session UI
 
   U->>S: 触发 Pull
   S->>A: 传入本地路径
   A->>A: 解析默认远端来源路径
-  A->>C: 发起 Pull
-  C->>C: 扫描远端与本地
-  C->>C: 生成 DiffSnapshot
-  C-->>S: interaction.reviewDiff(diffSnapshot)
+  A->>A: 发起 Pull pipeline
+  A->>A: 扫描远端与本地
+  A->>A: 生成 DiffSnapshot
+  A-->>S: interaction.reviewDiff(diffSnapshot)
   S->>W: 展示 review step
   W->>U: 展示差异树
   U->>W: 勾选并确认/取消
   W-->>S: 返回 ReviewResult
-  S-->>C: 恢复执行
-  C->>C: 生成并执行 SyncPlan
+  S-->>A: 恢复执行
+  A->>A: 生成并执行 SyncPlan
 ```
 
 `Pull` 的关键点是：
@@ -136,9 +132,8 @@ sequenceDiagram
 sequenceDiagram
   participant U as 用户
   participant S as Shell
-  participant A as App
+  participant A as App / Sync Session
   participant T as 远端目录选择
-  participant C as Core
   participant W as Sync Session UI
 
   U->>S: 触发 Push To...
@@ -148,16 +143,16 @@ sequenceDiagram
   T->>U: 展示可选远端目录
   U->>T: 选择目标目录
   T-->>A: 返回选中的远端目录
-  A->>C: 发起 Push
-  C->>C: 扫描本地与选中远端
-  C->>C: 生成 DiffSnapshot
-  C-->>S: interaction.reviewDiff(diffSnapshot)
+  A->>A: 发起 Push pipeline
+  A->>A: 扫描本地与选中远端
+  A->>A: 生成 DiffSnapshot
+  A-->>S: interaction.reviewDiff(diffSnapshot)
   S->>W: 展示 review step
   W->>U: 展示差异树
   U->>W: 勾选并确认/取消
   W-->>S: 返回 ReviewResult
-  S-->>C: 恢复执行
-  C->>C: 生成并执行 SyncPlan
+  S-->>A: 恢复执行
+  A->>A: 生成并执行 SyncPlan
 ```
 
 `Push To...` 的关键点是：
@@ -171,9 +166,8 @@ sequenceDiagram
 sequenceDiagram
   participant U as 用户
   participant S as Shell
-  participant A as App
+  participant A as App / Sync Session
   participant T as 远端目录选择
-  participant C as Core
   participant W as Sync Session UI
 
   U->>S: 触发 Pull From...
@@ -183,16 +177,16 @@ sequenceDiagram
   T->>U: 展示可选远端目录
   U->>T: 选择来源目录
   T-->>A: 返回选中的远端目录
-  A->>C: 发起 Pull
-  C->>C: 扫描选中远端与本地
-  C->>C: 生成 DiffSnapshot
-  C-->>S: interaction.reviewDiff(diffSnapshot)
+  A->>A: 发起 Pull pipeline
+  A->>A: 扫描选中远端与本地
+  A->>A: 生成 DiffSnapshot
+  A-->>S: interaction.reviewDiff(diffSnapshot)
   S->>W: 展示 review step
   W->>U: 展示差异树
   U->>W: 勾选并确认/取消
   W-->>S: 返回 ReviewResult
-  S-->>C: 恢复执行
-  C->>C: 生成并执行 SyncPlan
+  S-->>A: 恢复执行
+  A->>A: 生成并执行 SyncPlan
 ```
 
 `Pull From...` 的关键点是：
@@ -204,13 +198,13 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant C as Core
+  participant A as App / Sync Pipeline
   participant S as Electron Main / CLI
   participant P as Preload
   participant R as Renderer
   participant U as 用户
 
-  C-->>S: interaction.reviewDiff(diffSnapshot)
+  A-->>S: interaction.reviewDiff(diffSnapshot)
   S->>R: 更新 sync-session 为 review step
   S->>P: 初始化 preload
   P->>R: 暴露 bridge
@@ -220,12 +214,12 @@ sequenceDiagram
   R-->>S: invoke confirm/cancel
   S-->>R: 返回 handler 结果
   S-->>S: settle pending review
-  S-->>C: 恢复后续流程
+  S-->>A: 恢复后续流程
 ```
 
 这一步的职责边界是：
 
-- `syncCore` 只知道它需要一个 `ReviewResult`
+- `runSyncPipeline` 只知道它需要一个 `ReviewResult`
 - Electron Main 把 `reviewDiff` 适配成 sync-session 窗口里的 review step
 - Renderer 负责按钮 pending 和重复点击防护
 - Main 以 `pendingReview` 作为是否处于 review 等待点的权威状态
@@ -234,23 +228,23 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant C as Core
+  participant A as App / Sync Pipeline
   participant RC as rclone Process
   participant U as 用户
 
-  C->>C: 根据 ReviewResult 生成 SyncPlan
-  C-->>U: emit activity=start
-  C->>RC: 批量执行 copy
-  RC-->>C: 返回 copy 字节进度
-  C-->>U: emit activity=copy + measurement
-  RC-->>C: 返回 copy 结果
-  C->>RC: 批量执行 delete
-  C-->>U: emit activity=delete
-  RC-->>C: 返回 delete 结果
-  C->>RC: 清理目标端空目录
-  C-->>U: emit activity=cleanup
-  C-->>U: emit activity=complete
-  C-->>U: 返回执行结果
+  A->>A: 根据 ReviewResult 生成 SyncPlan
+  A-->>U: emit activity=start
+  A->>RC: 通过 infrastructure 批量执行 copy
+  RC-->>A: 返回 copy 字节进度
+  A-->>U: emit activity=copy + measurement
+  RC-->>A: 返回 copy 结果
+  A->>RC: 通过 infrastructure 批量执行 delete
+  A-->>U: emit activity=delete
+  RC-->>A: 返回 delete 结果
+  A->>RC: 通过 infrastructure 清理目标端空目录
+  A-->>U: emit activity=cleanup
+  A-->>U: emit activity=complete
+  A-->>U: 返回执行结果
 ```
 
 当前 apply 的执行策略是：
@@ -266,13 +260,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant E as Electron Main
-  participant A as App
-  participant C as Core
+  participant A as App / Sync Session
   participant R as Renderer
 
   E->>A: startSync(options, runtime)
-  A->>C: syncCore(coreOptions, coreRuntime)
-  C-->>A: SyncCoreResult
+  A->>A: runSyncPipeline(options, runtime)
   A-->>E: SyncSessionResult
   E->>E: 判断是否需要 final acknowledgement
   alt 需要 final acknowledgement
@@ -286,7 +278,7 @@ sequenceDiagram
 这里的结论是：
 
 - `SyncSessionResult` 是 Electron Main 推进 final 流程和退出码判断的依据
-- `SESSION_EVENT.RESULT` 只是观察事件，不作为 final 流程的控制点
+- `SYNC_SESSION_EVENT.RESULT`（值为 `sync.session.result`）只是观察事件，不作为 final 流程的控制点
 - cancelled 是正常运行结果；failed 会导致桌面入口以失败码退出
 - review 阶段取消可以直接收尾；进入执行阶段后的取消可按策略展示 final acknowledgement
 - cancelled final acknowledgement 会展示已执行操作的汇总，并允许展开查看每个 operation 的执行状态

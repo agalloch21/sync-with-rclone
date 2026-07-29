@@ -1,8 +1,8 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SESSION_EVENT } from '#src/app/sync-session/contract.js'
-import { serializeDiffSnapshot } from '#src/core/serialize-diff-snapshot.js'
+import { SYNC_SESSION_EVENT } from '#src/app/sync-session/contract.js'
+import { serializeDiffSnapshot } from '#src/app/sync-session/serialize-diff-snapshot.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 import { getStepForPhase, STEPS } from './steps.js'
 
@@ -133,17 +133,17 @@ export function createSessionWindow() {
   }
 
   function onEventFromMain(event) {
-    if (event.type === SESSION_EVENT.STARTED || event.type === SESSION_EVENT.RESULT) {
+    if (event.type === SYNC_SESSION_EVENT.STARTED || event.type === SYNC_SESSION_EVENT.RESULT) {
       // will use showFinalAcknowledgement() to receive result
       return
     }
 
     let nextState = null
 
-    if (event.type === SESSION_EVENT.CONTEXT_RESOLVED) {
+    if (event.type === SYNC_SESSION_EVENT.CONTEXT_RESOLVED) {
       nextState = { context: event.context }
     }
-    else if (event.type === SESSION_EVENT.PROGRESS) {
+    else if (event.type === SYNC_SESSION_EVENT.PROGRESS) {
       nextState = {
         step: getStepForPhase(event.phase),
         phase: event.phase,

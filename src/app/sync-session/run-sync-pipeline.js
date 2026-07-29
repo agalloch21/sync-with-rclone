@@ -1,26 +1,30 @@
+/** @typedef {import('./contract.js').SyncPipelineOptions} SyncPipelineOptions */
+/** @typedef {import('./contract.js').SyncPipelineResult} SyncPipelineResult */
+/** @typedef {import('./contract.js').SyncPipelineRuntime} SyncPipelineRuntime */
+
 import { buildSyncPlan } from '#src/domain/synchronization/build-sync-plan.js'
 import { compareSnapshots } from '#src/domain/synchronization/compare-snapshots.js'
-import { applySyncPlan } from './apply-sync-plan.js'
-import { buildLocalSnapshot } from './build-local-snapshot.js'
-import { buildRemoteSnapshot } from './build-remote-snapshot.js'
-import { PHASES, REVIEW_ACTION, SYNC_CANCEL_REASON, SYNC_RESULT } from './contract.js'
-import { createReporter, runWithReporter } from './sync-reporter.js'
+import { buildLocalSnapshot } from '#src/infrastructure/filesystem/build-local-snapshot.js'
+import { applySyncPlan } from '#src/infrastructure/rclone/apply-sync-plan.js'
+import { buildRemoteSnapshot } from '#src/infrastructure/rclone/build-remote-snapshot.js'
+import { SYNC_CANCEL_REASON, SYNC_PHASES, SYNC_RESULT, SYNC_REVIEW_ACTION } from './contract.js'
+import { createReporter, runWithReporter } from './phase-reporter.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
-    throw new TypeError('syncCore runtime must be an object')
+    throw new TypeError('runSyncPipeline runtime must be an object')
 
   const eventListener = runtime.events?.eventListener
   if (eventListener && typeof eventListener !== 'function')
-    throw new TypeError('syncCore runtime.events.eventListener must be a function')
+    throw new TypeError('runSyncPipeline runtime.events.eventListener must be a function')
 
   const reviewDiff = runtime.interactions?.reviewDiff
   if (reviewDiff && typeof reviewDiff !== 'function')
-    throw new TypeError('syncCore runtime.interactions.reviewDiff must be a function')
+    throw new TypeError('runSyncPipeline runtime.interactions.reviewDiff must be a function')
 
   const dependents = runtime.dependents || {}
   if (dependents.runCommand && typeof dependents.runCommand !== 'function')
-    throw new TypeError('syncCore runtime.dependents.runCommand must be a function')
+    throw new TypeError('runSyncPipeline runtime.dependents.runCommand must be a function')
 }
 
 function normalizeOptions(options) {
@@ -54,9 +58,12 @@ function getDiffSummary(diffSnapshot) {
  * Headless sync pipeline. UI review is injected from the outside.
  *
  * @export
- * @param {Options} options
+ * @param {SyncPipelineOptions} options
+ * @param {SyncPipelineRuntime} [runtime]
+ * @param {AbortSignal | null} [cancelSignal]
+ * @returns {Promise<SyncPipelineResult>}
  */
-export async function syncCore(
+export async function runSyncPipeline(
   options,
   runtime = { events: { eventListener: null }, interactions: { reviewDiff: null }, dependents: {} },
   cancelSignal = null,
@@ -74,13 +81,13 @@ export async function syncCore(
 
   try {
     const normalizedOptions = await runPhase(
-      PHASES.PREPARATION,
+      SYNC_PHASES.PREPARATION,
       () => normalizeOptions(options),
       'normalize the options',
     )
 
     const localSnapshot = await runPhase(
-      PHASES.BUILD_LOCAL_SNAPSHOT,
+      SYNC_PHASES.BUILD_LOCAL_SNAPSHOT,
       () => buildLocalSnapshot(
         normalizedOptions.localFolderPath,
         normalizedOptions.extraIgnorePatterns,
@@ -89,7 +96,7 @@ export async function syncCore(
     )
 
     const remoteSnapshot = await runPhase(
-      PHASES.BUILD_REMOTE_SNAPSHOT,
+      SYNC_PHASES.BUILD_REMOTE_SNAPSHOT,
       () => buildRemoteSnapshot(
         normalizedOptions.remoteFolderPath,
         normalizedOptions.runtimePaths,
@@ -101,20 +108,20 @@ export async function syncCore(
     const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot
     const dstSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
     const diffSnapshot = await runPhase(
-      PHASES.COMPARE_SNAPSHOT,
+      SYNC_PHASES.COMPARE_SNAPSHOT,
       () => compareSnapshots(srcSnapshot, dstSnapshot),
       'Comparing snapshots',
     )
 
     const reviewResult = runtime.interactions?.reviewDiff
       ? (await runPhase(
-          PHASES.REVIEW_DIFFERENCES,
+          SYNC_PHASES.REVIEW_DIFFERENCES,
           () => runtime.interactions?.reviewDiff(diffSnapshot),
           'Preparing differences review',
         ))
-      : { action: REVIEW_ACTION.CONFIRM }
+      : { action: SYNC_REVIEW_ACTION.CONFIRM }
 
-    if (reviewResult.action === REVIEW_ACTION.CANCEL) {
+    if (reviewResult.action === SYNC_REVIEW_ACTION.CANCEL) {
       return {
         result: SYNC_RESULT.CANCELLED,
         reason: SYNC_CANCEL_REASON.REVIEW_CANCELLED,
@@ -124,17 +131,17 @@ export async function syncCore(
     }
 
     const syncPlan = await runPhase(
-      PHASES.GENERATE_PLAN,
+      SYNC_PHASES.GENERATE_PLAN,
       () => buildSyncPlan(diffSnapshot, reviewResult),
       'Preparing operations',
     )
 
     const applyResult = await runPhase(
-      PHASES.APPLY_PLAN,
+      SYNC_PHASES.APPLY_PLAN,
       () => applySyncPlan(syncPlan, normalizedOptions, {
         dependents: runtime.dependents,
         events: {
-          progress: progress => reporter.progress(PHASES.APPLY_PLAN, progress),
+          progress: progress => reporter.progress(SYNC_PHASES.APPLY_PLAN, progress),
         },
       }, cancelSignal),
       'Applying operations',

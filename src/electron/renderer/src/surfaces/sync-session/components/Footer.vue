@@ -1,5 +1,5 @@
 <script setup>
-import { PHASES } from '#src/core/contract.js'
+import { SYNC_PHASES } from '#src/app/sync-session/contract.js'
 import { STEPS } from '#src/electron/main/sync-session/steps.js'
 import { computed, inject } from 'vue'
 
@@ -15,7 +15,7 @@ const showFinalAcknowledgement = inject('showFinalAcknowledgement')
 const step = computed(() => state.value?.step || '')
 const phase = computed(() => state.value?.phase || '')
 const mode = computed(() => state.value?.context?.mode || '')
-const cancelVisible = computed(() => showFinalAcknowledgement.value === false && step.value.length !== 0 && (step.value !== STEPS.ANALYZE || phase.value !== PHASES.PREPARATION), false)
+const cancelVisible = computed(() => showFinalAcknowledgement.value === false && step.value.length !== 0 && (step.value !== STEPS.ANALYZE || phase.value !== SYNC_PHASES.PREPARATION), false)
 const confirmVisible = computed(() => showFinalAcknowledgement.value === false && step.value === STEPS.REVIEW, false)
 const closeVisible = computed(() => showFinalAcknowledgement.value)
 </script>

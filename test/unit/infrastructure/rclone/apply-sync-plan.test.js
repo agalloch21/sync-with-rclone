@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import test from 'node:test'
-import { applySyncPlan } from '#src/core/apply-sync-plan.js'
+import { applySyncPlan } from '#src/infrastructure/rclone/apply-sync-plan.js'
 
 function normalizeFilesFromArg(args) {
   const normalizedArgs = [...args]

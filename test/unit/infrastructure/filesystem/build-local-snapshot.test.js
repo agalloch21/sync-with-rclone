@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
 
-import { buildLocalSnapshot } from '#src/core/build-local-snapshot.js'
+import { buildLocalSnapshot } from '#src/infrastructure/filesystem/build-local-snapshot.js'
 
 function filePaths(snapshot) {
   return snapshot.files.map(file => file.path)

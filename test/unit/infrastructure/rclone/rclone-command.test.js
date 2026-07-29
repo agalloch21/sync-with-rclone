@@ -9,7 +9,7 @@ import {
   getRcloneExecutable,
   parseConfirmedFilesFromOutput,
   withBatchFile,
-} from '#src/core/rclone-command.js'
+} from '#src/infrastructure/rclone/rclone-command.js'
 
 async function pathExists(filePath) {
   try {

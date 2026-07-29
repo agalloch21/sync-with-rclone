@@ -165,12 +165,6 @@ export async function applySyncPlan(syncPlan, context, runtime, cancelSignal) {
     CLEANUP: 'cleanup',
     COMPLETE: 'complete',
   }
-  const executionSteps = [
-    copyOperations.length > 0 ? APPLY_ACTIVITIES.COPY : null,
-    deleteOperations.length > 0 ? APPLY_ACTIVITIES.DELETE : null,
-    deleteOperations.length > 0 ? APPLY_ACTIVITIES.CLEANUP : null,
-  ].filter(Boolean)
-
   const runCommand = runtime?.dependents?.runCommand || defaultRunCommand
 
   function emitCopyProgress(progress) {

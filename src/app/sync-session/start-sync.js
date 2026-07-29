@@ -1,16 +1,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { PHASE_EVENT, SYNC_RESULT } from '#src/core/contract.js'
-import { syncCore } from '#src/core/sync-engine.js'
 import { getErrorCode, getErrorDetail } from '../app-errors.js'
 import {
   OPERATION_HISTORY_STATUS,
   runOperationWithHistory,
 } from '../operations/operation-history.js'
 import { getRuntimePaths } from '../runtime-paths.js'
-import { SESSION_EVENT, SYNC_SESSION_OPERATION } from './contract.js'
+import { SYNC_PHASE_EVENT, SYNC_RESULT, SYNC_SESSION_EVENT, SYNC_SESSION_OPERATION } from './contract.js'
 import { ensureRemoteFolderExists } from './ensure-remote-folder.js'
 import { resolveSyncContext } from './resolve-sync-context.js'
+import { runSyncPipeline } from './run-sync-pipeline.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
@@ -56,7 +55,7 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
   }
 
   try {
-    emit({ type: SESSION_EVENT.STARTED })
+    emit({ type: SYNC_SESSION_EVENT.STARTED })
 
     if (prepared?.error)
       throw prepared.error
@@ -75,7 +74,7 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
     }
 
     emit({
-      type: SESSION_EVENT.CONTEXT_RESOLVED,
+      type: SYNC_SESSION_EVENT.CONTEXT_RESOLVED,
       context: resolvedContext,
     })
   }
@@ -86,7 +85,7 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
       context: resolvedContext,
       error,
     }, error, runtimePaths)
-    emit({ type: SESSION_EVENT.RESULT, ...sessionResult })
+    emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
 
     return sessionResult
   }
@@ -97,12 +96,12 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
   }
 
   function coreEventToSessionEvent(event) {
-    if (event.type === PHASE_EVENT.FAILED || event.type === PHASE_EVENT.CANCELLED || event.type === PHASE_EVENT.DONE)
+    if (event.type === SYNC_PHASE_EVENT.FAILED || event.type === SYNC_PHASE_EVENT.CANCELLED || event.type === SYNC_PHASE_EVENT.DONE)
       return
 
-    // only transfer SESSION_EVENT.PROGRESS event
+    // only transfer SYNC_SESSION_EVENT.PROGRESS event
     emit({
-      type: SESSION_EVENT.PROGRESS,
+      type: SYNC_SESSION_EVENT.PROGRESS,
       phase: event.phase,
       message: event.message,
       progress: event.progress,
@@ -111,7 +110,7 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
 
   let coreResult = null
   try {
-    coreResult = await syncCore(resolvedOptions, {
+    coreResult = await runSyncPipeline(resolvedOptions, {
       events: { eventListener: coreEventToSessionEvent },
       interactions: { reviewDiff: runtime.interactions?.reviewDiff },
       dependents: runtime.dependents,
@@ -124,7 +123,7 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
       context: resolvedContext,
       error,
     }, error, runtimePaths)
-    emit({ type: SESSION_EVENT.RESULT, ...sessionResult })
+    emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
 
     return sessionResult
   }
@@ -136,7 +135,7 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
   if (sessionResult.result === SYNC_RESULT.FAILED)
     enrichFailedSessionResult(sessionResult, sessionResult.error, runtimePaths)
 
-  emit({ type: SESSION_EVENT.RESULT, ...sessionResult })
+  emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
 
   return sessionResult
 }

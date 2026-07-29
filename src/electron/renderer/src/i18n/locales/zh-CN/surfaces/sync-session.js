@@ -1,17 +1,17 @@
-import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
+import { SYNC_PHASES, SYNC_RESULT } from '#src/app/sync-session/contract.js'
 import { STEPS } from '#src/electron/main/sync-session/steps.js'
 
 const syncSession = {
   [STEPS.ANALYZE]: { title: '分析' },
   [STEPS.REVIEW]: { title: '检查' },
   [STEPS.SYNC]: { title: '同步' },
-  [PHASES.PREPARATION]: '正在规范化选项',
-  [PHASES.BUILD_LOCAL_SNAPSHOT]: '正在生成本地快照',
-  [PHASES.BUILD_REMOTE_SNAPSHOT]: '正在生成远程快照',
-  [PHASES.COMPARE_SNAPSHOT]: '正在比较快照',
-  [PHASES.REVIEW_DIFFERENCES]: '正在准备差异检查',
-  [PHASES.GENERATE_PLAN]: '正在准备操作',
-  [PHASES.APPLY_PLAN]: '正在同步',
+  [SYNC_PHASES.PREPARATION]: '正在规范化选项',
+  [SYNC_PHASES.BUILD_LOCAL_SNAPSHOT]: '正在生成本地快照',
+  [SYNC_PHASES.BUILD_REMOTE_SNAPSHOT]: '正在生成远程快照',
+  [SYNC_PHASES.COMPARE_SNAPSHOT]: '正在比较快照',
+  [SYNC_PHASES.REVIEW_DIFFERENCES]: '正在准备差异检查',
+  [SYNC_PHASES.GENERATE_PLAN]: '正在准备操作',
+  [SYNC_PHASES.APPLY_PLAN]: '正在同步',
   windowTitle: '同步会话',
   context: {
     local: '本地',

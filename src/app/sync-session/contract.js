@@ -1,8 +1,42 @@
-export const SESSION_EVENT = {
-  STARTED: 'session.started',
-  CONTEXT_RESOLVED: 'session.context-resolved',
-  PROGRESS: 'session.progress',
-  RESULT: 'session.result',
+export const SYNC_PHASES = {
+  PREPARATION: 'preparation',
+  BUILD_LOCAL_SNAPSHOT: 'build-local-snapshot',
+  BUILD_REMOTE_SNAPSHOT: 'build-remote-snapshot',
+  COMPARE_SNAPSHOT: 'compare-snapshot',
+  REVIEW_DIFFERENCES: 'review-differences',
+  GENERATE_PLAN: 'generate-plan',
+  APPLY_PLAN: 'apply-plan',
+}
+
+export const SYNC_PHASE_EVENT = {
+  STARTED: 'sync.phase.started',
+  PROGRESS: 'sync.phase.progress',
+  DONE: 'sync.phase.done',
+  FAILED: 'sync.phase.failed',
+  CANCELLED: 'sync.phase.cancelled',
+}
+
+export const SYNC_REVIEW_ACTION = {
+  CONFIRM: 'confirm',
+  CANCEL: 'cancel',
+}
+
+export const SYNC_CANCEL_REASON = {
+  REVIEW_CANCELLED: 'review-cancelled',
+  ABORT_SIGNAL: 'abort-signal',
+}
+
+export const SYNC_RESULT = {
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+  FAILED: 'failed',
+}
+
+export const SYNC_SESSION_EVENT = {
+  STARTED: 'sync.session.started',
+  CONTEXT_RESOLVED: 'sync.session.context-resolved',
+  PROGRESS: 'sync.session.progress',
+  RESULT: 'sync.session.result',
 }
 
 export const SYNC_SESSION_OPERATION = {
@@ -28,6 +62,10 @@ export const SYNC_SESSION_OPERATION = {
  */
 
 /**
+ * @typedef {SyncSessionContext & { runtimePaths?: object }} SyncPipelineOptions
+ */
+
+/**
  * @typedef {object} SyncSessionEventRuntime
  * @property {(event: SyncSessionEvent) => void} [eventListener]
  */
@@ -50,78 +88,94 @@ export const SYNC_SESSION_OPERATION = {
  */
 
 /**
- * @typedef {object} SessionStartedEvent
- * @property {'session.started'} type
+ * @typedef {object} SyncSessionStartedEvent
+ * @property {'sync.session.started'} type
  */
 
 /**
- * @typedef {object} SessionContextResolvedEvent
- * @property {'session.context-resolved'} type
+ * @typedef {object} SyncSessionContextResolvedEvent
+ * @property {'sync.session.context-resolved'} type
  * @property {SyncSessionContext} context
  */
 
 /**
- * @typedef {object} SessionApplyProgressMeasurement
+ * @typedef {object} SyncSessionApplyProgressMeasurement
  * @property {number} current
  * @property {number} total
  * @property {'bytes'} unit
  */
 
 /**
- * @typedef {object} SessionApplyProgress
+ * @typedef {object} SyncSessionApplyProgress
  * @property {'start' | 'copy' | 'delete' | 'cleanup' | 'complete'} activity
  * @property {number} index
  * @property {number} total
- * @property {SessionApplyProgressMeasurement | null} measurement
+ * @property {SyncSessionApplyProgressMeasurement | null} measurement
  */
 
 /**
- * @typedef {object} CorePhaseSessionEvent
- * @property {'core.phase'} type
+ * @typedef {object} SyncPhaseEvent
+ * @property {'sync.phase.started' | 'sync.phase.progress' | 'sync.phase.done' | 'sync.phase.failed' | 'sync.phase.cancelled'} type
  * @property {string} phase
- * @property {'started' | 'running' | 'done'} status
  * @property {string} message
- * @property {SessionApplyProgress | null} progress
+ * @property {SyncSessionApplyProgress} [progress]
  */
 
 /**
- * @typedef {object} SessionCompletedEvent
- * @property {'session.completed'} type
- * @property {import('#src/core/contract.js').SyncCoreCompletedResult} result
+ * @typedef {object} SyncPipelineEventRuntime
+ * @property {(event: SyncPhaseEvent) => void} [eventListener]
  */
 
 /**
- * @typedef {object} SessionCancelledEvent
- * @property {'session.cancelled'} type
- * @property {import('#src/core/contract.js').SyncCoreCancelledResult} result
+ * @typedef {object} SyncPipelineRuntime
+ * @property {SyncPipelineEventRuntime} [events]
+ * @property {SyncSessionInteractions} [interactions]
+ * @property {SyncSessionDependents} [dependents]
  */
 
 /**
- * @typedef {object} SessionFailedEvent
- * @property {'session.failed'} type
+ * @typedef {object} SyncSessionProgressEvent
+ * @property {'sync.session.progress'} type
+ * @property {string} phase
  * @property {string} message
- * @property {string} [errorCode]
- * @property {object} [errorDetails]
- * @property {unknown} [error]
+ * @property {SyncSessionApplyProgress} [progress]
  */
 
 /**
- * @typedef {
- *   SessionStartedEvent |
- *   SessionContextResolvedEvent |
- *   CorePhaseSessionEvent |
- *   SessionCompletedEvent |
- *   SessionCancelledEvent |
- *   SessionFailedEvent
- * } SyncSessionEvent
+ * @typedef {object} SyncPipelineCompletedResult
+ * @property {'completed'} result
+ * @property {{ added: number, modified: number, deleted: number }} summary
+ * @property {Array<object>} operations
  */
 
 /**
- * @typedef {import('#src/core/contract.js').SyncCoreCompletedResult & { context: SyncSessionContext }} SyncSessionCompletedResult
+ * @typedef {object} SyncPipelineCancelledResult
+ * @property {'cancelled'} result
+ * @property {'review-cancelled' | 'abort-signal'} reason
+ * @property {string | null} [phase]
+ * @property {{ added: number, modified: number, deleted: number }} [summary]
+ * @property {Array<object>} [operations]
  */
 
 /**
- * @typedef {import('#src/core/contract.js').SyncCoreCancelledResult & { context: SyncSessionContext }} SyncSessionCancelledResult
+ * @typedef {object} SyncPipelineFailedResult
+ * @property {'failed'} result
+ * @property {string} message
+ * @property {string | null} phase
+ * @property {unknown} error
+ * @property {Array<object>} [operations]
+ */
+
+/**
+ * @typedef {SyncPipelineCompletedResult | SyncPipelineCancelledResult | SyncPipelineFailedResult} SyncPipelineResult
+ */
+
+/**
+ * @typedef {SyncPipelineCompletedResult & { context: SyncSessionContext }} SyncSessionCompletedResult
+ */
+
+/**
+ * @typedef {SyncPipelineCancelledResult & { context: SyncSessionContext }} SyncSessionCancelledResult
  */
 
 /**
@@ -137,4 +191,20 @@ export const SYNC_SESSION_OPERATION = {
 
 /**
  * @typedef {SyncSessionCompletedResult | SyncSessionCancelledResult | SyncSessionFailedResult} SyncSessionResult
+ */
+
+/**
+ * @typedef {object} SyncSessionResultEvent
+ * @property {'sync.session.result'} type
+ * @property {'completed' | 'cancelled' | 'failed'} result
+ * @property {SyncSessionContext | null} context
+ */
+
+/**
+ * @typedef {
+ *   SyncSessionStartedEvent |
+ *   SyncSessionContextResolvedEvent |
+ *   SyncSessionProgressEvent |
+ *   SyncSessionResultEvent
+ * } SyncSessionEvent
  */

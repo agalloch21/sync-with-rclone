@@ -1,5 +1,5 @@
 import { getMainWindow } from './app-state.js'
-import { runMainWindow } from './main-window/runner.js'
+import { createMainWindow } from './main-window/window.js'
 import { createSyncSessionManager } from './sync-session/manager.js'
 
 export function createDesktopApplication({ app }) {
@@ -10,7 +10,7 @@ export function createDesktopApplication({ app }) {
     const isNewWindow = !mainWindow
     if (!mainWindow) {
       if (!mainWindowPromise)
-        mainWindowPromise = Promise.resolve(runMainWindow())
+        mainWindowPromise = Promise.resolve(createMainWindow())
 
       try {
         mainWindow = await mainWindowPromise

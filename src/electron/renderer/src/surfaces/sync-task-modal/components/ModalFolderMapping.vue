@@ -1,6 +1,6 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
 import { unwrapResult } from '#src/app/operation-result.js'
+import { SYNC_TASK_MODALS } from '#src/electron/contracts/sync-task-modal.js'
 import { useTaskOperations } from '#src/electron/renderer/src/composables/useTaskOperations.js'
 import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
 import { computed, ref } from 'vue'

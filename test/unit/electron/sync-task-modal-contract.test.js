@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
   isValidSyncTaskModal,
   SYNC_TASK_MODALS,
-} from '#src/app/main-window/modal-contract.js'
+} from '#src/electron/contracts/sync-task-modal.js'
 
 test('isValidSyncTaskModal accepts supported sync-task modal entries only', () => {
   assert.equal(isValidSyncTaskModal(SYNC_TASK_MODALS.CHOOSE_SERVER), true)

@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
-import { resolveSyncSessionRequest, startSyncSession } from './runner.js'
+import { resolveSyncSessionRequest, startSyncSession } from './controller.js'
 
 const require = createRequire(import.meta.url)
 

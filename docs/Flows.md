@@ -299,18 +299,21 @@ sequenceDiagram
   participant OS as App / Quick Action
   participant EI as Electron Instance
   participant SM as Session Manager
+  participant SC as Session Controller
   participant SW as Session Window
   participant MW as Main Window
   participant H as Operation History
 
   OS->>EI: normal launch or --session request
   alt normal launch
-    EI->>MW: create / restore / focus singleton
+    EI->>MW: create directly / restore / focus singleton
   else session launch
-    EI->>SM: resolve local and remote roots
+    EI->>SM: submit session request
+    SM->>SC: resolve local and remote roots
     alt roots are disjoint
-      SM->>SW: create independent session
-      SW->>H: started then terminal record
+      SM->>SC: start admitted session
+      SC->>SW: create independent session window
+      SC->>H: startSync writes started then terminal record
     else roots overlap
       SM->>SW: focus existing session
       Note over SM,H: rejected request does not create history
@@ -321,6 +324,7 @@ sequenceDiagram
 关键点：
 
 - Quick Action 启动不主动创建主窗口。
+- Main window is created directly by `desktop-application.js`; sync-session uses a controller because it must bridge a long-running application use case with an interactive window.
 - 每个 session 的 progress channel 独立，history 不持久化 progress sample。
 - 关闭主窗口不会终止 session；没有窗口且没有活跃 session 时应用退出。
 - session 失败页只在 `quick-actions.log` 存在时提供文件定位入口，不创建或导航主窗口。

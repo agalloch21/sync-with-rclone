@@ -126,10 +126,12 @@ sequenceDiagram
 ### 3.1 GUI 窗口与会话生命周期
 
 - 第二次 GUI 启动通过 single-instance `additionalData` 传递规范化 launch request，不依赖可能被 Chromium 重排的 argv。
-- 主窗口是可重建的进程级单例；关闭主窗口不会取消活跃同步。
-- session manager 先解析只读 `SyncSessionContext`，再以本地和远程根路径执行原子 admission。
+- 主窗口是可重建的进程级单例；`desktop-application.js` 直接调用 `main-window/window.js` 创建窗口，不增加无职责的 runner。关闭主窗口不会取消活跃同步。
+- `app/sync-session/start-sync.js` 是 shell-neutral application use case；context resolution、session/review contract 和 remote-folder preparation 保持在同一 application module。
+- `electron/main/sync-session/controller.js` 把 application use case 连接到 session window 的 events、review interaction、acknowledgement 和 cancellation。
+- `electron/main/sync-session/manager.js` 先通过 controller 解析只读 `SyncSessionContext`，再以本地和远程根路径执行原子 admission，并管理活跃 Electron session handle。
 - 任一侧路径相同或存在祖先/后代关系时，session manager 拒绝新会话并聚焦已有会话；未启动的重叠请求不写入 operation history。
-- admission 成功后，每个窗口继续使用独立 channel prefix、UI state、review Promise 和 AbortController。
+- admission 成功后，`electron/main/sync-session/window.js` 为每个窗口维护独立 channel prefix、UI state、review Promise 和 AbortController。
 - session manager 在最后一个 session 清理后检查 Electron 窗口；没有窗口且不是显式 shutdown 时直接退出应用，不需要向 DesktopApplication 回传 idle 事件。
 - 最后一个 session 完成且没有主窗口时，Electron Main 在 terminal history 写入完成后退出。
 
@@ -387,7 +389,7 @@ copy 之外的示例：
 
 说明：
 
-- `startSync` 是 app 层 session runner
+- `startSync` 是 app 层 synchronization use case
 - `startSync` 负责读取配置、解析同步任务、生成 `SyncSessionContext`
 - `startSync` 把 core phase event 转换成 `SESSION_EVENT.PROGRESS`
 - `startSync` 返回 `SyncSessionResult`
@@ -423,6 +425,7 @@ copy 之外的示例：
 - 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
 - `src/electron/main/app-state.js` 只保存 Electron 窗口状态，不缓存业务数据
 - renderer 通过 preload bridge 调用 `main-window:get-data`
+- sync-task modal 名称和校验属于 Electron shared contract，位于 `src/electron/contracts/sync-task-modal.js`，供 Electron Main 和 renderer 共用
 - server/task 修改成功后，app operation 通过 `src/app/events/configuration-events.js` 发布 config update，Electron Main 订阅后发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
 
 ### 4.8.1 `RcloneRemote` 与 `ServerConnection`

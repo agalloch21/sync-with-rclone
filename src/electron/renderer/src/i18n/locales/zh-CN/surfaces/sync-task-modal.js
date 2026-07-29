@@ -1,4 +1,4 @@
-import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
+import { SYNC_TASK_MODALS } from '#src/electron/contracts/sync-task-modal.js'
 
 const syncTaskModal = {
   syncTaskModal: {

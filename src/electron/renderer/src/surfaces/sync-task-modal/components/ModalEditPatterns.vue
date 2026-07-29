@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
+import { SYNC_TASK_MODALS } from '#src/electron/contracts/sync-task-modal.js'
 import { formatIgnorePatterns, parseIgnorePatterns, useTaskOperations } from '#src/electron/renderer/src/composables/useTaskOperations.js'
 import { ref } from 'vue'
 import Button from '../../shared/Button.vue'

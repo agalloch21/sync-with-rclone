@@ -1,6 +1,6 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#src/app/main-window/modal-contract.js'
 import { unwrapResult } from '#src/app/operation-result.js'
+import { SYNC_TASK_MODALS } from '#src/electron/contracts/sync-task-modal.js'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
 import { useMessageBox } from '../../../composables/useMessageBox.js'
 import { useServerOperations } from '../../../composables/useServerOperations.js'

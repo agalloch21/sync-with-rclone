@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { getDefaultAppDirectory, getRuntimePaths } from '#src/app/runtime-paths.js'
+import { getDefaultAppDirectory, getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 
 test('getDefaultAppDirectory defaults to the project root when running unpackaged', () => {
   const defaultAppDirectory = getDefaultAppDirectory()

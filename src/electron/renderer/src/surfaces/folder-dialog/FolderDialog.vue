@@ -1,7 +1,7 @@
 <script setup>
 import { unwrapResult } from '#src/app/operation-result.js'
 import Button from '#src/electron/renderer/src/surfaces/shared/Button.vue'
-import TreeNode from '#src/electron/renderer/src/surfaces/sync-session/components/TreeNode.vue'
+import TreeNode from '#src/electron/renderer/src/surfaces/shared/TreeNode.vue'
 import { nextTick, onMounted, ref } from 'vue'
 
 const state = ref({ serverName: '', currentPath: '' })

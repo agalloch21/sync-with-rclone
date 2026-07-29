@@ -52,9 +52,11 @@ src/           // 运行时代码
   domain/
     synchronization/ // Snapshot、Diff 比较和 SyncPlan 构建规则
   electron/    // 当前桌面主壳层，包含 Electron main、preload、renderer
+    contracts/ // Electron Main 与 Renderer 共用的 shell contract
   infrastructure/
-    filesystem/ // 本地文件扫描
+    filesystem/ // 本地路径解析、目录校验和 Snapshot 扫描
     rclone/      // rclone 命令、远端目录准备、远端扫描和 SyncPlan 执行
+    runtime/     // 安装环境、配置、日志、resources 和 bundled rclone 路径解析
   locales/     // GUI / CLI 共用的业务 message、error、operation 翻译
 scripts/       // 非运行时代码
   dev/         // 开发启动脚本
@@ -88,7 +90,7 @@ sync-with-rclone sync push ...   -> 命令模式，执行同步
 
 GUI 启动通过 `requestSingleInstanceLock()` 汇入一个 Electron Main 进程。这个进程可以持有零或一个主窗口，以及多个互不冲突的 sync-session 窗口。普通启动创建或聚焦主窗口；`--session` 启动只提交同步会话。CLI 命令不参与 GUI 单实例锁，仍然作为独立命令行壳层负责参数路由、终端输出和终端 review。
 
-`src/electron/main/index.cjs` 是产品可执行文件的统一入口。Renderer 不调用 `src/cli/`，只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
+`src/electron/main/index.cjs` 是产品可执行文件唯一的 Electron Main 入口；`package.json` 和开发启动脚本都直接使用它。Renderer 不调用 `src/cli/`，只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
 
 
 ## 3. Electron、Vite、Renderer、Application 的关系
@@ -142,10 +144,14 @@ sequenceDiagram
 - `app/sync-session/execute-sync.js` 只负责已解析上下文中的 snapshot、compare、review、plan 和 apply 流程。
 - session 与 review 的 JSDoc contract 统一定义在 `app/sync-session/contract.js`。
 - 远端目录检查和创建由 `infrastructure/rclone/ensure-remote-folder.js` 实现，`startSync` 只决定何时调用这项 rclone 能力。
+- `infrastructure/runtime/runtime-paths.js` 从进程、平台、安装目录和环境变量解析运行时路径。
+- `infrastructure/filesystem/local-path.js` 负责本地路径规范化、home 展开和目录存在性校验。
 - `electron/main/sync-session/controller.js` 把 application use case 连接到 session window 的 events、review interaction、acknowledgement 和 cancellation。
+- `electron/contracts/sync-session-stage.js` 定义 Main 与 Renderer 共用的 Analyze、Review、Sync UI stage 及其 phase 映射。
 - `electron/main/sync-session/manager.js` 先通过 controller 解析只读 `SyncSessionContext`，再以本地和远程根路径执行原子 admission，并管理活跃 Electron session handle。
 - 任一侧路径相同或存在祖先/后代关系时，session manager 拒绝新会话并聚焦已有会话；未启动的重叠请求不写入 operation history。
 - admission 成功后，`electron/main/sync-session/window.js` 为每个窗口维护独立 channel prefix、UI state、review Promise 和 AbortController。
+- `electron/renderer/src/surfaces/shared/TreeNode.vue` 是 folder dialog 与 sync review 共用的树节点组件，不属于任一单独 surface。
 - session manager 在最后一个 session 清理后检查 Electron 窗口；没有窗口且不是显式 shutdown 时直接退出应用，不需要向 DesktopApplication 回传 idle 事件。
 - 最后一个 session 完成且没有主窗口时，Electron Main 在 terminal history 写入完成后退出。
 

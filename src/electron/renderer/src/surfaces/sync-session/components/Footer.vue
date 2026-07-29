@@ -1,6 +1,6 @@
 <script setup>
 import { SYNC_PHASES } from '#src/app/sync-session/contract.js'
-import { STEPS } from '#src/electron/main/sync-session/steps.js'
+import { SYNC_SESSION_STAGE } from '#src/electron/contracts/sync-session-stage.js'
 import { computed, inject } from 'vue'
 
 const props = defineProps({
@@ -12,11 +12,11 @@ const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickClose'])
 const state = inject('state')
 const showFinalAcknowledgement = inject('showFinalAcknowledgement')
 
-const step = computed(() => state.value?.step || '')
+const stage = computed(() => state.value?.stage || '')
 const phase = computed(() => state.value?.phase || '')
 const mode = computed(() => state.value?.context?.mode || '')
-const cancelVisible = computed(() => showFinalAcknowledgement.value === false && step.value.length !== 0 && (step.value !== STEPS.ANALYZE || phase.value !== SYNC_PHASES.PREPARATION), false)
-const confirmVisible = computed(() => showFinalAcknowledgement.value === false && step.value === STEPS.REVIEW, false)
+const cancelVisible = computed(() => showFinalAcknowledgement.value === false && stage.value.length !== 0 && (stage.value !== SYNC_SESSION_STAGE.ANALYZE || phase.value !== SYNC_PHASES.PREPARATION), false)
+const confirmVisible = computed(() => showFinalAcknowledgement.value === false && stage.value === SYNC_SESSION_STAGE.REVIEW, false)
 const closeVisible = computed(() => showFinalAcknowledgement.value)
 </script>
 

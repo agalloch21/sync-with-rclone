@@ -1,10 +1,10 @@
 import { SYNC_PHASES, SYNC_RESULT } from '#src/app/sync-session/contract.js'
-import { STEPS } from '#src/electron/main/sync-session/steps.js'
+import { SYNC_SESSION_STAGE } from '#src/electron/contracts/sync-session-stage.js'
 
 const syncSession = {
-  [STEPS.ANALYZE]: { title: 'Analyze' },
-  [STEPS.REVIEW]: { title: 'Review' },
-  [STEPS.SYNC]: { title: 'Sync' },
+  [SYNC_SESSION_STAGE.ANALYZE]: { title: 'Analyze' },
+  [SYNC_SESSION_STAGE.REVIEW]: { title: 'Review' },
+  [SYNC_SESSION_STAGE.SYNC]: { title: 'Sync' },
   [SYNC_PHASES.PREPARATION]: 'Normalizing options',
   [SYNC_PHASES.BUILD_LOCAL_SNAPSHOT]: 'Building local snapshot',
   [SYNC_PHASES.BUILD_REMOTE_SNAPSHOT]: 'Building remote snapshot',

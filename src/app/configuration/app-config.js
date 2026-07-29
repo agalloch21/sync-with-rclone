@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { normalizeLocalPath } from '#src/infrastructure/filesystem/local-path.js'
+import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
-import { normalizeLocalPath } from '../path-utils.js'
-import { getRuntimePaths } from '../runtime-paths.js'
 
 const updatingConfigPaths = new Set()
 

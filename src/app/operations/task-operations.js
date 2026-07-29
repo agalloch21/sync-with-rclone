@@ -1,6 +1,6 @@
+import { normalizeLocalPath, resolveLocalDirectoryPath, trimTrailingSlash } from '#src/infrastructure/filesystem/local-path.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
 import * as appConfig from '../configuration/app-config.js'
-import { normalizeLocalPath, resolveLocalDirectoryPath, trimTrailingSlash } from '../path-utils.js'
 import {
   SYNC_TASK_DELETE_PROGRESS_STEP,
   SYNC_TASK_RETARGET_PROGRESS_STEP,

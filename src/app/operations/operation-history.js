@@ -3,8 +3,8 @@ import EventEmitter from 'node:events'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import { getErrorCode } from '../app-errors.js'
-import { getRuntimePaths } from '../runtime-paths.js'
 
 export const OPERATION_HISTORY_STATUS = Object.freeze({
   STARTED: 'started',

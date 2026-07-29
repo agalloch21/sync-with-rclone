@@ -1,10 +1,10 @@
 import { SYNC_PHASES, SYNC_RESULT } from '#src/app/sync-session/contract.js'
-import { STEPS } from '#src/electron/main/sync-session/steps.js'
+import { SYNC_SESSION_STAGE } from '#src/electron/contracts/sync-session-stage.js'
 
 const syncSession = {
-  [STEPS.ANALYZE]: { title: '分析' },
-  [STEPS.REVIEW]: { title: '检查' },
-  [STEPS.SYNC]: { title: '同步' },
+  [SYNC_SESSION_STAGE.ANALYZE]: { title: '分析' },
+  [SYNC_SESSION_STAGE.REVIEW]: { title: '检查' },
+  [SYNC_SESSION_STAGE.SYNC]: { title: '同步' },
   [SYNC_PHASES.PREPARATION]: '正在规范化选项',
   [SYNC_PHASES.BUILD_LOCAL_SNAPSHOT]: '正在生成本地快照',
   [SYNC_PHASES.BUILD_REMOTE_SNAPSHOT]: '正在生成远程快照',

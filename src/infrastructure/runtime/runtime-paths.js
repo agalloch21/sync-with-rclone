@@ -9,7 +9,7 @@ function normalizePath(inputPath) {
 
 function getProjectRootPath() {
   const currentFilePath = fileURLToPath(import.meta.url)
-  return normalizePath(path.resolve(path.dirname(currentFilePath), '../..'))
+  return normalizePath(path.resolve(path.dirname(currentFilePath), '../../..'))
 }
 
 function getBundledInstallDirectory() {

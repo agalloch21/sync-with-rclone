@@ -1,6 +1,6 @@
 <script setup>
+import TreeNode from '#src/electron/renderer/src/surfaces/shared/TreeNode.vue'
 import { inject, watch } from 'vue'
-import TreeNode from './TreeNode.vue'
 
 const state = inject('state')
 const selection = inject('selection')

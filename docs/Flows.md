@@ -54,13 +54,16 @@ sequenceDiagram
 sequenceDiagram
   participant S as Shell
   participant A as App
+  participant I as Infrastructure
 
   S->>A: 传入动作类型和本地路径
-  A->>A: 规范化路径
+  A->>I: 解析和校验本地路径
+  I-->>A: 规范化目录路径
   A->>A: 读取 config
   A->>A: 确定当前目录归属
   A->>A: 确定对应的远端位置或可选远端目录
-  A->>A: 生成 runtime paths
+  A->>I: 解析 runtime paths
+  I-->>A: config / logs / resources paths
 ```
 
 这一步的职责是：

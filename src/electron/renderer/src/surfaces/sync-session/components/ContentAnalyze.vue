@@ -1,19 +1,19 @@
 <script setup>
-import { STEP_META, STEPS } from '#src/electron/main/sync-session/steps.js'
+import { SYNC_SESSION_STAGE, SYNC_SESSION_STAGE_META } from '#src/electron/contracts/sync-session-stage.js'
 import { computed, inject } from 'vue'
 
 const state = inject('state')
 
 const currentPhaseIndex = computed(() => {
-  if (!state.value || STEP_META[STEPS.ANALYZE]?.phases?.length === 0) {
+  if (!state.value || SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.ANALYZE]?.phases?.length === 0) {
     return 0
   }
 
-  if (state.value.step === STEPS.ANALYZE) {
-    return STEP_META[STEPS.ANALYZE]?.phases.findIndex(phase => phase === state.value.phase)
+  if (state.value.stage === SYNC_SESSION_STAGE.ANALYZE) {
+    return SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.ANALYZE]?.phases.findIndex(phase => phase === state.value.phase)
   }
 
-  return STEP_META[STEPS.ANALYZE]?.phases?.length
+  return SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.ANALYZE]?.phases?.length
 })
 </script>
 
@@ -23,7 +23,7 @@ const currentPhaseIndex = computed(() => {
       Preparing Sync
     </div>
     <div class="row-start-3 row-span-3 flex flex-col justify-center items-left gap-4 text-xs text-(--text-subtle)">
-      <div v-for="(phase, index) in STEP_META[STEPS.ANALYZE]?.phases" :key="phase" class="flex items-center gap-2">
+      <div v-for="(phase, index) in SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.ANALYZE]?.phases" :key="phase" class="flex items-center gap-2">
         <Transition name="fade" mode="out-in" type="transition">
           <div v-if="index > currentPhaseIndex" class="icon waiting" />
           <div v-else-if="index === currentPhaseIndex" class="icon running" />

@@ -1,7 +1,7 @@
+import { normalizeLocalPath, trimTrailingSlash } from '#src/infrastructure/filesystem/local-path.js'
 import { createRcloneCommand, runCommand } from '#src/infrastructure/rclone/rclone-command.js'
+import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
-import { normalizeLocalPath, trimTrailingSlash } from '../path-utils.js'
-import { getRuntimePaths } from '../runtime-paths.js'
 import { getProtocolDefinition, validateProtocolForm } from './protocol-registry.js'
 
 function assertName(name, fieldName = 'name') {

@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { expandHomeDir, resolveLocalDirectoryPath } from '#src/app/path-utils.js'
+import { expandHomeDir, resolveLocalDirectoryPath } from '#src/infrastructure/filesystem/local-path.js'
 
 test('expandHomeDir expands ~ to the user home directory', () => {
   const homeDir = os.homedir().replaceAll(path.sep, path.posix.sep)

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { APP_ERROR_CODE, throwAppError } from './app-errors.js'
+import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 
 export function normalizeLocalPath(inputPath) {
   return inputPath

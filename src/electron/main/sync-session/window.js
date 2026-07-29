@@ -3,8 +3,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { SYNC_SESSION_EVENT } from '#src/app/sync-session/contract.js'
 import { serializeDiffSnapshot } from '#src/app/sync-session/serialize-diff-snapshot.js'
+import { getSyncSessionStageForPhase, SYNC_SESSION_STAGE } from '#src/electron/contracts/sync-session-stage.js'
 import { loadRendererEntry } from '../renderer-entry.js'
-import { getStepForPhase, STEPS } from './steps.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -32,7 +32,7 @@ export function createSessionWindow() {
       remoteFolderPath: '',
       bypassConfig: false,
     },
-    step: '',
+    stage: '',
     final: null,
     phase: '',
     message: '',
@@ -145,7 +145,7 @@ export function createSessionWindow() {
     }
     else if (event.type === SYNC_SESSION_EVENT.PROGRESS) {
       nextState = {
-        step: getStepForPhase(event.phase),
+        stage: getSyncSessionStageForPhase(event.phase),
         phase: event.phase,
         message: event.message,
         progress: event.progress || null,
@@ -161,7 +161,7 @@ export function createSessionWindow() {
       return createReviewResult('cancel')
 
     patchUiState({
-      step: STEPS.REVIEW,
+      stage: SYNC_SESSION_STAGE.REVIEW,
       review: serializeDiffSnapshot(diffSnapshot),
     })
 

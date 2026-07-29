@@ -1,5 +1,5 @@
 <script setup>
-import { STEPS } from '#src/electron/main/sync-session/steps.js'
+import { SYNC_SESSION_STAGE } from '#src/electron/contracts/sync-session-stage.js'
 import { computed, inject } from 'vue'
 import ContentAnalyze from './ContentAnalyze.vue'
 import ContentFinalAcknowledgement from './ContentFinalAcknowledgement.vue'
@@ -10,7 +10,7 @@ defineEmits(['autoClose'])
 const state = inject('state')
 const showFinalAcknowledgement = inject('showFinalAcknowledgement')
 
-const step = computed(() => state.value?.step?.length > 0 ? state.value?.step : '')
+const stage = computed(() => state.value?.stage?.length > 0 ? state.value?.stage : '')
 </script>
 
 <template>
@@ -25,9 +25,9 @@ const step = computed(() => state.value?.step?.length > 0 ? state.value?.step : 
   >
     <Transition name="fade" mode="out-in">
       <ContentFinalAcknowledgement v-if="showFinalAcknowledgement" @auto-close="$emit('autoClose')" />
-      <ContentAnalyze v-else-if="step === STEPS.ANALYZE" />
-      <ContentReview v-else-if="step === STEPS.REVIEW" />
-      <ContentSync v-else-if="step === STEPS.SYNC" />
+      <ContentAnalyze v-else-if="stage === SYNC_SESSION_STAGE.ANALYZE" />
+      <ContentReview v-else-if="stage === SYNC_SESSION_STAGE.REVIEW" />
+      <ContentSync v-else-if="stage === SYNC_SESSION_STAGE.SYNC" />
     </Transition>
   </div>
 </template>

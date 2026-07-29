@@ -1,12 +1,12 @@
 <script setup>
-import { STEP_META, STEPS } from '#src/electron/main/sync-session/steps.js'
+import { SYNC_SESSION_STAGE, SYNC_SESSION_STAGE_META } from '#src/electron/contracts/sync-session-stage.js'
 import { computed, inject } from 'vue'
 
 const state = inject('state')
 
-const phase = computed(() => state.value?.step === STEPS.SYNC ? (state.value?.phase || '') : '')
+const phase = computed(() => state.value?.stage === SYNC_SESSION_STAGE.SYNC ? (state.value?.phase || '') : '')
 
-const isApplyingSync = computed(() => phase.value === STEP_META[STEPS.SYNC].phases[1])
+const isApplyingSync = computed(() => phase.value === SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.SYNC].phases[1])
 const currentActivity = computed(() => state.value?.progress?.activity || '')
 const currentActivityIndex = computed(() => state.value?.progress?.index || 0)
 const totalActivityCount = computed(() => state.value?.progress?.total || 0)

@@ -40,6 +40,7 @@ sequenceDiagram
 ```text
 src/           // 运行时代码
   app/         // shell 和 core 之间的应用编排层
+    events/    // shell-neutral application notifications
   cli/         // CLI入口、终端review、终端输出，可独立承接主流程
   core/        // Snapshot、Diff、SyncPlan、Apply、rclone 执行封装
   electron/    // 当前桌面主壳层，包含 Electron main、preload、renderer
@@ -422,7 +423,7 @@ copy 之外的示例：
 - 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
 - `src/electron/main/app-state.js` 只保存 Electron 窗口状态，不缓存业务数据
 - renderer 通过 preload bridge 调用 `main-window:get-data`
-- server/task 修改成功后，app operation 调用 `notifyConfigUpdate()`，Electron Main 再发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
+- server/task 修改成功后，app operation 通过 `src/app/events/configuration-events.js` 发布 config update，Electron Main 订阅后发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
 
 ### 4.8.1 `RcloneRemote` 与 `ServerConnection`
 
@@ -486,7 +487,7 @@ sequenceDiagram
 
 当前职责边界：
 
-- `app-api.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后调用 `notifyConfigUpdate()`
+- `app-api.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后通过 `configuration-events.js` 发布更新
 - `server-operations.js` 负责 server-level operation flow、remote/server 对象转换、创建后的连接测试，以及将 `RCLONE_*` 转成 `SERVER_*`
 - `rclone-config.js` 负责 rclone config dump/create/update/delete/rename/test，并返回 `{ name, config }` 形式的 raw remote
 - `name` 是 server 与 remote 共享的资源标识，不在 server 层转换；name 校验、normalize、same-name rename no-op 由 `rclone-config.js` 处理
@@ -640,12 +641,13 @@ catch (error) {
 - app operation 仍然只接收 callback，不依赖 reporter 或任何具体 surface
 - 当前 `createServer` operation 保留 callback-based `save` / `testConnection` / `rollback` 进度上报
 
-Electron Main 把 `src/electron/main/message-box/window.js` 的三个 GUI 函数适配为 display interface：
+`src/electron/main/message-box/operation-presentation.js` 是 Electron Main 的 operation/error presentation adapter。它把 `src/electron/main/message-box/window.js` 的三个 GUI 函数适配为 display interface，并把最终值或错误转换成 `OperationResult`：
 
 - `open: openMessageBox` 创建/替换 GUI message-box 并返回 acknowledgement Promise
 - `update: updateMessageBox` 原子替换 GUI state
 - `close: closeMessageBox` 关闭 GUI window 并 settle acknowledgement
 - GUI function 不包含 operation-specific key assembly
+- main-window 与 sync-task-modal handler 复用该 adapter，不各自组装 reporter 或 error state
 
 CLI 使用 `src/cli/operation-report-display.js` 暴露同一中性 interface：
 
@@ -733,10 +735,12 @@ src/electron/renderer/src/i18n/locales/<locale>/
 src/app/app-errors.js
 src/app/app-messages.js
 src/app/app-api.js
-src/app/operation-report-contract.js
-src/app/operation-reporter.js
+src/app/events/configuration-events.js
+src/app/operations/operation-report-contract.js
+src/app/operations/operation-reporter.js
 src/cli/i18n.js
 src/cli/operation-report-display.js
+src/electron/main/message-box/operation-presentation.js
 src/electron/main/message-box/window.js
 src/electron/renderer/src/composables/useMessageBox.js
 src/electron/renderer/src/surfaces/message-box/MessageBox.presentation.js

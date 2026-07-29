@@ -54,6 +54,7 @@ require.cache[electronModulePath] = {
 }
 
 const messageBox = await import('#src/electron/main/message-box/window.js')
+const operationPresentation = await import('#src/electron/main/message-box/operation-presentation.js')
 
 function openCreateServerProgress() {
   return createOperationReporter(SERVER_OPERATION.CREATE, {
@@ -145,4 +146,62 @@ test('operation progress exposes explicit close behavior', async () => {
   await progress.close(OPERATION_REPORT_ACKNOWLEDGEMENT.CANCELLED)
 
   assert.equal(latestWindow.destroyed, true)
+})
+
+test('Electron operation presentation returns a successful OperationResult', async () => {
+  let finishOperation
+  const operationFinished = new Promise((resolve) => {
+    finishOperation = resolve
+  })
+  const pending = operationPresentation.runReportedOperation(
+    SERVER_OPERATION.CREATE,
+    async (onProgress) => {
+      onProgress(SERVER_CREATE_PROGRESS_STEP.SAVE)
+      await operationFinished
+      return { name: 'synology' }
+    },
+  )
+
+  assert.deepEqual(revealMessageBox(), {
+    mode: OPERATION_REPORT_MODE.PROGRESS,
+    key: `operations.${SERVER_OPERATION.CREATE}.steps.${SERVER_CREATE_PROGRESS_STEP.SAVE}`,
+    params: {},
+  })
+
+  finishOperation()
+  await new Promise(resolve => setImmediate(resolve))
+  await acknowledge(pending)
+
+  assert.deepEqual(await pending, {
+    success: true,
+    value: { name: 'synology' },
+  })
+})
+
+test('Electron request error presentation returns a failed OperationResult', async () => {
+  const error = new AppError({
+    code: APP_ERROR_CODE.SERVER_CONNECTION_FAILED,
+    message: 'Connection failed.',
+  })
+  const pending = operationPresentation.reportRequestError(error)
+
+  assert.deepEqual(revealMessageBox(), {
+    mode: OPERATION_REPORT_MODE.MESSAGE,
+    level: OPERATION_REPORT_LEVEL.ERROR,
+    key: `errors.${APP_ERROR_CODE.SERVER_CONNECTION_FAILED}`,
+    params: {},
+    detail: 'Connection failed.',
+  })
+
+  await acknowledge(pending)
+  assert.deepEqual(await pending, {
+    success: false,
+    error: {
+      code: APP_ERROR_CODE.SERVER_CONNECTION_FAILED,
+      message: 'Connection failed.',
+      detail: undefined,
+      fields: undefined,
+      meta: undefined,
+    },
+  })
 })

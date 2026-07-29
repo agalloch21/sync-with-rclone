@@ -7,7 +7,7 @@ import { SERVER_UPDATE_PROGRESS_STEP } from '#src/app/operations/server-operatio
 import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/operations/task-operation-contract.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
-test('getMainWindowData returns servers and sync tasks from the current app operations', async () => {
+test('getMainWindowData returns servers and sync tasks through the app API', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {
       synology: { type: 'sftp', host: 'nas.local' },
@@ -79,7 +79,7 @@ test('testServerConnection is a query and does not create operation history', as
   })
 })
 
-test('updateGlobalIgnorePatterns persists through app operations', async () => {
+test('updateGlobalIgnorePatterns persists through the app API', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {},
     appConfig: {

@@ -33,7 +33,7 @@ test('runCli prints list-servers as a table', async () => {
   })
 })
 
-test('runCli prints list-tasks through the app operations entrance', async () => {
+test('runCli prints list-tasks through the app API', async () => {
   await withFakeAppRuntime({
     appConfig: {
       syncTasks: [{

@@ -1,13 +1,11 @@
-import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { deleteServer, deleteSyncTask, getMainWindowData, getServer, listOperationHistory, updateGlobalIgnorePatterns } from '#src/app/app-api.js'
+import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { isValidSyncTaskModal } from '#src/app/main-window/modal-contract.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
-import { createOperationErrorReportState } from '#src/app/operations/operation-report-contract.js'
-import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
 import { SERVER_OPERATION } from '#src/app/operations/server-operation-contract.js'
 import { SYNC_TASK_OPERATION } from '#src/app/operations/task-operation-contract.js'
 import { getActiveModalWindow } from '../app-state.js'
-import { closeMessageBox, openMessageBox, updateMessageBox } from '../message-box/window.js'
+import { reportRequestError, runReportedOperation } from '../message-box/operation-presentation.js'
 import { createSyncTaskModalWindow } from '../sync-task-modal/window.js'
 
 function isPlainObject(value) {
@@ -20,31 +18,6 @@ function assertPayloadObject(payload) {
       detail: 'The request payload must be an object.',
     })
   }
-}
-
-async function runReportedOperation(operation, execute) {
-  const reporter = createOperationReporter(operation, {
-    open: openMessageBox,
-    update: updateMessageBox,
-    close: closeMessageBox,
-  })
-
-  let value
-  try {
-    value = await execute(reporter.step)
-  }
-  catch (error) {
-    await reporter.error(error)
-    return toFailureResult(error)
-  }
-
-  await reporter.succeed(true)
-  return toSuccessfulResult(value)
-}
-
-async function reportRequestError(error) {
-  await openMessageBox(createOperationErrorReportState(error))
-  return toFailureResult(error)
 }
 
 export function createMainWindowHandlers() {

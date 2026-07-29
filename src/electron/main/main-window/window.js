@@ -2,7 +2,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { registerConfigUpdateListener, unregisterConfigUpdateListener } from '#src/app/app-api.js'
+import { registerConfigUpdateListener, unregisterConfigUpdateListener } from '#src/app/events/configuration-events.js'
 import { registerOperationHistoryListener, unregisterOperationHistoryListener } from '#src/app/operations/operation-history.js'
 import { clearMainWindow, setMainWindow } from '../app-state.js'
 import { createMessageBoxBridgeHandlers, destroyMessageBox } from '../message-box/window.js'

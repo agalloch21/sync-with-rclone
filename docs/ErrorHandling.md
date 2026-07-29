@@ -152,7 +152,7 @@ Window handler 是 IPC 边界，负责：
 - 调用 app operation。
 - 成功后由 app operation 触发配置更新通知。
 - 捕获错误并转换成统一 operation result。
-- main-managed progress operation 通过 `createOperationReporter()` 组装 `OperationReportState`，再调用 shell 注入的 `open` / `update` / `close` display interface 展示进度及最终错误。
+- main-managed progress operation 调用 `message-box/operation-presentation.js`；该 Electron adapter 通过 `createOperationReporter()` 组装 `OperationReportState`，再调用 message-box 的 `open` / `update` / `close` interface 展示进度及最终错误。
 - 普通 operation 把 `OperationResult` 返回 renderer，由 renderer facade 决定是否展示。
 
 示例：
@@ -384,6 +384,10 @@ window.js
   createServerHandler(payload)
   updateServerHandler(payload)
 
+message-box/operation-presentation.js
+  runReportedOperation(operation, execute)
+  reportRequestError(error)
+
 app-api.js
   createServer(payload)
   updateServer(payload)
@@ -400,7 +404,7 @@ rclone-config.js
   updateRcloneRemote(...)
 ```
 
-`createServer` 和 `updateServer` 属于 app operation。它们表达用户意图和完整工作流，并在成功后调用 `notifyConfigUpdate()`。
+`createServer` 和 `updateServer` 属于 app operation。它们表达用户意图和完整工作流，并在成功后通过 `events/configuration-events.js` 发布配置更新。
 
 `createServerConnection` 和 `updateServerConnection` 属于 server operation。它们表达 server connection 的资源级修改，并隐藏 rclone remote 细节。
 

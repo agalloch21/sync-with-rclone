@@ -1,15 +1,13 @@
 import { createRequire } from 'node:module'
 import os from 'node:os'
-import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { createServer, createSyncTask, getServer, listServers, updateServer, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/app-api.js'
-import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
-import { createOperationErrorReportState } from '#src/app/operations/operation-report-contract.js'
-import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
+import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
+import { toSuccessfulResult } from '#src/app/operation-result.js'
 import { SERVER_OPERATION } from '#src/app/operations/server-operation-contract.js'
 import { SYNC_TASK_OPERATION } from '#src/app/operations/task-operation-contract.js'
 import { getActiveModalWindow } from '../app-state.js'
 import { openFolderDialog } from '../folder-dialog/window.js'
-import { closeMessageBox, openMessageBox, updateMessageBox } from '../message-box/window.js'
+import { reportRequestError, runReportedOperation } from '../message-box/operation-presentation.js'
 
 const require = createRequire(import.meta.url)
 
@@ -30,31 +28,6 @@ function createLocalFolderDialogOptions(currentPath, homeDirectory = os.homedir(
     defaultPath: currentPath || homeDirectory,
     properties: ['openDirectory'],
   }
-}
-
-async function runReportedOperation(operation, execute) {
-  const reporter = createOperationReporter(operation, {
-    open: openMessageBox,
-    update: updateMessageBox,
-    close: closeMessageBox,
-  })
-
-  let value
-  try {
-    value = await execute(reporter.step)
-  }
-  catch (error) {
-    await reporter.error(error)
-    return toFailureResult(error)
-  }
-
-  await reporter.succeed(true)
-  return toSuccessfulResult(value)
-}
-
-async function reportRequestError(error) {
-  await openMessageBox(createOperationErrorReportState(error))
-  return toFailureResult(error)
 }
 
 export function createSyncTaskModalHandlers() {

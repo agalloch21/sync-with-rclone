@@ -369,11 +369,11 @@ sequenceDiagram
 - Electron Main 负责 modal 和 message-box 的窗口生命周期；app operation 的返回值或异常负责业务控制流
 - sync-task modal renderer 不直接读取 app config，也不直接调用 rclone
 - App Layer 提供应用操作：组合主窗口数据、读写 app config、读写 rclone config、删除 task
-- server/syncTask 修改成功后，App Layer 发出 config update 通知，主窗口 renderer 再读取 `MainWindowData`
+- server/syncTask 修改成功后，App Layer 通过 `configuration-events.js` 发出 config update 通知，主窗口 renderer 再读取 `MainWindowData`
 - message-box 只作为临时状态窗口，不替换普通 modal 的内容
 - 普通 validation/message/confirmation 由 renderer 的 `useMessageBox()` facade 发起
 - 需要观察 operation 进度时，shell 使用 `createOperationReporter(operation, display)`
-- reporter 组装完整 `OperationReportState`；Electron Main 注入由 message-box functions 适配的 GUI display，CLI 注入带 Vue I18n 的 terminal display
+- reporter 组装完整 `OperationReportState`；Electron Main 的 `message-box/operation-presentation.js` 注入 GUI display 并转换最终 `OperationResult`，CLI 注入带 Vue I18n 的 terminal display
 - 同一个失败只展示一次：main-managed progress operation 由 reporter 展示；普通 operation 的失败由 renderer composable 展示
 
 ## 12. Create Server 与 operation progress
@@ -396,7 +396,7 @@ sequenceDiagram
     M->>MB: warning(APP_MESSAGE_CODE, params/detail)
   else 预校验通过
     M->>EM: createServer(payload)
-    EM->>OR: createOperationReporter(createServer, { open, update, close })
+    EM->>OR: operation-presentation creates reporter with GUI display
     OR->>MB: progress operations.createServer
     EM->>APP: createServer(..., reporter.step)
     APP->>SO: createServerConnection(..., onProgress)
@@ -428,12 +428,12 @@ sequenceDiagram
 关键点：
 
 - UI 表单预校验只用于即时反馈；当前 composable 会用 semantic warning code 展示验证消息
-- Electron Main 在调用 app operation 前创建 reporter；reporter 组装 operation-level state 并调用 display 的 `open`
+- Electron handler 调用 `message-box/operation-presentation.js`；该 adapter 在调用 app operation 前创建 reporter，并调用 display 的 `open`
 - app/server operation 只通过 callback 上报 `save` / `testConnection` / `rollback` step，不依赖 message-box
 - reporter 把 operation/step code 组装成完整 `operations.*` locale key；GUI/CLI surface 不重复理解 key 结构
 - 创建失败由 reporter 组装 error state 并调用 display 的 `update`；renderer 不再打开第二个 contextual error
 - 失败时保留 Create Server modal，让用户继续修改表单
-- 成功时 app operation 先发出 config update；handler 随后关闭 message-box 并返回成功，modal 再关闭
+- 成功时 app operation 先发出 config update；operation-presentation 随后完成 message-box acknowledgement 并返回成功，modal 再关闭
 - success acknowledgement 由 caller 表达、reporter 编排、surface function 实现；当前 create-server 成功不要求 acknowledgement
 - CLI 接入同一 app operation 时复用相同 reporter，并注入 `createCliOperationReportDisplay()`；完整 state 由 CLI 的 Vue I18n instance 翻译后输出到 terminal
 
@@ -468,7 +468,7 @@ sequenceDiagram
 
 关键点：
 
-- 当前只有 create-server 接入 `createOperationReporter()`；update-server 仍是普通 IPC operation
+- 需要 main-managed progress 的 server/task mutation 统一通过 `message-box/operation-presentation.js` 接入 `createOperationReporter()`
 - `app-api.js` 负责判断保存动作是同名 update 还是 rename
 - `server-operations.js` 负责 app-level server 与 raw rclone remote 的对象转换，并把 `RCLONE_*` 转成 `SERVER_*`
 - `rclone-config.js` 负责 raw rclone remote 的输入校验、normalize、读写和 rename adapter operation

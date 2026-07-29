@@ -1,4 +1,4 @@
-import EventEmitter from 'node:events'
+import { notifyConfigUpdate } from './events/configuration-events.js'
 import {
   defineAppOperation,
   listOperationHistory as readOperationHistory,
@@ -11,20 +11,6 @@ import { SYNC_TASK_OPERATION } from './operations/task-operation-contract.js'
 import * as taskOperations from './operations/task-operations.js'
 
 export { startSync } from './sync-session/start-sync.js'
-
-//* ================================ Configuration Notifications ==============================*/
-// Commands currently publish this event so the desktop shell can refresh its read model.
-export const configEventEmitter = new EventEmitter()
-
-export function registerConfigUpdateListener(fn) {
-  configEventEmitter.on('update', fn)
-}
-export function unregisterConfigUpdateListener(fn) {
-  configEventEmitter.off('update', fn)
-}
-export function notifyConfigUpdate() {
-  configEventEmitter.emit('update')
-}
 
 //* ========================================== Queries ========================================*/
 // Queries only read and return application state; they do not report progress or publish updates.

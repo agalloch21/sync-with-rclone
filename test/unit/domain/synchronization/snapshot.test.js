@@ -5,7 +5,7 @@ import test from 'node:test'
  * This test does not perform runtime type checking.
  * It pins the shared serializable Snapshot data shape.
  *
- * @type {import('#src/core/snapshot.js').Snapshot}
+ * @type {import('#src/domain/synchronization/snapshot.js').Snapshot}
  */
 const snapshotSample = {
   root: '/demo/root',

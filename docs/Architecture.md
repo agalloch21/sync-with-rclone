@@ -2,10 +2,11 @@
 
 ## 1. 当前总结构
 
-当前方案由四层组成：
+当前方案由以下职责区域组成：
 
 - `shell`
 - `app`
+- `domain`
 - `core`
 - `rclone`
 
@@ -15,12 +16,14 @@ sequenceDiagram
   participant U as 用户 / 系统右键菜单
   participant S as CLI / Electron Shell
   participant A as App Layer
+  participant D as Synchronization Domain
   participant C as Core
   participant RC as rclone Process
 
   U->>S: 触发动作并传入路径
   S->>A: 请求开始同步
   A->>C: 提供明确的同步输入
+  C->>D: 比较 Snapshot / 构建 SyncPlan
   C->>RC: 扫描远端 / 执行同步
   RC-->>C: 返回结果
   C-->>A: 返回 completed / cancelled / failed 结果
@@ -32,7 +35,8 @@ sequenceDiagram
 - `electron` 是当前桌面壳层
 - `cli` 是当前保留的命令行壳层
 - `app` 是 shell 和 `core` 之间的编排层
-- `core` 会调用外部 `rclone` 进程
+- `domain/synchronization` 保存不依赖 shell、文件系统或 rclone 的同步模型和规则
+- `core` 暂时保存尚未拆分的扫描、执行和同步流水线，并调用外部 `rclone` 进程
 
 
 ## 2. 目录职责
@@ -42,7 +46,9 @@ src/           // 运行时代码
   app/         // shell 和 core 之间的应用编排层
     events/    // shell-neutral application notifications
   cli/         // CLI入口、终端review、终端输出，可独立承接主流程
-  core/        // Snapshot、Diff、SyncPlan、Apply、rclone 执行封装
+  core/        // 过渡目录：扫描、Apply、rclone 执行封装和同步流水线
+  domain/
+    synchronization/ // Snapshot、Diff 比较和 SyncPlan 构建规则
   electron/    // 当前桌面主壳层，包含 Electron main、preload、renderer
   locales/     // GUI / CLI 共用的业务 message、error、operation 翻译
 scripts/       // 非运行时代码
@@ -53,14 +59,15 @@ resources/     // bundled binaries、图标等静态资源
 ```
 
 **层级边界:**
-- core 不读取 Electron API，不解析配置文件
+- domain 不读取 Electron API、配置文件、文件系统或 rclone
+- core 不读取 Electron API，不解析配置文件；其中纯同步规则已经下沉到 domain
 - app 负责把 shell 的输入整理成 core 的输入
 - `src/app/app-api.js` 是 GUI、CLI 和未来 agent/automation shell 调用应用能力的统一入口；普通 query、command 和 `startSync()` 都从这里导出
 - electron 负责桌面壳层和窗口，不直接承担同步业务
 - cli 负责命令行壳层和终端交互
 - cli 不作为 Electron UI 的下层依赖；UI 通过 Electron Main 调用 app 层能力
 - Electron Main 在进程入口处把命令行参数分发给 cli 壳层，这是打包入口职责，不代表 UI 依赖 cli
-- cli 和 electron 都只能依赖 app / core，不允许 app / core 反向依赖 cli 或 electron
+- cli 和 electron 都只能依赖 app / core / domain，不允许 app / core / domain 反向依赖 cli 或 electron
 
 当前打包方向采用一个 Electron 可执行文件，区分 GUI 单实例入口和独立 CLI 入口：
 
@@ -214,7 +221,7 @@ export const DiffState = Object.freeze({
 - `summary` 保存文件级差异统计
 - 目录级统计由 `serializeDiffSnapshot` 在 review 展示前从文件路径派生
 - 文件是否 `modified` 由路径、大小和 `mtimeMs` 决定；当前实现对 `mtimeMs` 使用 1 秒容差
-- core 假设远端协议能可靠保存并返回文件 `mtime`，协议能力校验属于 app/settings 层，不进入 `Snapshot` 或 `DiffSnapshot` 数据契约
+- 同步扫描流水线假设远端协议能可靠保存并返回文件 `mtime`，协议能力校验属于 app/settings 层，不进入 `Snapshot` 或 `DiffSnapshot` 数据契约
 - 当前支持的 NAS 远端基线是 SFTP；Synology WebDAV 不保证返回源文件 `mtime`，不满足可靠重复同步预览的要求
 - apply 阶段传入 `--sftp-disable-hashcheck`。Synology 的 SFTP 路径和 shell 卷路径可能不同，未验证的 `md5sum_command` / `sha1sum_command` 会让 rclone 在上传完成后误判 checksum 失败并重试整批 copy。hash 能力只在未来配置界面验证通过后作为可选增强使用
 - apply 阶段暂时不使用 `--inplace`，保留 rclone 默认的 `.partial` 上传行为，让用户和系统都能区分未完成文件与已完成文件。代价是 Synology 回收站可能保留失败上传的 `.partial` 文件；这是运维清理问题，不应通过牺牲完成状态可见性来隐藏
@@ -756,6 +763,7 @@ src/locales/locale-tree.js
 sequenceDiagram
   participant APP as App
   participant CORE as Core
+  participant DOMAIN as Domain / Synchronization
   participant SHELL as CLI / Electron Main
   participant APPLY as Apply
 
@@ -765,10 +773,12 @@ sequenceDiagram
   CORE-->>APP: emit phase event
   CORE->>CORE: buildRemoteSnapshot(...)
   CORE-->>APP: emit phase event
-  CORE->>CORE: compareSnapshot(...)
+  CORE->>DOMAIN: compareSnapshots(...)
+  DOMAIN-->>CORE: DiffSnapshot
   CORE-->>SHELL: interaction.reviewDiff(DiffSnapshot)
   SHELL-->>CORE: ReviewResult
-  CORE->>CORE: buildSyncPlan(...)
+  CORE->>DOMAIN: buildSyncPlan(...)
+  DOMAIN-->>CORE: SyncPlan
   CORE-->>APPLY: SyncPlan
   APPLY-->>CORE: applied result
   CORE-->>APP: SyncCoreResult

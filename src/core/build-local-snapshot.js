@@ -1,7 +1,7 @@
 /** @typedef {import('./snapshot.js').Snapshot} Snapshot */
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { addFileToSnapshot, createEmptySnapshot, sortFilesByPath } from '#src/core/snapshot.js'
+import { addFileToSnapshot, createEmptySnapshot, sortFilesByPath } from '#src/domain/synchronization/snapshot.js'
 import ignore from 'ignore'
 
 /**

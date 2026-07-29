@@ -1,8 +1,8 @@
+import { buildSyncPlan } from '#src/domain/synchronization/build-sync-plan.js'
+import { compareSnapshots } from '#src/domain/synchronization/compare-snapshots.js'
 import { applySyncPlan } from './apply-sync-plan.js'
 import { buildLocalSnapshot } from './build-local-snapshot.js'
 import { buildRemoteSnapshot } from './build-remote-snapshot.js'
-import { buildSyncPlan } from './build-sync-plan.js'
-import { compareSnapshot } from './compare-snapshot.js'
 import { PHASES, REVIEW_ACTION, SYNC_CANCEL_REASON, SYNC_RESULT } from './contract.js'
 import { createReporter, runWithReporter } from './sync-reporter.js'
 
@@ -102,7 +102,7 @@ export async function syncCore(
     const dstSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
     const diffSnapshot = await runPhase(
       PHASES.COMPARE_SNAPSHOT,
-      () => compareSnapshot(srcSnapshot, dstSnapshot),
+      () => compareSnapshots(srcSnapshot, dstSnapshot),
       'Comparing snapshots',
     )
 

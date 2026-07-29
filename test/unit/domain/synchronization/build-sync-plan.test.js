@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildSyncPlan } from '#src/core/build-sync-plan.js'
-import { DiffState } from '#src/core/snapshot.js'
+import { buildSyncPlan } from '#src/domain/synchronization/build-sync-plan.js'
+import { DiffState } from '#src/domain/synchronization/snapshot.js'
 
 test('buildSyncPlan emits file operations for selected file-level differences', () => {
   const diffSnapshot = {

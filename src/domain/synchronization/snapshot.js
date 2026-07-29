@@ -100,22 +100,3 @@ export function addFileToDiffSnapshot(diffSnapshot, filePath, state, size, mtime
   else if (state === DiffState.deleted)
     diffSnapshot.summary.deleted += 1
 }
-
-export function printDiffSnapshot(diffSnapshot) {
-  printLog('========= Printing DiffSnapshot Start ========= ')
-  printLog('srcRoot: ', diffSnapshot.srcRoot)
-  printLog('dstRoot: ', diffSnapshot.dstRoot)
-  printLog('summary: ', JSON.stringify(diffSnapshot.summary))
-  for (const fileEntry of diffSnapshot.files) {
-    printLog(`File: '${fileEntry.path}' => { 
-        state: ${getDiffStateStr(fileEntry.state)}
-        size: ${fileEntry.size}
-        mtimeMs: ${fileEntry.mtimeMs}
-    }`)
-  }
-  printLog('========= Printing DiffSnapshot End ========= ')
-}
-
-function printLog(str) {
-  console.log(str) // eslint-disable-line no-console
-}

@@ -1,35 +1,35 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { compareSnapshot } from '#src/core/compare-snapshot.js'
-import { createEmptySnapshot, DiffState } from '#src/core/snapshot.js'
+import { compareSnapshots } from '#src/domain/synchronization/compare-snapshots.js'
+import { createEmptySnapshot, DiffState } from '#src/domain/synchronization/snapshot.js'
 
-test('compareSnapshot treats one-second mtime precision differences as unchanged when size is equal', () => {
+test('compareSnapshots treats one-second mtime precision differences as unchanged when size is equal', () => {
   const srcSnapshot = createEmptySnapshot('/src-root')
   const dstSnapshot = createEmptySnapshot('/dst-root')
 
   srcSnapshot.files.push({ path: 'file.txt', size: 123, mtimeMs: 1999.75 })
   dstSnapshot.files.push({ path: 'file.txt', size: 123, mtimeMs: 1000 })
 
-  const diffSnapshot = compareSnapshot(srcSnapshot, dstSnapshot)
+  const diffSnapshot = compareSnapshots(srcSnapshot, dstSnapshot)
   assert.deepEqual(diffSnapshot.files, [])
   assert.deepEqual(diffSnapshot.summary, { modified: 0, added: 0, deleted: 0 })
 })
 
-test('compareSnapshot marks same-size files modified when mtime differs beyond one second', () => {
+test('compareSnapshots marks same-size files modified when mtime differs beyond one second', () => {
   const srcSnapshot = createEmptySnapshot('/src-root')
   const dstSnapshot = createEmptySnapshot('/dst-root')
 
   srcSnapshot.files.push({ path: 'file.txt', size: 123, mtimeMs: 2001 })
   dstSnapshot.files.push({ path: 'file.txt', size: 123, mtimeMs: 1000 })
 
-  const diffSnapshot = compareSnapshot(srcSnapshot, dstSnapshot)
+  const diffSnapshot = compareSnapshots(srcSnapshot, dstSnapshot)
   assert.deepEqual(diffSnapshot.files, [
     { path: 'file.txt', size: 123, mtimeMs: 2001, state: DiffState.modified },
   ])
   assert.deepEqual(diffSnapshot.summary, { modified: 1, added: 0, deleted: 0 })
 })
 
-test('compareSnapshot marks added, modified, and deleted files', () => {
+test('compareSnapshots marks added, modified, and deleted files', () => {
   const srcSnapshot = createEmptySnapshot('/src-root')
   const dstSnapshot = createEmptySnapshot('/dst-root')
 
@@ -42,7 +42,7 @@ test('compareSnapshot marks added, modified, and deleted files', () => {
     { path: 'modified.txt', size: 123, mtimeMs: 1000 },
   )
 
-  const diffSnapshot = compareSnapshot(srcSnapshot, dstSnapshot)
+  const diffSnapshot = compareSnapshots(srcSnapshot, dstSnapshot)
   assert.deepEqual(diffSnapshot.files, [
     { path: 'added.txt', size: 1, mtimeMs: 1, state: DiffState.added },
     { path: 'deleted.txt', size: 1, mtimeMs: 1, state: DiffState.deleted },

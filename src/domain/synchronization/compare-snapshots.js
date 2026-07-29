@@ -1,7 +1,7 @@
-/** @typedef {import('#src/core/snapshot.js').Snapshot} Snapshot */
-/** @typedef {import('#src/core/snapshot.js').DiffSnapshot} DiffSnapshot */
+/** @typedef {import('./snapshot.js').Snapshot} Snapshot */
+/** @typedef {import('./snapshot.js').DiffSnapshot} DiffSnapshot */
 
-import { addFileToDiffSnapshot, createEmptyDiffSnapshot, DiffState, indexSnapshotFiles, sortFilesByPath } from '#src/core/snapshot.js'
+import { addFileToDiffSnapshot, createEmptyDiffSnapshot, DiffState, indexSnapshotFiles, sortFilesByPath } from './snapshot.js'
 
 const MTIME_TOLERANCE_MS = 1000
 
@@ -11,7 +11,7 @@ const MTIME_TOLERANCE_MS = 1000
  * @param {Snapshot} dstSnapshot
  * @return {DiffSnapshot}
  */
-export function compareSnapshot(srcSnapshot, dstSnapshot) {
+export function compareSnapshots(srcSnapshot, dstSnapshot) {
   const diffSnapshot = createEmptyDiffSnapshot(srcSnapshot.root, dstSnapshot.root)
   const srcFiles = indexSnapshotFiles(srcSnapshot)
   const dstFiles = indexSnapshotFiles(dstSnapshot)

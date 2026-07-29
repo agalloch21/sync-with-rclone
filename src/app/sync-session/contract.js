@@ -34,7 +34,7 @@ export const SYNC_SESSION_OPERATION = {
 
 /**
  * @typedef {object} SyncSessionInteractions
- * @property {(diffSnapshot: import('#src/core/snapshot.js').DiffSnapshot) => Promise<import('./review-contracts.js').ReviewResult>} [reviewDiff]
+ * @property {(diffSnapshot: import('#src/domain/synchronization/snapshot.js').DiffSnapshot) => Promise<import('./review-contracts.js').ReviewResult>} [reviewDiff]
  */
 
 /**

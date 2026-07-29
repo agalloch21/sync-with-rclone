@@ -3,7 +3,7 @@ const {
   classifyLaunch,
   isDesktopLaunchRequest,
   runCliCommand,
-} = require('./launch-dispatch.cjs')
+} = require('../../command-line/launch-dispatch.cjs')
 // const { initializeMacSetupIfNeeded } = require('./macos-dmg-initialization.cjs')
 
 let desktopApplication = null

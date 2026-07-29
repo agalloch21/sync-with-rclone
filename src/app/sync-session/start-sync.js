@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { ensureRemoteFolderExists } from '#src/infrastructure/rclone/ensure-remote-folder.js'
 import { getErrorCode, getErrorDetail } from '../app-errors.js'
 import {
   OPERATION_HISTORY_STATUS,
@@ -7,9 +8,8 @@ import {
 } from '../operations/operation-history.js'
 import { getRuntimePaths } from '../runtime-paths.js'
 import { SYNC_PHASE_EVENT, SYNC_RESULT, SYNC_SESSION_EVENT, SYNC_SESSION_OPERATION } from './contract.js'
-import { ensureRemoteFolderExists } from './ensure-remote-folder.js'
+import { executeSync } from './execute-sync.js'
 import { resolveSyncContext } from './resolve-sync-context.js'
-import { runSyncPipeline } from './run-sync-pipeline.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
@@ -95,7 +95,7 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
     runtimePaths,
   }
 
-  function coreEventToSessionEvent(event) {
+  function phaseEventToSessionEvent(event) {
     if (event.type === SYNC_PHASE_EVENT.FAILED || event.type === SYNC_PHASE_EVENT.CANCELLED || event.type === SYNC_PHASE_EVENT.DONE)
       return
 
@@ -108,10 +108,10 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
     })
   }
 
-  let coreResult = null
+  let executionResult = null
   try {
-    coreResult = await runSyncPipeline(resolvedOptions, {
-      events: { eventListener: coreEventToSessionEvent },
+    executionResult = await executeSync(resolvedOptions, {
+      events: { eventListener: phaseEventToSessionEvent },
       interactions: { reviewDiff: runtime.interactions?.reviewDiff },
       dependents: runtime.dependents,
     }, cancelSignal)
@@ -130,7 +130,7 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
 
   const sessionResult = {
     context: resolvedContext,
-    ...coreResult,
+    ...executionResult,
   }
   if (sessionResult.result === SYNC_RESULT.FAILED)
     enrichFailedSessionResult(sessionResult, sessionResult.error, runtimePaths)

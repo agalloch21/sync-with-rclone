@@ -1,4 +1,4 @@
-const CLI_COMMAND_NAMES = require('../../cli/command-names.cjs')
+const CLI_COMMAND_NAMES = require('./command-names.cjs')
 
 const CLI_COMMANDS = new Set(CLI_COMMAND_NAMES)
 const SESSION_FLAGS = new Set(['--session', '--sync-session'])

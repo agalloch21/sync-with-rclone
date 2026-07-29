@@ -1,5 +1,5 @@
-import { createRcloneCommand, runCommand as defaultRunCommand } from '#src/infrastructure/rclone/rclone-command.js'
-import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
+import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
+import { createRcloneCommand, runCommand as defaultRunCommand } from './rclone-command.js'
 
 function isDirectoryNotFoundError(error) {
   return error?.code === 3 || error?.exitCode === 3 || error?.status === 3

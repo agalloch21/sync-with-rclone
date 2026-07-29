@@ -3,7 +3,7 @@ const test = require('node:test')
 const {
   classifyLaunch,
   isDesktopLaunchRequest,
-} = require('../../../src/electron/main/launch-dispatch.cjs')
+} = require('../../../src/command-line/launch-dispatch.cjs')
 
 test('classifyLaunch detects CLI commands after the Electron main entry', () => {
   const argv = [

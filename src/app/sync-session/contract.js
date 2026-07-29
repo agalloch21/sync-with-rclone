@@ -62,7 +62,7 @@ export const SYNC_SESSION_OPERATION = {
  */
 
 /**
- * @typedef {SyncSessionContext & { runtimePaths?: object }} SyncPipelineOptions
+ * @typedef {SyncSessionContext & { runtimePaths?: object }} SyncExecutionOptions
  */
 
 /**
@@ -72,7 +72,19 @@ export const SYNC_SESSION_OPERATION = {
 
 /**
  * @typedef {object} SyncSessionInteractions
- * @property {(diffSnapshot: import('#src/domain/synchronization/snapshot.js').DiffSnapshot) => Promise<import('./review-contracts.js').ReviewResult>} [reviewDiff]
+ * @property {(diffSnapshot: import('#src/domain/synchronization/snapshot.js').DiffSnapshot) => Promise<ReviewResult>} [reviewDiff]
+ */
+
+/**
+ * @typedef {'confirm' | 'cancel'} ReviewAction
+ */
+
+/**
+ * Minimal review result contract returned from CLI or Electron review.
+ *
+ * @typedef {object} ReviewResult
+ * @property {ReviewAction} action
+ * @property {string[]} [selectedPaths]
  */
 
 /**
@@ -122,13 +134,13 @@ export const SYNC_SESSION_OPERATION = {
  */
 
 /**
- * @typedef {object} SyncPipelineEventRuntime
+ * @typedef {object} SyncExecutionEventRuntime
  * @property {(event: SyncPhaseEvent) => void} [eventListener]
  */
 
 /**
- * @typedef {object} SyncPipelineRuntime
- * @property {SyncPipelineEventRuntime} [events]
+ * @typedef {object} SyncExecutionRuntime
+ * @property {SyncExecutionEventRuntime} [events]
  * @property {SyncSessionInteractions} [interactions]
  * @property {SyncSessionDependents} [dependents]
  */
@@ -142,14 +154,14 @@ export const SYNC_SESSION_OPERATION = {
  */
 
 /**
- * @typedef {object} SyncPipelineCompletedResult
+ * @typedef {object} SyncExecutionCompletedResult
  * @property {'completed'} result
  * @property {{ added: number, modified: number, deleted: number }} summary
  * @property {Array<object>} operations
  */
 
 /**
- * @typedef {object} SyncPipelineCancelledResult
+ * @typedef {object} SyncExecutionCancelledResult
  * @property {'cancelled'} result
  * @property {'review-cancelled' | 'abort-signal'} reason
  * @property {string | null} [phase]
@@ -158,7 +170,7 @@ export const SYNC_SESSION_OPERATION = {
  */
 
 /**
- * @typedef {object} SyncPipelineFailedResult
+ * @typedef {object} SyncExecutionFailedResult
  * @property {'failed'} result
  * @property {string} message
  * @property {string | null} phase
@@ -167,15 +179,15 @@ export const SYNC_SESSION_OPERATION = {
  */
 
 /**
- * @typedef {SyncPipelineCompletedResult | SyncPipelineCancelledResult | SyncPipelineFailedResult} SyncPipelineResult
+ * @typedef {SyncExecutionCompletedResult | SyncExecutionCancelledResult | SyncExecutionFailedResult} SyncExecutionResult
  */
 
 /**
- * @typedef {SyncPipelineCompletedResult & { context: SyncSessionContext }} SyncSessionCompletedResult
+ * @typedef {SyncExecutionCompletedResult & { context: SyncSessionContext }} SyncSessionCompletedResult
  */
 
 /**
- * @typedef {SyncPipelineCancelledResult & { context: SyncSessionContext }} SyncSessionCancelledResult
+ * @typedef {SyncExecutionCancelledResult & { context: SyncSessionContext }} SyncSessionCancelledResult
  */
 
 /**

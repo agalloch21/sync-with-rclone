@@ -1,30 +1,76 @@
-/** @typedef {import('./contract.js').SyncPipelineOptions} SyncPipelineOptions */
-/** @typedef {import('./contract.js').SyncPipelineResult} SyncPipelineResult */
-/** @typedef {import('./contract.js').SyncPipelineRuntime} SyncPipelineRuntime */
+/** @typedef {import('./contract.js').SyncExecutionOptions} SyncExecutionOptions */
+/** @typedef {import('./contract.js').SyncExecutionResult} SyncExecutionResult */
+/** @typedef {import('./contract.js').SyncExecutionRuntime} SyncExecutionRuntime */
 
 import { buildSyncPlan } from '#src/domain/synchronization/build-sync-plan.js'
 import { compareSnapshots } from '#src/domain/synchronization/compare-snapshots.js'
 import { buildLocalSnapshot } from '#src/infrastructure/filesystem/build-local-snapshot.js'
 import { applySyncPlan } from '#src/infrastructure/rclone/apply-sync-plan.js'
 import { buildRemoteSnapshot } from '#src/infrastructure/rclone/build-remote-snapshot.js'
-import { SYNC_CANCEL_REASON, SYNC_PHASES, SYNC_RESULT, SYNC_REVIEW_ACTION } from './contract.js'
-import { createReporter, runWithReporter } from './phase-reporter.js'
+import { SYNC_CANCEL_REASON, SYNC_PHASE_EVENT, SYNC_PHASES, SYNC_RESULT, SYNC_REVIEW_ACTION } from './contract.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
-    throw new TypeError('runSyncPipeline runtime must be an object')
+    throw new TypeError('executeSync runtime must be an object')
 
   const eventListener = runtime.events?.eventListener
   if (eventListener && typeof eventListener !== 'function')
-    throw new TypeError('runSyncPipeline runtime.events.eventListener must be a function')
+    throw new TypeError('executeSync runtime.events.eventListener must be a function')
 
   const reviewDiff = runtime.interactions?.reviewDiff
   if (reviewDiff && typeof reviewDiff !== 'function')
-    throw new TypeError('runSyncPipeline runtime.interactions.reviewDiff must be a function')
+    throw new TypeError('executeSync runtime.interactions.reviewDiff must be a function')
 
   const dependents = runtime.dependents || {}
   if (dependents.runCommand && typeof dependents.runCommand !== 'function')
-    throw new TypeError('runSyncPipeline runtime.dependents.runCommand must be a function')
+    throw new TypeError('executeSync runtime.dependents.runCommand must be a function')
+}
+
+function createPhaseReporter(emit = () => {}) {
+  return {
+    started(phase, message) {
+      emit({ type: SYNC_PHASE_EVENT.STARTED, phase, message: message || `phase [${phase}] started` })
+    },
+    done(phase, message) {
+      emit({ type: SYNC_PHASE_EVENT.DONE, phase, message: message || `phase [${phase}] completed` })
+    },
+    progress(phase, progress) {
+      emit({
+        type: SYNC_PHASE_EVENT.PROGRESS,
+        phase,
+        message: `phase [${phase}] is running`,
+        progress,
+      })
+    },
+    error(phase, error) {
+      emit({ type: SYNC_PHASE_EVENT.FAILED, phase, message: error?.message || `phase [${phase}] failed` })
+    },
+    cancelled(phase, message) {
+      emit({ type: SYNC_PHASE_EVENT.CANCELLED, phase, message: message || `phase [${phase}] cancelled` })
+    },
+  }
+}
+
+async function runPhaseWithReporter(reporter, phase, fn, message, cancelSignal = null) {
+  reporter.started(phase, message)
+
+  try {
+    const result = await fn()
+
+    reporter.done(phase)
+
+    cancelSignal?.throwIfAborted()
+
+    return result
+  }
+  catch (error) {
+    if (cancelSignal?.aborted || error === cancelSignal?.reason)
+      reporter.cancelled(phase)
+    else
+      reporter.error(phase, error)
+
+    throw error
+  }
 }
 
 function normalizeOptions(options) {
@@ -55,15 +101,15 @@ function getDiffSummary(diffSnapshot) {
 }
 
 /**
- * Headless sync pipeline. UI review is injected from the outside.
+ * Executes a resolved synchronization. UI review is injected from the outside.
  *
  * @export
- * @param {SyncPipelineOptions} options
- * @param {SyncPipelineRuntime} [runtime]
+ * @param {SyncExecutionOptions} options
+ * @param {SyncExecutionRuntime} [runtime]
  * @param {AbortSignal | null} [cancelSignal]
- * @returns {Promise<SyncPipelineResult>}
+ * @returns {Promise<SyncExecutionResult>}
  */
-export async function runSyncPipeline(
+export async function executeSync(
   options,
   runtime = { events: { eventListener: null }, interactions: { reviewDiff: null }, dependents: {} },
   cancelSignal = null,
@@ -71,12 +117,12 @@ export async function runSyncPipeline(
   assertRuntimeContract(runtime)
 
   const emit = runtime.events?.eventListener || (() => {})
-  const reporter = createReporter(emit)
+  const reporter = createPhaseReporter(emit)
   let currentPhase = null
 
   function runPhase(phase, fn, message) {
     currentPhase = phase
-    return runWithReporter(reporter, phase, fn, message, cancelSignal)
+    return runPhaseWithReporter(reporter, phase, fn, message, cancelSignal)
   }
 
   try {

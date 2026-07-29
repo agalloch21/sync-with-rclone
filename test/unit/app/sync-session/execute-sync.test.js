@@ -3,18 +3,18 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { SYNC_CANCEL_REASON, SYNC_PHASES, SYNC_RESULT } from '#src/app/sync-session/contract.js'
-import { runSyncPipeline } from '#src/app/sync-session/run-sync-pipeline.js'
+import { executeSync } from '#src/app/sync-session/execute-sync.js'
 
 function readFirstBatchPath(args) {
   const batchFilePath = args[args.indexOf('--files-from') + 1]
   return fs.readFileSync(batchFilePath, 'utf8').trim().split(/\r?\n/)[0]
 }
 
-test('runSyncPipeline converts apply cancellation into a cancelled result with apply metadata', async () => {
+test('executeSync converts apply cancellation into a cancelled result with apply metadata', async () => {
   const abortController = new AbortController()
   let confirmedPath = ''
 
-  const result = await runSyncPipeline({
+  const result = await executeSync({
     mode: 'push',
     localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
     remoteFolderPath: 'fake-remote:compare-push',
@@ -44,10 +44,10 @@ test('runSyncPipeline converts apply cancellation into a cancelled result with a
   )))
 })
 
-test('runSyncPipeline returns apply operations when apply fails', async () => {
+test('executeSync returns apply operations when apply fails', async () => {
   let confirmedPath = ''
 
-  const result = await runSyncPipeline({
+  const result = await executeSync({
     mode: 'push',
     localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
     remoteFolderPath: 'fake-remote:compare-push',

@@ -11,10 +11,10 @@ sequenceDiagram
 
   U->>S: 触发 Push / Pull / Push To... / Pull From...
   S->>A: 传入动作类型和本地路径
-  A->>A: 读取配置并解析本次同步上下文
+  A->>A: startSync 读取配置并解析本次同步上下文
   A-->>S: emit sync.session.context-resolved
   S->>W: 展示当前同步上下文
-  A->>A: 调用 runSyncPipeline(...)
+  A->>A: executeSync 执行已解析的同步流程
   A->>A: 生成 DiffSnapshot
   A-->>S: interaction.reviewDiff(diffSnapshot)
   S->>W: 切换到 review step
@@ -28,6 +28,8 @@ sequenceDiagram
 ```
 
 这张图的用途是先帮助人理解全貌。
+
+`startSync` 管理一次 sync session 的外围生命周期，包括 history、context、远端目录准备、session events 和最终结果；`executeSync` 负责 snapshot、compare、review、plan 和 apply。
 
 ## 2. 安装到触发流程
 
@@ -80,7 +82,7 @@ sequenceDiagram
   U->>S: 触发 Push
   S->>A: 传入本地路径
   A->>A: 解析默认远端目标路径
-  A->>A: 发起 Push pipeline
+  A->>A: 发起 Push 同步执行
   A->>A: 扫描本地与远端
   A->>A: 生成 DiffSnapshot
   A-->>S: interaction.reviewDiff(diffSnapshot)
@@ -109,7 +111,7 @@ sequenceDiagram
   U->>S: 触发 Pull
   S->>A: 传入本地路径
   A->>A: 解析默认远端来源路径
-  A->>A: 发起 Pull pipeline
+  A->>A: 发起 Pull 同步执行
   A->>A: 扫描远端与本地
   A->>A: 生成 DiffSnapshot
   A-->>S: interaction.reviewDiff(diffSnapshot)
@@ -143,7 +145,7 @@ sequenceDiagram
   T->>U: 展示可选远端目录
   U->>T: 选择目标目录
   T-->>A: 返回选中的远端目录
-  A->>A: 发起 Push pipeline
+  A->>A: 发起 Push 同步执行
   A->>A: 扫描本地与选中远端
   A->>A: 生成 DiffSnapshot
   A-->>S: interaction.reviewDiff(diffSnapshot)
@@ -177,7 +179,7 @@ sequenceDiagram
   T->>U: 展示可选远端目录
   U->>T: 选择来源目录
   T-->>A: 返回选中的远端目录
-  A->>A: 发起 Pull pipeline
+  A->>A: 发起 Pull 同步执行
   A->>A: 扫描选中远端与本地
   A->>A: 生成 DiffSnapshot
   A-->>S: interaction.reviewDiff(diffSnapshot)
@@ -219,7 +221,7 @@ sequenceDiagram
 
 这一步的职责边界是：
 
-- `runSyncPipeline` 只知道它需要一个 `ReviewResult`
+- `executeSync` 只知道它需要一个 `ReviewResult`
 - Electron Main 把 `reviewDiff` 适配成 sync-session 窗口里的 review step
 - Renderer 负责按钮 pending 和重复点击防护
 - Main 以 `pendingReview` 作为是否处于 review 等待点的权威状态
@@ -264,7 +266,7 @@ sequenceDiagram
   participant R as Renderer
 
   E->>A: startSync(options, runtime)
-  A->>A: runSyncPipeline(options, runtime)
+  A->>A: executeSync(options, runtime)
   A-->>E: SyncSessionResult
   E->>E: 判断是否需要 final acknowledgement
   alt 需要 final acknowledgement

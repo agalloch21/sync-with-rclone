@@ -399,14 +399,14 @@ server-operations.js
 task-operations.js
   updateTaskServerReferences(...)
 
-rclone-config.js
-  createRcloneRemote(...)
-  updateRcloneRemote(...)
+infrastructure/rclone/remote-config.js
+  createRemoteConfig(...)
+  updateRemoteConfig(...)
 ```
 
 `createServer` 和 `updateServer` 属于 app operation。它们表达用户意图和完整工作流，并在成功后通过 `events/configuration-events.js` 发布配置更新。
 
-`createServerConnection` 和 `updateServerConnection` 属于 server operation。它们表达 server connection 的资源级修改，并隐藏 rclone remote 细节。
+`createServerConnection` 和 `updateServerConnection` 属于 server operation。它们表达完整的 server use case，负责验证、资源存在规则和错误转换，并隐藏 raw rclone remote 细节。`remote-config.js` 只执行底层 rclone config 命令。
 
 ## 10. 什么时候返回 result，什么时候 throw
 

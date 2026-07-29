@@ -388,7 +388,7 @@ sequenceDiagram
   participant MB as Message Box
   participant APP as App Layer
   participant SO as Server Operations
-  participant RC as rclone-config.js
+  participant RC as infrastructure/rclone/remote-config.js
   participant MW as Main Window Renderer
 
   U->>M: 点击 Next
@@ -403,15 +403,15 @@ sequenceDiagram
     APP->>SO: createServerConnection(..., onProgress)
     SO->>OR: step(save)
     OR->>MB: operations.createServer.steps.save
-    SO->>RC: createRcloneRemote(...)
+    SO->>RC: listRemoteConfigs() + createRemoteConfig(...)
     SO->>OR: step(testConnection)
     OR->>MB: operations.createServer.steps.testConnection
-    SO->>RC: testRcloneRemoteConnection(...)
+    SO->>RC: testRemoteConfig(...)
   end
   alt connection test 失败
     SO->>OR: step(rollback)
     OR->>MB: operations.createServer.steps.rollback
-    SO->>RC: deleteRcloneRemote(...)
+    SO->>RC: deleteRemoteConfig(...)
     APP-->>EM: throw AppError
     EM->>OR: error(error)
     OR->>MB: errors.${error.code}
@@ -447,7 +447,7 @@ sequenceDiagram
   participant EM as Electron Main
   participant APP as App Layer
   participant SO as Server Operations
-  participant RC as rclone-config.js
+  participant RC as infrastructure/rclone/remote-config.js
   participant MB as Message Box
 
   U->>M: 点击 Confirm
@@ -456,7 +456,7 @@ sequenceDiagram
   EM->>APP: updateServer(...)
   APP->>APP: 判断 same-name update 或 rename-with-update
   APP->>SO: updateServerConnection(...) 或 renameServerConnection(...)
-  SO->>RC: updateRcloneRemote(...) 或 renameRcloneRemote(...)
+  SO->>RC: updateRemoteConfig(...) 或 create target + delete source
   alt 失败
     EM-->>M: OperationResult success=false
     M->>MB: useMessageBox.error(result.error)
@@ -471,8 +471,8 @@ sequenceDiagram
 
 - 需要 main-managed progress 的 server/task mutation 统一通过 `message-box/operation-presentation.js` 接入 `createOperationReporter()`
 - `app-api.js` 负责判断保存动作是同名 update 还是 rename
-- `server-operations.js` 负责 app-level server 与 raw rclone remote 的对象转换，并把 `RCLONE_*` 转成 `SERVER_*`
-- `rclone-config.js` 负责 raw rclone remote 的输入校验、normalize、读写和 rename adapter operation
+- `server-operations.js` 负责 server validation、existence policy、remote/server 转换、rename orchestration，并把 adapter error 转成 `SERVER_*`
+- `remote-config.js` 只负责 raw rclone config dump/create/update/delete/test 命令
 - rename-with-update 先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote
 - 普通 operation 失败由 renderer composable 调用 `messageBox.error(error)` 展示一次
 

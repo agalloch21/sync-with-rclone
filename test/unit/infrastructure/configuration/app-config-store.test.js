@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { ensureAppConfig, loadAppConfig } from '#src/app/configuration/app-config.js'
+import { ensureAppConfig, loadAppConfig } from '#src/infrastructure/configuration/app-config-store.js'
 
 test('loadAppConfig reads and normalizes sync config', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-'))

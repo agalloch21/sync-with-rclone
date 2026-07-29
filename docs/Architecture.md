@@ -54,6 +54,7 @@ src/           // 运行时代码
   electron/    // 当前桌面主壳层，包含 Electron main、preload、renderer
     contracts/ // Electron Main 与 Renderer 共用的 shell contract
   infrastructure/
+    configuration/ // config.json 的读取、规范化和原子写入
     filesystem/ // 本地路径解析、目录校验和 Snapshot 扫描
     rclone/      // rclone 命令、远端目录准备、远端扫描和 SyncPlan 执行
     runtime/     // 安装环境、配置、日志、resources 和 bundled rclone 路径解析
@@ -436,8 +437,8 @@ copy 之外的示例：
 
 - `MainWindowData` 是主窗口 renderer 的当前只读展示数据
 - `src/app/app-api.js` 通过 `getMainWindowData()` 组合 server 列表和 sync task 列表
-- server connection 由 `src/app/configuration/server-operations.js` 从 rclone remote 转换而来，对外结构固定为 `{ name, type, address, status, config }`
-- sync task 来源于 `src/app/configuration/app-config.js` 中的 `config.json`
+- server connection 由 `src/app/operations/server-operations.js` 从 raw rclone remote 转换而来，对外结构固定为 `{ name, type, address, status, config }`
+- sync task 来源于 `src/infrastructure/configuration/app-config-store.js` 读取的 `config.json`；task mutation policy 位于 `task-operations.js`
 - 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
 - `src/electron/main/app-state.js` 只保存 Electron 窗口状态，不缓存业务数据
 - renderer 通过 preload bridge 调用 `main-window:get-data`
@@ -449,7 +450,7 @@ copy 之外的示例：
 当前配置层有两个不同的数据结构：
 
 ```js
-// 只在 rclone-config.js 和 server-operations.js 边界内使用
+// 只在 remote-config.js 和 server-operations.js 边界内使用
 {
   name: "synology",
   config: {
@@ -479,7 +480,7 @@ copy 之外的示例：
 
 - `RcloneRemote` 的正式结构是 `{ name, config }`
 - `RcloneRemote.config` 是 rclone 配置的原始字段集合，包含 `type`
-- `rclone-config.js` 负责读写、重命名、测试 rclone remote，不负责生成 app/UI 使用的 server 展示字段
+- `infrastructure/rclone/remote-config.js` 只负责执行 config dump/create/update/delete 和 connection probe，不负责 server policy
 - `ServerConnection` 的正式结构是 `{ name, type, address, status, config }`
 - `server-operations.js` 是 remote 和 server 之间的唯一转换层
 - `type` 从 `config.type` 派生
@@ -493,26 +494,34 @@ copy 之外的示例：
 sequenceDiagram
   participant APP as app-api.js
   participant SO as server-operations.js
-  participant RC as rclone-config.js
+  participant RC as infrastructure/rclone/remote-config.js
   participant PR as protocol-registry.js
 
   APP->>SO: create/update/rename/delete server connection
-  SO->>SO: build rclone config and map server object shape
-  SO->>RC: create/update/rename/delete rclone remote
-  RC->>PR: validateProtocolForm(config.type, config fields)
-  RC-->>SO: raw remote result or RCLONE_* AppError
+  SO->>PR: validateProtocolForm(config.type, config fields)
+  SO->>SO: existence policy / normalize / rename orchestration
+  SO->>RC: list/create/update/delete/test raw remote config
+  RC-->>SO: raw remote result or command/parse AppError
   SO-->>APP: success or SERVER_* AppError
 ```
 
 当前职责边界：
 
 - `app-api.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后通过 `configuration-events.js` 发布更新
-- `server-operations.js` 负责 server-level operation flow、remote/server 对象转换、创建后的连接测试，以及将 `RCLONE_*` 转成 `SERVER_*`
-- `rclone-config.js` 负责 rclone config dump/create/update/delete/rename/test，并返回 `{ name, config }` 形式的 raw remote
-- `name` 是 server 与 remote 共享的资源标识，不在 server 层转换；name 校验、normalize、same-name rename no-op 由 `rclone-config.js` 处理
-- 协议字段校验由 `rclone-config.js` 调用 `protocol-registry.js` 完成；server 层只把 `protocolType` 和 `protocolFields` 组装成 rclone config
-- rename 作为 rclone adapter operation 暴露；内部使用 create-target 后 delete-source 的顺序，如果 delete-source 失败，会尝试删除新 target，避免同时留下新旧两个 remote/server
-- server 层不直接暴露 `RCLONE_*`；例如 `RCLONE_REMOTE_MISSING` 会转成 `SERVER_NOT_FOUND`，`RCLONE_INVALID_REMOTE` 会转成 `SERVER_VALIDATION_FAILED`
+- `server-operations.js` 负责 name/protocol validation、remote existence policy、remote/server 对象转换、创建后的连接测试和 rename rollback
+- `remote-config.js` 负责 config dump/create/update/delete/test 命令和 raw `{ name, config }` 解析，不判断资源应该存在或不应存在
+- `name` 是 server 与 remote 共享的资源标识；name 校验、normalize 和 same-name rename no-op 由 server operation 处理
+- 协议字段校验由 `server-operations.js` 调用 `protocol-registry.js` 完成
+- rename 是 server operation：先 create target，再 delete source；delete source 失败时尝试删除 target
+- `remote-files.js` 独立负责远端目录 listing 和 folder-tree parsing，不与 remote configuration CRUD 混合
+- adapter command/parse 错误在 server operation 边界转换为稳定的 `SERVER_*` error
+
+### 4.8.3 App config store 与 configuration policy
+
+- `infrastructure/configuration/app-config-store.js` 负责 default config、读取、schema normalization、序列化、原子写入和同一路径写入互斥
+- `task-operations.js` 负责 task reference、冲突检查、默认 metadata、create/update/delete/retarget policy
+- `settings-operations.js` 负责 global ignore pattern validation 和 mutation policy
+- store 的 `updateAppConfig(mutator)` 提供单次 read-modify-write 边界，但 mutator 中的业务规则由 operation 提供
 
 ### 4.9 `SyncTaskModalState`
 

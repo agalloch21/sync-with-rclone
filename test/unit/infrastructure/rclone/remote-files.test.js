@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildFolderTree, getRcloneFolderTree, parseFolderTreeOutput } from '#src/app/configuration/rclone-config.js'
+import {
+  buildRemoteFolderTree,
+  listRemoteFolders,
+  parseRemoteFolderTreeOutput,
+} from '#src/infrastructure/rclone/remote-files.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
-test('buildFolderTree converts recursive rclone directories into sorted TreeNode nodes', () => {
-  const tree = buildFolderTree('synology', [
+test('buildRemoteFolderTree converts recursive rclone directories into sorted TreeNode nodes', () => {
+  const tree = buildRemoteFolderTree('synology', [
     { Path: 'Projects/Zeta', Name: 'Zeta', IsDir: true },
     { Path: 'Projects', Name: 'Projects', IsDir: true },
     { Path: 'Archive', Name: 'Archive', IsDir: true },
@@ -31,8 +35,8 @@ test('buildFolderTree converts recursive rclone directories into sorted TreeNode
   })
 })
 
-test('buildFolderTree returns a selectable empty root for an empty server', () => {
-  assert.deepEqual(buildFolderTree('empty', []), {
+test('buildRemoteFolderTree returns a selectable empty root for an empty server', () => {
+  assert.deepEqual(buildRemoteFolderTree('empty', []), {
     type: 'directory',
     name: 'empty',
     path: '',
@@ -40,8 +44,8 @@ test('buildFolderTree returns a selectable empty root for an empty server', () =
   })
 })
 
-test('buildFolderTree creates missing ancestors and normalizes separators', () => {
-  const tree = buildFolderTree('synology', [
+test('buildRemoteFolderTree creates missing ancestors and normalizes separators', () => {
+  const tree = buildRemoteFolderTree('synology', [
     { Path: '/Projects\\Current/', IsDir: true },
   ])
 
@@ -49,8 +53,8 @@ test('buildFolderTree creates missing ancestors and normalizes separators', () =
   assert.equal(tree.children[0].children[0].path, 'Projects/Current')
 })
 
-test('buildFolderTree prefixes children with the requested folder path', () => {
-  const tree = buildFolderTree('synology', [
+test('buildRemoteFolderTree prefixes children with the requested folder path', () => {
+  const tree = buildRemoteFolderTree('synology', [
     { Path: 'Alpha', IsDir: true },
     { Path: 'Zeta', IsDir: true },
   ], 'Projects')
@@ -66,21 +70,21 @@ test('buildFolderTree prefixes children with the requested folder path', () => {
   })
 })
 
-test('parseFolderTreeOutput rejects malformed and non-array JSON', () => {
-  assert.throws(() => parseFolderTreeOutput('synology', '{broken'), error => error?.code === 'rclone.parse_failed')
-  assert.throws(() => parseFolderTreeOutput('synology', '{}'), error => error?.code === 'rclone.parse_failed')
+test('parseRemoteFolderTreeOutput rejects malformed and non-array JSON', () => {
+  assert.throws(() => parseRemoteFolderTreeOutput('synology', '{broken'), error => error?.code === 'rclone.parse_failed')
+  assert.throws(() => parseRemoteFolderTreeOutput('synology', '{}'), error => error?.code === 'rclone.parse_failed')
 })
 
-test('getRcloneFolderTree maps command failures to a stable rclone error', async () => {
+test('listRemoteFolders maps command failures to a stable rclone error', async () => {
   await assert.rejects(
-    () => getRcloneFolderTree('synology', '', { bundledRclonePath: process.execPath }),
+    () => listRemoteFolders('synology', '', { bundledRclonePath: process.execPath }),
     error => error?.code === 'rclone.command_failed',
   )
 })
 
-test('getRcloneFolderTree limits the initial folder listing to one level', async () => {
+test('listRemoteFolders limits the initial folder listing to one level', async () => {
   await withFakeAppRuntime({}, async ({ readCalls }) => {
-    await getRcloneFolderTree('synology')
+    await listRemoteFolders('synology')
     const calls = await readCalls()
 
     assert.deepEqual(calls[0], [
@@ -96,9 +100,9 @@ test('getRcloneFolderTree limits the initial folder listing to one level', async
   })
 })
 
-test('getRcloneFolderTree lists one level below the requested folder', async () => {
+test('listRemoteFolders lists one level below the requested folder', async () => {
   await withFakeAppRuntime({}, async ({ readCalls }) => {
-    await getRcloneFolderTree('synology', 'Projects/Current')
+    await listRemoteFolders('synology', 'Projects/Current')
     const calls = await readCalls()
 
     assert.equal(calls[0].at(-1), 'synology:Projects/Current')

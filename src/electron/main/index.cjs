@@ -29,7 +29,7 @@ async function showStartupError(error) {
 }
 
 async function ensureConfiguration() {
-  const { ensureAppConfig } = await import('#src/app/configuration/app-config.js')
+  const { ensureAppConfig } = await import('#src/infrastructure/configuration/app-config-store.js')
   await ensureAppConfig()
 }
 

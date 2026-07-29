@@ -1,5 +1,5 @@
+import { loadAppConfig, updateAppConfig } from '#src/infrastructure/configuration/app-config-store.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
-import * as appConfig from '../configuration/app-config.js'
 
 function assertIgnorePatterns(ignorePatterns) {
   if (!Array.isArray(ignorePatterns) || ignorePatterns.some(pattern => typeof pattern !== 'string'))
@@ -7,11 +7,22 @@ function assertIgnorePatterns(ignorePatterns) {
 }
 
 export async function listGlobalIgnorePatterns() {
-  return await appConfig.listGlobalIgnorePatterns()
+  const config = await loadAppConfig()
+  return config?.globalIgnorePatterns || []
 }
 
 export async function updateGlobalIgnorePatterns(ignorePatterns) {
   assertIgnorePatterns(ignorePatterns)
 
-  return await appConfig.updateGlobalIgnorePatterns(ignorePatterns)
+  const savedConfig = await updateAppConfig((loadedConfig) => {
+    if (!loadedConfig)
+      throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Sync configuration does not exist.')
+
+    return {
+      ...loadedConfig,
+      globalIgnorePatterns: [...ignorePatterns],
+    }
+  })
+
+  return savedConfig.globalIgnorePatterns
 }

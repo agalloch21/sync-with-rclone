@@ -7,7 +7,6 @@ import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import {
   SERVER_CREATE_PROGRESS_STEP,
   SERVER_DELETE_PROGRESS_STEP,
-  SERVER_TEST_PROGRESS_STEP,
   SERVER_UPDATE_PROGRESS_STEP,
 } from '#src/app/operations/server-operation-contract.js'
 import {
@@ -202,17 +201,18 @@ test('listServerConnections removes password fields from server config', async (
   ])
 })
 
-test('testServerConnection emits its connection-test step inside the server operation', async () => {
-  await createFakeRuntime({
+test('testServerConnection performs a read-only connection check without progress reporting', async () => {
+  const runtime = await createFakeRuntime({
     initialConfig: {
       synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
     },
   })
-  const progress = []
 
-  await testServerConnection('synology', step => progress.push(step))
+  await testServerConnection('synology')
 
-  assert.deepEqual(progress, [SERVER_TEST_PROGRESS_STEP.TEST_CONNECTION])
+  assert.deepEqual((await runtime.readCalls()).map(call => call.slice(2, 4)), [
+    ['lsf', '--max-depth'],
+  ])
 })
 
 test('createServerConnection rolls back the remote when connection testing fails', async () => {

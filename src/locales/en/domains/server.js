@@ -4,7 +4,6 @@ import {
   SERVER_CREATE_PROGRESS_STEP,
   SERVER_DELETE_PROGRESS_STEP,
   SERVER_OPERATION,
-  SERVER_TEST_PROGRESS_STEP,
   SERVER_UPDATE_PROGRESS_STEP,
 } from '#src/app/operations/server-operation-contract.js'
 import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/operations/task-operation-contract.js'
@@ -39,16 +38,6 @@ export default {
     [APP_ERROR_CODE.SERVER_OPERATION_FAILED]: 'Server operation failed.',
   }),
   operations: {
-    [SERVER_OPERATION.TEST]: {
-      title: 'Testing Server',
-      message: 'Preparing the server connection test...',
-      steps: {
-        [SERVER_TEST_PROGRESS_STEP.TEST_CONNECTION]: 'Testing the server connection...',
-      },
-      succeeded: {
-        message: 'The server connection test succeeded.',
-      },
-    },
     [SERVER_OPERATION.CREATE]: {
       title: 'Creating Server',
       message: 'Preparing server creation...',

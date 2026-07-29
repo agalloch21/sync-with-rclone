@@ -1,6 +1,5 @@
 import { createRequire } from 'node:module'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
-import { recordRejectedSync } from '#src/app/sync-session/start-sync.js'
 import { resolveSyncSessionRequest, startSyncSession } from './runner.js'
 
 const require = createRequire(import.meta.url)
@@ -124,13 +123,6 @@ export function createSyncSessionManager() {
     if (conflict) {
       conflict.handle.focusWindow()
       const error = createOverlapError(descriptor, conflict.descriptor)
-      try {
-        await recordRejectedSync(request.options, request.prepared.context, error)
-      }
-      catch (recordedError) {
-        if (recordedError !== error)
-          console.error(recordedError)
-      }
       return {
         status: 'conflict',
         sessionId: conflict.id,

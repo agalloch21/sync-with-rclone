@@ -10,6 +10,8 @@ import * as settingsOperations from './operations/settings-operations.js'
 import { SYNC_TASK_OPERATION } from './operations/task-operation-contract.js'
 import * as taskOperations from './operations/task-operations.js'
 
+export { startSync } from './sync-session/start-sync.js'
+
 //* ================================ Configuration Notifications ==============================*/
 // Commands currently publish this event so the desktop shell can refresh its read model.
 export const configEventEmitter = new EventEmitter()
@@ -62,6 +64,10 @@ export async function getFolderTree(name, folderPath = '') {
   return await serverOperations.getFolderTree(name, folderPath)
 }
 
+export async function testServerConnection(name) {
+  return await serverOperations.testServerConnection(name)
+}
+
 export async function listSyncTasks() {
   return await taskOperations.listSyncTasks()
 }
@@ -77,10 +83,6 @@ export async function listOperationHistory(options) {
 //* ========================================= Commands ========================================*/
 // Commands perform requested work and may emit semantic progress for a shell to present.
 // State-changing commands publish a configuration update after completing successfully.
-async function testServerConnectionImpl(name, onProgress) {
-  await serverOperations.testServerConnection(name, onProgress)
-}
-
 async function createServerImpl(expectedName, protocolType, protocolFields, onProgress) {
   await serverOperations.createServerConnection(expectedName, protocolType, protocolFields, onProgress)
 
@@ -162,11 +164,6 @@ function syncTaskSubject(task = {}) {
     ...(typeof task?.remoteBasePath === 'string' && { remoteBasePath: task.remoteBasePath }),
   }
 }
-
-export const testServerConnection = defineAppOperation({
-  operation: SERVER_OPERATION.TEST,
-  getSubject: ([name]) => serverSubject(name),
-}, testServerConnectionImpl)
 
 export const createServer = defineAppOperation({
   operation: SERVER_OPERATION.CREATE,

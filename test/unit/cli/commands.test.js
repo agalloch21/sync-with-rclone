@@ -63,6 +63,21 @@ test('runCli reports invalid adapter arguments without invoking an operation', a
   assert.match(output.errors[0], /Usage: create-task/)
 })
 
+test('runCli reports a successful server connection query without operation progress', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {
+      synology: { type: 'sftp', host: 'nas.local' },
+    },
+  }, async () => {
+    const output = createOutput()
+    const exitCode = await runCli(['test-server', 'synology'], output)
+
+    assert.equal(exitCode, 0)
+    assert.deepEqual(output.lines, ['Server connection test succeeded.'])
+    assert.deepEqual(output.errors, [])
+  })
+})
+
 test('runCli rejects legacy sync routing without an explicit sync command', async () => {
   const output = createOutput()
   const exitCode = await runCli(['pull', '/local', 'remote:path'], output)

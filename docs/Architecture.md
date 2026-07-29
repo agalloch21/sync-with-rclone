@@ -54,7 +54,7 @@ resources/     // bundled binaries、图标等静态资源
 **层级边界:**
 - core 不读取 Electron API，不解析配置文件
 - app 负责把 shell 的输入整理成 core 的输入
-- `src/app/app-operations.js` 是 GUI、CLI 和未来 agent/automation shell 调用应用能力的统一入口
+- `src/app/app-api.js` 是 GUI、CLI 和未来 agent/automation shell 调用应用能力的统一入口；普通 query、command 和 `startSync()` 都从这里导出
 - electron 负责桌面壳层和窗口，不直接承担同步业务
 - cli 负责命令行壳层和终端交互
 - cli 不作为 Electron UI 的下层依赖；UI 通过 Electron Main 调用 app 层能力
@@ -127,7 +127,7 @@ sequenceDiagram
 - 第二次 GUI 启动通过 single-instance `additionalData` 传递规范化 launch request，不依赖可能被 Chromium 重排的 argv。
 - 主窗口是可重建的进程级单例；关闭主窗口不会取消活跃同步。
 - session manager 先解析只读 `SyncSessionContext`，再以本地和远程根路径执行原子 admission。
-- 任一侧路径相同或存在祖先/后代关系时拒绝新会话，聚焦已有会话，并写入 `sync_session.overlap` failed history。
+- 任一侧路径相同或存在祖先/后代关系时，session manager 拒绝新会话并聚焦已有会话；未启动的重叠请求不写入 operation history。
 - admission 成功后，每个窗口继续使用独立 channel prefix、UI state、review Promise 和 AbortController。
 - session manager 在最后一个 session 清理后检查 Electron 窗口；没有窗口且不是显式 shutdown 时直接退出应用，不需要向 DesktopApplication 回传 idle 事件。
 - 最后一个 session 完成且没有主窗口时，Electron Main 在 terminal history 写入完成后退出。
@@ -416,7 +416,7 @@ copy 之外的示例：
 说明：
 
 - `MainWindowData` 是主窗口 renderer 的当前只读展示数据
-- `src/app/app-operations.js` 通过 `getMainWindowData()` 组合 server 列表和 sync task 列表
+- `src/app/app-api.js` 通过 `getMainWindowData()` 组合 server 列表和 sync task 列表
 - server connection 由 `src/app/configuration/server-operations.js` 从 rclone remote 转换而来，对外结构固定为 `{ name, type, address, status, config }`
 - sync task 来源于 `src/app/configuration/app-config.js` 中的 `config.json`
 - 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
@@ -465,13 +465,13 @@ copy 之外的示例：
 - `type` 从 `config.type` 派生
 - `address` 从 `config.host` / `config.url` / `config.remote` / `config.endpoint` 派生，只用于展示
 - `status` 是 app/UI 状态，不写入 rclone config
-- 上层模块不直接使用 remote 术语；`app-operations.js` 调用 `createServerConnection` / `updateServerConnection` / `renameServerConnection` / `deleteServerConnection`
+- 上层模块不直接使用 remote 术语；`app-api.js` 调用 `createServerConnection` / `updateServerConnection` / `renameServerConnection` / `deleteServerConnection`
 
 ### 4.8.2 Server operation flow
 
 ```mermaid
 sequenceDiagram
-  participant APP as app-operations.js
+  participant APP as app-api.js
   participant SO as server-operations.js
   participant RC as rclone-config.js
   participant PR as protocol-registry.js
@@ -486,7 +486,7 @@ sequenceDiagram
 
 当前职责边界：
 
-- `app-operations.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后调用 `notifyConfigUpdate()`
+- `app-api.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后调用 `notifyConfigUpdate()`
 - `server-operations.js` 负责 server-level operation flow、remote/server 对象转换、创建后的连接测试，以及将 `RCLONE_*` 转成 `SERVER_*`
 - `rclone-config.js` 负责 rclone config dump/create/update/delete/rename/test，并返回 `{ name, config }` 形式的 raw remote
 - `name` 是 server 与 remote 共享的资源标识，不在 server 层转换；name 校验、normalize、same-name rename no-op 由 `rclone-config.js` 处理
@@ -732,7 +732,7 @@ src/electron/renderer/src/i18n/locales/<locale>/
 ```text
 src/app/app-errors.js
 src/app/app-messages.js
-src/app/app-operations.js
+src/app/app-api.js
 src/app/operation-report-contract.js
 src/app/operation-reporter.js
 src/cli/i18n.js

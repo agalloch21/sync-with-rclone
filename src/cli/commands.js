@@ -1,9 +1,8 @@
-import * as appOperations from '#src/app/app-operations.js'
+import * as appApi from '#src/app/app-api.js'
 import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
 import { SERVER_OPERATION } from '#src/app/operations/server-operation-contract.js'
 import { SYNC_TASK_OPERATION } from '#src/app/operations/task-operation-contract.js'
 import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
-import { startSync } from '#src/app/sync-session/start-sync.js'
 import { SYNC_RESULT } from '#src/core/contract.js'
 import CLI_COMMAND_NAMES from './command-names.cjs'
 import { createCliOperationReportDisplay } from './operation-report-display.js'
@@ -124,7 +123,7 @@ async function runReportedOperation(operation, execute, output) {
 
 async function runSync(argv, output) {
   const options = parseSyncArgs(argv)
-  const result = await startSync(options, {
+  const result = await appApi.startSync(options, {
     interactions: {
       reviewDiff: reviewDiffInCli,
     },
@@ -141,7 +140,7 @@ async function runSync(argv, output) {
 }
 
 async function runListServers(json, output) {
-  const servers = await appOperations.listServers()
+  const servers = await appApi.listServers()
 
   if (json)
     printJson(output, { servers })
@@ -153,7 +152,7 @@ async function runListServers(json, output) {
 
 async function runGetServer(args, json, output) {
   requireArguments(args, 1, 'get-server <server>')
-  const server = await appOperations.getServer(args[0])
+  const server = await appApi.getServer(args[0])
 
   if (json)
     printJson(output, { server })
@@ -165,7 +164,7 @@ async function runGetServer(args, json, output) {
 
 async function runListServerFolders(args, json, output) {
   requireArguments(args, 1, 'list-server-folders <server> [folder]')
-  const tree = await appOperations.getFolderTree(args[0], args[1] || '')
+  const tree = await appApi.getFolderTree(args[0], args[1] || '')
 
   if (json)
     printJson(output, { tree })
@@ -177,11 +176,9 @@ async function runListServerFolders(args, json, output) {
 
 async function runTestServer(args, output) {
   requireArguments(args, 1, 'test-server <server>')
-  return await runReportedOperation(
-    SERVER_OPERATION.TEST,
-    onProgress => appOperations.testServerConnection(args[0], onProgress),
-    output,
-  )
+  await appApi.testServerConnection(args[0])
+  output.log('Server connection test succeeded.')
+  return 0
 }
 
 async function runCreateServer(args, output) {
@@ -190,7 +187,7 @@ async function runCreateServer(args, output) {
   const protocolFields = parseProtocolFields(fieldEntries)
   return await runReportedOperation(
     SERVER_OPERATION.CREATE,
-    onProgress => appOperations.createServer(name, protocolType, protocolFields, onProgress),
+    onProgress => appApi.createServer(name, protocolType, protocolFields, onProgress),
     output,
   )
 }
@@ -201,7 +198,7 @@ async function runUpdateServer(args, output) {
   const protocolFields = parseProtocolFields(fieldEntries)
   return await runReportedOperation(
     SERVER_OPERATION.UPDATE,
-    onProgress => appOperations.updateServer(name, expectedName, protocolType, protocolFields, onProgress),
+    onProgress => appApi.updateServer(name, expectedName, protocolType, protocolFields, onProgress),
     output,
   )
 }
@@ -210,13 +207,13 @@ async function runDeleteServer(args, output) {
   requireArguments(args, 1, 'delete-server <server>')
   return await runReportedOperation(
     SERVER_OPERATION.DELETE,
-    onProgress => appOperations.deleteServer(args[0], onProgress),
+    onProgress => appApi.deleteServer(args[0], onProgress),
     output,
   )
 }
 
 async function runListTasks(json, output) {
-  const syncTasks = await appOperations.listSyncTasks()
+  const syncTasks = await appApi.listSyncTasks()
 
   if (json)
     printJson(output, { syncTasks })
@@ -231,7 +228,7 @@ async function runCreateTask(args, output) {
   const task = createTaskMapping(args[0], args[1], args[2])
   return await runReportedOperation(
     SYNC_TASK_OPERATION.CREATE,
-    onProgress => appOperations.createSyncTask(task, onProgress),
+    onProgress => appApi.createSyncTask(task, onProgress),
     output,
   )
 }
@@ -246,7 +243,7 @@ async function runUpdateTask(args, output) {
   const expectedTask = createTaskMapping(args[2], args[3], args[4])
   return await runReportedOperation(
     SYNC_TASK_OPERATION.UPDATE,
-    onProgress => appOperations.updateSyncTask(task, expectedTask, onProgress),
+    onProgress => appApi.updateSyncTask(task, expectedTask, onProgress),
     output,
   )
 }
@@ -260,7 +257,7 @@ async function runUpdateTaskIgnorePatterns(args, output) {
   const task = createTaskReference(args[0], args[1])
   return await runReportedOperation(
     SYNC_TASK_OPERATION.UPDATE_IGNORE_PATTERNS,
-    onProgress => appOperations.updateSyncTaskIgnorePatterns(task, args.slice(2), onProgress),
+    onProgress => appApi.updateSyncTaskIgnorePatterns(task, args.slice(2), onProgress),
     output,
   )
 }
@@ -270,13 +267,13 @@ async function runDeleteTask(args, output) {
   const task = createTaskReference(args[0], args[1])
   return await runReportedOperation(
     SYNC_TASK_OPERATION.DELETE,
-    onProgress => appOperations.deleteSyncTask(task, onProgress),
+    onProgress => appApi.deleteSyncTask(task, onProgress),
     output,
   )
 }
 
 async function runListGlobalIgnorePatterns(json, output) {
-  const globalIgnorePatterns = await appOperations.listGlobalIgnorePatterns()
+  const globalIgnorePatterns = await appApi.listGlobalIgnorePatterns()
 
   if (json)
     printJson(output, { globalIgnorePatterns })
@@ -287,7 +284,7 @@ async function runListGlobalIgnorePatterns(json, output) {
 }
 
 async function runUpdateGlobalIgnorePatterns(args, output) {
-  await appOperations.updateGlobalIgnorePatterns(args)
+  await appApi.updateGlobalIgnorePatterns(args)
   output.log('Global ignore patterns updated.')
   return 0
 }

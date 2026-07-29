@@ -1,5 +1,5 @@
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
-import { deleteServer, deleteSyncTask, getMainWindowData, getServer, listOperationHistory, updateGlobalIgnorePatterns } from '#src/app/app-operations.js'
+import { deleteServer, deleteSyncTask, getMainWindowData, getServer, listOperationHistory, updateGlobalIgnorePatterns } from '#src/app/app-api.js'
 import { isValidSyncTaskModal } from '#src/app/main-window/modal-contract.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import { createOperationErrorReportState } from '#src/app/operations/operation-report-contract.js'

@@ -9,11 +9,9 @@ import {
   defineAppOperation,
   listOperationHistory,
   OPERATION_HISTORY_STATUS,
-  registerOperationHistoryListener,
   runOperationWithHistory,
-  unregisterOperationHistoryListener,
 } from '#src/app/operations/operation-history.js'
-import { recordRejectedSync, startSync } from '#src/app/sync-session/start-sync.js'
+import { startSync } from '#src/app/app-api.js'
 
 async function withHistoryRuntime(callback) {
   const appRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-history-'))
@@ -141,56 +139,6 @@ test('startSync records its failed result and exposes an existing launcher log',
     assert.equal(records[0].operation, 'syncPush')
     assert.equal(records[0].status, OPERATION_HISTORY_STATUS.FAILED)
     assert.equal(records[1].status, OPERATION_HISTORY_STATUS.STARTED)
-  })
-})
-
-test('startSync records resolved sync roots and rejected sessions as compact lifecycle records', async () => {
-  await withHistoryRuntime(async () => {
-    const expectedError = new AppError({
-      code: APP_ERROR_CODE.SYNC_SESSION_OVERLAP,
-      message: 'Overlapping sync session.',
-    })
-    const options = {
-      mode: 'push',
-      localFolderPath: 'relative/input',
-      remoteFolderPath: 'nas:input',
-      bypassConfig: true,
-    }
-    const context = {
-      mode: 'push',
-      localFolderPath: '/resolved/input',
-      remoteFolderPath: 'nas:resolved/input',
-      extraIgnorePatterns: [],
-    }
-
-    const published = []
-    const listener = record => published.push(record)
-    registerOperationHistoryListener(listener)
-    try {
-      await assert.rejects(
-        () => recordRejectedSync(options, context, expectedError),
-        error => error === expectedError,
-      )
-    }
-    finally {
-      unregisterOperationHistoryListener(listener)
-    }
-
-    const records = await listOperationHistory()
-    assert.equal(records.length, 2)
-    assert.deepEqual(records[0].subject, {
-      type: 'sync',
-      mode: 'push',
-      localFolderPath: '/resolved/input',
-      remoteFolderPath: 'nas:resolved/input',
-    })
-    assert.equal(records[0].status, OPERATION_HISTORY_STATUS.FAILED)
-    assert.equal(records[1].status, OPERATION_HISTORY_STATUS.STARTED)
-    assert.equal(Object.hasOwn(records[0], 'progress'), false)
-    assert.deepEqual(published.map(record => record.status), [
-      OPERATION_HISTORY_STATUS.STARTED,
-      OPERATION_HISTORY_STATUS.FAILED,
-    ])
   })
 })
 

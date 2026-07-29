@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { deleteSyncTask, getMainWindowData, listOperationHistory, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-operations.js'
+import { deleteSyncTask, getMainWindowData, listOperationHistory, testServerConnection, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-api.js'
 import { SERVER_UPDATE_PROGRESS_STEP } from '#src/app/operations/server-operation-contract.js'
 import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/operations/task-operation-contract.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
@@ -64,6 +64,18 @@ test('getMainWindowData returns global ignore patterns', async () => {
     const data = await getMainWindowData()
 
     assert.deepEqual(data.globalIgnorePatterns, ['.DS_Store', 'Thumbs.db'])
+  })
+})
+
+test('testServerConnection is a query and does not create operation history', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {
+      synology: { type: 'sftp', host: 'nas.local' },
+    },
+  }, async () => {
+    await testServerConnection('synology')
+
+    assert.deepEqual(await listOperationHistory(), [])
   })
 })
 

@@ -313,7 +313,7 @@ sequenceDiagram
       SW->>H: started then terminal record
     else roots overlap
       SM->>SW: focus existing session
-      SM->>H: started then failed overlap record
+      Note over SM,H: rejected request does not create history
     end
   end
 ```
@@ -469,7 +469,7 @@ sequenceDiagram
 关键点：
 
 - 当前只有 create-server 接入 `createOperationReporter()`；update-server 仍是普通 IPC operation
-- `app-operations.js` 负责判断保存动作是同名 update 还是 rename
+- `app-api.js` 负责判断保存动作是同名 update 还是 rename
 - `server-operations.js` 负责 app-level server 与 raw rclone remote 的对象转换，并把 `RCLONE_*` 转成 `SERVER_*`
 - `rclone-config.js` 负责 raw rclone remote 的输入校验、normalize、读写和 rename adapter operation
 - rename-with-update 先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote

@@ -186,15 +186,6 @@ function resolveSyncHistoryResult(result) {
   }
 }
 
-export async function recordRejectedSync(options, context, error) {
-  return await runOperationWithHistory({
-    operation: getSyncOperation(options?.mode),
-    subject: getSyncSubject(options, context),
-  }, async () => {
-    throw error
-  })
-}
-
 export async function startSync(options, runtime = {}, cancelSignal = null, prepared = null) {
   let resolution = prepared
   if (!resolution) {

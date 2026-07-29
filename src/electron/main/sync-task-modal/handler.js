@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
-import { createServer, createSyncTask, getServer, listServers, updateServer, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/app-operations.js'
+import { createServer, createSyncTask, getServer, listServers, updateServer, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/app-api.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import { createOperationErrorReportState } from '#src/app/operations/operation-report-contract.js'
 import { createOperationReporter } from '#src/app/operations/operation-reporter.js'

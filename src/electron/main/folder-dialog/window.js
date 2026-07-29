@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getFolderTree } from '#src/app/app-operations.js'
+import { getFolderTree } from '#src/app/app-api.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 

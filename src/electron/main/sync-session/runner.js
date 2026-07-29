@@ -1,6 +1,6 @@
 import { parseSyncArgs } from '#src/app/sync-session/parse-sync-args.js'
 import { resolveSyncContext } from '#src/app/sync-session/resolve-sync-context.js'
-import { startSync } from '#src/app/sync-session/start-sync.js'
+import { startSync } from '#src/app/app-api.js'
 import { PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { createSessionWindow } from './window.js'
 

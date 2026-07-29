@@ -4,7 +4,6 @@ import * as rcloneRemotes from '../configuration/rclone-config.js'
 import {
   SERVER_CREATE_PROGRESS_STEP,
   SERVER_DELETE_PROGRESS_STEP,
-  SERVER_TEST_PROGRESS_STEP,
   SERVER_UPDATE_PROGRESS_STEP,
 } from './server-operation-contract.js'
 
@@ -118,9 +117,8 @@ export async function getServerConnection(name) {
   }
 }
 
-export async function testServerConnection(name, onProgress) {
+export async function testServerConnection(name) {
   try {
-    onProgress?.(SERVER_TEST_PROGRESS_STEP.TEST_CONNECTION)
     await rcloneRemotes.testRcloneRemoteConnection(name)
   }
   catch (error) {

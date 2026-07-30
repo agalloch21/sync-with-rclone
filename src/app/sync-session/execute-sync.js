@@ -4,9 +4,11 @@
 
 import { buildSyncPlan } from '#src/domain/synchronization/build-sync-plan.js'
 import { compareSnapshots } from '#src/domain/synchronization/compare-snapshots.js'
-import { buildLocalSnapshot } from '#src/infrastructure/filesystem/build-local-snapshot.js'
-import { applySyncPlan } from '#src/infrastructure/rclone/apply-sync-plan.js'
-import { buildRemoteSnapshot } from '#src/infrastructure/rclone/build-remote-snapshot.js'
+import {
+  applySyncPlan,
+  buildLocalSnapshot,
+  buildRemoteSnapshot,
+} from '../services/sync-files-service.js'
 import { SYNC_CANCEL_REASON, SYNC_PHASE_EVENT, SYNC_PHASES, SYNC_RESULT, SYNC_REVIEW_ACTION } from './contract.js'
 
 function assertRuntimeContract(runtime) {
@@ -107,7 +109,7 @@ function getDiffSummary(diffSnapshot) {
  * @param {SyncExecutionOptions} options
  * @param {SyncExecutionRuntime} [runtime]
  * @param {AbortSignal | null} [cancelSignal]
- * @returns {Promise<SyncExecutionResult>}
+ * @returns {Promise<SyncExecutionResult>} Final result for the resolved synchronization.
  */
 export async function executeSync(
   options,

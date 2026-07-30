@@ -1,12 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { ensureRemoteFolderExists } from '#src/infrastructure/rclone/ensure-remote-folder.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import { getErrorCode, getErrorDetail } from '../app-errors.js'
 import {
   OPERATION_HISTORY_STATUS,
   runOperationWithHistory,
 } from '../operations/operation-history.js'
+import { ensureRemoteFolder } from '../services/sync-files-service.js'
 import { SYNC_PHASE_EVENT, SYNC_RESULT, SYNC_SESSION_EVENT, SYNC_SESSION_OPERATION } from './contract.js'
 import { executeSync } from './execute-sync.js'
 import { resolveSyncContext } from './resolve-sync-context.js'
@@ -65,7 +65,7 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
     resolvedContext = resolution.context
 
     if (resolution.resolvedTask && resolvedContext.mode === 'push') {
-      await ensureRemoteFolderExists(
+      await ensureRemoteFolder(
         resolvedContext.remoteFolderPath,
         runtimePaths,
         runtime,

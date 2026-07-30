@@ -388,6 +388,7 @@ sequenceDiagram
   participant MB as Message Box
   participant APP as App Layer
   participant SO as Server Operations
+  participant SS as Server Service
   participant RC as infrastructure/rclone/remote-config.js
   participant MW as Main Window Renderer
 
@@ -403,15 +404,18 @@ sequenceDiagram
     APP->>SO: createServerConnection(..., onProgress)
     SO->>OR: step(save)
     OR->>MB: operations.createServer.steps.save
-    SO->>RC: listRemoteConfigs() + createRemoteConfig(...)
+    SO->>SS: createServer(...)
+    SS->>RC: listRemoteConfigs() + createRemoteConfig(...)
     SO->>OR: step(testConnection)
     OR->>MB: operations.createServer.steps.testConnection
-    SO->>RC: testRemoteConfig(...)
+    SO->>SS: testServer(...)
+    SS->>RC: testRemoteConfig(...)
   end
   alt connection test 失败
     SO->>OR: step(rollback)
     OR->>MB: operations.createServer.steps.rollback
-    SO->>RC: deleteRemoteConfig(...)
+    SO->>SS: deleteCreatedServer(...)
+    SS->>RC: deleteRemoteConfig(...)
     APP-->>EM: throw AppError
     EM->>OR: error(error)
     OR->>MB: errors.${error.code}
@@ -447,6 +451,7 @@ sequenceDiagram
   participant EM as Electron Main
   participant APP as App Layer
   participant SO as Server Operations
+  participant SS as Server Service
   participant RC as infrastructure/rclone/remote-config.js
   participant MB as Message Box
 
@@ -456,7 +461,8 @@ sequenceDiagram
   EM->>APP: updateServer(...)
   APP->>APP: 判断 same-name update 或 rename-with-update
   APP->>SO: updateServerConnection(...) 或 renameServerConnection(...)
-  SO->>RC: updateRemoteConfig(...) 或 create target + delete source
+  SO->>SS: updateServer(...) 或 renameServer(...)
+  SS->>RC: updateRemoteConfig(...) 或 create target + delete source
   alt 失败
     EM-->>M: OperationResult success=false
     M->>MB: useMessageBox.error(result.error)
@@ -471,7 +477,8 @@ sequenceDiagram
 
 - 需要 main-managed progress 的 server/task mutation 统一通过 `message-box/operation-presentation.js` 接入 `createOperationReporter()`
 - `app-api.js` 负责判断保存动作是同名 update 还是 rename
-- `server-operations.js` 负责 server validation、existence policy、remote/server 转换、rename orchestration，并把 adapter error 转成 `SERVER_*`
+- `server-operations.js` 负责 progress lifecycle 和 operation sequencing
+- `server-service.js` 负责 server validation、existence policy、remote/server 转换、rename implementation，并把 adapter error 转成 `SERVER_*`
 - `remote-config.js` 只负责 raw rclone config dump/create/update/delete/test 命令
 - rename-with-update 先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote
 - 普通 operation 失败由 renderer composable 调用 `messageBox.error(error)` 展示一次

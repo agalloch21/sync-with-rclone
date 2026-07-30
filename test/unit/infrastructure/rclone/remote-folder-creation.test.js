@@ -1,28 +1,22 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
-import { ensureRemoteFolderExists } from '#src/infrastructure/rclone/ensure-remote-folder.js'
+import { ensureRemoteFolder } from '#src/infrastructure/rclone/remote-files.js'
 
-function createRuntime(runCommand) {
-  return {
-    dependents: {
-      runCommand,
-    },
-  }
-}
-
-test('ensureRemoteFolderExists probes the remote folder and skips mkdir when it exists', async () => {
+test('ensureRemoteFolder probes the remote folder and skips mkdir when it exists', async () => {
   const commands = []
 
-  const result = await ensureRemoteFolderExists(
+  const result = await ensureRemoteFolder(
     'synology:ProjectsSynced/app',
     {
       rcloneConfigPath: '/app/rclone.conf',
       bundledRclonePath: '/app/bin/rclone',
     },
-    createRuntime(async (command, args) => {
-      commands.push({ command, args })
-    }),
+    {
+      runCommand: async (command, args) => {
+        commands.push({ command, args })
+      },
+    },
   )
 
   assert.deepEqual(result, { created: false })
@@ -34,23 +28,25 @@ test('ensureRemoteFolderExists probes the remote folder and skips mkdir when it 
   ])
 })
 
-test('ensureRemoteFolderExists creates the remote folder when the probe returns not found', async () => {
+test('ensureRemoteFolder creates the remote folder when the probe returns not found', async () => {
   const commands = []
 
-  const result = await ensureRemoteFolderExists(
+  const result = await ensureRemoteFolder(
     'synology:ProjectsSynced/new-app',
     {
       rcloneConfigPath: '/app/rclone.conf',
       bundledRclonePath: '/app/bin/rclone',
     },
-    createRuntime(async (command, args) => {
-      commands.push({ command, args })
-      if (args.includes('lsf')) {
-        const error = new Error('directory not found')
-        error.code = 3
-        throw error
-      }
-    }),
+    {
+      runCommand: async (command, args) => {
+        commands.push({ command, args })
+        if (args.includes('lsf')) {
+          const error = new Error('directory not found')
+          error.code = 3
+          throw error
+        }
+      },
+    },
   )
 
   assert.deepEqual(result, { created: true })
@@ -66,19 +62,21 @@ test('ensureRemoteFolderExists creates the remote folder when the probe returns 
   ])
 })
 
-test('ensureRemoteFolderExists fails without creating when the probe has another error', async () => {
+test('ensureRemoteFolder fails without creating when the probe has another error', async () => {
   const commands = []
   const probeError = new Error('auth failed')
   probeError.code = 5
 
   await assert.rejects(
-    () => ensureRemoteFolderExists(
+    () => ensureRemoteFolder(
       'synology:ProjectsSynced/app',
       {},
-      createRuntime(async (command, args) => {
-        commands.push({ command, args })
-        throw probeError
-      }),
+      {
+        runCommand: async (command, args) => {
+          commands.push({ command, args })
+          throw probeError
+        },
+      },
     ),
     {
       name: 'AppError',

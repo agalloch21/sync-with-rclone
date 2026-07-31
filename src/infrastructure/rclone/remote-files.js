@@ -1,5 +1,9 @@
 import { normalizeLocalPath, trimTrailingSlash } from '#src/infrastructure/filesystem/local-path.js'
-import { throwInfrastructureError } from '#src/infrastructure/infrastructure-error.js'
+import {
+  createInfrastructureError,
+  INFRASTRUCTURE_ERROR_CODE,
+  throwInfrastructureError,
+} from '#src/infrastructure/infrastructure-error.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import {
   createRcloneCommand,
@@ -19,7 +23,7 @@ export function parseRemoteFolderEntries(stdout, serverName) {
     entries = JSON.parse(stdout || '[]')
   }
   catch (error) {
-    throwInfrastructureError('rclone.parse_failed', 'Failed to parse server folders.', {
+    throwInfrastructureError(INFRASTRUCTURE_ERROR_CODE.RCLONE_PARSE_FAILED, 'Failed to parse server folders.', {
       cause: error,
       detail: 'rclone lsjson returned invalid JSON.',
       meta: { serverName },
@@ -27,7 +31,7 @@ export function parseRemoteFolderEntries(stdout, serverName) {
   }
 
   if (!Array.isArray(entries)) {
-    throwInfrastructureError('rclone.parse_failed', 'Failed to parse server folders.', {
+    throwInfrastructureError(INFRASTRUCTURE_ERROR_CODE.RCLONE_PARSE_FAILED, 'Failed to parse server folders.', {
       detail: 'rclone lsjson did not return an array.',
       meta: { serverName },
     })
@@ -52,7 +56,7 @@ export async function listRemoteFolderEntries(name, folderPath = '', runtimePath
     result = await defaultRunCommand(command.command, command.args)
   }
   catch (error) {
-    throwInfrastructureError('rclone.command_failed', 'Failed to list rclone folders.', {
+    throwInfrastructureError(INFRASTRUCTURE_ERROR_CODE.RCLONE_COMMAND_FAILED, 'Failed to list rclone folders.', {
       detail: error?.stderr?.trim() || error?.stdout?.trim() || error?.message,
       cause: error,
       meta: { name },
@@ -68,7 +72,7 @@ function parseRemoteFileEntries(stdout, remotePath) {
     entries = JSON.parse(stdout || '[]')
   }
   catch (error) {
-    throwInfrastructureError('rclone.parse_failed', 'Failed to parse remote files.', {
+    throwInfrastructureError(INFRASTRUCTURE_ERROR_CODE.RCLONE_PARSE_FAILED, 'Failed to parse remote files.', {
       cause: error,
       detail: 'rclone lsjson returned invalid JSON.',
       meta: { remotePath },
@@ -76,7 +80,7 @@ function parseRemoteFileEntries(stdout, remotePath) {
   }
 
   if (!Array.isArray(entries)) {
-    throwInfrastructureError('rclone.parse_failed', 'Failed to parse remote files.', {
+    throwInfrastructureError(INFRASTRUCTURE_ERROR_CODE.RCLONE_PARSE_FAILED, 'Failed to parse remote files.', {
       detail: 'rclone lsjson did not return an array.',
       meta: { remotePath },
     })
@@ -108,7 +112,7 @@ export async function listRemoteFiles(
     result = await defaultRunCommand(command.command, command.args, { cancelSignal })
   }
   catch (error) {
-    throwInfrastructureError('rclone.command_failed', 'Failed to list remote files.', {
+    throwInfrastructureError(INFRASTRUCTURE_ERROR_CODE.RCLONE_COMMAND_FAILED, 'Failed to list remote files.', {
       detail: error?.stderr?.trim() || error?.stdout?.trim() || error?.message,
       cause: error,
       meta: { remotePath },
@@ -118,12 +122,25 @@ export async function listRemoteFiles(
   return parseRemoteFileEntries(result.stdout, remotePath)
 }
 
-function attachConfirmedFiles(error, operationType) {
-  error.confirmedFiles = parseConfirmedFilesFromOutput(
+function getCommandErrorDetail(error) {
+  return error?.stderr?.trim() || error?.stdout?.trim() || error?.message
+}
+
+function createFileCommandError(error, operationType, message, meta) {
+  const infrastructureError = createInfrastructureError(
+    INFRASTRUCTURE_ERROR_CODE.RCLONE_COMMAND_FAILED,
+    message,
+    {
+      cause: error,
+      detail: getCommandErrorDetail(error),
+      meta: { operationType, ...meta },
+    },
+  )
+  infrastructureError.confirmedFiles = parseConfirmedFilesFromOutput(
     `${error?.stdout || ''}\n${error?.stderr || ''}`,
     operationType,
   )
-  return error
+  return infrastructureError
 }
 
 export async function copyFiles(
@@ -168,7 +185,10 @@ export async function copyFiles(
       return paths
     }
     catch (error) {
-      throw attachConfirmedFiles(error, 'copy')
+      throw createFileCommandError(error, 'copy', 'Failed to copy files.', {
+        sourceRoot,
+        destinationRoot,
+      })
     }
   })
 }
@@ -196,7 +216,7 @@ export async function deleteFiles(
       return paths
     }
     catch (error) {
-      throw attachConfirmedFiles(error, 'delete')
+      throw createFileCommandError(error, 'delete', 'Failed to delete files.', { root })
     }
   })
 }
@@ -214,7 +234,20 @@ export async function cleanupEmptyDirectories(
     '--log-level',
     'INFO',
   ])
-  await defaultRunCommand(command.command, command.args, { cancelSignal })
+  try {
+    await defaultRunCommand(command.command, command.args, { cancelSignal })
+  }
+  catch (error) {
+    throw createInfrastructureError(
+      INFRASTRUCTURE_ERROR_CODE.RCLONE_COMMAND_FAILED,
+      'Failed to clean up empty directories.',
+      {
+        cause: error,
+        detail: getCommandErrorDetail(error),
+        meta: { root },
+      },
+    )
+  }
 }
 
 function isDirectoryNotFoundError(error) {
@@ -227,7 +260,7 @@ export async function ensureRemoteFolder(
   cancelSignal = null,
 ) {
   if (!remoteFolderPath)
-    throwInfrastructureError('remote.folder_path_required', 'remoteFolderPath is required')
+    throwInfrastructureError(INFRASTRUCTURE_ERROR_CODE.REMOTE_FOLDER_PATH_REQUIRED, 'remoteFolderPath is required')
 
   cancelSignal?.throwIfAborted()
 
@@ -245,9 +278,9 @@ export async function ensureRemoteFolder(
   catch (error) {
     if (!isDirectoryNotFoundError(error)) {
       throwInfrastructureError(
-        'remote.folder_probe_failed',
+        INFRASTRUCTURE_ERROR_CODE.REMOTE_FOLDER_PROBE_FAILED,
         error?.message || `Failed to check remote folder: ${remoteFolderPath}`,
-        { cause: error },
+        { cause: error, meta: { remotePath: remoteFolderPath } },
       )
     }
   }
@@ -263,9 +296,9 @@ export async function ensureRemoteFolder(
   }
   catch (error) {
     throwInfrastructureError(
-      'remote.folder_create_failed',
+      INFRASTRUCTURE_ERROR_CODE.REMOTE_FOLDER_CREATE_FAILED,
       error?.message || `Failed to create remote folder: ${remoteFolderPath}`,
-      { cause: error },
+      { cause: error, meta: { remotePath: remoteFolderPath } },
     )
   }
 

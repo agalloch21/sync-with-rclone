@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
 import { ensureRemoteFolder } from '#src/infrastructure/rclone/remote-files.js'
 import { withFakeRcloneCommand } from '../../../helpers/fake-rclone-command.js'
 
@@ -47,7 +48,7 @@ test('ensureRemoteFolder fails without creating when the probe has another error
       () => ensureRemoteFolder('synology:ProjectsSynced/app', runtimePaths),
       {
         name: 'InfrastructureError',
-        code: 'remote.folder_probe_failed',
+        code: INFRASTRUCTURE_ERROR_CODE.REMOTE_FOLDER_PROBE_FAILED,
       },
     )
 

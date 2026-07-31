@@ -4,6 +4,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { listGlobalIgnorePatterns, updateGlobalIgnorePatterns } from '#src/app/operations/settings-operations.js'
+import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('listGlobalIgnorePatterns reads global patterns through settings operations', async () => {
@@ -53,7 +54,10 @@ test('configuration updates reject concurrent writes', async () => {
 
     await assert.rejects(
       concurrentUpdate,
-      error => error?.code === APP_ERROR_CODE.CONFIG_UPDATE_IN_PROGRESS,
+      error => (
+        error?.code === APP_ERROR_CODE.CONFIG_UPDATE_FAILED
+        && error?.cause?.code === INFRASTRUCTURE_ERROR_CODE.CONFIG_UPDATE_IN_PROGRESS
+      ),
     )
     assert.deepEqual(await firstUpdate, ['first'])
   })

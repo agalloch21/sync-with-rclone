@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
 import {
   listRemoteFolderEntries,
   parseRemoteFolderEntries,
@@ -7,14 +8,14 @@ import {
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('parseRemoteFolderEntries rejects malformed and non-array JSON', () => {
-  assert.throws(() => parseRemoteFolderEntries('{broken', 'synology'), error => error?.code === 'rclone.parse_failed')
-  assert.throws(() => parseRemoteFolderEntries('{}', 'synology'), error => error?.code === 'rclone.parse_failed')
+  assert.throws(() => parseRemoteFolderEntries('{broken', 'synology'), error => error?.code === INFRASTRUCTURE_ERROR_CODE.RCLONE_PARSE_FAILED)
+  assert.throws(() => parseRemoteFolderEntries('{}', 'synology'), error => error?.code === INFRASTRUCTURE_ERROR_CODE.RCLONE_PARSE_FAILED)
 })
 
 test('listRemoteFolderEntries maps command failures to a stable rclone error', async () => {
   await assert.rejects(
     () => listRemoteFolderEntries('synology', '', { bundledRclonePath: process.execPath }),
-    error => error?.code === 'rclone.command_failed',
+    error => error?.code === INFRASTRUCTURE_ERROR_CODE.RCLONE_COMMAND_FAILED,
   )
 })
 

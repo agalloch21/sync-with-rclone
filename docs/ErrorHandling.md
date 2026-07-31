@@ -26,7 +26,8 @@ app 层:
   非预期失败时允许原始 error 抛出
 
 core / infrastructure 层:
-  抛出原始 Error 或 neutral InfrastructureError
+  已识别的 adapter 失败抛出 InfrastructureError
+  原始 native Error 保存在 cause 中
   不导入或构造 AppError
 
 window handler / IPC 边界:
@@ -205,6 +206,21 @@ Core 负责同步流程和同步规则；adapter 层负责接近外部系统或�
 - config 文件解析失败或写入失败。
 
 Infrastructure 可以把外部失败包装成 neutral `InfrastructureError`，保留稳定技术 code、detail、meta 和 cause，但不能依赖 `app-errors.js`。Application service 或 operation 在拥有用户意图上下文时再把它映射成 `AppError`。不要把密码、token、private key 或完整连接凭据放入 `meta`。
+
+标准 cause chain 是：
+
+```text
+AppError
+  cause -> InfrastructureError
+             cause -> native Error
+```
+
+- native error 记录最精确的系统、parser 或 process 失败，例如 `ENOENT`、`SyntaxError` 或 rclone exit code。
+- `InfrastructureError` 使用 `INFRASTRUCTURE_ERROR_CODE` 把平台相关失败归一为稳定技术类别，并补充 adapter 才知道的 `detail` 和 `meta`。
+- `AppError` 直接表达调用方正在执行的 application capability，例如 server connection 失败或 synchronization 失败；它不逐项翻译 infrastructure code。
+- service 只有在 infrastructure code 会改变后续控制流时才读取它，例如资源不存在时转入创建流程。若控制流不变，service 只抛出一个 capability-level `AppError` 并把原错误保存在 cause。
+- `toAppError(error, code, message)` 用于这种单次包装，并自动继承 infrastructure 的 `detail` 和 `meta`；它不会根据 lower-level code 选择 application code。
+- 如果 infrastructure 没有额外技术信息可提供，就不增加重复包装；application fallback 可以直接把原始 error 保存为 cause。
 
 当 app 与 core 需要同一个外部能力时，优先把可复用的技术 action 放在 infrastructure。若 core 看似需要 app service，应先判断需要的是可下沉的外部 action、应留在 core 的纯同步规则，还是应在进入 core 前由 app 解析的 policy；只有生产架构确实需要替换实现时才增加窄 port。
 
@@ -434,7 +450,7 @@ infrastructure/rclone/remote-config.js
 
 ## 11. 错误码命名
 
-错误码由 `src/app/app-errors.js` 的 `APP_ERROR_CODE` 集中声明，使用稳定、可读的点分 snake_case：
+Application 错误码由 `src/app/app-errors.js` 的 `APP_ERROR_CODE` 集中声明；infrastructure 技术错误码由 `src/infrastructure/infrastructure-error.js` 的 `INFRASTRUCTURE_ERROR_CODE` 集中声明。两者都使用稳定、可读的点分 snake_case：
 
 ```text
 server.already_exists
@@ -449,7 +465,9 @@ unknown
 规则：
 
 - 错误码是程序契约，不要频繁改名。
-- 调用方使用 `APP_ERROR_CODE` constant，不手写正式错误码。
+- 调用方使用所属层的 error-code constant，不手写正式错误码。
+- Infrastructure code 描述技术失败类别，App code 描述 application capability；两者不需要一一对应。
+- Service 不为 code translation 读取 infrastructure code；只有当 code 会改变 execution branch 时才读取。
 - 文案可以改，错误码尽量不改。
 - 点分 segment 表达 domain namespace；segment 内使用 snake_case。
 - 字段级错误放在 `fields`，不要为每个字段都创建一个顶层错误类型。

@@ -1,11 +1,11 @@
 import * as remoteConfig from '#src/infrastructure/rclone/remote-config.js'
 import { listRemoteFolderEntries } from '#src/infrastructure/rclone/remote-files.js'
-import { APP_ERROR_CODE, getErrorCode, throwAppError } from '../app-errors.js'
+import { APP_ERROR_CODE, AppError, throwAppError } from '../app-errors.js'
 import { getProtocolDefinition, validateProtocolForm } from '../configuration/protocol-registry.js'
 import { buildServerFolderTree } from './server-folder-tree.js'
 
 function throwInvalidRemote(detail, fields = null, meta = {}) {
-  throwAppError(APP_ERROR_CODE.RCLONE_INVALID_REMOTE, 'Invalid rclone remote.', {
+  throwAppError(APP_ERROR_CODE.SERVER_VALIDATION_FAILED, 'Server validation failed.', {
     detail,
     fields,
     meta,
@@ -125,26 +125,13 @@ function throwServerError(code, message, options = {}) {
     detail: detail ?? cause?.detail,
     fields: fields ?? cause?.fields,
     cause,
-    meta,
+    meta: { ...cause?.meta, ...meta },
   })
 }
 
 function throwServerErrorFromAdapter(error, fallbackMessage, meta = {}) {
-  const code = getErrorCode(error)
-  if (code.startsWith('server.'))
+  if (error instanceof AppError)
     throw error
-
-  if (code === APP_ERROR_CODE.RCLONE_REMOTE_EXISTS) {
-    throwServerError(APP_ERROR_CODE.SERVER_ALREADY_EXISTS, 'Server already exists.', { cause: error, meta })
-  }
-
-  if (code === APP_ERROR_CODE.RCLONE_REMOTE_MISSING) {
-    throwServerError(APP_ERROR_CODE.SERVER_NOT_FOUND, 'Server does not exist.', { cause: error, meta })
-  }
-
-  if (code === APP_ERROR_CODE.RCLONE_INVALID_REMOTE) {
-    throwServerError(APP_ERROR_CODE.SERVER_VALIDATION_FAILED, 'Server validation failed.', { cause: error, meta })
-  }
 
   throwServerError(APP_ERROR_CODE.SERVER_OPERATION_FAILED, fallbackMessage, { cause: error, meta })
 }

@@ -2,7 +2,10 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { normalizeLocalPath } from '#src/infrastructure/filesystem/local-path.js'
-import { throwInfrastructureError } from '#src/infrastructure/infrastructure-error.js'
+import {
+  INFRASTRUCTURE_ERROR_CODE,
+  throwInfrastructureError,
+} from '#src/infrastructure/infrastructure-error.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 
 const updatingConfigPaths = new Set()
@@ -92,24 +95,32 @@ export async function loadAppConfig(configPath = getDefaultAppConfigPath()) {
       return null
 
     throwInfrastructureError(
-      'config.load_failed',
+      INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED,
       `Failed to load config from ${configPath}: ${error.message}`,
-      { cause: error },
+      { cause: error, meta: { configPath } },
     )
   }
 }
 
 async function saveAppConfig(config, runtimePaths = getRuntimePaths()) {
-  const normalizedConfig = normalizeAppConfig(config)
   const configPath = runtimePaths.configPath
   const temporaryPath = path.join(
     path.dirname(configPath),
     `.${path.basename(configPath)}.${process.pid}.${randomUUID()}.tmp`,
   )
 
+  let normalizedConfig
   try {
+    normalizedConfig = normalizeAppConfig(config)
     await fs.writeFile(temporaryPath, serializeAppConfig(normalizedConfig), 'utf8')
     await fs.rename(temporaryPath, configPath)
+  }
+  catch (error) {
+    throwInfrastructureError(
+      INFRASTRUCTURE_ERROR_CODE.CONFIG_UPDATE_FAILED,
+      `Failed to update config at ${configPath}: ${error.message}`,
+      { cause: error, meta: { configPath } },
+    )
   }
   finally {
     await fs.rm(temporaryPath, { force: true })
@@ -125,7 +136,7 @@ export async function updateAppConfig(mutator, runtimePaths = getRuntimePaths())
   const configPath = runtimePaths.configPath
   if (updatingConfigPaths.has(configPath)) {
     throwInfrastructureError(
-      'config.update_in_progress',
+      INFRASTRUCTURE_ERROR_CODE.CONFIG_UPDATE_IN_PROGRESS,
       'Another configuration update is already in progress.',
       { meta: { configPath } },
     )

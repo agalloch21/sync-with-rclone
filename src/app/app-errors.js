@@ -1,11 +1,13 @@
 export const APP_ERROR_CODE = Object.freeze({
   UNKNOWN: 'unknown',
 
+  PATH_INVALID: 'path.invalid',
   PATH_EMPTY: 'path.empty',
   PATH_NOT_FOUND: 'path.not_found',
   PATH_NOT_DIRECTORY: 'path.not_directory',
 
   CONFIG_LOAD_FAILED: 'config.load_failed',
+  CONFIG_UPDATE_FAILED: 'config.update_failed',
   CONFIG_UPDATE_IN_PROGRESS: 'config.update_in_progress',
   CONFIG_NO_MATCHING_SYNC_TASK: 'config.no_matching_sync_task',
   CONFIG_REMOTE_PATH_OUTSIDE_TASK: 'config.remote_path_outside_task',
@@ -13,6 +15,7 @@ export const APP_ERROR_CODE = Object.freeze({
   SYNC_TASK_ALREADY_EXISTS: 'sync_task.already_exists',
   SYNC_TASK_NOT_FOUND: 'sync_task.not_found',
   SYNC_SESSION_OVERLAP: 'sync_session.overlap',
+  SYNC_EXECUTION_FAILED: 'sync.execution_failed',
 
   REMOTE_FOLDER_PATH_REQUIRED: 'remote.folder_path_required',
   REMOTE_FOLDER_PROBE_FAILED: 'remote.folder_probe_failed',
@@ -49,15 +52,35 @@ export class AppError extends Error {
   }
 }
 
-export function throwAppError(code, message, options = {}) {
-  throw new AppError({
+export function createAppError(code, message, options = {}) {
+  const cause = options.cause
+  const meta = Object.fromEntries(
+    Object.entries({ ...cause?.meta, ...options.meta })
+      .filter(([, value]) => value !== undefined),
+  )
+
+  return new AppError({
     code,
     message,
-    detail: options.detail,
-    fields: options.fields,
-    meta: options.meta,
+    detail: options.detail ?? cause?.detail,
+    fields: options.fields ?? cause?.fields,
+    meta: Object.keys(meta).length > 0 ? meta : undefined,
   }, {
-    cause: options.cause,
+    cause,
+  })
+}
+
+export function throwAppError(code, message, options = {}) {
+  throw createAppError(code, message, options)
+}
+
+export function toAppError(error, code, message, options = {}) {
+  if (error instanceof AppError)
+    return error
+
+  return createAppError(code, message, {
+    ...options,
+    cause: error,
   })
 }
 
@@ -67,22 +90,4 @@ export function getErrorCode(error) {
 
 export function getErrorDetail(error) {
   return error?.detail || ''
-}
-
-export function mapInfrastructureError(error, fallbackCode = APP_ERROR_CODE.UNKNOWN, fallbackMessage = 'Operation failed.') {
-  if (error instanceof AppError)
-    return error
-
-  const appCode = Object.values(APP_ERROR_CODE).includes(error?.code)
-    ? error.code
-    : fallbackCode
-
-  return new AppError({
-    code: appCode,
-    message: error?.message || fallbackMessage,
-    detail: error?.detail,
-    meta: error?.meta,
-  }, {
-    cause: error,
-  })
 }

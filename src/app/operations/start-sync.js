@@ -3,7 +3,12 @@ import path from 'node:path'
 import { executeSync } from '#src/core/execute-sync.js'
 import { ensureRemoteFolder } from '#src/infrastructure/rclone/remote-files.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
-import { getErrorCode, getErrorDetail, mapInfrastructureError } from '../app-errors.js'
+import {
+  APP_ERROR_CODE,
+  getErrorCode,
+  getErrorDetail,
+  toAppError,
+} from '../app-errors.js'
 import { resolveSyncContext } from '../services/sync-context-service.js'
 import {
   OPERATION_HISTORY_STATUS,
@@ -38,9 +43,11 @@ function enrichFailedSessionResult(sessionResult, error, runtimePaths) {
 }
 
 function toApplicationError(error) {
-  if (typeof error?.code === 'string')
-    return mapInfrastructureError(error)
-  return error
+  return toAppError(
+    error,
+    APP_ERROR_CODE.SYNC_EXECUTION_FAILED,
+    'Synchronization failed.',
+  )
 }
 
 async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepared = null) {

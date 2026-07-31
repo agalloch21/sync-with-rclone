@@ -3,7 +3,7 @@ import {
   resolveLocalDirectoryPath as resolveInfrastructureLocalDirectoryPath,
   trimTrailingSlash,
 } from '#src/infrastructure/filesystem/local-path.js'
-import { mapInfrastructureError } from '../app-errors.js'
+import { APP_ERROR_CODE, toAppError } from '../app-errors.js'
 
 export { normalizeLocalPath, trimTrailingSlash }
 
@@ -12,6 +12,10 @@ export function resolveLocalDirectoryPath(inputPath) {
     return resolveInfrastructureLocalDirectoryPath(inputPath)
   }
   catch (error) {
-    throw mapInfrastructureError(error)
+    throw toAppError(
+      error,
+      APP_ERROR_CODE.PATH_INVALID,
+      'Invalid local directory path.',
+    )
   }
 }

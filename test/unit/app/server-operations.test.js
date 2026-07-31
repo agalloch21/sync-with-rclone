@@ -17,6 +17,10 @@ import {
   testServerConnection,
   updateServerConnection,
 } from '#src/app/operations/server-operations.js'
+import {
+  INFRASTRUCTURE_ERROR_CODE,
+  InfrastructureError,
+} from '#src/infrastructure/infrastructure-error.js'
 
 const originalEnv = {}
 const originalResourcesPath = process.resourcesPath
@@ -226,10 +230,14 @@ test('createServerConnection rolls back the remote when connection testing fails
       user: 'xiaobo',
       pass: 'secret',
     }, step => events.push(step)),
-    {
-      name: 'AppError',
-      code: APP_ERROR_CODE.SERVER_CONNECTION_FAILED,
-      message: 'Server connection failed.',
+    (error) => {
+      assert.equal(error.name, 'AppError')
+      assert.equal(error.code, APP_ERROR_CODE.SERVER_CONNECTION_FAILED)
+      assert.equal(error.message, 'Server connection failed.')
+      assert.ok(error.cause instanceof InfrastructureError)
+      assert.equal(error.cause.code, INFRASTRUCTURE_ERROR_CODE.RCLONE_COMMAND_FAILED)
+      assert.ok(error.cause.cause instanceof Error)
+      return true
     },
   )
   assert.deepEqual(await runtime.readState(), {})
@@ -346,7 +354,7 @@ test('createServerConnection throws AppError for invalid protocol fields', async
     (error) => {
       assert.equal(error.name, 'AppError')
       assert.equal(error.code, APP_ERROR_CODE.SERVER_VALIDATION_FAILED)
-      assert.equal(error.cause?.code, APP_ERROR_CODE.RCLONE_INVALID_REMOTE)
+      assert.equal(error.cause, undefined)
       return true
     },
   )

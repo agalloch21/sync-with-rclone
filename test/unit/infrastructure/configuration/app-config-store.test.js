@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { ensureAppConfig, loadAppConfig } from '#src/infrastructure/configuration/app-config-store.js'
+import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
 
 test('loadAppConfig reads and normalizes sync config', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-'))
@@ -94,7 +95,7 @@ test('loadAppConfig wraps invalid config errors with a stable error code', async
     () => loadAppConfig(configPath),
     {
       name: 'InfrastructureError',
-      code: 'config.load_failed',
+      code: INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED,
     },
   )
 })

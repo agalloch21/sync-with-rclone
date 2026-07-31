@@ -44,44 +44,55 @@ npm run build:renderer
 当前 Electron renderer 使用 Vite 构建，因此在运行桌面窗口前，需要先有一次 renderer 构建产物。
 
 ### 3. 使用 CLI 运行
-CLI 是当前保留的命令行壳层，可独立承接主流程，也方便测试和排查
+CLI 和桌面界面共用 Electron 产品入口。入口识别正式 CLI 子命令后直接加载终端壳层，不启动 renderer。
 
 ```bash
-npm run dev:cli -- <command>
-# 或
-node src/cli/index.js <command>
+npm start -- <command>
 
 #如果需要直接带参数运行，可参考主流程的调用方式，例如：
-node ./src/cli/index.js sync --mode=push --local=<local-path> --remote=<remote-path>
+npm start -- sync --mode=push --local=<local-path> --remote=<remote-path>
 
 # 如果你想跳过 config.json，直接按显式 local/remote 运行：
-node ./src/cli/index.js sync --bypass-config --mode=push --local=<local-path> --remote=<remote-path>
+npm start -- sync --bypass-config --mode=push --local=<local-path> --remote=<remote-path>
 
 # positional sync 参数仍可用于明确的 sync 子命令
-node ./src/cli/index.js sync push <local-path> <remote-path>
+npm start -- sync push <local-path> <remote-path>
+
+# 终端默认展示差异并请求 yes/no 确认；--yes 跳过确认并同步全部差异
+npm start -- sync --yes push <local-path> <remote-path>
 ```
 
 CLI 必须显式提供 `sync`、`list-tasks` 等正式子命令；同步参数推荐使用带名字的写法。
+`npm start` 会先构建 renderer，因此同一个命令也可以不带参数启动主窗口，或者通过 `--session` 启动 sync-session。
 Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv，主流程现在会优先解析 `--mode`、`--local`、`--remote`，避免因为参数位置漂移而取错值。
 
 
 ### 4. 使用 Electron 运行
-Electron 是当前桌面主入口，用于桌面 UI、右键菜单、sync-session 窗口和打包后的命令模式。
+`src/shell/index.cjs` 是统一产品入口；它根据参数进入 Electron 桌面壳层、sync-session 或 CLI 模式。
 
 ```bash
 # 如果需要按实际同步动作传入参数，可直接运行桌面入口，例如：
-node ./src/electron/main/index.js --session --mode=push --local=<local-path> --remote=<remote-path>
+npm run dev:session -- --mode=push --local=<local-path> --remote=<remote-path>
 ```
 
-这条命令会由 Node 入口转交给 Electron，再进入桌面链路。
+开发脚本会启动 renderer dev server，再把参数交给 `src/shell/index.cjs`。
 
 打包后的 Electron 可执行文件也可以作为命令入口使用：
 
 ```bash
+# 打开主窗口
+sync-with-rclone
+
+# 打开 sync-session
+sync-with-rclone --session --mode=push --local=<local-path>
+
+# 执行 CLI command
 sync-with-rclone list-servers
 sync-with-rclone list-tasks --json
-sync-with-rclone sync push <local-path> <remote-path>
+sync-with-rclone sync --yes push <local-path> <remote-path>
 ```
+
+直接执行构建产物时没有 npm 参与，因此不需要 npm 的参数分隔符 `--`。
 
 ### 5. 使用开发模式实时预览 renderer
 如果你正在调整桌面界面或 renderer 样式，推荐直接使用对应的开发模式。

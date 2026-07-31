@@ -34,8 +34,9 @@ sequenceDiagram
 
 这张图想表达的是：
 
-- `electron` 是当前桌面壳层
-- `cli` 是当前保留的命令行壳层
+- `shell/electron` 是当前桌面壳层
+- `shell/cli` 是当前保留的命令行壳层
+- `shell/index.cjs` 是统一产品入口，根据启动协议选择桌面、session 或 CLI 模式
 - `app/operations/start-sync.js` 拥有同步请求的 application lifecycle：history、context resolution、session events 和最终结果
 - `app/services` 为普通资源 operations 与 startSync 提供配置、路径、server/task 等 application capabilities
 - `core` 是完整同步工作模块：拥有 Snapshot、Diff、SyncPlan 和已解析同步的执行流程
@@ -51,21 +52,25 @@ src/           // 运行时代码
     events/    // shell-neutral application notifications
     operations/ // user-intent operations、生命周期和 operation contracts；包含 start-sync
     services/  // server/task/settings/configuration/context/review capabilities
-  command-line/ // 可执行文件的启动分发、命令名和同步参数语法
-  cli/         // CLI入口、终端review和终端输出
   core/        // 独立同步工作模块
     execute-sync.js // 已解析同步上下文的完整执行流
     contract.js // sync phases、review 和 execution result contracts
     snapshots/ // Snapshot 模型、构建、采集和比较
     planning/  // SyncPlan 构建、执行和结果追踪
-  electron/    // 当前桌面主壳层，包含 Electron main、preload、renderer
-    contracts/ // Electron Main 与 Renderer 共用的 shell contract
   infrastructure/
     configuration/ // config.json 的读取、规范化和原子写入
     filesystem/ // 本地路径解析、目录校验和 neutral file-entry 扫描
     rclone/      // raw rclone config、远端目录/文件访问和 file actions
     runtime/     // 安装环境、配置、日志、resources 和 bundled rclone 路径解析
-  locales/     // GUI / CLI 共用的业务 message、error、operation 翻译
+  shell/       // 所有 driving interfaces、产品入口和共享展示资源
+    index.cjs  // composition root；选择 CLI 或 Electron 启动路径
+    launch-classifier.cjs // 只分类 main、session 和 CLI launch
+    parse-sync-args.js // CLI 和 Electron session 共用的同步参数语法
+    cli/       // 终端命令、review、output 和 i18n adapter
+      command-contract.cjs // canonical CLI command contract
+    electron/  // Electron main、preload、renderer 和 shared shell contracts
+      contracts/ // Electron Main 与 Renderer 共用的 shell contract
+    locales/   // CLI / Electron 共用的 message、error、operation 翻译
 scripts/       // 非运行时代码
   dev/         // 开发启动脚本
   build/       // 打包校验、产物准备脚本
@@ -78,14 +83,14 @@ resources/     // bundled binaries、图标等静态资源
 - infrastructure 不读取 Electron API 或 app modules，不构造 `AppError`，也不拥有 application operation lifecycle
 - app 不读取 Electron API；operations 可以调用 app services、core 和 infrastructure capabilities
 - `src/app/app-api.js` 是 GUI、CLI 和未来 agent/automation shell 调用应用能力的统一入口；普通 query、command 和 `startSync()` 都从这里导出
-- electron 负责桌面壳层和窗口，不直接承担同步业务
-- cli 负责命令行壳层和终端交互
-- `src/command-line/` 是 CLI 和 Electron 共用的可执行文件输入边界；其中 `launch-dispatch.cjs` 分类启动模式，`command-names.cjs` 定义正式 CLI 命令，`parse-sync-args.js` 解析同步参数
+- shell 是 driving boundary；`shell/electron` 负责桌面窗口和生命周期，`shell/cli` 负责终端交互，二者都不拥有同步业务
+- `src/shell/` 根部是统一产品输入边界：`index.cjs` 负责 composition，`launch-classifier.cjs` 只分类启动，`parse-sync-args.js` 解析共享同步参数；`shell/cli/command-contract.cjs` 定义 canonical CLI commands
+- `package.json` 使用 `#shell`、`#cli`、`#electron` 和 `#frontend` imports aliases，分别指向 shell root、CLI、Electron 和 renderer source
 - cli 不作为 Electron UI 的下层依赖；UI 通过 Electron Main 调用 app 层能力
 - Electron Main 在进程入口处把命令行参数分发给 cli 壳层，这是打包入口职责，不代表 UI 依赖 cli
 - cli 和 electron 通过 app 调用应用能力；core 与 app 可以共享 infrastructure actions，core / infrastructure 不反向依赖 app 或 shell
 
-当前打包方向采用一个 Electron 可执行文件，区分 GUI 单实例入口和独立 CLI 入口：
+当前采用一个 Electron 可执行文件作为统一产品入口，再区分 GUI 单实例模式和 CLI 命令模式：
 
 ```text
 sync-with-rclone                 -> 启动桌面 UI
@@ -94,11 +99,13 @@ sync-with-rclone list-servers    -> 命令模式，列出 servers
 sync-with-rclone sync push ...   -> 命令模式，执行同步
 ```
 
-`src/command-line/launch-dispatch.cjs` 统一分类 main、session 和 CLI 启动。入口先识别显式 `--session`，其余启动只有在首个应用参数是正式 CLI 子命令时才进入 CLI。参数后部出现命令同名的路径或值不会改变启动类型，顶级 `push` / `pull` 不再作为 CLI 命令兼容。
+`src/shell/launch-classifier.cjs` 统一分类 main、session 和 CLI 启动。入口先识别显式 `--session`，其余启动只有在首个应用参数是 `shell/cli/command-contract.cjs` 声明的正式 CLI 子命令时才进入 CLI。参数后部出现命令同名的路径或值不会改变启动类型，顶级 `push` / `pull` 不再作为 CLI 命令兼容。
 
-GUI 启动通过 `requestSingleInstanceLock()` 汇入一个 Electron Main 进程。这个进程可以持有零或一个主窗口，以及多个互不冲突的 sync-session 窗口。普通启动创建或聚焦主窗口；`--session` 启动只提交同步会话。CLI 命令不参与 GUI 单实例锁，仍然作为独立命令行壳层负责参数路由、终端输出和终端 review。
+`shell/cli/commands.js` 使用同一 command contract 建立 command-to-handler registry。外部 CLI protocol 仍然是字符串，但 launch allowlist 与 dispatch 不重复手写 command name；registry 在 module initialization 时校验 contract 与 handler 数量一致。
 
-`src/electron/main/index.cjs` 是产品可执行文件唯一的 Electron Main 入口；`package.json` 和开发启动脚本都直接使用它。Renderer 不调用 `src/cli/`，只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
+GUI 启动通过 `requestSingleInstanceLock()` 汇入一个 Electron Main 进程。这个进程可以持有零或一个主窗口，以及多个互不冲突的 sync-session 窗口。普通启动创建或聚焦主窗口；`--session` 启动只提交同步会话。CLI 命令不参与 GUI 单实例锁；统一入口识别 CLI 模式后加载命令行壳层，由它负责参数路由、终端输出和终端 review。CLI review 默认展示全部差异并请求 yes/no 确认，`--yes` 跳过该确认并选择全部差异。
+
+`src/shell/index.cjs` 是产品可执行文件唯一入口；`package.json` 的 `start`、Electron 开发启动脚本和构建后的可执行文件都使用它。`prestart` 先构建 renderer，使 `npm start` 可以进入 main、session 或 CLI 任一路径。入口执行 startup composition，并根据 launch classification 加载 `shell/cli` 或 `shell/electron`。Renderer 不调用 CLI，只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
 
 
 ## 3. Electron、Vite、Renderer、Application 的关系
@@ -140,7 +147,7 @@ sequenceDiagram
 - `app/operations/start-sync.js` 解析 application context，再调用独立 core workflow
 - infrastructure 调用外部 `rclone` 进程
 - `Vite` 的作用不是参与运行时通信，而是把 renderer 源码编译成 Electron 可加载的页面
-- `CLI` 不是为了测试临时补出来的旁路，而是当前架构下的独立 shell 入口
+- `CLI` 不是为了测试临时补出来的旁路，而是由统一产品入口按启动协议加载的独立 shell adapter
 - `CLI` 的存在也使 shell-neutral application flow 更容易独立运行、测试和排查
 - 打包后可以由同一个 Electron 可执行文件承接 CLI 命令；这是入口分发，不改变 CLI 与 Electron UI 的依赖边界
 - `Electron Main` 使用 `startSync(...)` 的返回值推进 final 流程，不依赖 `sync.session.result` event 推进控制流
@@ -156,12 +163,12 @@ sequenceDiagram
 - remote-folder probe/mkdir 是可复用的 infrastructure action；`startSync` 在 application policy 确认需要创建目标目录后直接调用它。
 - `infrastructure/runtime/runtime-paths.js` 从进程、平台、安装目录和环境变量解析运行时路径。
 - `infrastructure/filesystem/local-path.js` 负责本地路径规范化、home 展开和目录存在性校验；`app/services/local-path-service.js` 把技术错误转换成 application error。
-- `electron/main/sync-session/controller.js` 把 application use case 连接到 session window 的 events、review interaction、acknowledgement 和 cancellation。
-- `electron/contracts/sync-session-stage.js` 定义 Main 与 Renderer 共用的 Analyze、Review、Sync UI stage 及其 phase 映射。
-- `electron/main/sync-session/manager.js` 先通过 controller 解析只读 `SyncSessionContext`，再以本地和远程根路径执行原子 admission，并管理活跃 Electron session handle。
+- `shell/electron/main/sync-session/controller.js` 把 application use case 连接到 session window 的 events、review interaction、acknowledgement 和 cancellation。
+- `shell/electron/contracts/sync-session-stage.js` 定义 Main 与 Renderer 共用的 Analyze、Review、Sync UI stage 及其 phase 映射。
+- `shell/electron/main/sync-session/manager.js` 先通过 controller 解析只读 `SyncSessionContext`，再以本地和远程根路径执行原子 admission，并管理活跃 Electron session handle。
 - 任一侧路径相同或存在祖先/后代关系时，session manager 拒绝新会话并聚焦已有会话；未启动的重叠请求不写入 operation history。
-- admission 成功后，`electron/main/sync-session/window.js` 为每个窗口维护独立 channel prefix、UI state、review Promise 和 AbortController。
-- `electron/renderer/src/surfaces/shared/TreeNode.vue` 是 folder dialog 与 sync review 共用的树节点组件，不属于任一单独 surface。
+- admission 成功后，`shell/electron/main/sync-session/window.js` 为每个窗口维护独立 channel prefix、UI state、review Promise 和 AbortController。
+- `shell/electron/renderer/src/surfaces/shared/TreeNode.vue` 是 folder dialog 与 sync review 共用的树节点组件，不属于任一单独 surface。
 - session manager 在最后一个 session 清理后检查 Electron 窗口；没有窗口且不是显式 shutdown 时直接退出应用，不需要向 DesktopApplication 回传 idle 事件。
 - 最后一个 session 完成且没有主窗口时，Electron Main 在 terminal history 写入完成后退出。
 
@@ -450,9 +457,9 @@ copy 之外的示例：
 - server connection 由 `src/app/services/server-service.js` 从 raw rclone remote 转换而来，对外结构固定为 `{ name, type, address, status, config }`
 - sync task 通过 `src/app/services/task-service.js` 访问；JSON persistence 位于 `src/infrastructure/configuration/app-config-store.js`
 - 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
-- `src/electron/main/app-state.js` 只保存 Electron 窗口状态，不缓存业务数据
+- `src/shell/electron/main/app-state.js` 只保存 Electron 窗口状态，不缓存业务数据
 - renderer 通过 preload bridge 调用 `main-window:get-data`
-- sync-task modal 名称和校验属于 Electron shared contract，位于 `src/electron/contracts/sync-task-modal.js`，供 Electron Main 和 renderer 共用
+- sync-task modal 名称和校验属于 Electron shared contract，位于 `src/shell/electron/contracts/sync-task-modal.js`，供 Electron Main 和 renderer 共用
 - server/task 修改成功后，app operation 通过 `src/app/events/configuration-events.js` 发布 config update，Electron Main 订阅后发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
 
 ### 4.8.1 `RcloneRemote` 与 `ServerConnection`
@@ -696,7 +703,7 @@ catch (error) {
 - app operation 仍然只接收 callback，不依赖 reporter 或任何具体 surface
 - 当前 `createServer` operation 保留 callback-based `save` / `testConnection` / `rollback` 进度上报
 
-`src/electron/main/message-box/operation-presentation.js` 是 Electron Main 的 operation/error presentation adapter。它把 `src/electron/main/message-box/window.js` 的三个 GUI 函数适配为 display interface，并把最终值或错误转换成 `OperationResult`：
+`src/shell/electron/main/message-box/operation-presentation.js` 是 Electron Main 的 operation/error presentation adapter。它把 `src/shell/electron/main/message-box/window.js` 的三个 GUI 函数适配为 display interface，并把最终值或错误转换成 `OperationResult`：
 
 - `open: openMessageBox` 创建/替换 GUI message-box 并返回 acknowledgement Promise
 - `update: updateMessageBox` 原子替换 GUI state
@@ -704,12 +711,12 @@ catch (error) {
 - GUI function 不包含 operation-specific key assembly
 - main-window 与 sync-task-modal handler 复用该 adapter，不各自组装 reporter 或 error state
 
-CLI 使用 `src/cli/operation-report-display.js` 暴露同一中性 interface：
+CLI 使用 `src/shell/cli/operation-report-display.js` 暴露同一中性 interface：
 
 - `open(state)` / `update(state)` 接收 reporter 组装好的完整 state，`close(result)` 结束展示
-- CLI display 使用 `src/cli/i18n.js` 创建真实 Vue I18n instance
+- CLI display 使用 `src/shell/cli/i18n.js` 创建真实 Vue I18n instance
 - locale 从 `LC_ALL` / `LC_MESSAGES` / `LANG` 解析，支持 `en` 和 `zh-CN`，fallback 为 English
-- CLI 从共享 `src/locales/` 读取 operation/error translation，不依赖 Electron renderer
+- CLI 从共享 `src/shell/locales/` 读取 operation/error translation，不依赖 Electron renderer
 - terminal surface 输出翻译后的 message/detail；initial acknowledgement 立即 resolve，不阻塞命令执行
 
 ### 4.10.2 Message-box 生命周期
@@ -757,16 +764,16 @@ messages: defineLocaleTree({
 locale 先按是否跨 shell 共享，再按 ownership 组织：
 
 ```text
-src/locales/
+src/shell/locales/
   locale-tree.js
   <locale>/
     index.js
-    infrastructure.js
+    errors.js
     domains/
       server.js
       sync-task.js
 
-src/electron/renderer/src/i18n/locales/<locale>/
+src/shell/electron/renderer/src/i18n/locales/<locale>/
   index.js
   common.js
   surfaces/
@@ -777,7 +784,7 @@ src/electron/renderer/src/i18n/locales/<locale>/
 ```
 
 - shared domain module 拥有该 domain 的 messages、errors 和 operations，GUI/CLI 共用
-- shared `infrastructure.js` 拥有 path/config/remote/ipc/rclone 等基础设施 errors
+- shared `errors.js` 翻译跨 shell 使用的 application-visible errors，包括 path/config/remote/ipc/rclone codes
 - renderer surface module 只拥有 Electron UI surface 的固定文案
 - `surfaces/message-box.js` 只定义 level title、confirmation/progress chrome 和 fallback，不承载业务文案
 - shared locale `index.js` 组合 `messages` / `errors` / `operations` typed roots
@@ -793,13 +800,13 @@ src/app/app-api.js
 src/app/events/configuration-events.js
 src/app/operations/operation-report-contract.js
 src/app/operations/operation-reporter.js
-src/cli/i18n.js
-src/cli/operation-report-display.js
-src/electron/main/message-box/operation-presentation.js
-src/electron/main/message-box/window.js
-src/electron/renderer/src/composables/useMessageBox.js
-src/electron/renderer/src/surfaces/message-box/MessageBox.presentation.js
-src/locales/locale-tree.js
+src/shell/cli/i18n.js
+src/shell/cli/operation-report-display.js
+src/shell/electron/main/message-box/operation-presentation.js
+src/shell/electron/main/message-box/window.js
+src/shell/electron/renderer/src/composables/useMessageBox.js
+src/shell/electron/renderer/src/surfaces/message-box/MessageBox.presentation.js
+src/shell/locales/locale-tree.js
 ```
 
 ## 5. 数据契约在主要模块间的流转

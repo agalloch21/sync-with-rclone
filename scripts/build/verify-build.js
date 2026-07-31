@@ -5,9 +5,9 @@ const platform = process.argv[2]
 
 const REQUIRED_FILES = {
   all: [
-    'src/electron/renderer/dist/main-panel.html',
-    'src/electron/renderer/dist/sync-session.html',
-    'src/electron/renderer/dist/sync-task-modal.html',
+    'src/shell/electron/renderer/dist/main-panel.html',
+    'src/shell/electron/renderer/dist/sync-session.html',
+    'src/shell/electron/renderer/dist/sync-task-modal.html',
   ],
 }
 

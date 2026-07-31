@@ -6,15 +6,20 @@
   "author": "",
   "license": "ISC",
   "imports": {
+    "#cli/*": "./src/shell/cli/*",
+    "#electron/*": "./src/shell/electron/*",
+    "#frontend/*": "./src/shell/electron/renderer/src/*",
+    "#shell/*": "./src/shell/*",
     "#src/*": "./src/*",
     "#test/*": "./test/*"
   },
-  "main": "src/electron/main/index.cjs",
+  "main": "src/shell/index.cjs",
   "scripts": {
     "build:renderer": "vite build",
     "dev": "node scripts/dev/dev-electron.js",
     "dev:session": "node scripts/dev/dev-electron.js --session",
-    "dev:cli": "node src/cli/index.js",
+    "prestart": "npm run build:renderer",
+    "start": "electron src/shell/index.cjs",
     "build:icons": "node scripts/build/generate-icons.js",
     "verify:assets": "node scripts/build/verify-assets.js",
     "verify:build": "node scripts/build/verify-build.js",

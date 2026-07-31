@@ -15,7 +15,7 @@ const DEV_SERVER_URL = `http://${VITE_HOST}:${VITE_PORT}`
 const viteBinPath = path.resolve(projectRoot, 'node_modules/vite/bin/vite.js')
 const electronBinary = require('electron')
 
-const electronMainEntry = path.resolve(projectRoot, 'src/electron/main/index.cjs')
+const electronMainEntry = path.resolve(projectRoot, 'src/shell/index.cjs')
 const forwardedArgs = process.argv.slice(2)
 
 function terminateChild(childProcess) {

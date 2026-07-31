@@ -95,7 +95,6 @@ export async function listRemoteFiles(
   remotePath,
   runtimePaths = getRuntimePaths(),
   cancelSignal = null,
-  runCommand = defaultRunCommand,
 ) {
   const command = createRcloneCommand(runtimePaths, [
     'lsjson',
@@ -106,7 +105,7 @@ export async function listRemoteFiles(
 
   let result
   try {
-    result = await runCommand(command.command, command.args, { cancelSignal })
+    result = await defaultRunCommand(command.command, command.args, { cancelSignal })
   }
   catch (error) {
     throwInfrastructureError('rclone.command_failed', 'Failed to list remote files.', {
@@ -135,7 +134,6 @@ export async function copyFiles(
   {
     cancelSignal = null,
     onTransferProgress = null,
-    runCommand = defaultRunCommand,
   } = {},
 ) {
   return await withBatchFile(paths, async (batchFilePath) => {
@@ -159,7 +157,7 @@ export async function copyFiles(
     ])
 
     try {
-      await runCommand(command.command, command.args, {
+      await defaultRunCommand(command.command, command.args, {
         cancelSignal,
         onOutput(output) {
           const progress = parseTransferProgressFromOutput(output)
@@ -179,10 +177,7 @@ export async function deleteFiles(
   root,
   paths,
   runtimePaths,
-  {
-    cancelSignal = null,
-    runCommand = defaultRunCommand,
-  } = {},
+  cancelSignal = null,
 ) {
   return await withBatchFile(paths, async (batchFilePath) => {
     const command = createRcloneCommand(runtimePaths, [
@@ -197,7 +192,7 @@ export async function deleteFiles(
     ])
 
     try {
-      await runCommand(command.command, command.args, { cancelSignal })
+      await defaultRunCommand(command.command, command.args, { cancelSignal })
       return paths
     }
     catch (error) {
@@ -209,10 +204,7 @@ export async function deleteFiles(
 export async function cleanupEmptyDirectories(
   root,
   runtimePaths,
-  {
-    cancelSignal = null,
-    runCommand = defaultRunCommand,
-  } = {},
+  cancelSignal = null,
 ) {
   const command = createRcloneCommand(runtimePaths, [
     'rmdirs',
@@ -222,7 +214,7 @@ export async function cleanupEmptyDirectories(
     '--log-level',
     'INFO',
   ])
-  await runCommand(command.command, command.args, { cancelSignal })
+  await defaultRunCommand(command.command, command.args, { cancelSignal })
 }
 
 function isDirectoryNotFoundError(error) {
@@ -232,10 +224,7 @@ function isDirectoryNotFoundError(error) {
 export async function ensureRemoteFolder(
   remoteFolderPath,
   runtimePaths,
-  {
-    cancelSignal = null,
-    runCommand = defaultRunCommand,
-  } = {},
+  cancelSignal = null,
 ) {
   if (!remoteFolderPath)
     throwInfrastructureError('remote.folder_path_required', 'remoteFolderPath is required')
@@ -250,7 +239,7 @@ export async function ensureRemoteFolder(
   ])
 
   try {
-    await runCommand(probe.command, probe.args, { cancelSignal })
+    await defaultRunCommand(probe.command, probe.args, { cancelSignal })
     return { created: false }
   }
   catch (error) {
@@ -270,7 +259,7 @@ export async function ensureRemoteFolder(
     remoteFolderPath,
   ])
   try {
-    await runCommand(mkdir.command, mkdir.args, { cancelSignal })
+    await defaultRunCommand(mkdir.command, mkdir.args, { cancelSignal })
   }
   catch (error) {
     throwInfrastructureError(

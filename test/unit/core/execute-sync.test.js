@@ -1,76 +1,61 @@
 import assert from 'node:assert/strict'
-import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { SYNC_CANCEL_REASON, SYNC_PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { executeSync } from '#src/core/execute-sync.js'
-
-function readFirstBatchPath(args) {
-  const batchFilePath = args[args.indexOf('--files-from') + 1]
-  return fs.readFileSync(batchFilePath, 'utf8').trim().split(/\r?\n/)[0]
-}
+import { withFakeRcloneCommand } from '../../helpers/fake-rclone-command.js'
 
 test('executeSync converts apply cancellation into a cancelled result with apply metadata', async () => {
-  const abortController = new AbortController()
-  let confirmedPath = ''
-
-  const result = await executeSync({
-    mode: 'push',
-    localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
-    remoteFolderPath: 'fake-remote:compare-push',
-    runtimePaths: {
-      bundledRclonePath: path.posix.resolve('resources/binaries/rclone-osx-arm64'),
+  await withFakeRcloneCommand({
+    lsjson: { stdout: '[]' },
+    copy: {
+      stdout: 'Transferred:   1 MiB / 2 MiB, 50%, 1 MiB/s, ETA 1s\n',
+      confirmFirstPath: true,
+      delayMs: 2000,
     },
-  }, {
-    dependents: {
-      runCommand: async (_command, args) => {
-        confirmedPath = readFirstBatchPath(args)
-        const abortError = new Error('cancelled')
-        abortError.stdout = `{"level":"info","msg":"Copied (server-side copy)","object":"${confirmedPath}"}\n`
-        abortController.abort(abortError)
-        throw abortError
+  }, async ({ runtimePaths }) => {
+    const abortController = new AbortController()
+    let abortScheduled = false
+
+    const result = await executeSync({
+      mode: 'push',
+      localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
+      remoteFolderPath: 'fake-remote:compare-push',
+      runtimePaths,
+    }, {
+      events: {
+        eventListener(event) {
+          if (!abortScheduled && event.progress?.measurement) {
+            abortScheduled = true
+            setTimeout(() => abortController.abort(new Error('cancelled')), 10)
+          }
+        },
       },
-    },
-  }, abortController.signal)
+    }, abortController.signal)
 
-  assert.equal(result.result, SYNC_RESULT.CANCELLED)
-  assert.equal(result.reason, SYNC_CANCEL_REASON.ABORT_SIGNAL)
-  assert.equal(result.phase, SYNC_PHASES.APPLY_PLAN)
-  assert.ok(result.operations.length > 0)
-  assert.ok(result.operations.some(operation => (
-    operation.path === confirmedPath
-    && operation.type === 'copy'
-    && operation.synced
-  )))
+    assert.equal(result.result, SYNC_RESULT.CANCELLED)
+    assert.equal(result.reason, SYNC_CANCEL_REASON.ABORT_SIGNAL)
+    assert.equal(result.phase, SYNC_PHASES.APPLY_PLAN)
+    assert.ok(result.operations.length > 0)
+    assert.ok(result.operations.some(operation => operation.type === 'copy' && operation.synced))
+  })
 })
 
-test('executeSync returns apply operations when apply fails', async () => {
-  let confirmedPath = ''
+test('executeSync returns apply operations when the real command boundary fails', async () => {
+  await withFakeRcloneCommand({
+    lsjson: { stdout: '[]' },
+    copy: { confirmFirstPath: true, exitCode: 1 },
+  }, async ({ runtimePaths }) => {
+    const result = await executeSync({
+      mode: 'push',
+      localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
+      remoteFolderPath: 'fake-remote:compare-push',
+      runtimePaths,
+    })
 
-  const result = await executeSync({
-    mode: 'push',
-    localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
-    remoteFolderPath: 'fake-remote:compare-push',
-    runtimePaths: {
-      bundledRclonePath: path.posix.resolve('resources/binaries/rclone-osx-arm64'),
-    },
-  }, {
-    dependents: {
-      runCommand: async (_command, args) => {
-        confirmedPath = readFirstBatchPath(args)
-        const applyError = new Error('copy failed')
-        applyError.stdout = `{"level":"info","msg":"Copied (server-side copy)","object":"${confirmedPath}"}\n`
-        throw applyError
-      },
-    },
+    assert.equal(result.result, SYNC_RESULT.FAILED)
+    assert.equal(result.phase, SYNC_PHASES.APPLY_PLAN)
+    assert.match(result.message, /exited with code 1/)
+    assert.ok(result.operations.some(operation => operation.type === 'copy' && operation.synced))
   })
-
-  assert.equal(result.result, SYNC_RESULT.FAILED)
-  assert.equal(result.phase, SYNC_PHASES.APPLY_PLAN)
-  assert.equal(result.message, 'copy failed')
-  assert.ok(result.operations.some(operation => (
-    operation.path === confirmedPath
-    && operation.type === 'copy'
-    && operation.synced
-  )))
 })

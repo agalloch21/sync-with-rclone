@@ -67,15 +67,9 @@ export const SYNC_RESULT = {
  */
 
 /**
- * @typedef {object} SyncSessionDependents
- * @property {(command: string, args: string[], options?: { cancelSignal?: AbortSignal, onOutput?: (output: string) => void }) => Promise<{ stdout?: string, stderr?: string } | void>} [runCommand]
- */
-
-/**
  * @typedef {object} SyncSessionRuntime
  * @property {SyncSessionEventRuntime} [events]
  * @property {SyncSessionInteractions} [interactions]
- * @property {SyncSessionDependents} [dependents]
  */
 
 /**
@@ -110,7 +104,6 @@ export const SYNC_RESULT = {
  * @typedef {object} SyncExecutionRuntime
  * @property {SyncExecutionEventRuntime} [events]
  * @property {SyncSessionInteractions} [interactions]
- * @property {SyncSessionDependents} [dependents]
  */
 
 /**

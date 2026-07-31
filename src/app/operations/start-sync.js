@@ -22,10 +22,6 @@ function assertRuntimeContract(runtime) {
   const reviewDiff = runtime.interactions?.reviewDiff
   if (reviewDiff && typeof reviewDiff !== 'function')
     throw new TypeError('startSync runtime.interactions.reviewDiff must be a function')
-
-  const dependents = runtime.dependents || {}
-  if (dependents.runCommand && typeof dependents.runCommand !== 'function')
-    throw new TypeError('startSync runtime.dependents.runCommand must be a function')
 }
 
 function enrichFailedSessionResult(sessionResult, error, runtimePaths) {
@@ -74,10 +70,7 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
       await ensureRemoteFolder(
         resolvedContext.remoteFolderPath,
         runtimePaths,
-        {
-          cancelSignal,
-          ...(runtime.dependents?.runCommand && { runCommand: runtime.dependents.runCommand }),
-        },
+        cancelSignal,
       )
     }
 
@@ -122,7 +115,6 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
     executionResult = await executeSync(resolvedOptions, {
       events: { eventListener: phaseEventToSessionEvent },
       interactions: { reviewDiff: runtime.interactions?.reviewDiff },
-      dependents: runtime.dependents,
     }, cancelSignal)
   }
   catch (error) {

@@ -39,7 +39,7 @@ function attachExecutionSummary(error, operations, message = 'Apply failed') {
   return target
 }
 
-export async function executeSyncPlan(syncPlan, context, runtime, cancelSignal) {
+export async function executeSyncPlan(syncPlan, context, onProgress = null, cancelSignal = null) {
   if (!syncPlan || syncPlan.action !== 'confirm') {
     return {
       action: 'cancel',
@@ -62,10 +62,8 @@ export async function executeSyncPlan(syncPlan, context, runtime, cancelSignal) 
     CLEANUP: 'cleanup',
     COMPLETE: 'complete',
   }
-  const runCommand = runtime?.dependents?.runCommand
-
   function emitProgress(activity, measurement = null) {
-    runtime?.events?.progress?.({
+    onProgress?.({
       activity,
       index: Object.values(activities).indexOf(activity),
       total: Object.values(activities).length,
@@ -88,7 +86,6 @@ export async function executeSyncPlan(syncPlan, context, runtime, cancelSignal) 
           context.runtimePaths,
           {
             cancelSignal,
-            ...(runCommand && { runCommand }),
             onTransferProgress(progress) {
               emitProgress(activities.COPY, {
                 ...progress,
@@ -114,10 +111,7 @@ export async function executeSyncPlan(syncPlan, context, runtime, cancelSignal) 
           destinationRoot,
           deleteOperations.map(operation => operation.path),
           context.runtimePaths,
-          {
-            cancelSignal,
-            ...(runCommand && { runCommand }),
-          },
+          cancelSignal,
         )
         markOperationsSynced(deleteOperations, confirmedFiles)
       }
@@ -128,10 +122,7 @@ export async function executeSyncPlan(syncPlan, context, runtime, cancelSignal) 
 
       cancelSignal?.throwIfAborted()
       emitProgress(activities.CLEANUP)
-      await cleanupEmptyDirectories(destinationRoot, context.runtimePaths, {
-        cancelSignal,
-        ...(runCommand && { runCommand }),
-      })
+      await cleanupEmptyDirectories(destinationRoot, context.runtimePaths, cancelSignal)
     }
   }
   catch (error) {

@@ -22,10 +22,6 @@ function assertRuntimeContract(runtime) {
   const reviewDiff = runtime.interactions?.reviewDiff
   if (reviewDiff && typeof reviewDiff !== 'function')
     throw new TypeError('executeSync runtime.interactions.reviewDiff must be a function')
-
-  const dependents = runtime.dependents || {}
-  if (dependents.runCommand && typeof dependents.runCommand !== 'function')
-    throw new TypeError('executeSync runtime.dependents.runCommand must be a function')
 }
 
 function createPhaseReporter(emit = () => {}) {
@@ -113,7 +109,7 @@ function getDiffSummary(diffSnapshot) {
  */
 export async function executeSync(
   options,
-  runtime = { events: { eventListener: null }, interactions: { reviewDiff: null }, dependents: {} },
+  runtime = { events: { eventListener: null }, interactions: { reviewDiff: null } },
   cancelSignal = null,
 ) {
   assertRuntimeContract(runtime)
@@ -186,12 +182,12 @@ export async function executeSync(
 
     const applyResult = await runPhase(
       SYNC_PHASES.APPLY_PLAN,
-      () => executeSyncPlan(syncPlan, normalizedOptions, {
-        dependents: runtime.dependents,
-        events: {
-          progress: progress => reporter.progress(SYNC_PHASES.APPLY_PLAN, progress),
-        },
-      }, cancelSignal),
+      () => executeSyncPlan(
+        syncPlan,
+        normalizedOptions,
+        progress => reporter.progress(SYNC_PHASES.APPLY_PLAN, progress),
+        cancelSignal,
+      ),
       'Applying operations',
     )
 

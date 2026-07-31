@@ -392,9 +392,6 @@ copy 之外的示例：
   },
   interactions: {
     reviewDiff(diffSnapshot) {}
-  },
-  dependents: {
-    runCommand(command, args) {}
   }
 }
 ```
@@ -403,9 +400,10 @@ copy 之外的示例：
 
 - `events.eventListener` 是观察流，用于进度、日志和 UI 展示，不推进主流程
 - `interactions.reviewDiff` 是业务等待点，`executeSync` 必须等待它返回 `ReviewResult` 才能继续
-- `dependents.runCommand` 是 application session 向 rclone infrastructure 提供的可替换命令执行能力
+- rclone 命令执行属于 infrastructure 内部实现，不通过 synchronization runtime 注入
 - `executeSync` 会 emit `sync.phase.*` 事件，事件类型定义在 `src/core/contract.js` 的 `SYNC_PHASE_EVENT`
 - apply 阶段的 progress payload 使用 `ApplyProgress`
+- `executeSyncPlan` 通过直接的 `onProgress` callback 上报 apply progress，不使用通用 runtime wrapper
 - `executeSync` 返回 `SyncExecutionResult`，结果值定义在 `SYNC_RESULT`
 
 ### 4.7 `SyncSessionRuntime`
@@ -417,9 +415,6 @@ copy 之外的示例：
   },
   interactions: {
     reviewDiff(diffSnapshot) {}
-  },
-  dependents: {
-    runCommand(command, args) {}
   }
 }
 ```

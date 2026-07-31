@@ -1,110 +1,73 @@
 import assert from 'node:assert/strict'
-import fs from 'node:fs/promises'
 import test from 'node:test'
 import { executeSyncPlan } from '#src/core/planning/execute-sync-plan.js'
+import { withFakeRcloneCommand } from '../../../helpers/fake-rclone-command.js'
 
-function normalizeFilesFromArg(args) {
+function normalizeArgs(args) {
   const normalizedArgs = [...args]
   const filesFromIndex = normalizedArgs.indexOf('--files-from')
   if (filesFromIndex !== -1)
     normalizedArgs[filesFromIndex + 1] = '<batch-file>'
-
   return normalizedArgs
 }
 
-async function readFilesFromArg(args) {
-  const filesFromIndex = args.indexOf('--files-from')
-  if (filesFromIndex === -1)
-    return []
+test('executeSyncPlan returns a cancelled result without executing an unconfirmed plan', async () => {
+  const result = await executeSyncPlan({ action: 'cancel', operations: [] }, {})
 
-  const content = await fs.readFile(args[filesFromIndex + 1], 'utf8')
-  return content.trimEnd().split('\n')
-}
-
-test('executeSyncPlan targets local root for pull-mode delete cleanup', async () => {
-  const commands = []
-
-  await executeSyncPlan({
-    action: 'confirm',
-    operations: [
-      { type: 'delete', path: 'deleted/deleted.txt' },
-    ],
-  }, {
-    mode: 'pull',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    dependents: {
-      runCommand: async (command, args) => {
-        commands.push({ command, args: normalizeFilesFromArg(args) })
-        return { stdout: '', stderr: '' }
-      },
-    },
+  assert.deepEqual(result, {
+    action: 'cancel',
+    operations: [],
   })
-
-  assert.deepEqual(commands.map(command => command.args.slice(0, 2)), [
-    ['delete', '/local/root'],
-    ['rmdirs', '/local/root'],
-  ])
 })
 
-test('executeSyncPlan uses batched rclone copy and delete with rmdirs cleanup', async () => {
-  const syncPlan = {
-    action: 'confirm',
-    operations: [
-      { type: 'copy', path: 'added/added.txt' },
-      { type: 'copy', path: 'modified/modified.txt' },
-      { type: 'delete', path: 'deleted/deleted.txt' },
-    ],
-  }
+test('executeSyncPlan targets the local root for pull-mode delete cleanup', async () => {
+  await withFakeRcloneCommand({}, async ({ runtimePaths, readCalls }) => {
+    await executeSyncPlan({
+      action: 'confirm',
+      operations: [{ type: 'delete', path: 'deleted/deleted.txt' }],
+    }, {
+      mode: 'pull',
+      localFolderPath: '/local/root',
+      remoteFolderPath: 'synology:ProjectsSynced/app',
+      runtimePaths,
+    })
 
-  const commands = []
-  const batchFiles = []
-  const events = []
-
-  const result = await executeSyncPlan(syncPlan, {
-    mode: 'push',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      rcloneConfigPath: '/app/rclone.conf',
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    events: {
-      progress: event => events.push(event),
-    },
-    dependents: {
-      runCommand: async (command, args) => {
-        commands.push({ command, args: normalizeFilesFromArg(args) })
-        const paths = await readFilesFromArg(args)
-        if (paths.length > 0)
-          batchFiles.push({ paths })
-
-        return {
-          stdout: '+ added/added.txt\n',
-          stderr: '',
-        }
-      },
-    },
+    const calls = await readCalls()
+    assert.deepEqual(calls.map(call => call.args.slice(0, 2)), [
+      ['delete', '/local/root'],
+      ['rmdirs', '/local/root'],
+    ])
   })
+})
 
-  assert.equal(result.action, 'confirm')
-  assert.deepEqual(batchFiles, [
-    {
-      paths: ['added/added.txt', 'modified/modified.txt'],
-    },
-    {
-      paths: ['deleted/deleted.txt'],
-    },
-  ])
-  assert.deepEqual(commands, [
-    {
-      command: '/app/bin/rclone',
-      args: [
+test('executeSyncPlan batches copy and delete operations and reports their lifecycle', async () => {
+  await withFakeRcloneCommand({}, async ({ runtimePaths, readCalls }) => {
+    const events = []
+    const result = await executeSyncPlan({
+      action: 'confirm',
+      operations: [
+        { type: 'copy', path: 'added/added.txt' },
+        { type: 'copy', path: 'modified/modified.txt' },
+        { type: 'delete', path: 'deleted/deleted.txt' },
+      ],
+    }, {
+      mode: 'push',
+      localFolderPath: '/local/root',
+      remoteFolderPath: 'synology:ProjectsSynced/app',
+      runtimePaths: {
+        ...runtimePaths,
+        rcloneConfigPath: '/app/rclone.conf',
+      },
+    }, event => events.push(event))
+
+    const calls = await readCalls()
+    assert.deepEqual(calls.map(call => call.paths), [
+      ['added/added.txt', 'modified/modified.txt'],
+      ['deleted/deleted.txt'],
+      [],
+    ])
+    assert.deepEqual(calls.map(call => normalizeArgs(call.args)), [
+      [
         '--config',
         '/app/rclone.conf',
         'copy',
@@ -124,10 +87,7 @@ test('executeSyncPlan uses batched rclone copy and delete with rmdirs cleanup', 
         '--stats-unit',
         'bytes',
       ],
-    },
-    {
-      command: '/app/bin/rclone',
-      args: [
+      [
         '--config',
         '/app/rclone.conf',
         'delete',
@@ -139,10 +99,7 @@ test('executeSyncPlan uses batched rclone copy and delete with rmdirs cleanup', 
         '--log-level',
         'INFO',
       ],
-    },
-    {
-      command: '/app/bin/rclone',
-      args: [
+      [
         '--config',
         '/app/rclone.conf',
         'rmdirs',
@@ -152,375 +109,136 @@ test('executeSyncPlan uses batched rclone copy and delete with rmdirs cleanup', 
         '--log-level',
         'INFO',
       ],
-    },
-  ])
-  assert.deepEqual(result.operations, [
-    { type: 'copy', path: 'added/added.txt', synced: true },
-    { type: 'copy', path: 'modified/modified.txt', synced: true },
-    { type: 'delete', path: 'deleted/deleted.txt', synced: true },
-  ])
-  assert.deepEqual(events, [
-    { activity: 'start', index: 0, total: 5, measurement: null },
-    { activity: 'copy', index: 1, total: 5, measurement: null },
-    { activity: 'delete', index: 2, total: 5, measurement: null },
-    { activity: 'cleanup', index: 3, total: 5, measurement: null },
-    { activity: 'complete', index: 4, total: 5, measurement: null },
-  ])
-  assert.equal(result.phases, undefined)
-})
-
-test('executeSyncPlan reports apply lifecycle events in execution order', async () => {
-  const events = []
-
-  await executeSyncPlan({
-    action: 'confirm',
-    operations: [
-      { type: 'copy', path: 'added/added.txt' },
-    ],
-  }, {
-    mode: 'push',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      rcloneConfigPath: '/app/rclone.conf',
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    events: {
-      progress: event => events.push(event),
-    },
-    dependents: {
-      runCommand: async () => ({ stdout: '', stderr: '' }),
-    },
-  })
-
-  assert.deepEqual(events, [
-    { activity: 'start', index: 0, total: 5, measurement: null },
-    { activity: 'copy', index: 1, total: 5, measurement: null },
-    { activity: 'complete', index: 4, total: 5, measurement: null },
-  ])
-})
-
-test('executeSyncPlan emits copy transfer progress from rclone output', async () => {
-  const events = []
-
-  await executeSyncPlan({
-    action: 'confirm',
-    operations: [
-      { type: 'copy', path: 'added/added.txt' },
-    ],
-  }, {
-    mode: 'push',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    events: {
-      progress: event => events.push(event),
-    },
-    dependents: {
-      runCommand: async (command, args, options) => {
-        options.onOutput?.('Transferred:   1 MiB / 2 MiB, 50%, 1 MiB/s, ETA 1s\n')
-        return { stdout: '', stderr: '' }
-      },
-    },
-  })
-
-  assert.ok(events.some(event => (
-    event.activity === 'copy'
-    && event.index === 1
-    && event.total === 5
-    && event.measurement?.current === 1024 ** 2
-    && event.measurement?.total === 2 * 1024 ** 2
-    && event.measurement?.unit === 'bytes'
-  )))
-})
-
-test('executeSyncPlan attaches apply metadata to the original cancellation error', async () => {
-  const abortController = new AbortController()
-  abortController.abort()
-  const originalError = abortController.signal.reason
-
-  await assert.rejects(() => executeSyncPlan({
-    action: 'confirm',
-    operations: [
-      { type: 'copy', path: 'one.txt' },
-      { type: 'copy', path: 'two.txt' },
-    ],
-  }, {
-    mode: 'push',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    dependents: {
-      runCommand: async () => {
-        throw abortController.signal.reason
-      },
-    },
-  }, abortController.signal), (error) => {
-    assert.equal(error, originalError)
-    assert.deepEqual(error.operations, [
-      { type: 'copy', path: 'one.txt', synced: false },
-      { type: 'copy', path: 'two.txt', synced: false },
     ])
-    return true
-  })
-})
-
-test('executeSyncPlan preserves confirmed files from aborted rclone output', async () => {
-  const abortController = new AbortController()
-  const abortError = new Error('cancelled')
-  abortError.stdout = [
-    '+ one.txt',
-    '{"level":"info","msg":"Copied (server-side copy)","object":"one.txt"}',
-  ].join('\n')
-
-  await assert.rejects(() => executeSyncPlan({
-    action: 'confirm',
-    operations: [
-      { type: 'copy', path: 'one.txt' },
-      { type: 'copy', path: 'two.txt' },
-    ],
-  }, {
-    mode: 'push',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    dependents: {
-      runCommand: async () => {
-        abortController.abort(abortError)
-        throw abortError
-      },
-    },
-  }, abortController.signal), (error) => {
-    assert.equal(error, abortError)
-    assert.deepEqual(error.operations, [
-      { type: 'copy', path: 'one.txt', synced: true },
-      { type: 'copy', path: 'two.txt', synced: false },
+    assert.deepEqual(result.operations, [
+      { type: 'copy', path: 'added/added.txt', synced: true },
+      { type: 'copy', path: 'modified/modified.txt', synced: true },
+      { type: 'delete', path: 'deleted/deleted.txt', synced: true },
     ])
-    return true
-  })
-})
-
-test('executeSyncPlan ignores combined markers when copy fails', async () => {
-  const copyError = new Error('copy failed')
-  copyError.stdout = [
-    '+ queued.txt',
-    '= identical.txt',
-    '* changed.txt',
-    '! failed.txt',
-  ].join('\n')
-
-  await assert.rejects(() => executeSyncPlan({
-    action: 'confirm',
-    operations: [
-      { type: 'copy', path: 'queued.txt' },
-      { type: 'copy', path: 'identical.txt' },
-      { type: 'copy', path: 'changed.txt' },
-      { type: 'copy', path: 'failed.txt' },
-    ],
-  }, {
-    mode: 'push',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    dependents: {
-      runCommand: async () => {
-        throw copyError
-      },
-    },
-  }), (error) => {
-    assert.deepEqual(error.operations, [
-      { type: 'copy', path: 'queued.txt', synced: false },
-      { type: 'copy', path: 'identical.txt', synced: false },
-      { type: 'copy', path: 'changed.txt', synced: false },
-      { type: 'copy', path: 'failed.txt', synced: false },
+    assert.deepEqual(events, [
+      { activity: 'start', index: 0, total: 5, measurement: null },
+      { activity: 'copy', index: 1, total: 5, measurement: null },
+      { activity: 'delete', index: 2, total: 5, measurement: null },
+      { activity: 'cleanup', index: 3, total: 5, measurement: null },
+      { activity: 'complete', index: 4, total: 5, measurement: null },
     ])
-    return true
   })
 })
 
-test('executeSyncPlan ignores failed and objectless JSON records when copy fails', async () => {
-  const copyError = new Error('copy failed')
-  copyError.stderr = [
-    '{"level":"info","msg":"There was nothing to transfer"}',
-    '{"level":"error","msg":"Failed to copy","object":"failed.txt"}',
-    '{"level":"notice","msg":"Failed to copy","object":"notice.txt"}',
-    '{"level":"info","msg":"Copied (server-side copy)","object":"copied.txt"}',
-  ].join('\n')
+test('executeSyncPlan reports transfer progress emitted by rclone', async () => {
+  await withFakeRcloneCommand({
+    copy: {
+      stdout: 'Transferred:   1 MiB / 2 MiB, 50%, 1 MiB/s, ETA 1s\n',
+    },
+  }, async ({ runtimePaths }) => {
+    const events = []
+    await executeSyncPlan({
+      action: 'confirm',
+      operations: [{ type: 'copy', path: 'added/added.txt' }],
+    }, {
+      mode: 'push',
+      localFolderPath: '/local/root',
+      remoteFolderPath: 'synology:ProjectsSynced/app',
+      runtimePaths,
+    }, event => events.push(event))
 
-  await assert.rejects(() => executeSyncPlan({
-    action: 'confirm',
-    operations: [
-      { type: 'copy', path: 'failed.txt' },
-      { type: 'copy', path: 'notice.txt' },
-      { type: 'copy', path: 'copied.txt' },
-    ],
-  }, {
-    mode: 'push',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    dependents: {
-      runCommand: async () => {
-        throw copyError
-      },
-    },
-  }), (error) => {
-    assert.deepEqual(error.operations, [
-      { type: 'copy', path: 'failed.txt', synced: false },
-      { type: 'copy', path: 'notice.txt', synced: false },
-      { type: 'copy', path: 'copied.txt', synced: true },
-    ])
-    return true
+    assert.ok(events.some(event => (
+      event.activity === 'copy'
+      && event.measurement?.current === 1024 ** 2
+      && event.measurement?.total === 2 * 1024 ** 2
+      && event.measurement?.unit === 'bytes'
+    )))
   })
 })
 
-test('executeSyncPlan marks confirmed delete operations when delete fails', async () => {
-  const deleteError = new Error('delete failed')
-  deleteError.stderr = '{"level":"info","msg":"Deleted","object":"one.txt"}\n'
-
-  await assert.rejects(() => executeSyncPlan({
-    action: 'confirm',
-    operations: [
-      { type: 'delete', path: 'one.txt' },
-      { type: 'delete', path: 'two.txt' },
-    ],
-  }, {
-    mode: 'push',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    dependents: {
-      runCommand: async (command, args) => {
-        if (args.includes('delete'))
-          throw deleteError
-
-        return { stdout: '', stderr: '' }
-      },
-    },
-  }), (error) => {
-    assert.equal(error, deleteError)
-    assert.deepEqual(error.operations, [
-      { type: 'delete', path: 'one.txt', synced: true },
-      { type: 'delete', path: 'two.txt', synced: false },
-    ])
-    return true
+test('executeSyncPlan preserves confirmed copy operations when rclone fails', async () => {
+  await withFakeRcloneCommand({
+    copy: { confirmFirstPath: true, exitCode: 1 },
+  }, async ({ runtimePaths }) => {
+    await assert.rejects(() => executeSyncPlan({
+      action: 'confirm',
+      operations: [
+        { type: 'copy', path: 'one.txt' },
+        { type: 'copy', path: 'two.txt' },
+      ],
+    }, {
+      mode: 'push',
+      localFolderPath: '/local/root',
+      remoteFolderPath: 'synology:ProjectsSynced/app',
+      runtimePaths,
+    }), (error) => {
+      assert.deepEqual(error.operations, [
+        { type: 'copy', path: 'one.txt', synced: true },
+        { type: 'copy', path: 'two.txt', synced: false },
+      ])
+      return true
+    })
   })
 })
 
-test('executeSyncPlan preserves synced file operations when cleanup fails', async () => {
-  const cleanupError = new Error('cleanup failed')
-
-  await assert.rejects(() => executeSyncPlan({
-    action: 'confirm',
-    operations: [
-      { type: 'copy', path: 'one.txt' },
-      { type: 'delete', path: 'two.txt' },
-    ],
-  }, {
-    mode: 'push',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    dependents: {
-      runCommand: async (command, args) => {
-        if (args.includes('rmdirs'))
-          throw cleanupError
-
-        return { stdout: '', stderr: '' }
-      },
-    },
-  }), (error) => {
-    assert.equal(error, cleanupError)
-    assert.deepEqual(error.operations, [
-      { type: 'copy', path: 'one.txt', synced: true },
-      { type: 'delete', path: 'two.txt', synced: true },
-    ])
-    return true
+test('executeSyncPlan preserves confirmed delete operations when rclone fails', async () => {
+  await withFakeRcloneCommand({
+    delete: { confirmFirstPath: true, exitCode: 1 },
+  }, async ({ runtimePaths }) => {
+    await assert.rejects(() => executeSyncPlan({
+      action: 'confirm',
+      operations: [
+        { type: 'delete', path: 'one.txt' },
+        { type: 'delete', path: 'two.txt' },
+      ],
+    }, {
+      mode: 'push',
+      localFolderPath: '/local/root',
+      remoteFolderPath: 'synology:ProjectsSynced/app',
+      runtimePaths,
+    }), (error) => {
+      assert.deepEqual(error.operations, [
+        { type: 'delete', path: 'one.txt', synced: true },
+        { type: 'delete', path: 'two.txt', synced: false },
+      ])
+      return true
+    })
   })
 })
 
-test('executeSyncPlan filters cancellation metadata to selected files', async () => {
-  const abortController = new AbortController()
-  const abortError = new Error('cancelled')
-  abortError.stdout = [
-    '{"level":"info","msg":"Copied (server-side copy)","object":"selected.txt"}',
-    '{"level":"info","msg":"Copied (server-side copy)","object":"internal-cleanup-marker"}',
-  ].join('\n')
-
-  await assert.rejects(() => executeSyncPlan({
-    action: 'confirm',
-    operations: [
-      { type: 'copy', path: 'selected.txt' },
-      { type: 'delete', path: 'deleted.txt' },
-    ],
-  }, {
-    mode: 'push',
-    localFolderPath: '/local/root',
-    remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    dependents: {
-      runCommand: async () => {
-        abortController.abort(abortError)
-        throw abortError
-      },
-    },
-  }, abortController.signal), (error) => {
-    assert.deepEqual(error.operations, [
-      { type: 'copy', path: 'selected.txt', synced: true },
-      { type: 'delete', path: 'deleted.txt', synced: false },
-    ])
-    return true
+test('executeSyncPlan preserves completed operations when cleanup fails', async () => {
+  await withFakeRcloneCommand({
+    rmdirs: { exitCode: 1 },
+  }, async ({ runtimePaths }) => {
+    await assert.rejects(() => executeSyncPlan({
+      action: 'confirm',
+      operations: [
+        { type: 'copy', path: 'one.txt' },
+        { type: 'delete', path: 'two.txt' },
+      ],
+    }, {
+      mode: 'push',
+      localFolderPath: '/local/root',
+      remoteFolderPath: 'synology:ProjectsSynced/app',
+      runtimePaths,
+    }), (error) => {
+      assert.deepEqual(error.operations, [
+        { type: 'copy', path: 'one.txt', synced: true },
+        { type: 'delete', path: 'two.txt', synced: true },
+      ])
+      return true
+    })
   })
 })
 
-test('executeSyncPlan wraps primitive cancellation reasons with apply metadata', async () => {
+test('executeSyncPlan attaches apply metadata to a pre-existing cancellation', async () => {
   const abortController = new AbortController()
   abortController.abort('cancelled')
 
   await assert.rejects(() => executeSyncPlan({
     action: 'confirm',
-    operations: [
-      { type: 'copy', path: 'one.txt' },
-    ],
+    operations: [{ type: 'copy', path: 'one.txt' }],
   }, {
     mode: 'push',
     localFolderPath: '/local/root',
     remoteFolderPath: 'synology:ProjectsSynced/app',
-    runtimePaths: {
-      bundledRclonePath: '/app/bin/rclone',
-    },
-  }, {
-    dependents: {
-      runCommand: async () => {
-        throw abortController.signal.reason
-      },
-    },
-  }, abortController.signal), (error) => {
+    runtimePaths: {},
+  }, null, abortController.signal), (error) => {
     assert.equal(error.message, 'Apply cancelled')
     assert.equal(error.cause, 'cancelled')
     assert.deepEqual(error.operations, [

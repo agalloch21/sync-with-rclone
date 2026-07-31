@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import test from 'node:test'
-import { applySyncPlan } from '#src/app/services/sync-files-service.js'
+import { executeSyncPlan } from '#src/core/planning/execute-sync-plan.js'
 
 function normalizeFilesFromArg(args) {
   const normalizedArgs = [...args]
@@ -21,10 +21,10 @@ async function readFilesFromArg(args) {
   return content.trimEnd().split('\n')
 }
 
-test('applySyncPlan targets local root for pull-mode delete cleanup', async () => {
+test('executeSyncPlan targets local root for pull-mode delete cleanup', async () => {
   const commands = []
 
-  await applySyncPlan({
+  await executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'delete', path: 'deleted/deleted.txt' },
@@ -51,7 +51,7 @@ test('applySyncPlan targets local root for pull-mode delete cleanup', async () =
   ])
 })
 
-test('applySyncPlan uses batched rclone copy and delete with rmdirs cleanup', async () => {
+test('executeSyncPlan uses batched rclone copy and delete with rmdirs cleanup', async () => {
   const syncPlan = {
     action: 'confirm',
     operations: [
@@ -65,7 +65,7 @@ test('applySyncPlan uses batched rclone copy and delete with rmdirs cleanup', as
   const batchFiles = []
   const events = []
 
-  const result = await applySyncPlan(syncPlan, {
+  const result = await executeSyncPlan(syncPlan, {
     mode: 'push',
     localFolderPath: '/local/root',
     remoteFolderPath: 'synology:ProjectsSynced/app',
@@ -169,10 +169,10 @@ test('applySyncPlan uses batched rclone copy and delete with rmdirs cleanup', as
   assert.equal(result.phases, undefined)
 })
 
-test('applySyncPlan reports apply lifecycle events in execution order', async () => {
+test('executeSyncPlan reports apply lifecycle events in execution order', async () => {
   const events = []
 
-  await applySyncPlan({
+  await executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'copy', path: 'added/added.txt' },
@@ -201,10 +201,10 @@ test('applySyncPlan reports apply lifecycle events in execution order', async ()
   ])
 })
 
-test('applySyncPlan emits copy transfer progress from rclone output', async () => {
+test('executeSyncPlan emits copy transfer progress from rclone output', async () => {
   const events = []
 
-  await applySyncPlan({
+  await executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'copy', path: 'added/added.txt' },
@@ -238,12 +238,12 @@ test('applySyncPlan emits copy transfer progress from rclone output', async () =
   )))
 })
 
-test('applySyncPlan attaches apply metadata to the original cancellation error', async () => {
+test('executeSyncPlan attaches apply metadata to the original cancellation error', async () => {
   const abortController = new AbortController()
   abortController.abort()
   const originalError = abortController.signal.reason
 
-  await assert.rejects(() => applySyncPlan({
+  await assert.rejects(() => executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'copy', path: 'one.txt' },
@@ -272,7 +272,7 @@ test('applySyncPlan attaches apply metadata to the original cancellation error',
   })
 })
 
-test('applySyncPlan preserves confirmed files from aborted rclone output', async () => {
+test('executeSyncPlan preserves confirmed files from aborted rclone output', async () => {
   const abortController = new AbortController()
   const abortError = new Error('cancelled')
   abortError.stdout = [
@@ -280,7 +280,7 @@ test('applySyncPlan preserves confirmed files from aborted rclone output', async
     '{"level":"info","msg":"Copied (server-side copy)","object":"one.txt"}',
   ].join('\n')
 
-  await assert.rejects(() => applySyncPlan({
+  await assert.rejects(() => executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'copy', path: 'one.txt' },
@@ -310,7 +310,7 @@ test('applySyncPlan preserves confirmed files from aborted rclone output', async
   })
 })
 
-test('applySyncPlan ignores combined markers when copy fails', async () => {
+test('executeSyncPlan ignores combined markers when copy fails', async () => {
   const copyError = new Error('copy failed')
   copyError.stdout = [
     '+ queued.txt',
@@ -319,7 +319,7 @@ test('applySyncPlan ignores combined markers when copy fails', async () => {
     '! failed.txt',
   ].join('\n')
 
-  await assert.rejects(() => applySyncPlan({
+  await assert.rejects(() => executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'copy', path: 'queued.txt' },
@@ -351,7 +351,7 @@ test('applySyncPlan ignores combined markers when copy fails', async () => {
   })
 })
 
-test('applySyncPlan ignores failed and objectless JSON records when copy fails', async () => {
+test('executeSyncPlan ignores failed and objectless JSON records when copy fails', async () => {
   const copyError = new Error('copy failed')
   copyError.stderr = [
     '{"level":"info","msg":"There was nothing to transfer"}',
@@ -360,7 +360,7 @@ test('applySyncPlan ignores failed and objectless JSON records when copy fails',
     '{"level":"info","msg":"Copied (server-side copy)","object":"copied.txt"}',
   ].join('\n')
 
-  await assert.rejects(() => applySyncPlan({
+  await assert.rejects(() => executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'copy', path: 'failed.txt' },
@@ -390,11 +390,11 @@ test('applySyncPlan ignores failed and objectless JSON records when copy fails',
   })
 })
 
-test('applySyncPlan marks confirmed delete operations when delete fails', async () => {
+test('executeSyncPlan marks confirmed delete operations when delete fails', async () => {
   const deleteError = new Error('delete failed')
   deleteError.stderr = '{"level":"info","msg":"Deleted","object":"one.txt"}\n'
 
-  await assert.rejects(() => applySyncPlan({
+  await assert.rejects(() => executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'delete', path: 'one.txt' },
@@ -426,10 +426,10 @@ test('applySyncPlan marks confirmed delete operations when delete fails', async 
   })
 })
 
-test('applySyncPlan preserves synced file operations when cleanup fails', async () => {
+test('executeSyncPlan preserves synced file operations when cleanup fails', async () => {
   const cleanupError = new Error('cleanup failed')
 
-  await assert.rejects(() => applySyncPlan({
+  await assert.rejects(() => executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'copy', path: 'one.txt' },
@@ -461,7 +461,7 @@ test('applySyncPlan preserves synced file operations when cleanup fails', async 
   })
 })
 
-test('applySyncPlan filters cancellation metadata to selected files', async () => {
+test('executeSyncPlan filters cancellation metadata to selected files', async () => {
   const abortController = new AbortController()
   const abortError = new Error('cancelled')
   abortError.stdout = [
@@ -469,7 +469,7 @@ test('applySyncPlan filters cancellation metadata to selected files', async () =
     '{"level":"info","msg":"Copied (server-side copy)","object":"internal-cleanup-marker"}',
   ].join('\n')
 
-  await assert.rejects(() => applySyncPlan({
+  await assert.rejects(() => executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'copy', path: 'selected.txt' },
@@ -498,11 +498,11 @@ test('applySyncPlan filters cancellation metadata to selected files', async () =
   })
 })
 
-test('applySyncPlan wraps primitive cancellation reasons with apply metadata', async () => {
+test('executeSyncPlan wraps primitive cancellation reasons with apply metadata', async () => {
   const abortController = new AbortController()
   abortController.abort('cancelled')
 
-  await assert.rejects(() => applySyncPlan({
+  await assert.rejects(() => executeSyncPlan({
     action: 'confirm',
     operations: [
       { type: 'copy', path: 'one.txt' },

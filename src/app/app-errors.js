@@ -68,3 +68,21 @@ export function getErrorCode(error) {
 export function getErrorDetail(error) {
   return error?.detail || ''
 }
+
+export function mapInfrastructureError(error, fallbackCode = APP_ERROR_CODE.UNKNOWN, fallbackMessage = 'Operation failed.') {
+  if (error instanceof AppError)
+    return error
+
+  const appCode = Object.values(APP_ERROR_CODE).includes(error?.code)
+    ? error.code
+    : fallbackCode
+
+  return new AppError({
+    code: appCode,
+    message: error?.message || fallbackMessage,
+    detail: error?.detail,
+    meta: error?.meta,
+  }, {
+    cause: error,
+  })
+}

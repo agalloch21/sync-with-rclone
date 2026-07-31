@@ -1,5 +1,5 @@
-import { loadAppConfig, updateAppConfig } from '#src/infrastructure/configuration/app-config-store.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
+import { loadConfiguration, updateConfiguration } from './configuration-service.js'
 
 function requireConfig(config) {
   if (!config)
@@ -18,12 +18,12 @@ function findTaskIndex(tasks, task) {
 }
 
 export async function listTasks() {
-  const config = await loadAppConfig()
+  const config = await loadConfiguration()
   return config?.syncTasks
 }
 
 export async function createTask(task) {
-  const savedConfig = await updateAppConfig((loadedConfig) => {
+  const savedConfig = await updateConfiguration((loadedConfig) => {
     const config = requireConfig(loadedConfig)
     if (findTaskIndex(config.syncTasks, task) !== -1) {
       throwAppError(APP_ERROR_CODE.SYNC_TASK_ALREADY_EXISTS, 'A sync task already uses this server and local folder.', {
@@ -45,7 +45,7 @@ export async function createTask(task) {
 
 export async function updateTask(task, expectedTask) {
   let taskIndex
-  const savedConfig = await updateAppConfig((loadedConfig) => {
+  const savedConfig = await updateConfiguration((loadedConfig) => {
     const config = requireConfig(loadedConfig)
     taskIndex = findTaskIndex(config.syncTasks, task)
     if (taskIndex === -1) {
@@ -81,7 +81,7 @@ export async function updateTask(task, expectedTask) {
 
 export async function updateTaskIgnorePatterns(task, ignorePatterns) {
   let taskIndex
-  const savedConfig = await updateAppConfig((loadedConfig) => {
+  const savedConfig = await updateConfiguration((loadedConfig) => {
     const config = requireConfig(loadedConfig)
     taskIndex = findTaskIndex(config.syncTasks, task)
     if (taskIndex === -1) {
@@ -106,7 +106,7 @@ export async function updateTaskIgnorePatterns(task, ignorePatterns) {
 }
 
 export async function retargetTasks(serverName, expectedServerName) {
-  const savedConfig = await updateAppConfig((loadedConfig) => {
+  const savedConfig = await updateConfiguration((loadedConfig) => {
     const config = requireConfig(loadedConfig)
     const nextTasks = config.syncTasks.map(task => task.rcloneRemote === serverName
       ? { ...task, rcloneRemote: expectedServerName }
@@ -126,7 +126,7 @@ export async function retargetTasks(serverName, expectedServerName) {
 
 export async function deleteTask(task) {
   let deletedTask
-  await updateAppConfig((loadedConfig) => {
+  await updateConfiguration((loadedConfig) => {
     const config = requireConfig(loadedConfig)
     const taskIndex = findTaskIndex(config.syncTasks, task)
     if (taskIndex === -1) {

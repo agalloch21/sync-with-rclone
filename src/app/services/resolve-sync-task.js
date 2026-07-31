@@ -1,6 +1,6 @@
 import path from 'node:path'
-import { resolveLocalDirectoryPath, trimTrailingSlash } from '#src/infrastructure/filesystem/local-path.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
+import { resolveLocalDirectoryPath, trimTrailingSlash } from './local-path-service.js'
 
 function buildRemoteRoot(syncTask) {
   return `${syncTask.rcloneRemote}:${trimTrailingSlash(syncTask.remoteBasePath)}`

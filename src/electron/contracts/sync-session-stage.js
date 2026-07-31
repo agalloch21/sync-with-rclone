@@ -1,4 +1,4 @@
-import { SYNC_PHASES } from '#src/app/sync-session/contract.js'
+import { SYNC_PHASES } from '#src/core/contract.js'
 
 export const SYNC_SESSION_STAGE = {
   ANALYZE: 'analyze',

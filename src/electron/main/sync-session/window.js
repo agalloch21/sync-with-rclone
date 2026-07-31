@@ -1,8 +1,8 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SYNC_SESSION_EVENT } from '#src/app/sync-session/contract.js'
-import { serializeDiffSnapshot } from '#src/app/sync-session/serialize-diff-snapshot.js'
+import { SYNC_SESSION_EVENT } from '#src/app/operations/sync-operation-contract.js'
+import { serializeDiffSnapshot } from '#src/app/services/sync-review-service.js'
 import { getSyncSessionStageForPhase, SYNC_SESSION_STAGE } from '#src/electron/contracts/sync-session-stage.js'
 import { loadRendererEntry } from '../renderer-entry.js'
 

@@ -10,7 +10,7 @@ import * as settingsOperations from './operations/settings-operations.js'
 import { SYNC_TASK_OPERATION } from './operations/task-operation-contract.js'
 import * as taskOperations from './operations/task-operations.js'
 
-export { startSync } from './sync-session/start-sync.js'
+export { startSync } from './operations/start-sync.js'
 
 //* ========================================== Queries ========================================*/
 // Queries only read and return application state; they do not report progress or publish updates.

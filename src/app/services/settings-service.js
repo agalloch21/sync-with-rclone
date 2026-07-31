@@ -1,13 +1,13 @@
-import { loadAppConfig, updateAppConfig } from '#src/infrastructure/configuration/app-config-store.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
+import { loadConfiguration, updateConfiguration } from './configuration-service.js'
 
 export async function listGlobalIgnorePatterns() {
-  const config = await loadAppConfig()
+  const config = await loadConfiguration()
   return config?.globalIgnorePatterns || []
 }
 
 export async function saveGlobalIgnorePatterns(ignorePatterns) {
-  const savedConfig = await updateAppConfig((loadedConfig) => {
+  const savedConfig = await updateConfiguration((loadedConfig) => {
     if (!loadedConfig)
       throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Sync configuration does not exist.')
 

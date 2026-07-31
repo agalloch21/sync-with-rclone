@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { normalizeLocalPath } from '#src/infrastructure/filesystem/local-path.js'
+import { throwInfrastructureError } from '#src/infrastructure/infrastructure-error.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 
 const updatingConfigPaths = new Set()
@@ -91,8 +91,8 @@ export async function loadAppConfig(configPath = getDefaultAppConfigPath()) {
     if (error?.code === 'ENOENT')
       return null
 
-    throwAppError(
-      APP_ERROR_CODE.CONFIG_LOAD_FAILED,
+    throwInfrastructureError(
+      'config.load_failed',
       `Failed to load config from ${configPath}: ${error.message}`,
       { cause: error },
     )
@@ -124,8 +124,8 @@ async function saveAppConfig(config, runtimePaths = getRuntimePaths()) {
 export async function updateAppConfig(mutator, runtimePaths = getRuntimePaths()) {
   const configPath = runtimePaths.configPath
   if (updatingConfigPaths.has(configPath)) {
-    throwAppError(
-      APP_ERROR_CODE.CONFIG_UPDATE_IN_PROGRESS,
+    throwInfrastructureError(
+      'config.update_in_progress',
       'Another configuration update is already in progress.',
       { meta: { configPath } },
     )

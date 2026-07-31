@@ -2,14 +2,14 @@
 /** @typedef {import('./contract.js').SyncExecutionResult} SyncExecutionResult */
 /** @typedef {import('./contract.js').SyncExecutionRuntime} SyncExecutionRuntime */
 
-import { buildSyncPlan } from '#src/domain/synchronization/build-sync-plan.js'
-import { compareSnapshots } from '#src/domain/synchronization/compare-snapshots.js'
+import { SYNC_CANCEL_REASON, SYNC_PHASE_EVENT, SYNC_PHASES, SYNC_RESULT, SYNC_REVIEW_ACTION } from './contract.js'
+import { buildSyncPlan } from './planning/build-sync-plan.js'
+import { executeSyncPlan } from './planning/execute-sync-plan.js'
 import {
-  applySyncPlan,
   buildLocalSnapshot,
   buildRemoteSnapshot,
-} from '../services/sync-files-service.js'
-import { SYNC_CANCEL_REASON, SYNC_PHASE_EVENT, SYNC_PHASES, SYNC_RESULT, SYNC_REVIEW_ACTION } from './contract.js'
+} from './snapshots/acquire-snapshots.js'
+import { compareSnapshots } from './snapshots/compare-snapshots.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
@@ -186,7 +186,7 @@ export async function executeSync(
 
     const applyResult = await runPhase(
       SYNC_PHASES.APPLY_PLAN,
-      () => applySyncPlan(syncPlan, normalizedOptions, {
+      () => executeSyncPlan(syncPlan, normalizedOptions, {
         dependents: runtime.dependents,
         events: {
           progress: progress => reporter.progress(SYNC_PHASES.APPLY_PLAN, progress),

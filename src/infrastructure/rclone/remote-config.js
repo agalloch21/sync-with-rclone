@@ -1,4 +1,4 @@
-import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
+import { throwInfrastructureError } from '#src/infrastructure/infrastructure-error.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import { createRcloneCommand, runCommand } from './rclone-command.js'
 
@@ -10,7 +10,7 @@ function parseConfigDump(stdout) {
     return JSON.parse(stdout)
   }
   catch (error) {
-    throwAppError(APP_ERROR_CODE.RCLONE_PARSE_FAILED, 'Failed to parse rclone config.', {
+    throwInfrastructureError('rclone.parse_failed', 'Failed to parse rclone config.', {
       detail: 'rclone config dump returned invalid JSON.',
       cause: error,
     })
@@ -30,7 +30,7 @@ async function runRcloneConfigCommand(command, message, meta = {}) {
     return await runCommand(command.command, command.args)
   }
   catch (error) {
-    throwAppError(APP_ERROR_CODE.RCLONE_COMMAND_FAILED, message, {
+    throwInfrastructureError('rclone.command_failed', message, {
       detail: getCommandErrorDetail(error),
       cause: error,
       meta,

@@ -1,33 +1,12 @@
-import { buildSnapshot } from '#src/domain/synchronization/build-snapshot.js'
-import {
-  createSyncOperations,
-  markOperationsSynced,
-} from '#src/domain/synchronization/sync-plan-result.js'
-import { listLocalFiles } from '#src/infrastructure/filesystem/local-files.js'
 import {
   cleanupEmptyDirectories,
   copyFiles,
   deleteFiles,
-  ensureRemoteFolder as ensureRemoteFolderThroughAdapter,
-  listRemoteFiles,
 } from '#src/infrastructure/rclone/remote-files.js'
-
-export async function buildLocalSnapshot(rootPath, extraPatterns = []) {
-  const fileEntries = await listLocalFiles(rootPath, extraPatterns)
-  return buildSnapshot(rootPath, fileEntries)
-}
-
-export async function buildRemoteSnapshot(remotePath, runtimePaths, cancelSignal = null) {
-  const fileEntries = await listRemoteFiles(remotePath, runtimePaths, cancelSignal)
-  return buildSnapshot(remotePath, fileEntries)
-}
-
-export async function ensureRemoteFolder(remoteFolderPath, runtimePaths, runtime = {}, cancelSignal = null) {
-  return await ensureRemoteFolderThroughAdapter(remoteFolderPath, runtimePaths, {
-    cancelSignal,
-    ...(runtime?.dependents?.runCommand && { runCommand: runtime.dependents.runCommand }),
-  })
-}
+import {
+  createSyncOperations,
+  markOperationsSynced,
+} from './sync-plan-result.js'
 
 function getApplyRoots(mode, localFolderPath, remoteFolderPath) {
   if (mode === 'push') {
@@ -60,7 +39,7 @@ function attachExecutionSummary(error, operations, message = 'Apply failed') {
   return target
 }
 
-export async function applySyncPlan(syncPlan, context, runtime, cancelSignal) {
+export async function executeSyncPlan(syncPlan, context, runtime, cancelSignal) {
   if (!syncPlan || syncPlan.action !== 'confirm') {
     return {
       action: 'cancel',

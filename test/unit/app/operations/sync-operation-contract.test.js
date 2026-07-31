@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
-  SYNC_PHASE_EVENT,
   SYNC_SESSION_EVENT,
-} from '#src/app/sync-session/contract.js'
+} from '#src/app/operations/sync-operation-contract.js'
+import { SYNC_PHASE_EVENT } from '#src/core/contract.js'
 
 test('sync phase event names use the sync.phase namespace', () => {
   assert.deepEqual(SYNC_PHASE_EVENT, {

@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
   createSyncOperations,
   markOperationsSynced,
-} from '#src/domain/synchronization/sync-plan-result.js'
+} from '#src/core/planning/sync-plan-result.js'
 
 test('sync plan result tracks only executable operations and marks confirmed paths', () => {
   const operations = createSyncOperations({

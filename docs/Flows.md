@@ -321,7 +321,7 @@ sequenceDiagram
 关键点：
 
 - Quick Action 启动不主动创建主窗口。
-- Main window is created directly by `desktop-application.js`; sync-session uses a controller because it must bridge a long-running application use case with an interactive window.
+- Main window is created directly by `desktop-application.js`; the Electron sync-session uses a controller because it must bridge the long-running `startSync` application operation with an interactive window.
 - 每个 session 的 progress channel 独立，history 不持久化 progress sample。
 - 关闭主窗口不会终止 session；没有窗口且没有活跃 session 时应用退出。
 - session 失败页只在 `quick-actions.log` 存在时提供文件定位入口，不创建或导航主窗口。

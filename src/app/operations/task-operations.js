@@ -1,5 +1,5 @@
-import { normalizeLocalPath, resolveLocalDirectoryPath, trimTrailingSlash } from '#src/infrastructure/filesystem/local-path.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
+import { normalizeLocalPath, resolveLocalDirectoryPath, trimTrailingSlash } from '../services/local-path-service.js'
 import * as taskService from '../services/task-service.js'
 import {
   SYNC_TASK_DELETE_PROGRESS_STEP,

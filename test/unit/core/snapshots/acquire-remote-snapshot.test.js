@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildRemoteSnapshot } from '#src/app/services/sync-files-service.js'
+import { buildRemoteSnapshot } from '#src/core/snapshots/acquire-snapshots.js'
 
 const REMOTE_NAME = 'fake-remote'
 

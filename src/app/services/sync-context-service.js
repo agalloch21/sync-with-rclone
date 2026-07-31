@@ -1,6 +1,6 @@
-import { resolveLocalDirectoryPath } from '#src/infrastructure/filesystem/local-path.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
-import { loadConfiguration } from '../services/configuration-service.js'
+import { loadConfiguration } from './configuration-service.js'
+import { resolveLocalDirectoryPath } from './local-path-service.js'
 import { resolveSyncTask } from './resolve-sync-task.js'
 
 export async function resolveSyncContext(options, runtimePaths = getRuntimePaths()) {

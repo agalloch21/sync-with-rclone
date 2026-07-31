@@ -1,5 +1,5 @@
 <script setup>
-import { SYNC_PHASES } from '#src/app/sync-session/contract.js'
+import { SYNC_PHASES } from '#src/core/contract.js'
 import { SYNC_SESSION_STAGE } from '#src/electron/contracts/sync-session-stage.js'
 import { computed, inject } from 'vue'
 

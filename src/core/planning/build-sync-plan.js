@@ -1,4 +1,4 @@
-import { DiffState } from './snapshot.js'
+import { DiffState } from '../snapshots/snapshot.js'
 
 function isPathSelected(entryPath, selectedPathSet) {
   for (const selectedPath of selectedPathSet) {

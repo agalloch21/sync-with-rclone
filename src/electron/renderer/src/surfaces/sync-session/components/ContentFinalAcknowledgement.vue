@@ -1,5 +1,5 @@
 <script setup>
-import { SYNC_RESULT } from '#src/app/sync-session/contract.js'
+import { SYNC_RESULT } from '#src/core/contract.js'
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 

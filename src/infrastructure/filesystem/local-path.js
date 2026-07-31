@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
+import { throwInfrastructureError } from '#src/infrastructure/infrastructure-error.js'
 
 export function normalizeLocalPath(inputPath) {
   return inputPath
@@ -24,7 +24,7 @@ export function expandHomeDir(inputPath) {
 
 export function resolveLocalDirectoryPath(inputPath) {
   if (!inputPath)
-    throwAppError(APP_ERROR_CODE.PATH_EMPTY, 'Path can not be empty')
+    throwInfrastructureError('path.empty', 'Path can not be empty')
 
   const expandedPath = expandHomeDir(inputPath)
   const absolutePath = trimTrailingSlash(normalizeLocalPath(path.resolve(expandedPath)))
@@ -35,12 +35,12 @@ export function resolveLocalDirectoryPath(inputPath) {
   }
   catch (error) {
     if (error.code === 'ENOENT')
-      throwAppError(APP_ERROR_CODE.PATH_NOT_FOUND, `Path does not exist: ${absolutePath}`, { cause: error })
+      throwInfrastructureError('path.not_found', `Path does not exist: ${absolutePath}`, { cause: error })
     throw error
   }
 
   if (stat == null || stat.isDirectory() === false)
-    throwAppError(APP_ERROR_CODE.PATH_NOT_DIRECTORY, `Expected a directory path, got: ${absolutePath}`)
+    throwInfrastructureError('path.not_directory', `Expected a directory path, got: ${absolutePath}`)
 
   return absolutePath
 }

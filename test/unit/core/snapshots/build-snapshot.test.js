@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildSnapshot } from '#src/domain/synchronization/build-snapshot.js'
+import { buildSnapshot } from '#src/core/snapshots/build-snapshot.js'
 
 test('buildSnapshot creates a sorted serializable snapshot from neutral file entries', () => {
   const snapshot = buildSnapshot('root', [

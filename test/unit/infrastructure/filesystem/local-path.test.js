@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { expandHomeDir, resolveLocalDirectoryPath } from '#src/infrastructure/filesystem/local-path.js'
 
 test('expandHomeDir expands ~ to the user home directory', () => {
@@ -13,8 +12,8 @@ test('expandHomeDir expands ~ to the user home directory', () => {
 
 test('resolveLocalDirectoryPath validates and resolves local directory input', () => {
   assert.throws(() => resolveLocalDirectoryPath(''), {
-    name: 'AppError',
-    code: APP_ERROR_CODE.PATH_EMPTY,
+    name: 'InfrastructureError',
+    code: 'path.empty',
   })
 
   const pwdPath = path.resolve('./')
@@ -25,12 +24,12 @@ test('resolveLocalDirectoryPath validates and resolves local directory input', (
   assert.equal(resolveLocalDirectoryPath(`${relativePath}\\`), targetPath)
 
   assert.throws(() => resolveLocalDirectoryPath(path.resolve('test/fixtures/path-not-exsit')), {
-    name: 'AppError',
-    code: APP_ERROR_CODE.PATH_NOT_FOUND,
+    name: 'InfrastructureError',
+    code: 'path.not_found',
   })
   assert.throws(() => resolveLocalDirectoryPath(path.resolve('test/fixtures/local/basic/.gitignore')), {
-    name: 'AppError',
-    code: APP_ERROR_CODE.PATH_NOT_DIRECTORY,
+    name: 'InfrastructureError',
+    code: 'path.not_directory',
   })
 })
 

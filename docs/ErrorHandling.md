@@ -20,10 +20,14 @@ UI -> IPC -> Electron Main window handler -> app operations -> server/task opera
 内部应用层使用 typed error，IPC 边界统一转换为 operation result。
 
 ```text
-app/server/task/rclone 层:
+app 层:
   成功时返回正常 value
   预期内失败时 throw AppError
   非预期失败时允许原始 error 抛出
+
+core / infrastructure 层:
+  抛出原始 Error 或 neutral InfrastructureError
+  不导入或构造 AppError
 
 window handler / IPC 边界:
   try/catch app operation
@@ -191,16 +195,18 @@ App operation 不应该返回 `{ success, error }` 给内部调用者；它成�
 
 如果 server operation 内部需要调用 rclone，它可以隐藏 rclone/remote 术语，对上层暴露 app 语言，例如 `createServerConnection`、`updateServerConnection`。
 
-### rclone / config adapters
+### Core 与 infrastructure adapters
 
-Adapter 层负责接近外部系统或文件格式的校验与错误转换：
+Core 负责同步流程和同步规则；adapter 层负责接近外部系统或文件格式的事实与技术失败：
 
 - rclone remote 是否存在。
 - rclone remote 名称是否冲突。
 - rclone 命令失败。
 - config 文件解析失败或写入失败。
 
-外部系统返回的错误可以包装成 `AppError`，并把调试信息放进 `meta`。不要把密码、token、private key 或完整连接凭据放入 `meta`。
+Infrastructure 可以把外部失败包装成 neutral `InfrastructureError`，保留稳定技术 code、detail、meta 和 cause，但不能依赖 `app-errors.js`。Application service 或 operation 在拥有用户意图上下文时再把它映射成 `AppError`。不要把密码、token、private key 或完整连接凭据放入 `meta`。
+
+当 app 与 core 需要同一个外部能力时，优先把可复用的技术 action 放在 infrastructure。若 core 看似需要 app service，应先判断需要的是可下沉的外部 action、应留在 core 的纯同步规则，还是应在进入 core 前由 app 解析的 policy；只有生产架构确实需要替换实现时才增加窄 port。
 
 ## 6. IPC OperationResult
 

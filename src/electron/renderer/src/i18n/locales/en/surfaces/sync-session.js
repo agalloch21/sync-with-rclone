@@ -1,4 +1,4 @@
-import { SYNC_PHASES, SYNC_RESULT } from '#src/app/sync-session/contract.js'
+import { SYNC_PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { SYNC_SESSION_STAGE } from '#src/electron/contracts/sync-session-stage.js'
 
 const syncSession = {

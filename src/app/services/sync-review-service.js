@@ -1,6 +1,6 @@
-/** @typedef {import('#src/domain/synchronization/snapshot.js').DiffSnapshot} DiffSnapshot */
+/** @typedef {import('#src/core/snapshots/snapshot.js').DiffSnapshot} DiffSnapshot */
 
-import { getDiffStateStr } from '#src/domain/synchronization/snapshot.js'
+import { getDiffStateStr } from '#src/core/snapshots/snapshot.js'
 
 function createDirNode(name, dirPath) {
   return {

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
-import { SYNC_CANCEL_REASON, SYNC_PHASES, SYNC_RESULT } from '#src/app/sync-session/contract.js'
-import { executeSync } from '#src/app/sync-session/execute-sync.js'
+import { SYNC_CANCEL_REASON, SYNC_PHASES, SYNC_RESULT } from '#src/core/contract.js'
+import { executeSync } from '#src/core/execute-sync.js'
 
 function readFirstBatchPath(args) {
   const batchFilePath = args[args.indexOf('--files-from') + 1]

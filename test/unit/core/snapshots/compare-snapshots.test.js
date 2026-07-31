@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { compareSnapshots } from '#src/domain/synchronization/compare-snapshots.js'
-import { createEmptySnapshot, DiffState } from '#src/domain/synchronization/snapshot.js'
+import { compareSnapshots } from '#src/core/snapshots/compare-snapshots.js'
+import { createEmptySnapshot, DiffState } from '#src/core/snapshots/snapshot.js'
 
 test('compareSnapshots treats one-second mtime precision differences as unchanged when size is equal', () => {
   const srcSnapshot = createEmptySnapshot('/src-root')

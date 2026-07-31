@@ -1,15 +1,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { executeSync } from '#src/core/execute-sync.js'
+import { ensureRemoteFolder } from '#src/infrastructure/rclone/remote-files.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
-import { getErrorCode, getErrorDetail } from '../app-errors.js'
+import { getErrorCode, getErrorDetail, mapInfrastructureError } from '../app-errors.js'
+import { resolveSyncContext } from '../services/sync-context-service.js'
 import {
   OPERATION_HISTORY_STATUS,
   runOperationWithHistory,
-} from '../operations/operation-history.js'
-import { ensureRemoteFolder } from '../services/sync-files-service.js'
-import { SYNC_PHASE_EVENT, SYNC_RESULT, SYNC_SESSION_EVENT, SYNC_SESSION_OPERATION } from './contract.js'
-import { executeSync } from './execute-sync.js'
-import { resolveSyncContext } from './resolve-sync-context.js'
+} from './operation-history.js'
+import { SYNC_PHASE_EVENT, SYNC_RESULT, SYNC_SESSION_EVENT, SYNC_SESSION_OPERATION } from './sync-operation-contract.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
@@ -41,6 +41,12 @@ function enrichFailedSessionResult(sessionResult, error, runtimePaths) {
   return sessionResult
 }
 
+function toApplicationError(error) {
+  if (typeof error?.code === 'string')
+    return mapInfrastructureError(error)
+  return error
+}
+
 async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepared = null) {
   assertRuntimeContract(runtime)
 
@@ -68,8 +74,10 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
       await ensureRemoteFolder(
         resolvedContext.remoteFolderPath,
         runtimePaths,
-        runtime,
-        cancelSignal,
+        {
+          cancelSignal,
+          ...(runtime.dependents?.runCommand && { runCommand: runtime.dependents.runCommand }),
+        },
       )
     }
 
@@ -79,12 +87,13 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
     })
   }
   catch (error) {
+    const applicationError = toApplicationError(error)
     const sessionResult = enrichFailedSessionResult({
       result: SYNC_RESULT.FAILED,
-      message: error?.message || String(error),
+      message: applicationError?.message || String(applicationError),
       context: resolvedContext,
-      error,
-    }, error, runtimePaths)
+      error: applicationError,
+    }, applicationError, runtimePaths)
     emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
 
     return sessionResult
@@ -117,12 +126,13 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
     }, cancelSignal)
   }
   catch (error) {
+    const applicationError = toApplicationError(error)
     const sessionResult = enrichFailedSessionResult({
       result: SYNC_RESULT.FAILED,
-      message: error?.message || String(error),
+      message: applicationError?.message || String(applicationError),
       context: resolvedContext,
-      error,
-    }, error, runtimePaths)
+      error: applicationError,
+    }, applicationError, runtimePaths)
     emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
 
     return sessionResult
@@ -132,8 +142,11 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
     context: resolvedContext,
     ...executionResult,
   }
-  if (sessionResult.result === SYNC_RESULT.FAILED)
+  if (sessionResult.result === SYNC_RESULT.FAILED) {
+    sessionResult.error = toApplicationError(sessionResult.error)
+    sessionResult.message = sessionResult.error?.message || sessionResult.message
     enrichFailedSessionResult(sessionResult, sessionResult.error, runtimePaths)
+  }
 
   emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
 

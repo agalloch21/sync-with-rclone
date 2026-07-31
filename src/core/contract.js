@@ -32,27 +32,6 @@ export const SYNC_RESULT = {
   FAILED: 'failed',
 }
 
-export const SYNC_SESSION_EVENT = {
-  STARTED: 'sync.session.started',
-  CONTEXT_RESOLVED: 'sync.session.context-resolved',
-  PROGRESS: 'sync.session.progress',
-  RESULT: 'sync.session.result',
-}
-
-export const SYNC_SESSION_OPERATION = {
-  PUSH: 'syncPush',
-  PULL: 'syncPull',
-  UNKNOWN: 'sync',
-}
-
-/**
- * @typedef {object} AppSyncOptions
- * @property {'push' | 'pull'} mode
- * @property {string} localFolderPath
- * @property {string} [remoteFolderPath]
- * @property {boolean} [bypassConfig]
- */
-
 /**
  * @typedef {object} SyncSessionContext
  * @property {'push' | 'pull'} mode
@@ -72,7 +51,7 @@ export const SYNC_SESSION_OPERATION = {
 
 /**
  * @typedef {object} SyncSessionInteractions
- * @property {(diffSnapshot: import('#src/domain/synchronization/snapshot.js').DiffSnapshot) => Promise<ReviewResult>} [reviewDiff]
+ * @property {(diffSnapshot: import('./snapshots/snapshot.js').DiffSnapshot) => Promise<ReviewResult>} [reviewDiff]
  */
 
 /**
@@ -97,17 +76,6 @@ export const SYNC_SESSION_OPERATION = {
  * @property {SyncSessionEventRuntime} [events]
  * @property {SyncSessionInteractions} [interactions]
  * @property {SyncSessionDependents} [dependents]
- */
-
-/**
- * @typedef {object} SyncSessionStartedEvent
- * @property {'sync.session.started'} type
- */
-
-/**
- * @typedef {object} SyncSessionContextResolvedEvent
- * @property {'sync.session.context-resolved'} type
- * @property {SyncSessionContext} context
  */
 
 /**
@@ -146,14 +114,6 @@ export const SYNC_SESSION_OPERATION = {
  */
 
 /**
- * @typedef {object} SyncSessionProgressEvent
- * @property {'sync.session.progress'} type
- * @property {string} phase
- * @property {string} message
- * @property {SyncSessionApplyProgress} [progress]
- */
-
-/**
  * @typedef {object} SyncExecutionCompletedResult
  * @property {'completed'} result
  * @property {{ added: number, modified: number, deleted: number }} summary
@@ -180,43 +140,4 @@ export const SYNC_SESSION_OPERATION = {
 
 /**
  * @typedef {SyncExecutionCompletedResult | SyncExecutionCancelledResult | SyncExecutionFailedResult} SyncExecutionResult
- */
-
-/**
- * @typedef {SyncExecutionCompletedResult & { context: SyncSessionContext }} SyncSessionCompletedResult
- */
-
-/**
- * @typedef {SyncExecutionCancelledResult & { context: SyncSessionContext }} SyncSessionCancelledResult
- */
-
-/**
- * @typedef {object} SyncSessionFailedResult
- * @property {'failed'} result
- * @property {string} message
- * @property {string} [errorCode]
- * @property {object} [errorDetails]
- * @property {string} [logPath]
- * @property {SyncSessionContext | null} context
- * @property {unknown} error
- */
-
-/**
- * @typedef {SyncSessionCompletedResult | SyncSessionCancelledResult | SyncSessionFailedResult} SyncSessionResult
- */
-
-/**
- * @typedef {object} SyncSessionResultEvent
- * @property {'sync.session.result'} type
- * @property {'completed' | 'cancelled' | 'failed'} result
- * @property {SyncSessionContext | null} context
- */
-
-/**
- * @typedef {
- *   SyncSessionStartedEvent |
- *   SyncSessionContextResolvedEvent |
- *   SyncSessionProgressEvent |
- *   SyncSessionResultEvent
- * } SyncSessionEvent
  */

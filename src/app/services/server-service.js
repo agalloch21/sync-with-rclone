@@ -1,7 +1,8 @@
 import * as remoteConfig from '#src/infrastructure/rclone/remote-config.js'
-import { listRemoteFolders } from '#src/infrastructure/rclone/remote-files.js'
+import { listRemoteFolderEntries } from '#src/infrastructure/rclone/remote-files.js'
 import { APP_ERROR_CODE, getErrorCode, throwAppError } from '../app-errors.js'
 import { getProtocolDefinition, validateProtocolForm } from '../configuration/protocol-registry.js'
+import { buildServerFolderTree } from './server-folder-tree.js'
 
 function throwInvalidRemote(detail, fields = null, meta = {}) {
   throwAppError(APP_ERROR_CODE.RCLONE_INVALID_REMOTE, 'Invalid rclone remote.', {
@@ -161,7 +162,8 @@ export function buildEmptyServer(name) {
 export async function getServerFolderTree(name, folderPath = '') {
   const serverName = normalizeName(name)
   try {
-    return await listRemoteFolders(serverName, folderPath)
+    const entries = await listRemoteFolderEntries(serverName, folderPath)
+    return buildServerFolderTree(serverName, entries, folderPath)
   }
   catch (error) {
     throwServerErrorFromAdapter(error, 'Failed to list server folders.', { name, folderPath })

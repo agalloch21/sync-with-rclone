@@ -6,7 +6,7 @@
 
 - `shell`
 - `app`
-- `domain`
+- `core`
 - `infrastructure`
 - `rclone`
 
@@ -15,18 +15,20 @@
 sequenceDiagram
   participant U as 用户 / 系统右键菜单
   participant S as CLI / Electron Shell
-  participant A as App / Sync Session
-  participant D as Synchronization Domain
+  participant A as App Operations / Services
+  participant C as Sync Core
   participant I as Infrastructure
   participant RC as rclone Process
 
   U->>S: 触发动作并传入路径
-  S->>A: 请求开始同步
-  A->>I: 通过 application services 扫描本地和远端
+  S->>A: 调用 startSync
+  A->>C: 传入已解析的同步上下文
+  C->>I: 扫描本地和远端 / 执行文件动作
   I->>RC: 扫描远端 / 执行同步
   RC-->>I: 返回结果
-  I-->>A: 返回 neutral file entries / action results
-  A->>D: 比较 Snapshot / 构建 SyncPlan
+  I-->>C: 返回 neutral entries / action results
+  C->>C: Snapshot / Diff / SyncPlan / apply
+  C-->>A: 返回 SyncExecutionResult
   A-->>S: 返回可展示结果
 ```
 
@@ -34,9 +36,9 @@ sequenceDiagram
 
 - `electron` 是当前桌面壳层
 - `cli` 是当前保留的命令行壳层
-- `app/sync-session` 拥有从 context resolution 到最终结果的同步会话生命周期，并通过 `executeSync` 执行已解析的同步流程
-- `app/services` 是 operations / sync-session 与具体配置、文件系统、rclone 实现之间的 capability layer
-- `domain/synchronization` 保存不依赖 shell、文件系统或 rclone 的同步模型和规则
+- `app/operations/start-sync.js` 拥有同步请求的 application lifecycle：history、context resolution、session events 和最终结果
+- `app/services` 为普通资源 operations 与 startSync 提供配置、路径、server/task 等 application capabilities
+- `core` 是完整同步工作模块：拥有 Snapshot、Diff、SyncPlan 和已解析同步的执行流程
 - `infrastructure/filesystem` 负责读取本地文件系统并返回 neutral file entries
 - `infrastructure/rclone` 负责 raw rclone config、远端 file entries 和 copy/delete/cleanup actions
 
@@ -47,13 +49,15 @@ sequenceDiagram
 src/           // 运行时代码
   app/         // shell-neutral application use cases 和编排
     events/    // shell-neutral application notifications
-    operations/ // query/command 生命周期、progress 和 resource operation contract
-    services/  // server/task/settings/configuration/file capabilities；隐藏 concrete adapters
-    sync-session/ // 同步会话生命周期、同步执行、统一 contract 和 review serialization
+    operations/ // user-intent operations、生命周期和 operation contracts；包含 start-sync
+    services/  // server/task/settings/configuration/context/review capabilities
   command-line/ // 可执行文件的启动分发、命令名和同步参数语法
   cli/         // CLI入口、终端review和终端输出
-  domain/
-    synchronization/ // Snapshot 构建、Diff、SyncPlan 和 apply-result rules
+  core/        // 独立同步工作模块
+    execute-sync.js // 已解析同步上下文的完整执行流
+    contract.js // sync phases、review 和 execution result contracts
+    snapshots/ // Snapshot 模型、构建、采集和比较
+    planning/  // SyncPlan 构建、执行和结果追踪
   electron/    // 当前桌面主壳层，包含 Electron main、preload、renderer
     contracts/ // Electron Main 与 Renderer 共用的 shell contract
   infrastructure/
@@ -70,16 +74,16 @@ resources/     // bundled binaries、图标等静态资源
 ```
 
 **层级边界:**
-- domain 不读取 Electron API、配置文件、文件系统或 rclone
-- infrastructure 不读取 Electron API，也不拥有 application session 生命周期
-- app 不读取 Electron API；operations 与 sync-session 通过 `app/services` 使用 resource/file capabilities，services 再连接 domain 和 infrastructure
+- core 不读取 Electron API、app services 或 application configuration policy；它可以调用可复用的 infrastructure actions
+- infrastructure 不读取 Electron API 或 app modules，不构造 `AppError`，也不拥有 application operation lifecycle
+- app 不读取 Electron API；operations 可以调用 app services、core 和 infrastructure capabilities
 - `src/app/app-api.js` 是 GUI、CLI 和未来 agent/automation shell 调用应用能力的统一入口；普通 query、command 和 `startSync()` 都从这里导出
 - electron 负责桌面壳层和窗口，不直接承担同步业务
 - cli 负责命令行壳层和终端交互
 - `src/command-line/` 是 CLI 和 Electron 共用的可执行文件输入边界；其中 `launch-dispatch.cjs` 分类启动模式，`command-names.cjs` 定义正式 CLI 命令，`parse-sync-args.js` 解析同步参数
 - cli 不作为 Electron UI 的下层依赖；UI 通过 Electron Main 调用 app 层能力
 - Electron Main 在进程入口处把命令行参数分发给 cli 壳层，这是打包入口职责，不代表 UI 依赖 cli
-- cli 和 electron 通过 app 调用应用能力；`app/services` 可以依赖 domain 和 infrastructure，domain / infrastructure 不反向依赖 shell
+- cli 和 electron 通过 app 调用应用能力；core 与 app 可以共享 infrastructure actions，core / infrastructure 不反向依赖 app 或 shell
 
 当前打包方向采用一个 Electron 可执行文件，区分 GUI 单实例入口和独立 CLI 入口：
 
@@ -107,20 +111,22 @@ sequenceDiagram
   participant EM as Electron Main
   participant PL as Preload
   participant RD as Renderer
-  participant APP as App / Sync Session
+  participant APP as App startSync Operation
+  participant CORE as Sync Core
   participant RC as rclone Process
 
   OS->>EM: 启动 Electron 并传入动作与路径
   EM->>APP: 调用 startSync(...)
-  APP->>APP: executeSync(...)
-  APP->>EM: 通过 interaction 请求 reviewDiff(...)
+  APP->>CORE: executeSync(resolved context)
+  CORE->>EM: 通过 interaction 请求 reviewDiff(...)
   EM->>PL: 注入 bridge
   PL->>RD: 暴露最小 API
   RD-->>EM: 返回 ReviewResult
-  EM->>APP: 恢复主流程
-  APP->>APP: 继续 build plan / apply
-  APP->>RC: 通过 sync-files-service 和 rclone adapter 调用 rclone
-  RC-->>APP: 返回执行结果
+  EM->>CORE: 恢复主流程
+  CORE->>CORE: 继续 build plan / execute plan
+  CORE->>RC: 通过 infrastructure actions 调用 rclone
+  RC-->>CORE: 返回执行结果
+  CORE-->>APP: 返回 SyncExecutionResult
   APP-->>EM: 返回 SyncSessionResult
   EM->>RD: 展示 final acknowledgement
   RD-->>EM: acknowledge close
@@ -128,10 +134,10 @@ sequenceDiagram
 
 需要特别记住：
 
-- `Renderer` 不直接调用 domain 或 infrastructure
+- `Renderer` 不直接调用 core 或 infrastructure
 - `Renderer` 通过 `preload` 暴露的 bridge 与 `Electron Main` 通信
 - `Electron Main` 再去调用 `app`
-- `app/sync-session` 协调 domain 与 application services
+- `app/operations/start-sync.js` 解析 application context，再调用独立 core workflow
 - infrastructure 调用外部 `rclone` 进程
 - `Vite` 的作用不是参与运行时通信，而是把 renderer 源码编译成 Electron 可加载的页面
 - `CLI` 不是为了测试临时补出来的旁路，而是当前架构下的独立 shell 入口
@@ -144,12 +150,12 @@ sequenceDiagram
 
 - 第二次 GUI 启动通过 single-instance `additionalData` 传递规范化 launch request，不依赖可能被 Chromium 重排的 argv。
 - 主窗口是可重建的进程级单例；`desktop-application.js` 直接调用 `main-window/window.js` 创建窗口，不增加无职责的 runner。关闭主窗口不会取消活跃同步。
-- `app/sync-session/start-sync.js` 是 shell-neutral application use case，负责 history、context resolution、session events 和最终结果。
-- `app/sync-session/execute-sync.js` 只负责已解析上下文中的 snapshot、compare、review、plan 和 apply 流程。
-- session 与 review 的 JSDoc contract 统一定义在 `app/sync-session/contract.js`。
-- `app/services/sync-files-service.js` 向 sync session 提供 remote-folder ensure capability；具体 probe/mkdir 位于统一的 `infrastructure/rclone/remote-files.js` adapter。
+- `app/operations/start-sync.js` 是 shell-neutral application operation，负责 history、context resolution、session events、error mapping 和最终结果。
+- `core/execute-sync.js` 负责已解析上下文中的 snapshot、compare、review、plan 和 apply 流程。
+- core execution contract 定义在 `core/contract.js`；application session events 定义在 `app/operations/sync-operation-contract.js`。
+- remote-folder probe/mkdir 是可复用的 infrastructure action；`startSync` 在 application policy 确认需要创建目标目录后直接调用它。
 - `infrastructure/runtime/runtime-paths.js` 从进程、平台、安装目录和环境变量解析运行时路径。
-- `infrastructure/filesystem/local-path.js` 负责本地路径规范化、home 展开和目录存在性校验。
+- `infrastructure/filesystem/local-path.js` 负责本地路径规范化、home 展开和目录存在性校验；`app/services/local-path-service.js` 把技术错误转换成 application error。
 - `electron/main/sync-session/controller.js` 把 application use case 连接到 session window 的 events、review interaction、acknowledgement 和 cancellation。
 - `electron/contracts/sync-session-stage.js` 定义 Main 与 Renderer 共用的 Analyze、Review、Sync UI stage 及其 phase 映射。
 - `electron/main/sync-session/manager.js` 先通过 controller 解析只读 `SyncSessionContext`，再以本地和远程根路径执行原子 admission，并管理活跃 Electron session handle。
@@ -328,7 +334,7 @@ export const DiffState = Object.freeze({
 
 - `SyncPlan` 是 apply 阶段的直接输入
 - 它把“要做什么”压缩成明确的动作集合
-- `app/services/sync-files-service.js` 的 `applySyncPlan(...)` 解释计划并协调 copy、delete 和 cleanup
+- `core/planning/execute-sync-plan.js` 解释计划并协调 copy、delete 和 cleanup
 - `infrastructure/rclone/remote-files.js` 执行具体 rclone batch commands，不拥有 SyncPlan 生命周期
 - delete 后会执行内部 `rclone rmdirs <destination-root> --leave-root` 清理因文件删除而变空的目标目录，但不会把空目录作为同步内容或 review 项
 
@@ -388,7 +394,7 @@ copy 之外的示例：
 - `events.eventListener` 是观察流，用于进度、日志和 UI 展示，不推进主流程
 - `interactions.reviewDiff` 是业务等待点，`executeSync` 必须等待它返回 `ReviewResult` 才能继续
 - `dependents.runCommand` 是 application session 向 rclone infrastructure 提供的可替换命令执行能力
-- `executeSync` 会 emit `sync.phase.*` 事件，事件类型定义在 `src/app/sync-session/contract.js` 的 `SYNC_PHASE_EVENT`
+- `executeSync` 会 emit `sync.phase.*` 事件，事件类型定义在 `src/core/contract.js` 的 `SYNC_PHASE_EVENT`
 - apply 阶段的 progress payload 使用 `ApplyProgress`
 - `executeSync` 返回 `SyncExecutionResult`，结果值定义在 `SYNC_RESULT`
 
@@ -508,7 +514,7 @@ sequenceDiagram
   SS->>PR: validateProtocolForm(config.type, config fields)
   SS->>SS: existence policy / normalize / rename implementation
   SS->>RC: list/create/update/delete/test raw remote config
-  RC-->>SS: raw remote result or command/parse AppError
+  RC-->>SS: raw remote result or neutral InfrastructureError
   SS-->>SO: server value or stable SERVER_* AppError
   SO-->>APP: success or SERVER_* AppError
 ```
@@ -522,7 +528,7 @@ sequenceDiagram
 - `name` 是 server 与 remote 共享的资源标识；name 校验、normalize 和 same-name rename no-op 由 server service 处理
 - 协议字段校验由 `server-service.js` 调用 `protocol-registry.js` 完成
 - rename 的 rclone-backed implementation 位于 server service：先 create target，再 delete source；delete source 失败时尝试删除 target
-- `remote-files.js` 负责远端 folder tree、recursive file listing、folder ensure 和 copy/delete/cleanup actions，不与 remote configuration CRUD 混合
+- `remote-files.js` 负责远端 raw folder entries、recursive file listing、folder ensure 和 copy/delete/cleanup actions，不与 remote configuration CRUD 混合；`server-folder-tree.js` 把 raw entries 组装为 application TreeNode
 - adapter command/parse 错误在 server service 边界转换为稳定的 `SERVER_*` error
 
 ### 4.8.3 App config store、services 与 operation policy
@@ -532,16 +538,17 @@ sequenceDiagram
 - `task-service.js` 负责 task conflict、create/update/delete/retarget policy，并把完整 JSON transaction 隐藏在 service boundary 后
 - `settings-operations.js` 负责 global ignore pattern input validation；`settings-service.js` 负责读取和更新 capability
 - `configuration-service.js` 为 sync context resolution 提供完整 configuration read capability
-- store 的 `updateAppConfig(mutator)` 只暴露给 service layer，不暴露给 operations、sync-session 或 shells
+- store 的 `updateAppConfig(mutator)` 只通过 `configuration-service.js` 暴露给 application services，不暴露给 operations、core 或 shells
 
 ### 4.8.4 File services、Snapshot 与 plan application
 
 - `infrastructure/filesystem/local-files.js` 扫描本地文件并返回 neutral `{ path, size, mtimeMs }` entries；它不创建 Snapshot
 - `infrastructure/rclone/remote-files.js` 返回相同 entry shape，并提供 raw copy/delete/cleanup/ensure actions
-- `domain/synchronization/build-snapshot.js` 从 neutral entries 构建并排序 Snapshot，不知道 entries 来自本地文件系统还是 rclone
-- `domain/synchronization/sync-plan-result.js` 创建 apply-result operations 并根据 confirmed paths 标记 `synced`
-- `app/services/sync-files-service.js` 组合 adapters 与 domain rules，对 sync session 提供 `buildLocalSnapshot`、`buildRemoteSnapshot`、`ensureRemoteFolder` 和 `applySyncPlan`
-- `app/sync-session` 不直接导入 snapshot scanners、rclone plan executor 或 remote-folder implementation
+- `core/snapshots/build-snapshot.js` 从 neutral entries 构建并排序 Snapshot，不知道 entries 来自本地文件系统还是 rclone
+- `core/snapshots/acquire-snapshots.js` 使用 local/rclone scanners 获取 neutral entries，再建立 Snapshot
+- `core/planning/sync-plan-result.js` 创建 execution-result operations 并根据 confirmed paths 标记 `synced`
+- `core/planning/execute-sync-plan.js` 使用 infrastructure file actions 执行 SyncPlan；core 不经过 app services
+- `app/operations/start-sync.js` 只处理 application lifecycle，不拥有 Snapshot 或 SyncPlan 流程
 
 ### 4.9 `SyncTaskModalState`
 
@@ -799,35 +806,27 @@ src/locales/locale-tree.js
 
 ```mermaid
 sequenceDiagram
-  participant APP as App / Sync Session
-  participant SERVICE as App / Sync Files Service
-  participant DOMAIN as Domain / Synchronization
+  participant APP as App / startSync
+  participant CORE as Sync Core
   participant FS as Infrastructure / Filesystem
   participant RCLONE as Infrastructure / rclone
   participant SHELL as CLI / Electron Main
 
   APP-->>SHELL: emit sync.session.context-resolved
-  APP->>SERVICE: buildLocalSnapshot(...)
-  SERVICE->>FS: listLocalFiles(...)
-  FS-->>SERVICE: neutral file entries
-  SERVICE->>DOMAIN: buildSnapshot(...)
-  SERVICE-->>APP: local Snapshot
-  APP->>SERVICE: buildRemoteSnapshot(...)
-  SERVICE->>RCLONE: listRemoteFiles(...)
-  RCLONE-->>SERVICE: neutral file entries
-  SERVICE->>DOMAIN: buildSnapshot(...)
-  SERVICE-->>APP: remote Snapshot
-  APP->>DOMAIN: compareSnapshots(...)
-  DOMAIN-->>APP: DiffSnapshot
-  APP-->>SHELL: interaction.reviewDiff(DiffSnapshot)
-  SHELL-->>APP: ReviewResult
-  APP->>DOMAIN: buildSyncPlan(...)
-  DOMAIN-->>APP: SyncPlan
-  APP->>SERVICE: applySyncPlan(...)
-  SERVICE->>RCLONE: copyFiles / deleteFiles / cleanupEmptyDirectories
-  RCLONE-->>SERVICE: confirmed paths / errors
-  SERVICE->>DOMAIN: markOperationsSynced(...)
-  SERVICE-->>APP: applied result
+  APP->>CORE: executeSync(resolved context)
+  CORE->>FS: listLocalFiles(...)
+  FS-->>CORE: neutral file entries
+  CORE->>CORE: build local Snapshot
+  CORE->>RCLONE: listRemoteFiles(...)
+  RCLONE-->>CORE: neutral file entries
+  CORE->>CORE: build remote Snapshot / compare
+  CORE-->>SHELL: interaction.reviewDiff(DiffSnapshot)
+  SHELL-->>CORE: ReviewResult
+  CORE->>CORE: buildSyncPlan(...)
+  CORE->>RCLONE: copyFiles / deleteFiles / cleanupEmptyDirectories
+  RCLONE-->>CORE: confirmed paths / errors
+  CORE->>CORE: markOperationsSynced(...)
+  CORE-->>APP: SyncExecutionResult
   APP-->>SHELL: SyncSessionResult
 ```
 

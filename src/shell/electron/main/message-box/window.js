@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { RENDERER_SURFACE } from '#electron/contracts/renderer-surface.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import {
   isOperationReportAcknowledgement,
@@ -13,7 +14,7 @@ import {
   getMessageBoxWindow,
   setMessageBoxWindow,
 } from '../app-state.js'
-import { loadRendererEntry } from '../renderer-entry.js'
+import { loadRendererSurface } from '../load-renderer-surface.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -124,7 +125,7 @@ function createWindow() {
     console.error(`Message box failed to load: ${errorCode} ${errorDescription} ${validatedURL}`)
   })
 
-  loadRendererEntry(messageWindow, 'message-box')
+  loadRendererSurface(messageWindow, RENDERER_SURFACE.MESSAGE_BOX)
     .catch((error) => {
       console.error(error)
       if (messageWindow && !messageWindow.isDestroyed())

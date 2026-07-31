@@ -1,9 +1,10 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { RENDERER_SURFACE } from '#electron/contracts/renderer-surface.js'
 import { getFolderTree } from '#src/app/app-api.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
-import { loadRendererEntry } from '../renderer-entry.js'
+import { loadRendererSurface } from '../load-renderer-surface.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -121,7 +122,7 @@ function createWindow(parentWindow) {
     console.error(`Folder dialog failed to load: ${errorCode} ${errorDescription} ${validatedURL}`)
   })
 
-  loadRendererEntry(dialogWindow, 'folder-dialog')
+  loadRendererSurface(dialogWindow, RENDERER_SURFACE.FOLDER_DIALOG)
     .catch((error) => {
       console.error(error)
       closeWithResult(null)

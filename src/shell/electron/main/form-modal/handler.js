@@ -30,7 +30,7 @@ function createLocalFolderDialogOptions(currentPath, homeDirectory = os.homedir(
   }
 }
 
-export function createSyncTaskModalHandlers() {
+export function createFormModalHandlers() {
   async function listServersHandler(_event) {
     try {
       const result = await listServers()

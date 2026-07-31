@@ -1,10 +1,11 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { RENDERER_SURFACE } from '#electron/contracts/renderer-surface.js'
 import { getSyncSessionStageForPhase, SYNC_SESSION_STAGE } from '#electron/contracts/sync-session-stage.js'
 import { SYNC_SESSION_EVENT } from '#src/app/operations/sync-operation-contract.js'
 import { serializeDiffSnapshot } from '#src/app/services/sync-review-service.js'
-import { loadRendererEntry } from '../renderer-entry.js'
+import { loadRendererSurface } from '../load-renderer-surface.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -272,7 +273,7 @@ export function createSessionWindow() {
     abandonSession(new Error(`Renderer process gone: ${details.reason}`))
   })
 
-  loadRendererEntry(sessionWindow, 'sync-session')
+  loadRendererSurface(sessionWindow, RENDERER_SURFACE.SYNC_SESSION)
     .catch((error) => {
       abandonSession(error)
     })

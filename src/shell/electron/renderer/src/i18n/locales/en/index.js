@@ -1,14 +1,14 @@
 import appLocale from '#shell/locales/en/index.js'
 import common from './common.js'
+import formModal from './surfaces/form-modal.js'
 import mainWindow from './surfaces/main-window.js'
 import messageBox from './surfaces/message-box.js'
 import syncSession from './surfaces/sync-session.js'
-import syncTaskModal from './surfaces/sync-task-modal.js'
 
 export default {
   ...common,
   ...mainWindow,
-  ...syncTaskModal,
+  ...formModal,
   ...syncSession,
   ...messageBox,
   ...appLocale,

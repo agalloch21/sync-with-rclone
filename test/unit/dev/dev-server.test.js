@@ -34,7 +34,7 @@ async function withServer(body, callback) {
 
 test('probeDevServer distinguishes the project renderer from an unrelated service', async () => {
   const ready = await withServer(
-    '<script src="./src/entries/sync-session.js"></script>',
+    '<script src="./src/index.js"></script>',
     port => probeDevServer({ port }),
   )
   const occupied = await withServer(

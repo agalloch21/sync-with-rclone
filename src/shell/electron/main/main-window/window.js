@@ -2,11 +2,12 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { RENDERER_SURFACE } from '#electron/contracts/renderer-surface.js'
 import { registerConfigUpdateListener, unregisterConfigUpdateListener } from '#src/app/events/configuration-events.js'
 import { registerOperationHistoryListener, unregisterOperationHistoryListener } from '#src/app/operations/operation-history.js'
 import { clearMainWindow, setMainWindow } from '../app-state.js'
+import { loadRendererSurface } from '../load-renderer-surface.js'
 import { createMessageBoxBridgeHandlers, destroyMessageBox } from '../message-box/window.js'
-import { loadRendererEntry } from '../renderer-entry.js'
 import { createMainWindowHandlers } from './handler.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -59,7 +60,7 @@ export function createMainWindow() {
 
   ipcMain.handle('main-window:get-data', handlers.getMainWindowDataHandler)
   ipcMain.handle('main-window:get-operation-history', handlers.getOperationHistoryHandler)
-  ipcMain.handle('main-window:open-sync-task-modal', handlers.openSyncTaskModalHandler)
+  ipcMain.handle('main-window:open-form-modal', handlers.openFormModalHandler)
   ipcMain.handle('main-window:get-server', handlers.getServerHandler)
   ipcMain.handle('main-window:delete-server', handlers.deleteServerHandler)
   ipcMain.handle('main-window:delete-sync-task', handlers.deleteSyncTaskHandler)
@@ -79,7 +80,7 @@ export function createMainWindow() {
 
     ipcMain.removeHandler('main-window:get-data')
     ipcMain.removeHandler('main-window:get-operation-history')
-    ipcMain.removeHandler('main-window:open-sync-task-modal')
+    ipcMain.removeHandler('main-window:open-form-modal')
     ipcMain.removeHandler('main-window:get-server')
     ipcMain.removeHandler('main-window:delete-server')
     ipcMain.removeHandler('main-window:delete-sync-task')
@@ -96,7 +97,7 @@ export function createMainWindow() {
     console.error(`Main panel failed to load: ${errorCode} ${errorDescription} ${validatedURL}`)
   })
 
-  loadRendererEntry(mainWindow, 'main-panel')
+  loadRendererSurface(mainWindow, RENDERER_SURFACE.MAIN_WINDOW)
     .catch((error) => {
       console.error(error)
       if (!mainWindow.isDestroyed())

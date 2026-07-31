@@ -1,14 +1,14 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#electron/contracts/sync-task-modal.js'
+import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { useServerOperations } from '#frontend/composables/useServerOperations.js'
 import { createDefaultProtocolForm, getDefaultProtocolType, getProtocolDefinition, REMOTE_PROTOCOLS } from '#src/app/configuration/protocol-registry.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { ref } from 'vue'
 import Button from '../../shared/Button.vue'
-import ModalShell from './ModalShell.vue'
+import ModalLayout from './ModalLayout.vue'
 
 const props = defineProps({
-  modalName: {
+  view: {
     type: String,
     required: true,
   },
@@ -20,13 +20,13 @@ const props = defineProps({
 
 const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
 
-const serverOperations = useServerOperations(window.syncTaskModal)
+const serverOperations = useServerOperations(window.formModal)
 
 const ACTION_MODE = {
   EDIT: 'edit',
   CREATE: 'create',
 }
-const mode = ref(props.modalName === SYNC_TASK_MODALS.EDIT_SERVER ? ACTION_MODE.EDIT : ACTION_MODE.CREATE)
+const mode = ref(props.view === FORM_MODAL_VIEW.EDIT_SERVER ? ACTION_MODE.EDIT : ACTION_MODE.CREATE)
 
 const currentServerName = ref((mode.value === ACTION_MODE.EDIT && props.context?.selectedServer?.name) || '')
 const expectedServerName = ref((mode.value === ACTION_MODE.EDIT && currentServerName.value) || '')
@@ -83,7 +83,7 @@ async function submitServer() {
       if (!result.success)
         return
 
-      emit('onClickNext', SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING, {
+      emit('onClickNext', FORM_MODAL_VIEW.CREATE_FOLDER_MAPPING, {
         selectedServer: unwrapResult(result),
       })
     }
@@ -92,7 +92,7 @@ async function submitServer() {
 </script>
 
 <template>
-  <ModalShell :modal-name="modalName" :title="$t(`syncTaskModal.${modalName}.title`)" :message="$t(`syncTaskModal.${modalName}.message`)">
+  <ModalLayout :view="view">
     <div class="content-stage flex justify-center items-center">
       <div class="protocol-form-grid">
         <!-- Name -->
@@ -145,13 +145,13 @@ async function submitServer() {
 
     <template #footer>
       <Button :primary="true" :wide="true" :disabled="isSubmitting" @click="submitServer">
-        {{ mode === ACTION_MODE.EDIT ? $t('syncTaskModal.common.confirm') : $t('syncTaskModal.common.next') }}
+        {{ mode === ACTION_MODE.EDIT ? $t('formModal.common.confirm') : $t('formModal.common.next') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
-        {{ $t('syncTaskModal.common.cancel') }}
+        {{ $t('formModal.common.cancel') }}
       </Button>
     </template>
-  </ModalShell>
+  </ModalLayout>
 </template>
 
 <style scoped>

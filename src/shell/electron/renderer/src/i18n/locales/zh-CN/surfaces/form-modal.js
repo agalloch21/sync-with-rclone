@@ -1,7 +1,7 @@
-import { SYNC_TASK_MODALS } from '#electron/contracts/sync-task-modal.js'
+import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 
-const syncTaskModal = {
-  syncTaskModal: {
+const formModal = {
+  formModal: {
     common: {
       next: '下一步',
       cancel: '取消',
@@ -10,27 +10,27 @@ const syncTaskModal = {
       remote: '远程',
       changeFolder: '选择文件夹',
     },
-    [SYNC_TASK_MODALS.CHOOSE_SERVER]: {
+    [FORM_MODAL_VIEW.CHOOSE_SERVER]: {
       title: '创建任务',
       message: '选择远程服务器',
     },
-    [SYNC_TASK_MODALS.CREATE_SERVER]: {
+    [FORM_MODAL_VIEW.CREATE_SERVER]: {
       title: '创建任务',
       message: '连接到新服务器',
     },
-    [SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING]: {
+    [FORM_MODAL_VIEW.CREATE_FOLDER_MAPPING]: {
       title: '创建任务',
       message: '映射本地文件夹与远程文件夹',
     },
-    [SYNC_TASK_MODALS.EDIT_SERVER]: {
+    [FORM_MODAL_VIEW.EDIT_SERVER]: {
       title: '编辑服务器',
       message: '编辑服务器连接',
     },
-    [SYNC_TASK_MODALS.EDIT_FOLDER_MAPPING]: {
+    [FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING]: {
       title: '编辑文件夹映射',
       message: '映射本地文件夹与远程文件夹',
     },
-    [SYNC_TASK_MODALS.EDIT_PATTERNS]: {
+    [FORM_MODAL_VIEW.EDIT_PATTERNS]: {
       title: '编辑忽略规则',
       message: '为同步任务设置额外的忽略规则',
       taskSpecificPatterns: {
@@ -42,15 +42,7 @@ const syncTaskModal = {
         description: '可以在设置面板中修改这些规则。',
       },
     },
-    [SYNC_TASK_MODALS.CONFIRM_DELETE_SERVER]: {
-      title: '删除服务器',
-      message: '确认删除此服务器',
-    },
-    [SYNC_TASK_MODALS.CONFIRM_DELETE_TASK]: {
-      title: '删除任务',
-      message: '确认删除此同步任务',
-    },
   },
 }
 
-export default syncTaskModal
+export default formModal

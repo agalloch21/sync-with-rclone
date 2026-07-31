@@ -1,16 +1,16 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#electron/contracts/sync-task-modal.js'
+import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { useServerOperations } from '#frontend/composables/useServerOperations.js'
 import { useTaskOperations } from '#frontend/composables/useTaskOperations.js'
 import Button from '#frontend/surfaces/shared/Button.vue'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { onMounted, ref } from 'vue'
-import ModalShell from './ModalShell.vue'
+import ModalLayout from './ModalLayout.vue'
 
 const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
 
-const serverOperations = useServerOperations(window?.syncTaskModal)
-const taskOperations = useTaskOperations(window?.syncTaskModal)
+const serverOperations = useServerOperations(window?.formModal)
+const taskOperations = useTaskOperations(window?.formModal)
 
 const SERVER_PLAN = Object.freeze({
   CREATE_NEW: 'create-new-server',
@@ -51,13 +51,13 @@ async function onClickNext() {
     if (!await taskOperations.validateServerName(selectedServerName.value))
       return
 
-    emit('onClickNext', SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING, {
+    emit('onClickNext', FORM_MODAL_VIEW.CREATE_FOLDER_MAPPING, {
       selectedServer: servers.value.find(server => server.name === selectedServerName.value),
     })
     return
   }
 
-  emit('onClickNext', SYNC_TASK_MODALS.CREATE_SERVER)
+  emit('onClickNext', FORM_MODAL_VIEW.CREATE_SERVER)
 }
 
 function getServerLabel(server) {
@@ -66,7 +66,7 @@ function getServerLabel(server) {
 </script>
 
 <template>
-  <ModalShell :title="$t('syncTaskModal.chooseServer.title')" :message="$t('syncTaskModal.chooseServer.message')">
+  <ModalLayout :view="FORM_MODAL_VIEW.CHOOSE_SERVER">
     <div class="content-stage h-full flex justify-center items-center">
       <div class="flex flex-col justify-center gap-8">
         <!-- Option 1 -->
@@ -124,13 +124,13 @@ function getServerLabel(server) {
     </div>
     <template #footer>
       <Button :primary="true" :wide="true" @click="onClickNext">
-        {{ $t('syncTaskModal.common.next') }}
+        {{ $t('formModal.common.next') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
-        {{ $t('syncTaskModal.common.cancel') }}
+        {{ $t('formModal.common.cancel') }}
       </Button>
     </template>
-  </ModalShell>
+  </ModalLayout>
 </template>
 
 <style scoped>

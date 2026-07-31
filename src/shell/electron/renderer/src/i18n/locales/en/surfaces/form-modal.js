@@ -1,7 +1,7 @@
-import { SYNC_TASK_MODALS } from '#electron/contracts/sync-task-modal.js'
+import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 
-const syncTaskModal = {
-  syncTaskModal: {
+const formModal = {
+  formModal: {
     common: {
       next: 'Next',
       cancel: 'Cancel',
@@ -10,27 +10,27 @@ const syncTaskModal = {
       remote: 'Remote',
       changeFolder: 'Select Folder',
     },
-    [SYNC_TASK_MODALS.CHOOSE_SERVER]: {
+    [FORM_MODAL_VIEW.CHOOSE_SERVER]: {
       title: 'Create Task',
       message: 'Choose a remote server',
     },
-    [SYNC_TASK_MODALS.CREATE_SERVER]: {
+    [FORM_MODAL_VIEW.CREATE_SERVER]: {
       title: 'Create Task',
       message: 'Connect to a new server',
     },
-    [SYNC_TASK_MODALS.CREATE_FOLDER_MAPPING]: {
+    [FORM_MODAL_VIEW.CREATE_FOLDER_MAPPING]: {
       title: 'Create Task',
       message: 'Map the local folder with the remote',
     },
-    [SYNC_TASK_MODALS.EDIT_SERVER]: {
+    [FORM_MODAL_VIEW.EDIT_SERVER]: {
       title: 'Edit Server',
       message: 'Edit the connection',
     },
-    [SYNC_TASK_MODALS.EDIT_FOLDER_MAPPING]: {
+    [FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING]: {
       title: 'Edit Folder Mapping',
       message: 'Map the local folder with the remote',
     },
-    [SYNC_TASK_MODALS.EDIT_PATTERNS]: {
+    [FORM_MODAL_VIEW.EDIT_PATTERNS]: {
       title: 'Edit Patterns',
       message: 'Set extra ignore patterns for sync task',
       taskSpecificPatterns: {
@@ -42,15 +42,7 @@ const syncTaskModal = {
         description: 'These patterns can be changed in settings panel.',
       },
     },
-    [SYNC_TASK_MODALS.CONFIRM_DELETE_SERVER]: {
-      title: 'Delete Server',
-      message: 'Confirm deleting this server',
-    },
-    [SYNC_TASK_MODALS.CONFIRM_DELETE_TASK]: {
-      title: 'Delete Task',
-      message: 'Confirm deleting this sync task',
-    },
   },
 }
 
-export default syncTaskModal
+export default formModal

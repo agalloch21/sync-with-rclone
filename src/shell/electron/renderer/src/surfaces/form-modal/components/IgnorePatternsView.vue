@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { SYNC_TASK_MODALS } from '#electron/contracts/sync-task-modal.js'
+import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { formatIgnorePatterns, parseIgnorePatterns, useTaskOperations } from '#frontend/composables/useTaskOperations.js'
 import { ref } from 'vue'
 import Button from '../../shared/Button.vue'
-import ModalShell from './ModalShell.vue'
+import ModalLayout from './ModalLayout.vue'
 
 const props = defineProps({
   context: {
@@ -13,7 +13,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['onClickCancel', 'onClickConfirm'])
-const taskOperations = useTaskOperations(window.syncTaskModal)
+const taskOperations = useTaskOperations(window.formModal)
 
 const taskPatternsText = ref(formatIgnorePatterns(props.context?.selectedSyncTask?.ignorePatterns))
 const globalPatternsText = formatIgnorePatterns(props.context?.globalIgnorePatterns)
@@ -39,10 +39,10 @@ async function submitPatterns() {
 </script>
 
 <template>
-  <ModalShell :title="$t('syncTaskModal.editPatterns.title')" :message="$t('syncTaskModal.editPatterns.message')">
+  <ModalLayout :view="FORM_MODAL_VIEW.EDIT_PATTERNS">
     <div class="content-stage h-full w-full px-10 py-4 grid grid-rows-[max-content_1fr_max-content] grid-cols-[2fr_1fr] gap-x-8 gap-y-2 content-stretch">
       <label for="task-ignore-patterns" class="col-start-1 title text-(--text-primary)">
-        {{ $t(`syncTaskModal.${SYNC_TASK_MODALS.EDIT_PATTERNS}.taskSpecificPatterns.title`) }}
+        {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.taskSpecificPatterns.title`) }}
       </label>
       <textarea
         id="task-ignore-patterns"
@@ -52,10 +52,10 @@ async function submitPatterns() {
         autofocus
       />
       <p class="description text-(--text-subtle)">
-        {{ $t(`syncTaskModal.${SYNC_TASK_MODALS.EDIT_PATTERNS}.taskSpecificPatterns.description`) }}
+        {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.taskSpecificPatterns.description`) }}
       </p>
       <label for="global-ignore-patterns" class="col-start-2 title text-gray-400">
-        {{ $t(`syncTaskModal.${SYNC_TASK_MODALS.EDIT_PATTERNS}.globalPatterns.title`) }}
+        {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.globalPatterns.title`) }}
       </label>
       <textarea
         id="global-ignore-patterns"
@@ -64,19 +64,19 @@ async function submitPatterns() {
         readonly
       />
       <p class="description text-gray-400">
-        {{ $t(`syncTaskModal.${SYNC_TASK_MODALS.EDIT_PATTERNS}.globalPatterns.description`) }}
+        {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.globalPatterns.description`) }}
       </p>
     </div>
 
     <template #footer>
       <Button :primary="true" :wide="true" :disabled="isSubmitting" @click="submitPatterns">
-        {{ $t('syncTaskModal.common.confirm') }}
+        {{ $t('formModal.common.confirm') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
-        {{ $t('syncTaskModal.common.cancel') }}
+        {{ $t('formModal.common.cancel') }}
       </Button>
     </template>
-  </ModalShell>
+  </ModalLayout>
 </template>
 
 <style scoped>

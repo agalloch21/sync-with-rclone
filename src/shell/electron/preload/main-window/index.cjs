@@ -1,8 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('mainWindow', {
-  openSyncTaskModal(modalName, context = {}) {
-    return ipcRenderer.invoke('main-window:open-sync-task-modal', { modalName, context })
+  openFormModal(view, context = {}) {
+    return ipcRenderer.invoke('main-window:open-form-modal', { view, context })
   },
   getMainWindowData() {
     return ipcRenderer.invoke('main-window:get-data')

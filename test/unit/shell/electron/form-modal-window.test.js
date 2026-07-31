@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createSyncTaskModalHandlers } from '#electron/main/sync-task-modal/handler.js'
+import { createFormModalHandlers } from '#electron/main/form-modal/handler.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
-test('sync task modal listServers handler returns an OperationResult', async () => {
+test('form modal listServers handler returns an OperationResult', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {
       synology: { type: 'sftp', host: 'nas.local' },
     },
   }, async () => {
-    const handlers = createSyncTaskModalHandlers()
+    const handlers = createFormModalHandlers()
 
     assert.deepEqual(await handlers.listServersHandler(), {
       success: true,

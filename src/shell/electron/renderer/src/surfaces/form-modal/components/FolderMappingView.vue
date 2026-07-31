@@ -1,14 +1,14 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#electron/contracts/sync-task-modal.js'
+import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { useTaskOperations } from '#frontend/composables/useTaskOperations.js'
 import Button from '#frontend/surfaces/shared/Button.vue'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { computed, ref } from 'vue'
 import FolderSelection from './FolderSelection.vue'
-import ModalShell from './ModalShell.vue'
+import ModalLayout from './ModalLayout.vue'
 
 const props = defineProps({
-  modalName: {
+  view: {
     type: String,
     required: true,
   },
@@ -19,13 +19,13 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['onClickCancel', 'onClickConfirm'])
-const taskOperations = useTaskOperations(window.syncTaskModal)
+const taskOperations = useTaskOperations(window.formModal)
 
 const ACTION_MODE = {
   EDIT: 'edit',
   CREATE: 'create',
 }
-const mode = ref(props.modalName === SYNC_TASK_MODALS.EDIT_FOLDER_MAPPING ? ACTION_MODE.EDIT : ACTION_MODE.CREATE)
+const mode = ref(props.view === FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING ? ACTION_MODE.EDIT : ACTION_MODE.CREATE)
 
 const localBasePath = ref(props.context?.selectedSyncTask?.localBasePath ?? '')
 const remoteBasePath = ref(props.context?.selectedSyncTask?.remoteBasePath ?? '')
@@ -84,7 +84,7 @@ async function submitMapping() {
 </script>
 
 <template>
-  <ModalShell :modal-name="modalName" :title="$t(`syncTaskModal.${modalName}.title`)" :message="$t(`syncTaskModal.${modalName}.message`)">
+  <ModalLayout :view="view">
     <div class="content-stage h-full flex justify-center items-center gap-5">
       <div class="folder-selection-dock">
         <FolderSelection side="local" :path="localBasePath" @select="selectLocalFolder" />
@@ -97,13 +97,13 @@ async function submitMapping() {
 
     <template #footer>
       <Button :primary="true" :wide="true" :disabled="isSubmitting || isSelectingFolder" @click="submitMapping">
-        {{ $t('syncTaskModal.common.confirm') }}
+        {{ $t('formModal.common.confirm') }}
       </Button>
       <Button @click="$emit('onClickCancel')">
-        {{ $t('syncTaskModal.common.cancel') }}
+        {{ $t('formModal.common.cancel') }}
       </Button>
     </template>
-  </ModalShell>
+  </ModalLayout>
 </template>
 
 <style scoped>

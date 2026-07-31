@@ -1,13 +1,21 @@
 <script setup>
-import { SYNC_TASK_MODALS } from '#electron/contracts/sync-task-modal.js'
+import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
 import { useMessageBox } from '../../../composables/useMessageBox.js'
 import { useServerOperations } from '../../../composables/useServerOperations.js'
 import { useTaskOperations } from '../../../composables/useTaskOperations.js'
+import { MAIN_WINDOW_ACTION } from '../main-window-action.js'
 import ActionBar from './ActionBar.vue'
 import ServerItem from './ServerItem.vue'
 import TaskItem from './TaskItem.vue'
+
+const FORM_VIEW_BY_ACTION = Object.freeze({
+  [MAIN_WINDOW_ACTION.CREATE_TASK]: FORM_MODAL_VIEW.CHOOSE_SERVER,
+  [MAIN_WINDOW_ACTION.EDIT_SERVER]: FORM_MODAL_VIEW.EDIT_SERVER,
+  [MAIN_WINDOW_ACTION.EDIT_FOLDER_MAPPING]: FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING,
+  [MAIN_WINDOW_ACTION.EDIT_PATTERNS]: FORM_MODAL_VIEW.EDIT_PATTERNS,
+})
 
 const messageBox = useMessageBox(window?.mainWindow)
 const serverOperations = useServerOperations(window?.mainWindow)
@@ -103,18 +111,22 @@ function createSerializableSyncTask(syncTask) {
   return rawSyncTask ? structuredClone(rawSyncTask) : null
 }
 
-async function openSyncTaskModal(modalName) {
-  if (modalName === SYNC_TASK_MODALS.CONFIRM_DELETE_SERVER) {
+async function handleAction(action) {
+  if (action === MAIN_WINDOW_ACTION.DELETE_SERVER) {
     await serverOperations.deleteServer(selectedServer.value.name)
     return
   }
 
-  if (modalName === SYNC_TASK_MODALS.CONFIRM_DELETE_TASK) {
+  if (action === MAIN_WINDOW_ACTION.DELETE_TASK) {
     await taskOperations.deleteSyncTask(selectedSyncTask.value)
     return
   }
 
-  window.mainWindow?.openSyncTaskModal?.(modalName, {
+  const view = FORM_VIEW_BY_ACTION[action]
+  if (!view)
+    return
+
+  window.mainWindow?.openFormModal?.(view, {
     selectedServer: createSerializableServer(selectedServer.value),
     selectedSyncTask: createSerializableSyncTask(selectedSyncTask.value),
     globalIgnorePatterns: structuredClone(toRaw(globalIgnorePatterns.value)),
@@ -127,7 +139,7 @@ async function openSyncTaskModal(modalName) {
     <div class="action-dock">
       <ActionBar
         :is-server-selected="selectedServer !== null" :is-task-selected="selectedSyncTask !== null"
-        @open-sync-task-modal="openSyncTaskModal"
+        @request-action="handleAction"
       />
     </div>
     <div class="task-list-dock min-h-0 flex-1 border-t border-(--surface-soft)">

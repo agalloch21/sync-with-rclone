@@ -1,6 +1,6 @@
 import http from 'node:http'
 
-const EXPECTED_ENTRY = 'src/entries/sync-session.js'
+const EXPECTED_ENTRY = 'src/index.js'
 
 function requestDevServerPage({
   host = '127.0.0.1',
@@ -11,7 +11,7 @@ function requestDevServerPage({
     const request = http.get({
       host,
       port,
-      path: '/sync-session.html',
+      path: '/?surface=sync-session',
       timeout: timeoutMs,
     }, (response) => {
       let body = ''

@@ -379,8 +379,8 @@ const payload = {
 }
 
 return mode.value === EDIT_MODE.UPDATE
-  ? window.syncTaskModal?.updateServer?.(payload)
-  : window.syncTaskModal?.createServer?.(payload)
+  ? window.formModal?.updateServer?.(payload)
+  : window.formModal?.createServer?.(payload)
 ```
 
 推荐职责分布：

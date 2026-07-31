@@ -22,7 +22,7 @@ defineEmits(['select'])
   >
     <div class="w-full flex flex-col gap-2">
       <div class="flex justify-between items-end text-(--text-primary)">
-        <label class="h-lh line-clamp-1 font-bold text-base">{{ $t(`syncTaskModal.common.${side}`) }}</label>
+        <label class="h-lh line-clamp-1 font-bold text-base">{{ $t(`formModal.common.${side}`) }}</label>
         <span class="opacity-10 text-3xl" :class="side === 'local' ? 'icon-[custom--local]' : 'icon-[custom--remote]'" />
       </div>
 
@@ -31,6 +31,6 @@ defineEmits(['select'])
       </label>
     </div>
 
-    <InlineButton :text="$t('syncTaskModal.common.changeFolder')" @click="$emit('select')" />
+    <InlineButton :text="$t('formModal.common.changeFolder')" @click="$emit('select')" />
   </div>
 </template>

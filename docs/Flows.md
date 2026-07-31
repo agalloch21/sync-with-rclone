@@ -336,14 +336,14 @@ sequenceDiagram
   participant EM as Electron Main
   participant APP as App Layer
   participant MB as Message Box
-  participant M as Sync Task Modal
+  participant M as Form Modal
 
   U->>R: 点击 create / edit
-  R->>MP: openSyncTaskModal(modalName, context)
-  MP->>EM: invoke main-window:open-sync-task-modal
-  EM->>M: 创建 modal 并保存 plain context
+  R->>MP: openFormModal(view, context)
+  MP->>EM: invoke main-window:open-form-modal
+  EM->>M: 创建 form modal 并保存 plain context
   M->>EM: getState()
-  EM-->>M: modalName + context
+  EM-->>M: view + context
   U->>M: 提交操作
   M->>M: composable 进行 UI 预校验
   M->>EM: invoke app operation
@@ -368,7 +368,7 @@ sequenceDiagram
 - 主窗口 renderer 传完整的 plain `server` 和 `syncTask` 对象；`server.tasks` 只属于主窗口组合视图，不传给 modal
 - Electron Main 不重新组装 modal context，只校验 modal 名称并创建窗口
 - Electron Main 负责 modal 和 message-box 的窗口生命周期；app operation 的返回值或异常负责业务控制流
-- sync-task modal renderer 不直接读取 app config，也不直接调用 rclone
+- form modal renderer 不直接读取 app config，也不直接调用 rclone
 - App Layer 提供应用操作：组合主窗口数据、读写 app config、读写 rclone config、删除 task
 - server/syncTask 修改成功后，App Layer 通过 `configuration-events.js` 发出 config update 通知，主窗口 renderer 再读取 `MainWindowData`
 - message-box 只作为临时状态窗口，不替换普通 modal 的内容

@@ -69,7 +69,8 @@ src/           // 运行时代码
     cli/       // 终端命令、review、output 和 i18n adapter
       command-contract.cjs // canonical CLI command contract
     electron/  // Electron main、preload、renderer 和 shared shell contracts
-      contracts/ // Electron Main 与 Renderer 共用的 shell contract
+      contracts/ // Electron Main 与 Renderer 共用的 form view、session stage 和 renderer surface contracts
+      renderer/ // 单一 index.html / src/index.js bootstrap，按 surface contract 动态加载 Vue surface
     locales/   // CLI / Electron 共用的 message、error、operation 翻译
 scripts/       // 非运行时代码
   dev/         // 开发启动脚本
@@ -106,6 +107,8 @@ sync-with-rclone sync push ...   -> 命令模式，执行同步
 GUI 启动通过 `requestSingleInstanceLock()` 汇入一个 Electron Main 进程。这个进程可以持有零或一个主窗口，以及多个互不冲突的 sync-session 窗口。普通启动创建或聚焦主窗口；`--session` 启动只提交同步会话。CLI 命令不参与 GUI 单实例锁；统一入口识别 CLI 模式后加载命令行壳层，由它负责参数路由、终端输出和终端 review。CLI review 默认展示全部差异并请求 yes/no 确认，`--yes` 跳过该确认并选择全部差异。
 
 `src/shell/index.cjs` 是产品可执行文件唯一入口；`package.json` 的 `start`、Electron 开发启动脚本和构建后的可执行文件都使用它。`prestart` 先构建 renderer，使 `npm start` 可以进入 main、session 或 CLI 任一路径。入口执行 startup composition，并根据 launch classification 加载 `shell/cli` 或 `shell/electron`。Renderer 不调用 CLI，只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
+
+Electron renderer 使用单一 `renderer/index.html` 和 `renderer/src/index.js` bootstrap。`contracts/renderer-surface.js` 定义五个合法 surface；每个 BrowserWindow 仍配置自己的 preload，再由 `main/load-renderer-surface.js` 通过 query 参数把 surface 名传给 bootstrap。Bootstrap 校验 surface 后动态加载对应 Vue root，因此共享 mount、i18n 和 stylesheet 初始化，同时保留独立 surface chunk 与 preload capability boundary。
 
 
 ## 3. Electron、Vite、Renderer、Application 的关系
@@ -459,7 +462,7 @@ copy 之外的示例：
 - 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
 - `src/shell/electron/main/app-state.js` 只保存 Electron 窗口状态，不缓存业务数据
 - renderer 通过 preload bridge 调用 `main-window:get-data`
-- sync-task modal 名称和校验属于 Electron shared contract，位于 `src/shell/electron/contracts/sync-task-modal.js`，供 Electron Main 和 renderer 共用
+- form modal view 名称和校验属于 Electron shared contract，位于 `src/shell/electron/contracts/form-modal.js`，供 Electron Main 和 renderer 共用；删除 server/task 是 main-window action，不属于 form view
 - server/task 修改成功后，app operation 通过 `src/app/events/configuration-events.js` 发布 config update，Electron Main 订阅后发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
 
 ### 4.8.1 `RcloneRemote` 与 `ServerConnection`
@@ -557,20 +560,20 @@ sequenceDiagram
 - `core/planning/execute-sync-plan.js` 使用 infrastructure file actions 执行 SyncPlan；core 不经过 app services
 - `app/operations/start-sync.js` 只处理 application lifecycle，不拥有 Snapshot 或 SyncPlan 流程
 
-### 4.9 `SyncTaskModalState`
+### 4.9 `FormModalState`
 
 ```js
 {
-  modalName: "edit-server",
+  view: "editServer",
   context: {
-    server: {
+    selectedServer: {
       name: "synology",
       type: "sftp",
       address: "nas.local",
       status: "unknown",
       config: {}
     },
-    syncTask: {
+    selectedSyncTask: {
       displayName: "Projects",
       rcloneRemote: "synology",
       localBasePath: "/Users/me/Projects",
@@ -587,11 +590,11 @@ sequenceDiagram
 - 主窗口 renderer 打开 modal 时传完整的 plain `server` 和 `syncTask` 对象
 - server 对象使用 app-level 结构 `{ name, type, address, status, config }`
 - 任何主窗口 renderer 的 UI 组合字段都不传给 modal
-- Electron Main 不重新组装 modal context，只校验 modal 名称并创建窗口
+- Electron Main 不重新组装 modal context，只校验 form view 并创建窗口
 - Electron Main 的 server IPC handler 只校验 payload 是否为 plain object；字段语义错误交给 app/server/rclone operation 返回 `SERVER_*`
-- `context.server` 和 `context.syncTask` 是 Electron Main 传给 sync-task modal 的纯数据
-- sync-task modal 的初始状态不通过 `additionalArguments` 传入 renderer
-- Electron Main 保存 `modalState`，preload 暴露 `window.syncTaskModal.getState()`，renderer 启动后异步读取
+- `context.selectedServer` 和 `context.selectedSyncTask` 是 Electron Main 传给 form modal 的纯数据
+- form modal 的初始状态不通过 `additionalArguments` 传入 renderer
+- Electron Main 保存 `modalState`，preload 暴露 `window.formModal.getState()`，renderer 启动后异步读取
 
 ### 4.10 `OperationReportState`
 
@@ -709,7 +712,7 @@ catch (error) {
 - `update: updateMessageBox` 原子替换 GUI state
 - `close: closeMessageBox` 关闭 GUI window 并 settle acknowledgement
 - GUI function 不包含 operation-specific key assembly
-- main-window 与 sync-task-modal handler 复用该 adapter，不各自组装 reporter 或 error state
+- main-window 与 form-modal handler 复用该 adapter，不各自组装 reporter 或 error state
 
 CLI 使用 `src/shell/cli/operation-report-display.js` 暴露同一中性 interface：
 
@@ -780,7 +783,7 @@ src/shell/electron/renderer/src/i18n/locales/<locale>/
     main-window.js
     message-box.js
     sync-session.js
-    sync-task-modal.js
+    form-modal.js
 ```
 
 - shared domain module 拥有该 domain 的 messages、errors 和 operations，GUI/CLI 共用

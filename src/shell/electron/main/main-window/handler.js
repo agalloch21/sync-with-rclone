@@ -1,12 +1,12 @@
-import { isValidSyncTaskModal } from '#electron/contracts/sync-task-modal.js'
+import { isValidFormModalView } from '#electron/contracts/form-modal.js'
 import { deleteServer, deleteSyncTask, getMainWindowData, getServer, listOperationHistory, updateGlobalIgnorePatterns } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import { SERVER_OPERATION } from '#src/app/operations/server-operation-contract.js'
 import { SYNC_TASK_OPERATION } from '#src/app/operations/task-operation-contract.js'
 import { getActiveModalWindow } from '../app-state.js'
+import { createFormModalWindow } from '../form-modal/window.js'
 import { reportRequestError, runReportedOperation } from '../message-box/operation-presentation.js'
-import { createSyncTaskModalWindow } from '../sync-task-modal/window.js'
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -21,11 +21,11 @@ function assertPayloadObject(payload) {
 }
 
 export function createMainWindowHandlers() {
-  async function openSyncTaskModalHandler(_event, payload) {
-    const modalName = payload?.modalName
+  async function openFormModalHandler(_event, payload) {
+    const view = payload?.view
     const context = payload?.context || {}
 
-    if (!isValidSyncTaskModal(modalName)) {
+    if (!isValidFormModalView(view)) {
       return toFailureResult({
         message: 'Cannot open the modal window',
         detail: 'Invalid modal name.',
@@ -33,13 +33,13 @@ export function createMainWindowHandlers() {
     }
 
     try {
-      const syncTaskModalWindow = getActiveModalWindow()
-      if (syncTaskModalWindow && !syncTaskModalWindow.isDestroyed()) {
-        syncTaskModalWindow.focus()
+      const formModalWindow = getActiveModalWindow()
+      if (formModalWindow && !formModalWindow.isDestroyed()) {
+        formModalWindow.focus()
         return toSuccessfulResult()
       }
 
-      createSyncTaskModalWindow(modalName, context)
+      createFormModalWindow(view, context)
       return toSuccessfulResult()
     }
     catch (error) {
@@ -122,7 +122,7 @@ export function createMainWindowHandlers() {
 
   return {
     getMainWindowDataHandler,
-    openSyncTaskModalHandler,
+    openFormModalHandler,
     getServerHandler,
     getOperationHistoryHandler,
     deleteServerHandler,

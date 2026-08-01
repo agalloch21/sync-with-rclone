@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import {
   createRemoteConfig,
+  createRemoteConfigFromStoredConfig,
   deleteRemoteConfig,
   listRemoteConfigs,
   updateRemoteConfig,
@@ -34,7 +35,7 @@ function commandArgs(args) {
 function optionObject(parts) {
   const result = {}
   for (let index = 0; index < parts.length; index += 2) {
-    if (parts[index] === '--obscure')
+    if (parts[index] === '--obscure' || parts[index] === '--no-obscure')
       break
     result[parts[index]] = parts[index + 1]
   }
@@ -133,6 +134,30 @@ test('createRemoteConfig writes the supplied protocol config', async () => {
       pass: 'secret',
     },
   })
+  assert.equal((await fakeRclone.readCalls())[0].at(-1), '--obscure')
+})
+
+test('createRemoteConfigFromStoredConfig preserves already-obscured passwords for rename', async () => {
+  const fakeRclone = await createFakeRclone()
+
+  await createRemoteConfigFromStoredConfig('renamed', {
+    type: 'sftp',
+    host: 'nas.local',
+    port: '22',
+    user: 'xiaobo',
+    pass: 'already-obscured-password',
+  }, fakeRclone.runtimePaths)
+
+  assert.deepEqual(await fakeRclone.readState(), {
+    renamed: {
+      type: 'sftp',
+      host: 'nas.local',
+      port: '22',
+      user: 'xiaobo',
+      pass: 'already-obscured-password',
+    },
+  })
+  assert.equal((await fakeRclone.readCalls())[0].at(-1), '--no-obscure')
 })
 
 test('updateRemoteConfig updates a remote config', async () => {

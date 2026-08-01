@@ -58,11 +58,7 @@ export async function reviewDiffInCli(diffSnapshot, { bypassConfirmation = false
   }
 
   if (!input.isTTY || !output.isTTY) {
-    output.write(`\nNon-interactive terminal detected. Continuing with all diff entries.\n`)
-    return {
-      action: 'confirm',
-      selectedPaths: collectSelectedPaths(payload.tree.children),
-    }
+    throw new Error('Non-interactive sync requires --yes to confirm all diff entries.')
   }
 
   const rl = readline.createInterface({ input, output })

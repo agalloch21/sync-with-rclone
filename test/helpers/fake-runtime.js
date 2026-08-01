@@ -58,7 +58,7 @@ if (command[0] === 'config' && command[1] === 'dump') {
 if (command[0] === 'config' && command[1] === 'create') {
   const state = readState()
   const config = {}
-  for (let index = 4; index < command.length && command[index] !== '--obscure'; index += 2)
+  for (let index = 4; index < command.length && command[index] !== '--obscure' && command[index] !== '--no-obscure'; index += 2)
     config[command[index]] = command[index + 1]
   state[command[2]] = { type: command[3], ...config }
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2))
@@ -98,6 +98,9 @@ process.exit(0)
             return []
           throw error
         }
+      },
+      async readRcloneState() {
+        return JSON.parse(await fs.readFile(statePath, 'utf8'))
       },
     })
   }

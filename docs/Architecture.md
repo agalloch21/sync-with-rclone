@@ -105,7 +105,7 @@ sync-with-rclone sync push ...   -> 命令模式，执行同步
 
 `shell/cli/commands.js` 使用同一 command contract 建立 command-to-handler registry。外部 CLI protocol 仍然是字符串，但 launch allowlist 与 dispatch 不重复手写 command name；registry 在 module initialization 时校验 contract 与 handler 数量一致。
 
-GUI 启动通过 `requestSingleInstanceLock()` 汇入一个 Electron Main 进程。这个进程可以持有零或一个主窗口，以及多个 sync-session 窗口。普通启动创建或聚焦主窗口；`--session` 启动只提交同步会话。CLI 命令不参与 GUI 单实例锁；同步范围的并发安全由所有 shell 共用的 `startSync` admission 保证。统一入口识别 CLI 模式后加载命令行壳层，由它负责参数路由、终端输出和终端 review。CLI review 默认展示全部差异并请求 yes/no 确认，`--yes` 跳过该确认并选择全部差异。
+GUI 启动通过 `requestSingleInstanceLock()` 汇入一个 Electron Main 进程。这个进程可以持有零或一个主窗口，以及多个 sync-session 窗口。普通启动创建或聚焦主窗口；`--session` 启动只提交同步会话。CLI 命令不参与 GUI 单实例锁；同步范围的并发安全由所有 shell 共用的 `startSync` admission 保证。统一入口识别 CLI 模式后加载命令行壳层，由它负责参数路由、终端输出和终端 review。交互式 CLI review 默认展示全部差异并请求 yes/no 确认，`--yes` 跳过该确认并选择全部差异；非 TTY 调用必须显式传入 `--yes`，避免脚本或 agent 在没有用户确认的情况下执行文件变更。
 
 `src/shell/index.cjs` 是产品可执行文件唯一入口；`package.json` 的 `start`、Electron 开发启动脚本和构建后的可执行文件都使用它。`prestart` 先构建 renderer，使 `npm start` 可以进入 main、session 或 CLI 任一路径。入口执行 startup composition，并根据 launch classification 加载 `shell/cli` 或 `shell/electron`。Renderer 不调用 CLI，只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
 
@@ -531,14 +531,15 @@ sequenceDiagram
 
 当前职责边界：
 
-- `app-api.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后通过 `app-events.js` 发布更新
+- `app-api.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后通过 `app-events.js` 发布更新；rename 后如果 task 引用重定向失败，它使用 rename receipt 恢复原 remote
 - `operations/server.js` 负责 operation progress 和 create → test → rollback 等 use-case sequencing，不读取 raw rclone config
 - `services/server.js` 负责 name/protocol validation、remote existence policy、remote/server 对象转换、adapter error mapping 和 rename implementation
 - `remote-config.js` 负责 config dump/create/update/delete/test 命令和 raw `{ name, config }` 解析，不判断资源应该存在或不应存在
 - 已识别的 rclone 技术失败由 `remote-config.js` 包装为带 `INFRASTRUCTURE_ERROR_CODE` 的 `InfrastructureError`；`services/server.js` 按当前 server capability 抛出 `SERVER_*` AppError，并通过 cause 保留 infrastructure 和 native process error，不逐项翻译 lower-level code
 - `name` 是 server 与 remote 共享的资源标识；name 校验、normalize 和 same-name rename no-op 由 server service 处理
 - 协议字段校验由 `services/server.js` 调用 `contracts/server-protocols.js` 完成
-- rename 的 rclone-backed implementation 位于 server service：先 create target，再 delete source；delete source 失败时尝试删除 target
+- rename 的 rclone-backed implementation 位于 server service：先 create target，再 delete source；delete source 失败时尝试删除 target。无表单配置的纯 rename 复制 `config dump` 返回的已存储配置，通过专用 `createRemoteConfigFromStoredConfig()` 和 `--no-obscure` 避免 password 字段被二次 obscure
+- rename service 返回只供该工作流补偿使用的 receipt；task 引用重定向失败时，app-api 先用 receipt 重建原 remote，再删除新 remote。补偿失败不会替换最初的 task/config error，其错误 code 和 message 只附加到原错误 metadata 供排查
 - `remote-files.js` 负责远端 raw folder entries、recursive file listing、folder ensure 和 copy/delete/cleanup actions，不与 remote configuration CRUD 混合；`server-folder-tree.js` 把 raw entries 组装为 application TreeNode
 - adapter command/parse 错误在 server service 边界转换为稳定的 `SERVER_*` error
 

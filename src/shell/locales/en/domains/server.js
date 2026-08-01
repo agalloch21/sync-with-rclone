@@ -56,6 +56,7 @@ export default {
       steps: {
         [SERVER_UPDATE_PROGRESS_STEP.SAVE]: 'Saving the server configuration...',
         [SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET]: 'Updating sync task references...',
+        [SERVER_UPDATE_PROGRESS_STEP.ROLLBACK]: 'Restoring the previous server configuration...',
       },
       succeeded: {
         message: 'The server was updated successfully.',

@@ -55,5 +55,10 @@ export async function renameServerConnection(
   onProgress,
 ) {
   onProgress?.(SERVER_UPDATE_PROGRESS_STEP.SAVE)
-  await serverService.renameServer(name, expectedName, protocolType, protocolFields)
+  return await serverService.renameServer(name, expectedName, protocolType, protocolFields)
+}
+
+export async function rollbackServerRename(renameReceipt, onProgress) {
+  onProgress?.(SERVER_UPDATE_PROGRESS_STEP.ROLLBACK)
+  await serverService.rollbackServerRename(renameReceipt)
 }

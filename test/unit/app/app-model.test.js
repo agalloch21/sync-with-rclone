@@ -191,6 +191,45 @@ test('updateServer reports only the save step when the server name is unchanged'
   })
 })
 
+test('updateServer restores the original remote when task retargeting fails', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {
+      synology: { type: 'sftp', host: 'old.local', port: '22', user: 'old', pass: 'old-obscured' },
+    },
+    appConfig: {
+      syncTasks: [],
+    },
+  }, async ({ configPath, readRcloneState }) => {
+    await fs.writeFile(configPath, '{ invalid config', 'utf8')
+    const progress = []
+
+    await assert.rejects(
+      () => updateServer('synology', 'nas', 'sftp', {
+        host: 'new.local',
+        port: 2222,
+        user: 'new',
+        pass: 'new-secret',
+      }, step => progress.push(step)),
+      error => error?.code === 'config.update_failed',
+    )
+
+    assert.deepEqual(await readRcloneState(), {
+      synology: {
+        type: 'sftp',
+        host: 'old.local',
+        port: '22',
+        user: 'old',
+        pass: 'old-obscured',
+      },
+    })
+    assert.deepEqual(progress, [
+      SERVER_UPDATE_PROGRESS_STEP.SAVE,
+      SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET,
+      SERVER_UPDATE_PROGRESS_STEP.ROLLBACK,
+    ])
+  })
+})
+
 test('deleteSyncTask throws when the requested task was not deleted', async () => {
   await withFakeAppRuntime({
     appConfig: {

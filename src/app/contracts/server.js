@@ -12,6 +12,7 @@ export const SERVER_CREATE_PROGRESS_STEP = Object.freeze({
 
 export const SERVER_UPDATE_PROGRESS_STEP = Object.freeze({
   SAVE: 'save',
+  ROLLBACK: 'rollback',
 })
 
 export const SERVER_DELETE_PROGRESS_STEP = Object.freeze({

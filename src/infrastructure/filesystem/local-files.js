@@ -14,7 +14,9 @@ function isValidFilename(name) {
 
 async function readPatterns(absFilePath) {
   try {
-    await fs.stat(absFilePath)
+    const stat = await fs.lstat(absFilePath)
+    if (stat.isSymbolicLink() || !stat.isFile())
+      return
   }
   catch {
     return
@@ -72,7 +74,10 @@ async function walkDirectory(rootPath, dirPath, filterStack, fileEntries) {
 
   for (const entryName of entryNames) {
     const entryPath = path.posix.join(dirPath, entryName)
-    const stat = await fs.stat(path.join(directoryPath, entryName))
+    const stat = await fs.lstat(path.join(directoryPath, entryName))
+    if (stat.isSymbolicLink())
+      continue
+
     const isFile = stat.isFile()
     const isDirectory = stat.isDirectory()
 
@@ -110,7 +115,10 @@ export async function listLocalFiles(rootAbsPath, extraPatterns = []) {
     })
   }
 
-  const rootStat = await fs.stat(rootPath)
+  const rootStat = await fs.lstat(rootPath)
+  if (rootStat.isSymbolicLink())
+    throw new Error(`Symbolic link sync roots are not supported: ${rootPath}`)
+
   if (rootStat.isDirectory()) {
     await walkDirectory(rootPath, '.', filterStack, fileEntries)
   }

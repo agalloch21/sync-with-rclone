@@ -14,6 +14,7 @@ import {
   deleteServerConnection,
   listServerConnections,
   renameServerConnection,
+  rollbackServerRename,
   testServerConnection,
   updateServerConnection,
 } from '#src/app/operations/server.js'
@@ -83,7 +84,7 @@ function commandArgs(args) {
 function optionObject(parts) {
   const result = {}
   for (let index = 0; index < parts.length; index += 2) {
-    if (parts[index] === '--obscure')
+    if (parts[index] === '--obscure' || parts[index] === '--no-obscure')
       break
     result[parts[index]] = parts[index + 1]
   }
@@ -409,7 +410,7 @@ test('renameServerConnection creates the target from server config then deletes 
   })
 
   const progress = []
-  await renameServerConnection('synology', 'nas', null, null, step => progress.push(step))
+  const renameReceipt = await renameServerConnection('synology', 'nas', null, null, step => progress.push(step))
 
   assert.deepEqual(await runtime.readState(), {
     nas: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
@@ -420,6 +421,52 @@ test('renameServerConnection creates the target from server config then deletes 
     ['config', 'delete'],
   ])
   assert.deepEqual(progress, [SERVER_UPDATE_PROGRESS_STEP.SAVE])
+  assert.deepEqual(renameReceipt, {
+    previousName: 'synology',
+    nextName: 'nas',
+    previousStoredConfig: {
+      type: 'sftp',
+      host: 'nas.local',
+      port: 22,
+      user: 'xiaobo',
+      pass: 'secret',
+    },
+  })
+  assert.equal((await runtime.readCalls())[1].at(-1), '--no-obscure')
+})
+
+test('rollbackServerRename restores the original name and stored config', async () => {
+  const runtime = await createFakeRuntime({
+    initialConfig: {
+      synology: { type: 'sftp', host: 'old.local', port: '22', user: 'old', pass: 'old-obscured' },
+    },
+  })
+  const progress = []
+
+  const renameReceipt = await renameServerConnection('synology', 'nas', 'sftp', {
+    host: 'new.local',
+    port: 2222,
+    user: 'new',
+    pass: 'new-secret',
+  }, step => progress.push(step))
+  await rollbackServerRename(renameReceipt, step => progress.push(step))
+
+  assert.deepEqual(await runtime.readState(), {
+    synology: {
+      type: 'sftp',
+      host: 'old.local',
+      port: '22',
+      user: 'old',
+      pass: 'old-obscured',
+    },
+  })
+  assert.deepEqual(progress, [
+    SERVER_UPDATE_PROGRESS_STEP.SAVE,
+    SERVER_UPDATE_PROGRESS_STEP.ROLLBACK,
+  ])
+  const createCalls = (await runtime.readCalls()).filter(call => call[2] === 'config' && call[3] === 'create')
+  assert.equal(createCalls[0].at(-1), '--obscure')
+  assert.equal(createCalls[1].at(-1), '--no-obscure')
 })
 
 test('renameServerConnection writes updated config when protocol input is provided', async () => {

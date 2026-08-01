@@ -468,7 +468,13 @@ sequenceDiagram
   APP->>SO: updateServerConnection(...) 或 renameServerConnection(...)
   SO->>SS: updateServer(...) 或 renameServer(...)
   SS->>RC: updateRemoteConfig(...) 或 create target + delete source
-  alt 失败
+  alt rename 成功但 task 引用重定向失败
+    APP->>SO: rollbackServerRename(receipt)
+    SO->>SS: rollbackServerRename(receipt)
+    SS->>RC: recreate source + delete target
+    EM-->>M: OperationResult success=false
+    M->>MB: useMessageBox.error(result.error)
+  else 其它失败
     EM-->>M: OperationResult success=false
     M->>MB: useMessageBox.error(result.error)
   else 成功
@@ -486,6 +492,8 @@ sequenceDiagram
 - `services/server.js` 负责 server validation、existence policy、remote/server 转换、rename implementation，并把 adapter error 转成 `SERVER_*`
 - `remote-config.js` 只负责 raw rclone config dump/create/update/delete/test 命令
 - rename-with-update 先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote
+- 纯 rename 使用专用 stored-config create capability 和 `--no-obscure`，避免把 `config dump` 返回的 password 再 obscure 一次
+- rename 返回局部补偿所需的 receipt；后续 task 引用重定向失败时，app-api 恢复原 remote。补偿失败只作为 metadata 附加在原错误上，不引入通用 transaction abstraction
 - 普通 operation 失败由 renderer composable 调用 `messageBox.error(error)` 展示一次
 
 ## 14. Delete Server / Delete Task 流程

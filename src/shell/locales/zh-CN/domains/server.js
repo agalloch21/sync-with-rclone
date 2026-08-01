@@ -56,6 +56,7 @@ export default {
       steps: {
         [SERVER_UPDATE_PROGRESS_STEP.SAVE]: '正在保存服务器配置…',
         [SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET]: '正在更新同步任务引用…',
+        [SERVER_UPDATE_PROGRESS_STEP.ROLLBACK]: '正在恢复之前的服务器配置…',
       },
       succeeded: {
         message: '服务器已成功更新。',

@@ -1,3 +1,4 @@
+import { getErrorCode } from './app-errors.js'
 import {
   notifyConfigUpdate,
   registerConfigUpdateListener,
@@ -109,8 +110,32 @@ async function deleteServerImpl(name, onProgress) {
 }
 
 async function renameServerImpl(name, expectedName, protocolType = null, protocolFields = null, onProgress) {
-  await serverOperations.renameServerConnection(name, expectedName, protocolType, protocolFields, onProgress)
-  await taskOperations.retargetSyncTasks(name, expectedName, onProgress)
+  const renameReceipt = await serverOperations.renameServerConnection(
+    name,
+    expectedName,
+    protocolType,
+    protocolFields,
+    onProgress,
+  )
+
+  try {
+    await taskOperations.retargetSyncTasks(name, expectedName, onProgress)
+  }
+  catch (error) {
+    try {
+      await serverOperations.rollbackServerRename(renameReceipt, onProgress)
+    }
+    catch (rollbackError) {
+      if (error && (typeof error === 'object' || typeof error === 'function')) {
+        error.meta = {
+          ...error.meta,
+          rollbackErrorCode: getErrorCode(rollbackError),
+          rollbackErrorMessage: rollbackError?.message || String(rollbackError),
+        }
+      }
+    }
+    throw error
+  }
 
   notifyConfigUpdate()
 }

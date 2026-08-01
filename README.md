@@ -58,13 +58,18 @@ npm start -- sync --bypass-config --mode=push --local=<local-path> --remote=<rem
 # positional sync 参数仍可用于明确的 sync 子命令
 npm start -- sync push <local-path> <remote-path>
 
-# 终端默认展示差异并请求 yes/no 确认；--yes 跳过确认并同步全部差异
+# 交互终端默认展示差异并请求 yes/no 确认；--yes 跳过确认并同步全部差异
 npm start -- sync --yes push <local-path> <remote-path>
 ```
 
 CLI 必须显式提供 `sync`、`list-tasks` 等正式子命令；同步参数推荐使用带名字的写法。
+当 stdin 或 stdout 不是 TTY（例如 agent、脚本或管道调用）时，同步必须显式传入 `--yes`，否则会在写入文件前拒绝执行。
 `npm start` 会先构建 renderer，因此同一个命令也可以不带参数启动主窗口，或者通过 `--session` 启动 sync-session。
 Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv，主流程现在会优先解析 `--mode`、`--local`、`--remote`，避免因为参数位置漂移而取错值。
+
+### Symbolic link 限制
+
+当前版本不支持同步 symbolic link。同步目录中的 symbolic link（包括指向文件和目录的 link）会被跳过，不会复制 link 本身，也不会读取或复制 link 指向的内容。symbolic link 不能直接作为同步根路径；这样可以避免把空 Snapshot 误认为空目录并删除目标端内容。
 
 
 ### 4. 使用 Electron 运行

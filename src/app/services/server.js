@@ -262,11 +262,16 @@ export async function renameServer(name, expectedName, protocolType = null, prot
     if (findRemote(remotes, nextName))
       throwServerError(APP_ERROR_CODE.SERVER_ALREADY_EXISTS, 'Server already exists.', { meta: { name: nextName } })
 
-    const nextConfig = protocolType == null && protocolFields == null
-      ? normalizeRemoteConfig(sourceRemote.config)
+    const previousStoredConfig = normalizeRemoteConfig(sourceRemote.config)
+    const copiesStoredConfig = protocolType == null && protocolFields == null
+    const nextConfig = copiesStoredConfig
+      ? previousStoredConfig
       : buildRemoteConfig(protocolType, protocolFields)
 
-    await remoteConfig.createRemoteConfig(nextName, nextConfig)
+    if (copiesStoredConfig)
+      await remoteConfig.createRemoteConfigFromStoredConfig(nextName, nextConfig)
+    else
+      await remoteConfig.createRemoteConfig(nextName, nextConfig)
     try {
       await remoteConfig.deleteRemoteConfig(currentName)
     }
@@ -277,8 +282,28 @@ export async function renameServer(name, expectedName, protocolType = null, prot
       catch {}
       throw error
     }
+
+    return {
+      previousName: currentName,
+      nextName,
+      previousStoredConfig,
+    }
   }
   catch (error) {
     throwServerErrorFromAdapter(error, 'Failed to rename the server.', { name, expectedName })
+  }
+}
+
+export async function rollbackServerRename(renameReceipt) {
+  try {
+    const { previousName, nextName, previousStoredConfig } = renameReceipt || {}
+    if (!previousName || !nextName || !previousStoredConfig)
+      throw new TypeError('Invalid server rename receipt.')
+
+    await remoteConfig.createRemoteConfigFromStoredConfig(previousName, previousStoredConfig)
+    await remoteConfig.deleteRemoteConfig(nextName)
+  }
+  catch (error) {
+    throwServerErrorFromAdapter(error, 'Failed to roll back the server rename.')
   }
 }

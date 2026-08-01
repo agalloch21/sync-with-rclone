@@ -3,7 +3,7 @@ import test from 'node:test'
 
 import {
   SYNC_SESSION_EVENT,
-} from '#src/app/operations/sync-operation-contract.js'
+} from '#src/app/contracts/sync.js'
 import { SYNC_PHASE_EVENT } from '#src/core/contract.js'
 
 test('sync phase event names use the sync.phase namespace', () => {

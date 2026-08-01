@@ -1,8 +1,8 @@
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
-import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
-import { loadConfiguration } from './configuration-service.js'
-import { resolveLocalDirectoryPath } from './local-path-service.js'
-import { resolveSyncTask } from './resolve-sync-task.js'
+import { APP_ERROR_CODE, throwAppError } from '../../app-errors.js'
+import { loadConfiguration } from '../../services/app-config.js'
+import { resolveLocalDirectoryPath } from '../../services/local-path.js'
+import { resolveSyncTask } from './resolve-task.js'
 
 export async function resolveSyncContext(options, runtimePaths = getRuntimePaths()) {
   const { bypassConfig = false } = options

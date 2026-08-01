@@ -6,14 +6,14 @@ import {
   SYNC_TASK_DELETE_PROGRESS_STEP,
   SYNC_TASK_RETARGET_PROGRESS_STEP,
   SYNC_TASK_SAVE_PROGRESS_STEP,
-} from '#src/app/operations/task-operation-contract.js'
+} from '#src/app/contracts/task.js'
 import {
   createSyncTask,
   deleteTaskFromConfig,
   retargetSyncTasks,
   updateSyncTask,
   updateSyncTaskIgnorePatterns,
-} from '#src/app/operations/task-operations.js'
+} from '#src/app/operations/task.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('deleteTaskFromConfig removes the selected task and preserves global ignore patterns', async () => {

@@ -8,7 +8,7 @@ import {
   SERVER_CREATE_PROGRESS_STEP,
   SERVER_DELETE_PROGRESS_STEP,
   SERVER_UPDATE_PROGRESS_STEP,
-} from '#src/app/operations/server-operation-contract.js'
+} from '#src/app/contracts/server.js'
 import {
   createServerConnection,
   deleteServerConnection,
@@ -16,7 +16,7 @@ import {
   renameServerConnection,
   testServerConnection,
   updateServerConnection,
-} from '#src/app/operations/server-operations.js'
+} from '#src/app/operations/server.js'
 import {
   INFRASTRUCTURE_ERROR_CODE,
   InfrastructureError,

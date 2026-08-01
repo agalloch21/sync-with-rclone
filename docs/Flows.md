@@ -370,7 +370,7 @@ sequenceDiagram
 - Electron Main 负责 modal 和 message-box 的窗口生命周期；app operation 的返回值或异常负责业务控制流
 - form modal renderer 不直接读取 app config，也不直接调用 rclone
 - App Layer 提供应用操作：组合主窗口数据、读写 app config、读写 rclone config、删除 task
-- server/syncTask 修改成功后，App Layer 通过 `configuration-events.js` 发出 config update 通知，主窗口 renderer 再读取 `MainWindowData`
+- server/syncTask 修改成功后，App Layer 通过 `app-events.js` 发出 config update 通知，主窗口 renderer 再读取 `MainWindowData`
 - message-box 只作为临时状态窗口，不替换普通 modal 的内容
 - 普通 validation/message/confirmation 由 renderer 的 `useMessageBox()` facade 发起
 - 需要观察 operation 进度时，shell 使用 `createOperationReporter(operation, display)`
@@ -477,8 +477,8 @@ sequenceDiagram
 
 - 需要 main-managed progress 的 server/task mutation 统一通过 `message-box/operation-presentation.js` 接入 `createOperationReporter()`
 - `app-api.js` 负责判断保存动作是同名 update 还是 rename
-- `server-operations.js` 负责 progress lifecycle 和 operation sequencing
-- `server-service.js` 负责 server validation、existence policy、remote/server 转换、rename implementation，并把 adapter error 转成 `SERVER_*`
+- `operations/server.js` 负责 progress lifecycle 和 operation sequencing
+- `services/server.js` 负责 server validation、existence policy、remote/server 转换、rename implementation，并把 adapter error 转成 `SERVER_*`
 - `remote-config.js` 只负责 raw rclone config dump/create/update/delete/test 命令
 - rename-with-update 先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote
 - 普通 operation 失败由 renderer composable 调用 `messageBox.error(error)` 展示一次

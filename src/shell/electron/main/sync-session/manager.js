@@ -56,7 +56,7 @@ export function sessionDescriptorsOverlap(left, right, platform = process.platfo
 }
 
 function createDescriptor(request) {
-  const context = request.prepared.context
+  const context = request.contextResolution.context
   return {
     localFolderPath: context.localFolderPath,
     remoteFolderPath: context.remoteFolderPath,

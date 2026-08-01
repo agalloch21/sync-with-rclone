@@ -3,7 +3,7 @@ import Button from '#frontend/surfaces/shared/Button.vue'
 import {
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operations/operation-report-contract.js'
+} from '#src/app/contracts/operation-report.js'
 import { computed, onMounted, onUnmounted, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { resolveMessageBoxIconClass, resolveMessageBoxPresentation } from './MessageBox.presentation.js'

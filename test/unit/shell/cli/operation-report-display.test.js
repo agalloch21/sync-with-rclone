@@ -3,11 +3,11 @@ import test from 'node:test'
 import { createCliI18n, resolveCliLocale } from '#cli/i18n.js'
 import { createCliOperationReportDisplay } from '#cli/operation-report-display.js'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
-import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
 import {
   SERVER_CREATE_PROGRESS_STEP,
   SERVER_OPERATION,
-} from '#src/app/operations/server-operation-contract.js'
+} from '#src/app/contracts/server.js'
+import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
 
 function createOutput() {
   const lines = []

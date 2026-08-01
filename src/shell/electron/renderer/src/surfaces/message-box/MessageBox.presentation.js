@@ -1,7 +1,7 @@
 import {
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operations/operation-report-contract.js'
+} from '#src/app/contracts/operation-report.js'
 
 function translateIfPresent(te, t, key, params, fallback) {
   return te(key) ? t(key, params) : fallback

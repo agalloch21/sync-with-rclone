@@ -3,8 +3,8 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
 import { deleteSyncTask, getMainWindowData, listOperationHistory, testServerConnection, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-api.js'
-import { SERVER_UPDATE_PROGRESS_STEP } from '#src/app/operations/server-operation-contract.js'
-import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/operations/task-operation-contract.js'
+import { SERVER_UPDATE_PROGRESS_STEP } from '#src/app/contracts/server.js'
+import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/contracts/task.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('getMainWindowData returns servers and sync tasks through the app API', async () => {

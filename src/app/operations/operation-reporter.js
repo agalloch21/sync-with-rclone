@@ -3,7 +3,7 @@ import {
   OPERATION_REPORT_ACKNOWLEDGEMENT,
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from './operation-report-contract.js'
+} from '../contracts/operation-report.js'
 
 function assertReporterDependencies(display) {
   if (!display || typeof display !== 'object')

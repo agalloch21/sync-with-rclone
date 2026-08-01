@@ -4,7 +4,7 @@ import {
   SYNC_TASK_DELETE_PROGRESS_STEP,
   SYNC_TASK_OPERATION,
   SYNC_TASK_SAVE_PROGRESS_STEP,
-} from '#src/app/operations/task-operation-contract.js'
+} from '#src/app/contracts/task.js'
 import { defineLocaleTree } from '../../locale-tree.js'
 
 export default {

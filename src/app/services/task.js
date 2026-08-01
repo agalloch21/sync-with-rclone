@@ -1,5 +1,5 @@
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
-import { loadConfiguration, updateConfiguration } from './configuration-service.js'
+import { loadConfiguration, updateConfiguration } from './app-config.js'
 
 function requireConfig(config) {
   if (!config)

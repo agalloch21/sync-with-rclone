@@ -3,8 +3,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { RENDERER_SURFACE } from '#electron/contracts/renderer-surface.js'
 import { getSyncSessionStageForPhase, SYNC_SESSION_STAGE } from '#electron/contracts/sync-session-stage.js'
-import { SYNC_SESSION_EVENT } from '#src/app/operations/sync-operation-contract.js'
-import { serializeDiffSnapshot } from '#src/app/services/sync-review-service.js'
+import { SYNC_SESSION_EVENT } from '#src/app/contracts/sync.js'
+import { serializeDiffSnapshot } from '#src/app/operations/sync/review.js'
 import { loadRendererSurface } from '../load-renderer-surface.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))

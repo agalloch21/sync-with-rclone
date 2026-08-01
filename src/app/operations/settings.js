@@ -1,5 +1,5 @@
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
-import * as settingsService from '../services/settings-service.js'
+import * as settingsService from '../services/global-settings.js'
 
 function assertIgnorePatterns(ignorePatterns) {
   if (!Array.isArray(ignorePatterns) || ignorePatterns.some(pattern => typeof pattern !== 'string'))

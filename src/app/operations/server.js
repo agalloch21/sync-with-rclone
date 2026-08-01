@@ -1,10 +1,10 @@
 import { getErrorCode } from '../app-errors.js'
-import * as serverService from '../services/server-service.js'
 import {
   SERVER_CREATE_PROGRESS_STEP,
   SERVER_DELETE_PROGRESS_STEP,
   SERVER_UPDATE_PROGRESS_STEP,
-} from './server-operation-contract.js'
+} from '../contracts/server.js'
+import * as serverService from '../services/server.js'
 
 export const buildEmptyServerObject = serverService.buildEmptyServer
 export const getFolderTree = serverService.getServerFolderTree

@@ -5,8 +5,8 @@ import {
   SERVER_DELETE_PROGRESS_STEP,
   SERVER_OPERATION,
   SERVER_UPDATE_PROGRESS_STEP,
-} from '#src/app/operations/server-operation-contract.js'
-import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/operations/task-operation-contract.js'
+} from '#src/app/contracts/server.js'
+import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/contracts/task.js'
 import { defineLocaleTree } from '../../locale-tree.js'
 
 export default {

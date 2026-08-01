@@ -37,7 +37,7 @@ sequenceDiagram
 - `shell/electron` 是当前桌面壳层
 - `shell/cli` 是当前保留的命令行壳层
 - `shell/index.cjs` 是统一产品入口，根据启动协议选择桌面、session 或 CLI 模式
-- `app/operations/start-sync.js` 拥有同步请求的 application lifecycle：history、context resolution、session events 和最终结果
+- `app/operations/sync/start.js` 拥有同步请求的 application lifecycle：history、context resolution、session events 和最终结果
 - `app/services` 为普通资源 operations 与 startSync 提供配置、路径、server/task 等 application capabilities
 - `core` 是完整同步工作模块：拥有 Snapshot、Diff、SyncPlan 和已解析同步的执行流程
 - `infrastructure/filesystem` 负责读取本地文件系统并返回 neutral file entries
@@ -49,9 +49,10 @@ sequenceDiagram
 ```text
 src/           // 运行时代码
   app/         // shell-neutral application use cases 和编排
-    events/    // shell-neutral application notifications
-    operations/ // user-intent operations、生命周期和 operation contracts；包含 start-sync
-    services/  // server/task/settings/configuration/context/review capabilities
+    contracts/ // shell 与 application 共用的 operation、sync 和 server-protocol contracts
+    app-events.js // shell-neutral application notifications
+    operations/ // user-intent operations 与生命周期；sync/ 包含同步 application flow
+    services/  // server/task/settings/configuration/path capabilities
   core/        // 独立同步工作模块
     execute-sync.js // 已解析同步上下文的完整执行流
     contract.js // sync phases、review 和 execution result contracts
@@ -147,7 +148,7 @@ sequenceDiagram
 - `Renderer` 不直接调用 core 或 infrastructure
 - `Renderer` 通过 `preload` 暴露的 bridge 与 `Electron Main` 通信
 - `Electron Main` 再去调用 `app`
-- `app/operations/start-sync.js` 解析 application context，再调用独立 core workflow
+- `app/operations/sync/start.js` 解析 application context，再调用独立 core workflow
 - infrastructure 调用外部 `rclone` 进程
 - `Vite` 的作用不是参与运行时通信，而是把 renderer 源码编译成 Electron 可加载的页面
 - `CLI` 不是为了测试临时补出来的旁路，而是由统一产品入口按启动协议加载的独立 shell adapter
@@ -160,12 +161,12 @@ sequenceDiagram
 
 - 第二次 GUI 启动通过 single-instance `additionalData` 传递规范化 launch request，不依赖可能被 Chromium 重排的 argv。
 - 主窗口是可重建的进程级单例；`desktop-application.js` 直接调用 `main-window/window.js` 创建窗口，不增加无职责的 runner。关闭主窗口不会取消活跃同步。
-- `app/operations/start-sync.js` 是 shell-neutral application operation，负责 history、context resolution、session events、error mapping 和最终结果。
+- `app/operations/sync/start.js` 是 shell-neutral application operation，负责 history、context resolution、session events、error mapping 和最终结果。
 - `core/execute-sync.js` 负责已解析上下文中的 snapshot、compare、review、plan 和 apply 流程。
-- core execution contract 定义在 `core/contract.js`；application session events 定义在 `app/operations/sync-operation-contract.js`。
+- core execution contract 定义在 `core/contract.js`；application session events 定义在 `app/contracts/sync.js`。
 - remote-folder probe/mkdir 是可复用的 infrastructure action；`startSync` 在 application policy 确认需要创建目标目录后直接调用它。
 - `infrastructure/runtime/runtime-paths.js` 从进程、平台、安装目录和环境变量解析运行时路径。
-- `infrastructure/filesystem/local-path.js` 负责本地路径规范化、home 展开和目录存在性校验；`app/services/local-path-service.js` 把技术错误转换成 application error。
+- `infrastructure/filesystem/local-path.js` 负责本地路径规范化、home 展开和目录存在性校验；`app/services/local-path.js` 把技术错误转换成 application error。
 - `shell/electron/main/sync-session/controller.js` 把 application use case 连接到 session window 的 events、review interaction、acknowledgement 和 cancellation。
 - `shell/electron/contracts/sync-session-stage.js` 定义 Main 与 Renderer 共用的 Analyze、Review、Sync UI stage 及其 phase 映射。
 - `shell/electron/main/sync-session/manager.js` 先通过 controller 解析只读 `SyncSessionContext`，再以本地和远程根路径执行原子 admission，并管理活跃 Electron session handle。
@@ -452,20 +453,20 @@ copy 之外的示例：
 
 - `MainWindowData` 是主窗口 renderer 的当前只读展示数据
 - `src/app/app-api.js` 通过 `getMainWindowData()` 组合 server 列表和 sync task 列表
-- server connection 由 `src/app/services/server-service.js` 从 raw rclone remote 转换而来，对外结构固定为 `{ name, type, address, status, config }`
-- sync task 通过 `src/app/services/task-service.js` 访问；JSON persistence 位于 `src/infrastructure/configuration/app-config-store.js`
+- server connection 由 `src/app/services/server.js` 从 raw rclone remote 转换而来，对外结构固定为 `{ name, type, address, status, config }`
+- sync task 通过 `src/app/services/task.js` 访问；JSON persistence 位于 `src/infrastructure/configuration/app-config-store.js`
 - 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
 - `src/shell/electron/main/app-state.js` 只保存 Electron 窗口状态，不缓存业务数据
 - renderer 通过 preload bridge 调用 `main-window:get-data`
 - form modal view 名称和校验属于 Electron shared contract，位于 `src/shell/electron/contracts/form-modal.js`，供 Electron Main 和 renderer 共用；删除 server/task 是 main-window action，不属于 form view
-- server/task 修改成功后，app operation 通过 `src/app/events/configuration-events.js` 发布 config update，Electron Main 订阅后发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
+- server/task 修改成功后，app operation 通过 `src/app/app-events.js` 发布 config update；Electron Main 通过 `app-api.js` 注册监听，再发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
 
 ### 4.8.1 `RcloneRemote` 与 `ServerConnection`
 
 当前配置层有两个不同的数据结构：
 
 ```js
-// 只在 remote-config.js 和 server-service.js 边界内使用
+// 只在 remote-config.js 和 app/services/server.js 边界内使用
 {
   name: "synology",
   config: {
@@ -497,7 +498,7 @@ copy 之外的示例：
 - `RcloneRemote.config` 是 rclone 配置的原始字段集合，包含 `type`
 - `infrastructure/rclone/remote-config.js` 只负责执行 config dump/create/update/delete 和 connection probe，不负责 server policy
 - `ServerConnection` 的正式结构是 `{ name, type, address, status, config }`
-- `server-service.js` 是 remote 和 server 之间的唯一转换层
+- `app/services/server.js` 是 remote 和 server 之间的唯一转换层
 - `type` 从 `config.type` 派生
 - `address` 从 `config.host` / `config.url` / `config.remote` / `config.endpoint` 派生，只用于展示
 - `status` 是 app/UI 状态，不写入 rclone config
@@ -508,10 +509,10 @@ copy 之外的示例：
 ```mermaid
 sequenceDiagram
   participant APP as app-api.js
-  participant SO as server-operations.js
-  participant SS as server-service.js
+  participant SO as operations/server.js
+  participant SS as services/server.js
   participant RC as infrastructure/rclone/remote-config.js
-  participant PR as protocol-registry.js
+  participant PR as contracts/server-protocols.js
 
   APP->>SO: create/update/rename/delete server connection
   SO->>SO: emit operation progress / sequence create-test-rollback
@@ -526,13 +527,13 @@ sequenceDiagram
 
 当前职责边界：
 
-- `app-api.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后通过 `configuration-events.js` 发布更新
-- `server-operations.js` 负责 operation progress 和 create → test → rollback 等 use-case sequencing，不读取 raw rclone config
-- `server-service.js` 负责 name/protocol validation、remote existence policy、remote/server 对象转换、adapter error mapping 和 rename implementation
+- `app-api.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后通过 `app-events.js` 发布更新
+- `operations/server.js` 负责 operation progress 和 create → test → rollback 等 use-case sequencing，不读取 raw rclone config
+- `services/server.js` 负责 name/protocol validation、remote existence policy、remote/server 对象转换、adapter error mapping 和 rename implementation
 - `remote-config.js` 负责 config dump/create/update/delete/test 命令和 raw `{ name, config }` 解析，不判断资源应该存在或不应存在
-- 已识别的 rclone 技术失败由 `remote-config.js` 包装为带 `INFRASTRUCTURE_ERROR_CODE` 的 `InfrastructureError`；`server-service.js` 按当前 server capability 抛出 `SERVER_*` AppError，并通过 cause 保留 infrastructure 和 native process error，不逐项翻译 lower-level code
+- 已识别的 rclone 技术失败由 `remote-config.js` 包装为带 `INFRASTRUCTURE_ERROR_CODE` 的 `InfrastructureError`；`services/server.js` 按当前 server capability 抛出 `SERVER_*` AppError，并通过 cause 保留 infrastructure 和 native process error，不逐项翻译 lower-level code
 - `name` 是 server 与 remote 共享的资源标识；name 校验、normalize 和 same-name rename no-op 由 server service 处理
-- 协议字段校验由 `server-service.js` 调用 `protocol-registry.js` 完成
+- 协议字段校验由 `services/server.js` 调用 `contracts/server-protocols.js` 完成
 - rename 的 rclone-backed implementation 位于 server service：先 create target，再 delete source；delete source 失败时尝试删除 target
 - `remote-files.js` 负责远端 raw folder entries、recursive file listing、folder ensure 和 copy/delete/cleanup actions，不与 remote configuration CRUD 混合；`server-folder-tree.js` 把 raw entries 组装为 application TreeNode
 - adapter command/parse 错误在 server service 边界转换为稳定的 `SERVER_*` error
@@ -540,11 +541,11 @@ sequenceDiagram
 ### 4.8.3 App config store、services 与 operation policy
 
 - `infrastructure/configuration/app-config-store.js` 负责 default config、读取、schema normalization、序列化、原子写入和同一路径写入互斥
-- `task-operations.js` 负责 task input/reference validation、path normalization 和 progress lifecycle
-- `task-service.js` 负责 task conflict、create/update/delete/retarget policy，并把完整 JSON transaction 隐藏在 service boundary 后
-- `settings-operations.js` 负责 global ignore pattern input validation；`settings-service.js` 负责读取和更新 capability
-- `configuration-service.js` 为 sync context resolution 提供完整 configuration read capability
-- store 的 `updateAppConfig(mutator)` 只通过 `configuration-service.js` 暴露给 application services，不暴露给 operations、core 或 shells
+- `operations/task.js` 负责 task input/reference validation、path normalization 和 progress lifecycle
+- `services/task.js` 负责 task conflict、create/update/delete/retarget policy，并把完整 JSON transaction 隐藏在 service boundary 后
+- `operations/settings.js` 负责 global ignore pattern input validation；`services/global-settings.js` 负责读取和更新 capability
+- `services/app-config.js` 为 sync context resolution 提供完整 configuration read capability
+- store 的 `updateAppConfig(mutator)` 只通过 `services/app-config.js` 暴露给 application services，不暴露给 operations、core 或 shells
 
 ### 4.8.4 File services、Snapshot 与 plan application
 
@@ -554,7 +555,7 @@ sequenceDiagram
 - `core/snapshots/acquire-snapshots.js` 使用 local/rclone scanners 获取 neutral entries，再建立 Snapshot
 - `core/planning/sync-plan-result.js` 创建 execution-result operations 并根据 confirmed paths 标记 `synced`
 - `core/planning/execute-sync-plan.js` 使用 infrastructure file actions 执行 SyncPlan；core 不经过 app services
-- `app/operations/start-sync.js` 只处理 application lifecycle，不拥有 Snapshot 或 SyncPlan 流程
+- `app/operations/sync/start.js` 只处理 application lifecycle，不拥有 Snapshot 或 SyncPlan 流程
 
 ### 4.9 `FormModalState`
 
@@ -796,8 +797,8 @@ src/shell/electron/renderer/src/i18n/locales/<locale>/
 src/app/app-errors.js
 src/app/app-messages.js
 src/app/app-api.js
-src/app/events/configuration-events.js
-src/app/operations/operation-report-contract.js
+src/app/contracts/operation-report.js
+src/app/app-events.js
 src/app/operations/operation-reporter.js
 src/shell/cli/i18n.js
 src/shell/cli/operation-report-display.js

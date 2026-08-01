@@ -5,12 +5,12 @@ import {
   OPERATION_REPORT_ACKNOWLEDGEMENT,
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operations/operation-report-contract.js'
-import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
+} from '#src/app/contracts/operation-report.js'
 import {
   SERVER_CREATE_PROGRESS_STEP,
   SERVER_OPERATION,
-} from '#src/app/operations/server-operation-contract.js'
+} from '#src/app/contracts/server.js'
+import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
 
 function createDisplayCalls() {
   const calls = []

@@ -1,6 +1,6 @@
 import { parseSyncArgs } from '#shell/parse-sync-args.js'
 import { startSync } from '#src/app/app-api.js'
-import { resolveSyncContext } from '#src/app/services/sync-context-service.js'
+import { resolveSyncContext } from '#src/app/operations/sync/resolve-context.js'
 import { SYNC_PHASES, SYNC_RESULT } from '#src/core/contract.js'
 import { createSessionWindow } from './window.js'
 
@@ -11,13 +11,13 @@ function parseSessionOptions(argv = []) {
 
 export async function resolveSyncSessionRequest(argv = []) {
   const options = parseSessionOptions(argv)
-  const prepared = await resolveSyncContext(options)
-  return { argv, options, prepared }
+  const contextResolution = await resolveSyncContext(options)
+  return { argv, options, contextResolution }
 }
 
 export function startSyncSession(request) {
   const options = request?.options || parseSessionOptions(request?.argv || [])
-  const prepared = request?.prepared || null
+  const contextResolution = request?.contextResolution || null
   const sessionWindowHooks = createSessionWindow()
 
   const completion = (async () => {
@@ -28,7 +28,7 @@ export function startSyncSession(request) {
       syncResult = await startSync(options, {
         events: { eventListener: sessionWindowHooks.onEventFromMain },
         interactions: { reviewDiff: sessionWindowHooks.reviewDiffInWindow },
-      }, sessionWindowHooks.cancelSignal, prepared)
+      }, sessionWindowHooks.cancelSignal, contextResolution)
 
       if (syncResult.result === SYNC_RESULT.COMPLETED
         || syncResult.result === SYNC_RESULT.FAILED

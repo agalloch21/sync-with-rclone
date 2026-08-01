@@ -8,13 +8,13 @@ import {
   getErrorCode,
   getErrorDetail,
   toAppError,
-} from '../app-errors.js'
-import { resolveSyncContext } from '../services/sync-context-service.js'
+} from '../../app-errors.js'
+import { SYNC_PHASE_EVENT, SYNC_RESULT, SYNC_SESSION_EVENT, SYNC_SESSION_OPERATION } from '../../contracts/sync.js'
 import {
   OPERATION_HISTORY_STATUS,
   runOperationWithHistory,
-} from './operation-history.js'
-import { SYNC_PHASE_EVENT, SYNC_RESULT, SYNC_SESSION_EVENT, SYNC_SESSION_OPERATION } from './sync-operation-contract.js'
+} from '../operation-history.js'
+import { resolveSyncContext } from './resolve-context.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
@@ -50,13 +50,13 @@ function toApplicationError(error) {
   )
 }
 
-async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepared = null) {
+async function startSyncImpl(options, runtime = {}, cancelSignal = null, contextResolution = null) {
   assertRuntimeContract(runtime)
 
   const emit = runtime.events?.eventListener || (() => {})
-  let runtimePaths = prepared?.runtimePaths || null
+  let runtimePaths = contextResolution?.runtimePaths || null
 
-  let resolvedContext = prepared?.context || {
+  let resolvedContext = contextResolution?.context || {
     mode: options.mode,
     localFolderPath: options.localFolderPath,
     remoteFolderPath: options.remoteFolderPath,
@@ -66,10 +66,10 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, prepare
   try {
     emit({ type: SYNC_SESSION_EVENT.STARTED })
 
-    if (prepared?.error)
-      throw prepared.error
+    if (contextResolution?.error)
+      throw contextResolution.error
 
-    const resolution = prepared || await resolveSyncContext(options)
+    const resolution = contextResolution || await resolveSyncContext(options)
     runtimePaths = resolution.runtimePaths
     resolvedContext = resolution.context
 
@@ -197,8 +197,8 @@ function resolveSyncHistoryResult(result) {
   }
 }
 
-export async function startSync(options, runtime = {}, cancelSignal = null, prepared = null) {
-  let resolution = prepared
+export async function startSync(options, runtime = {}, cancelSignal = null, contextResolution = null) {
+  let resolution = contextResolution
   if (!resolution) {
     const runtimePaths = getRuntimePaths()
     try {

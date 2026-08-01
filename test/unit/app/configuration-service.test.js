@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
-import { loadConfiguration, updateConfiguration } from '#src/app/services/configuration-service.js'
+import { loadConfiguration, updateConfiguration } from '#src/app/services/app-config.js'
 import {
   INFRASTRUCTURE_ERROR_CODE,
   InfrastructureError,

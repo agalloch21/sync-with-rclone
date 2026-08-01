@@ -1,16 +1,29 @@
-import { notifyConfigUpdate } from './events/configuration-events.js'
+import {
+  notifyConfigUpdate,
+  registerConfigUpdateListener,
+  unregisterConfigUpdateListener,
+} from './app-events.js'
+import { SERVER_OPERATION } from './contracts/server.js'
+import { SETTINGS_OPERATION } from './contracts/settings.js'
+import { SYNC_TASK_OPERATION } from './contracts/task.js'
 import {
   defineAppOperation,
   listOperationHistory as readOperationHistory,
+  registerOperationHistoryListener,
+  unregisterOperationHistoryListener,
 } from './operations/operation-history.js'
-import { SERVER_OPERATION } from './operations/server-operation-contract.js'
-import * as serverOperations from './operations/server-operations.js'
-import { SETTINGS_OPERATION } from './operations/settings-operation-contract.js'
-import * as settingsOperations from './operations/settings-operations.js'
-import { SYNC_TASK_OPERATION } from './operations/task-operation-contract.js'
-import * as taskOperations from './operations/task-operations.js'
+import * as serverOperations from './operations/server.js'
+import * as settingsOperations from './operations/settings.js'
+import * as taskOperations from './operations/task.js'
 
-export { startSync } from './operations/start-sync.js'
+export {
+  registerConfigUpdateListener,
+  registerOperationHistoryListener,
+  unregisterConfigUpdateListener,
+  unregisterOperationHistoryListener,
+}
+
+export { startSync } from './operations/sync/start.js'
 
 //* ========================================== Queries ========================================*/
 // Queries only read and return application state; they do not report progress or publish updates.

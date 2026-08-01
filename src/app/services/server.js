@@ -1,7 +1,7 @@
 import * as remoteConfig from '#src/infrastructure/rclone/remote-config.js'
 import { listRemoteFolderEntries } from '#src/infrastructure/rclone/remote-files.js'
 import { APP_ERROR_CODE, AppError, throwAppError } from '../app-errors.js'
-import { getProtocolDefinition, validateProtocolForm } from '../configuration/protocol-registry.js'
+import { getProtocolDefinition, validateProtocolForm } from '../contracts/server-protocols.js'
 import { buildServerFolderTree } from './server-folder-tree.js'
 
 function throwInvalidRemote(detail, fields = null, meta = {}) {

@@ -1,6 +1,6 @@
 import { stdin as input, stdout as output } from 'node:process'
 import readline from 'node:readline/promises'
-import { serializeDiffSnapshot } from '#src/app/services/sync-review-service.js'
+import { serializeDiffSnapshot } from '#src/app/operations/sync/review.js'
 
 function renderTreeLines(nodes, depth = 0) {
   const lines = []

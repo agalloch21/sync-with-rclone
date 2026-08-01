@@ -3,8 +3,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { RENDERER_SURFACE } from '#electron/contracts/renderer-surface.js'
-import { registerConfigUpdateListener, unregisterConfigUpdateListener } from '#src/app/events/configuration-events.js'
-import { registerOperationHistoryListener, unregisterOperationHistoryListener } from '#src/app/operations/operation-history.js'
+import {
+  registerConfigUpdateListener,
+  registerOperationHistoryListener,
+  unregisterConfigUpdateListener,
+  unregisterOperationHistoryListener,
+} from '#src/app/app-api.js'
 import { clearMainWindow, setMainWindow } from '../app-state.js'
 import { loadRendererSurface } from '../load-renderer-surface.js'
 import { createMessageBoxBridgeHandlers, destroyMessageBox } from '../message-box/window.js'

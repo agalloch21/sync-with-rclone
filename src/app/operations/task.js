@@ -1,11 +1,11 @@
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
-import { normalizeLocalPath, resolveLocalDirectoryPath, trimTrailingSlash } from '../services/local-path-service.js'
-import * as taskService from '../services/task-service.js'
 import {
   SYNC_TASK_DELETE_PROGRESS_STEP,
   SYNC_TASK_RETARGET_PROGRESS_STEP,
   SYNC_TASK_SAVE_PROGRESS_STEP,
-} from './task-operation-contract.js'
+} from '../contracts/task.js'
+import { normalizeLocalPath, resolveLocalDirectoryPath, trimTrailingSlash } from '../services/local-path.js'
+import * as taskService from '../services/task.js'
 
 function assertTaskInput(task) {
   if (!task || typeof task !== 'object' || Array.isArray(task))

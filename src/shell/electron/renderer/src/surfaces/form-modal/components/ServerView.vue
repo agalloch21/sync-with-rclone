@@ -1,7 +1,7 @@
 <script setup>
 import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { useServerOperations } from '#frontend/composables/useServerOperations.js'
-import { createDefaultProtocolForm, getDefaultProtocolType, getProtocolDefinition, REMOTE_PROTOCOLS } from '#src/app/configuration/protocol-registry.js'
+import { createDefaultProtocolForm, getDefaultProtocolType, getProtocolDefinition, REMOTE_PROTOCOLS } from '#src/app/contracts/server-protocols.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { ref } from 'vue'
 import Button from '../../shared/Button.vue'

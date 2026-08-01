@@ -7,12 +7,12 @@ import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import {
   SERVER_OPERATION,
   SERVER_OPERATION_PROGRESS_STEPS,
-} from '#src/app/operations/server-operation-contract.js'
+} from '#src/app/contracts/server.js'
 import {
   SYNC_TASK_OPERATION,
   SYNC_TASK_OPERATION_PROGRESS_STEPS,
   SYNC_TASK_RETARGET_PROGRESS_STEP,
-} from '#src/app/operations/task-operation-contract.js'
+} from '#src/app/contracts/task.js'
 import { createI18n } from 'vue-i18n'
 
 function collectLeafPaths(value, basePath = '') {

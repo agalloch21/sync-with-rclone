@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
+import { startSync } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
 import {
   defineAppOperation,
@@ -11,7 +12,6 @@ import {
   OPERATION_HISTORY_STATUS,
   runOperationWithHistory,
 } from '#src/app/operations/operation-history.js'
-import { startSync } from '#src/app/app-api.js'
 
 async function withHistoryRuntime(callback) {
   const appRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-history-'))
@@ -142,7 +142,7 @@ test('startSync records its failed result and exposes an existing launcher log',
   })
 })
 
-test('startSync uses a prepared resolved context in admitted-session history', async () => {
+test('startSync uses a resolved context in admitted-session history', async () => {
   await withHistoryRuntime(async () => {
     const options = {
       mode: 'push',
@@ -150,7 +150,7 @@ test('startSync uses a prepared resolved context in admitted-session history', a
       remoteFolderPath: 'nas:raw/input',
       bypassConfig: true,
     }
-    const prepared = {
+    const contextResolution = {
       context: {
         mode: 'push',
         localFolderPath: '/missing/resolved/input',
@@ -161,7 +161,7 @@ test('startSync uses a prepared resolved context in admitted-session history', a
       resolvedTask: null,
     }
 
-    const result = await startSync(options, {}, null, prepared)
+    const result = await startSync(options, {}, null, contextResolution)
     assert.equal(result.result, 'failed')
 
     const records = await listOperationHistory()

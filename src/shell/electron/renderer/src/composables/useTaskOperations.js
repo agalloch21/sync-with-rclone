@@ -1,7 +1,7 @@
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
+import { OPERATION_REPORT_ACKNOWLEDGEMENT } from '#src/app/contracts/operation-report.js'
 import { toFailureResult } from '#src/app/operation-result.js'
-import { OPERATION_REPORT_ACKNOWLEDGEMENT } from '#src/app/operations/operation-report-contract.js'
 import { toRaw } from 'vue'
 import { useMessageBox } from './useMessageBox.js'
 

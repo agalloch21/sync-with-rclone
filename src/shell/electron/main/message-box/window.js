@@ -2,12 +2,12 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { RENDERER_SURFACE } from '#electron/contracts/renderer-surface.js'
-import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import {
   isOperationReportAcknowledgement,
   normalizeOperationReportState,
   OPERATION_REPORT_ACKNOWLEDGEMENT,
-} from '#src/app/operations/operation-report-contract.js'
+} from '#src/app/contracts/operation-report.js'
+import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import {
   clearMessageBoxWindow,
   getMessageBoxParentWindow,

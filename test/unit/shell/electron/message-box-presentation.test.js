@@ -9,11 +9,11 @@ import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import {
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operations/operation-report-contract.js'
+} from '#src/app/contracts/operation-report.js'
 import {
   SERVER_CREATE_PROGRESS_STEP,
   SERVER_OPERATION,
-} from '#src/app/operations/server-operation-contract.js'
+} from '#src/app/contracts/server.js'
 import { createI18n } from 'vue-i18n'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })

@@ -6,7 +6,7 @@ import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import {
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operations/operation-report-contract.js'
+} from '#src/app/contracts/operation-report.js'
 
 function createMessageBox() {
   const payloads = []

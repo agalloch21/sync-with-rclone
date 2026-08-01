@@ -8,7 +8,7 @@ import {
   OPERATION_REPORT_ACKNOWLEDGEMENT,
   OPERATION_REPORT_LEVEL,
   OPERATION_REPORT_MODE,
-} from '#src/app/operations/operation-report-contract.js'
+} from '#src/app/contracts/operation-report.js'
 
 test('operation report acknowledgement validator accepts lifecycle outcomes', () => {
   for (const acknowledgement of Object.values(OPERATION_REPORT_ACKNOWLEDGEMENT))

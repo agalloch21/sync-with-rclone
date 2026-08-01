@@ -6,7 +6,7 @@ import {
   getProtocolDefinition,
   REMOTE_PROTOCOLS,
   validateProtocolForm,
-} from '#src/app/configuration/protocol-registry.js'
+} from '#src/app/contracts/server-protocols.js'
 
 test('protocol registry exposes ftp and sftp definitions', () => {
   assert.deepEqual(REMOTE_PROTOCOLS.map(protocol => protocol.type), ['sftp', 'ftp'])

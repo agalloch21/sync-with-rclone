@@ -1,5 +1,5 @@
+import { createOperationErrorReportState } from '#src/app/contracts/operation-report.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
-import { createOperationErrorReportState } from '#src/app/operations/operation-report-contract.js'
 import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
 import { closeMessageBox, openMessageBox, updateMessageBox } from './window.js'
 

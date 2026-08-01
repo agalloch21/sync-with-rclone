@@ -414,18 +414,18 @@ app-api.js
   createServer(payload)
   updateServer(payload)
 
-server-operations.js
+operations/server.js
   createServerConnection(...)
   updateServerConnection(...)
 
-task-operations.js
+operations/task.js
   updateTaskServerReferences(...)
 
-services/server-service.js
+services/server.js
   createServer(...)
   updateServer(...)
 
-services/task-service.js
+services/task.js
   retargetTasks(...)
 
 infrastructure/rclone/remote-config.js
@@ -433,9 +433,9 @@ infrastructure/rclone/remote-config.js
   updateRemoteConfig(...)
 ```
 
-`createServer` 和 `updateServer` 属于 app operation。它们表达用户意图和完整工作流，并在成功后通过 `events/configuration-events.js` 发布配置更新。
+`createServer` 和 `updateServer` 属于 app operation。它们表达用户意图和完整工作流，并在成功后通过 `app-events.js` 发布配置更新。
 
-`createServerConnection` 和 `updateServerConnection` 属于 server operation。它们表达 operation lifecycle 和 progress sequencing。`server-service.js` 负责验证、资源存在规则、remote/server 转换和 adapter error mapping，并隐藏 raw rclone remote 细节。`remote-config.js` 只执行底层 rclone config 命令。
+`createServerConnection` 和 `updateServerConnection` 属于 server operation。它们表达 operation lifecycle 和 progress sequencing。`services/server.js` 负责验证、资源存在规则、remote/server 转换和 adapter error mapping，并隐藏 raw rclone remote 细节。`remote-config.js` 只执行底层 rclone config 命令。
 
 ## 10. 什么时候返回 result，什么时候 throw
 

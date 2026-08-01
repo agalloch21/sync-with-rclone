@@ -12,6 +12,7 @@ sequenceDiagram
   U->>S: 触发 Push / Pull / Push To... / Pull From...
   S->>A: 传入动作类型和本地路径
   A->>A: startSync 读取配置并解析本次同步上下文
+  A->>A: 申请本地与远端范围的 sync admission
   A-->>S: emit sync.session.context-resolved
   S->>W: 展示当前同步上下文
   A->>A: executeSync 执行已解析的同步流程
@@ -289,32 +290,33 @@ sequenceDiagram
 - cancelled final acknowledgement 会展示已执行操作的汇总，并允许展开查看每个 operation 的执行状态
 - failed final acknowledgement 会展示错误信息；当 launcher 日志存在时，可在文件管理器中定位 `quick-actions.log`
 
-## 10.1 多窗口启动与会话 admission
+## 10.1 多入口启动与同步 admission
 
 ```mermaid
 sequenceDiagram
-  participant OS as App / Quick Action
-  participant EI as Electron Instance
+  participant E as Electron / Quick Action
+  participant C as CLI / Agent
   participant SM as Session Manager
-  participant SC as Session Controller
-  participant SW as Session Window
-  participant MW as Main Window
+  participant A as App startSync
+  participant R as Admission Registry
   participant H as Operation History
 
-  OS->>EI: normal launch or --session request
-  alt normal launch
-    EI->>MW: create directly / restore / focus singleton
-  else session launch
-    EI->>SM: submit session request
-    SM->>SC: resolve local and remote roots
-    alt roots are disjoint
-      SM->>SC: start admitted session
-      SC->>SW: create independent session window
-      SC->>H: startSync writes started then terminal record
-    else roots overlap
-      SM->>SW: focus existing session
-      Note over SM,H: rejected request does not create history
-    end
+  E->>SM: 创建并追踪 session window
+  SM->>A: startSync(options, runtime)
+  C->>A: startSync(options, runtime)
+  A->>A: resolve SyncSessionContext once
+  A->>R: 原子读取活跃 leases 并尝试写入新 lease
+  alt local and remote roots are disjoint
+    R-->>A: admitted
+    A->>H: write started record
+    A->>A: execute sync
+    A->>R: release lease in finally
+    A->>H: write terminal record
+  else either root overlaps
+    R-->>A: active conflict
+    A-->>E: failed result: sync_session.overlap
+    A-->>C: failed result: sync_session.overlap
+    Note over A,H: rejected request does not create history
   end
 ```
 
@@ -322,6 +324,9 @@ sequenceDiagram
 
 - Quick Action 启动不主动创建主窗口。
 - Main window is created directly by `desktop-application.js`; the Electron sync-session uses a controller because it must bridge the long-running `startSync` application operation with an interactive window.
+- Session Manager 只管理 Electron 窗口和取消生命周期；GUI、CLI 与未来 agent 调用都经过 `startSync` 的同一 admission gate。
+- Registry 位于 config directory，通过短时 mutex 和每个同步独立的 lease 在进程间共享状态；owner 进程消失后，其 lease 会在下次读取时清理。
+- 只有本地和远端范围都不重叠时才允许并行；任一侧相同或互为祖先/后代都会拒绝后来请求。
 - 每个 session 的 progress channel 独立，history 不持久化 progress sample。
 - 关闭主窗口不会终止 session；没有窗口且没有活跃 session 时应用退出。
 - session 失败页只在 `quick-actions.log` 存在时提供文件定位入口，不创建或导航主窗口。

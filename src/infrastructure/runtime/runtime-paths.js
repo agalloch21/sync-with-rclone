@@ -85,6 +85,7 @@ export function getRuntimePaths() {
   const configDirectory = normalizePath(process.env.CONFIG_DIRECTORY || path.posix.join(appDirectory, 'config'))
   const configPath = normalizePath(process.env.CONFIG_PATH || path.posix.join(configDirectory, 'config.json'))
   const rcloneConfigPath = normalizePath(process.env.RCLONE_CONFIG_PATH || path.posix.join(configDirectory, 'rclone.conf'))
+  const syncAdmissionDirectory = normalizePath(path.posix.join(configDirectory, 'sync-admission'))
   const logDirectory = normalizePath(path.posix.join(appDirectory, 'logs'))
   const bundledRcloneName = getBundledRcloneFileName()
   const resourcesDirectory = normalizePath(resolveResourcesDirectory(bundledRcloneName))
@@ -94,6 +95,7 @@ export function getRuntimePaths() {
     configDirectory,
     configPath,
     rcloneConfigPath,
+    syncAdmissionDirectory,
     logDirectory,
     resourcesDirectory,
     bundledRclonePath: bundledRcloneName

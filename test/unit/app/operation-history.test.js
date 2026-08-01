@@ -12,6 +12,8 @@ import {
   OPERATION_HISTORY_STATUS,
   runOperationWithHistory,
 } from '#src/app/operations/operation-history.js'
+import { acquireSyncAdmission, releaseSyncAdmission } from '#src/app/operations/sync/admission.js'
+import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 
 async function withHistoryRuntime(callback) {
   const appRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-history-'))
@@ -142,35 +144,27 @@ test('startSync records its failed result and exposes an existing launcher log',
   })
 })
 
-test('startSync uses a resolved context in admitted-session history', async () => {
-  await withHistoryRuntime(async () => {
+test('startSync rejects an overlapping session before writing operation history', async () => {
+  await withHistoryRuntime(async (appRoot) => {
+    const localFolderPath = path.join(appRoot, 'project')
+    await fs.mkdir(localFolderPath)
     const options = {
       mode: 'push',
-      localFolderPath: 'raw/input',
-      remoteFolderPath: 'nas:raw/input',
+      localFolderPath,
+      remoteFolderPath: 'nas:remote/project',
       bypassConfig: true,
     }
-    const contextResolution = {
-      context: {
-        mode: 'push',
-        localFolderPath: '/missing/resolved/input',
-        remoteFolderPath: 'nas:resolved/input',
-        extraIgnorePatterns: [],
-      },
-      runtimePaths: {},
-      resolvedTask: null,
+    const runtimePaths = getRuntimePaths()
+    const activeAdmission = await acquireSyncAdmission(options, runtimePaths)
+
+    try {
+      const result = await startSync(options)
+      assert.equal(result.result, 'failed')
+      assert.equal(result.errorCode, APP_ERROR_CODE.SYNC_SESSION_OVERLAP)
+      assert.deepEqual(await listOperationHistory(), [])
     }
-
-    const result = await startSync(options, {}, null, contextResolution)
-    assert.equal(result.result, 'failed')
-
-    const records = await listOperationHistory()
-    assert.deepEqual(records[0].subject, {
-      type: 'sync',
-      mode: 'push',
-      localFolderPath: '/missing/resolved/input',
-      remoteFolderPath: 'nas:resolved/input',
-    })
-    assert.equal(records[0].status, OPERATION_HISTORY_STATUS.FAILED)
+    finally {
+      await releaseSyncAdmission(activeAdmission, runtimePaths)
+    }
   })
 })

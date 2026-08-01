@@ -240,16 +240,6 @@ export function createSessionWindow() {
       sessionWindow.close()
   }
 
-  function focusWindow() {
-    if (sessionWindow.isDestroyed())
-      return
-
-    if (sessionWindow.isMinimized())
-      sessionWindow.restore()
-    sessionWindow.show()
-    sessionWindow.focus()
-  }
-
   sessionWindow.on('closed', () => {
     cleanup()
 
@@ -287,7 +277,6 @@ export function createSessionWindow() {
     showFinalAcknowledgement,
 
     closeWindow,
-    focusWindow,
     cancelSignal: cancelController.signal,
     abortSession,
   }

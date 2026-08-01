@@ -14,6 +14,7 @@ import {
   OPERATION_HISTORY_STATUS,
   runOperationWithHistory,
 } from '../operation-history.js'
+import { acquireSyncAdmission, releaseSyncAdmission } from './admission.js'
 import { resolveSyncContext } from './resolve-context.js'
 
 function assertRuntimeContract(runtime) {
@@ -50,61 +51,18 @@ function toApplicationError(error) {
   )
 }
 
-async function startSyncImpl(options, runtime = {}, cancelSignal = null, contextResolution = null) {
-  assertRuntimeContract(runtime)
+function createFailedSessionResult(error, context, runtimePaths) {
+  const applicationError = toApplicationError(error)
+  return enrichFailedSessionResult({
+    result: SYNC_RESULT.FAILED,
+    message: applicationError?.message || String(applicationError),
+    context,
+    error: applicationError,
+  }, applicationError, runtimePaths)
+}
 
-  const emit = runtime.events?.eventListener || (() => {})
-  let runtimePaths = contextResolution?.runtimePaths || null
-
-  let resolvedContext = contextResolution?.context || {
-    mode: options.mode,
-    localFolderPath: options.localFolderPath,
-    remoteFolderPath: options.remoteFolderPath,
-    extraIgnorePatterns: [],
-  }
-
-  try {
-    emit({ type: SYNC_SESSION_EVENT.STARTED })
-
-    if (contextResolution?.error)
-      throw contextResolution.error
-
-    const resolution = contextResolution || await resolveSyncContext(options)
-    runtimePaths = resolution.runtimePaths
-    resolvedContext = resolution.context
-
-    if (resolution.resolvedTask && resolvedContext.mode === 'push') {
-      await ensureRemoteFolder(
-        resolvedContext.remoteFolderPath,
-        runtimePaths,
-        cancelSignal,
-      )
-    }
-
-    emit({
-      type: SYNC_SESSION_EVENT.CONTEXT_RESOLVED,
-      context: resolvedContext,
-    })
-  }
-  catch (error) {
-    const applicationError = toApplicationError(error)
-    const sessionResult = enrichFailedSessionResult({
-      result: SYNC_RESULT.FAILED,
-      message: applicationError?.message || String(applicationError),
-      context: resolvedContext,
-      error: applicationError,
-    }, applicationError, runtimePaths)
-    emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
-
-    return sessionResult
-  }
-
-  const resolvedOptions = {
-    ...resolvedContext,
-    runtimePaths,
-  }
-
-  function phaseEventToSessionEvent(event) {
+function createPhaseEventListener(emit) {
+  return function phaseEventToSessionEvent(event) {
     if (event.type === SYNC_PHASE_EVENT.FAILED || event.type === SYNC_PHASE_EVENT.CANCELLED || event.type === SYNC_PHASE_EVENT.DONE)
       return
 
@@ -116,39 +74,11 @@ async function startSyncImpl(options, runtime = {}, cancelSignal = null, context
       progress: event.progress,
     })
   }
+}
 
-  let executionResult = null
-  try {
-    executionResult = await executeSync(resolvedOptions, {
-      events: { eventListener: phaseEventToSessionEvent },
-      interactions: { reviewDiff: runtime.interactions?.reviewDiff },
-    }, cancelSignal)
-  }
-  catch (error) {
-    const applicationError = toApplicationError(error)
-    const sessionResult = enrichFailedSessionResult({
-      result: SYNC_RESULT.FAILED,
-      message: applicationError?.message || String(applicationError),
-      context: resolvedContext,
-      error: applicationError,
-    }, applicationError, runtimePaths)
-    emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
-
-    return sessionResult
-  }
-
-  const sessionResult = {
-    context: resolvedContext,
-    ...executionResult,
-  }
-  if (sessionResult.result === SYNC_RESULT.FAILED) {
-    sessionResult.error = toApplicationError(sessionResult.error)
-    sessionResult.message = sessionResult.error?.message || sessionResult.message
-    enrichFailedSessionResult(sessionResult, sessionResult.error, runtimePaths)
-  }
-
+function emitFailedSessionResult(error, context, runtimePaths, emit) {
+  const sessionResult = createFailedSessionResult(error, context, runtimePaths)
   emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
-
   return sessionResult
 }
 
@@ -197,21 +127,93 @@ function resolveSyncHistoryResult(result) {
   }
 }
 
-export async function startSync(options, runtime = {}, cancelSignal = null, contextResolution = null) {
-  let resolution = contextResolution
-  if (!resolution) {
-    const runtimePaths = getRuntimePaths()
-    try {
-      resolution = await resolveSyncContext(options, runtimePaths)
-    }
-    catch (error) {
-      resolution = { error, runtimePaths }
-    }
+export async function startSync(options, runtime = {}, cancelSignal = null) {
+  assertRuntimeContract(runtime)
+
+  const emit = runtime.events?.eventListener || (() => {})
+  const runtimePaths = getRuntimePaths()
+  const unresolvedContext = {
+    mode: options.mode,
+    localFolderPath: options.localFolderPath,
+    remoteFolderPath: options.remoteFolderPath,
+    extraIgnorePatterns: [],
   }
 
-  return await runOperationWithHistory({
+  let resolution
+  try {
+    resolution = await resolveSyncContext(options, runtimePaths)
+  }
+  catch (error) {
+    const historyDefinition = {
+      operation: getSyncOperation(options?.mode),
+      subject: getSyncSubject(options),
+      resolveResult: resolveSyncHistoryResult,
+    }
+
+    return await runOperationWithHistory(historyDefinition, () => {
+      emit({ type: SYNC_SESSION_EVENT.STARTED })
+      return emitFailedSessionResult(error, unresolvedContext, runtimePaths, emit)
+    })
+  }
+
+  const { context, resolvedTask } = resolution
+  const historyDefinition = {
     operation: getSyncOperation(options?.mode),
-    subject: getSyncSubject(options, resolution?.context),
+    subject: getSyncSubject(options, context),
     resolveResult: resolveSyncHistoryResult,
-  }, () => startSyncImpl(options, runtime, cancelSignal, resolution))
+  }
+
+  let admission
+  try {
+    admission = await acquireSyncAdmission(context, runtimePaths)
+  }
+  catch (error) {
+    return emitFailedSessionResult(error, context, runtimePaths, emit)
+  }
+
+  return await runOperationWithHistory(historyDefinition, async () => {
+    try {
+      emit({ type: SYNC_SESSION_EVENT.STARTED })
+
+      if (resolvedTask && context.mode === 'push') {
+        await ensureRemoteFolder(
+          context.remoteFolderPath,
+          runtimePaths,
+          cancelSignal,
+        )
+      }
+
+      emit({
+        type: SYNC_SESSION_EVENT.CONTEXT_RESOLVED,
+        context,
+      })
+
+      const executionResult = await executeSync({
+        ...context,
+        runtimePaths,
+      }, {
+        events: { eventListener: createPhaseEventListener(emit) },
+        interactions: { reviewDiff: runtime.interactions?.reviewDiff },
+      }, cancelSignal)
+
+      const sessionResult = {
+        context,
+        ...executionResult,
+      }
+      if (sessionResult.result === SYNC_RESULT.FAILED) {
+        sessionResult.error = toApplicationError(sessionResult.error)
+        sessionResult.message = sessionResult.error?.message || sessionResult.message
+        enrichFailedSessionResult(sessionResult, sessionResult.error, runtimePaths)
+      }
+
+      emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
+      return sessionResult
+    }
+    catch (error) {
+      return emitFailedSessionResult(error, context, runtimePaths, emit)
+    }
+    finally {
+      await releaseSyncAdmission(admission, runtimePaths)
+    }
+  })
 }

@@ -62,7 +62,7 @@ src/           // 运行时代码
     configuration/ // config.json 的读取、规范化和原子写入
     filesystem/ // 本地路径解析、目录校验和 neutral file-entry 扫描
     rclone/      // raw rclone config、远端目录/文件访问和 file actions
-    runtime/     // 安装环境、配置、日志、resources 和 bundled rclone 路径解析
+    runtime/     // 运行时路径解析，以及跨进程 sync admission lease 的原子存取
   shell/       // 所有 driving interfaces、产品入口和共享展示资源
     index.cjs  // composition root；选择 CLI 或 Electron 启动路径
     launch-classifier.cjs // 只分类 main、session 和 CLI launch
@@ -105,7 +105,7 @@ sync-with-rclone sync push ...   -> 命令模式，执行同步
 
 `shell/cli/commands.js` 使用同一 command contract 建立 command-to-handler registry。外部 CLI protocol 仍然是字符串，但 launch allowlist 与 dispatch 不重复手写 command name；registry 在 module initialization 时校验 contract 与 handler 数量一致。
 
-GUI 启动通过 `requestSingleInstanceLock()` 汇入一个 Electron Main 进程。这个进程可以持有零或一个主窗口，以及多个互不冲突的 sync-session 窗口。普通启动创建或聚焦主窗口；`--session` 启动只提交同步会话。CLI 命令不参与 GUI 单实例锁；统一入口识别 CLI 模式后加载命令行壳层，由它负责参数路由、终端输出和终端 review。CLI review 默认展示全部差异并请求 yes/no 确认，`--yes` 跳过该确认并选择全部差异。
+GUI 启动通过 `requestSingleInstanceLock()` 汇入一个 Electron Main 进程。这个进程可以持有零或一个主窗口，以及多个 sync-session 窗口。普通启动创建或聚焦主窗口；`--session` 启动只提交同步会话。CLI 命令不参与 GUI 单实例锁；同步范围的并发安全由所有 shell 共用的 `startSync` admission 保证。统一入口识别 CLI 模式后加载命令行壳层，由它负责参数路由、终端输出和终端 review。CLI review 默认展示全部差异并请求 yes/no 确认，`--yes` 跳过该确认并选择全部差异。
 
 `src/shell/index.cjs` 是产品可执行文件唯一入口；`package.json` 的 `start`、Electron 开发启动脚本和构建后的可执行文件都使用它。`prestart` 先构建 renderer，使 `npm start` 可以进入 main、session 或 CLI 任一路径。入口执行 startup composition，并根据 launch classification 加载 `shell/cli` 或 `shell/electron`。Renderer 不调用 CLI，只通过 preload bridge 请求 Electron Main，再由 Electron Main 调用 app 层。
 
@@ -161,16 +161,20 @@ sequenceDiagram
 
 - 第二次 GUI 启动通过 single-instance `additionalData` 传递规范化 launch request，不依赖可能被 Chromium 重排的 argv。
 - 主窗口是可重建的进程级单例；`desktop-application.js` 直接调用 `main-window/window.js` 创建窗口，不增加无职责的 runner。关闭主窗口不会取消活跃同步。
-- `app/operations/sync/start.js` 是 shell-neutral application operation，负责 history、context resolution、session events、error mapping 和最终结果。
+- `app/operations/sync/start.js` 是 shell-neutral application operation，负责 context resolution、sync admission、history、session events、error mapping 和最终结果。
+- `app/operations/sync/admission.js` 拥有“本地或远端根路径相同或互为祖先/后代即冲突”的 application policy；非重叠同步可以并行。
 - `core/execute-sync.js` 负责已解析上下文中的 snapshot、compare、review、plan 和 apply 流程。
 - core execution contract 定义在 `core/contract.js`；application session events 定义在 `app/contracts/sync.js`。
 - remote-folder probe/mkdir 是可复用的 infrastructure action；`startSync` 在 application policy 确认需要创建目标目录后直接调用它。
 - `infrastructure/runtime/runtime-paths.js` 从进程、平台、安装目录和环境变量解析运行时路径。
+- `infrastructure/runtime/sync-admission-store.js` 用短时原子 mutex 串行化 registry 更新，并为每个活跃同步保存独立 lease；它只存取跨进程状态，不决定路径是否冲突。
 - `infrastructure/filesystem/local-path.js` 负责本地路径规范化、home 展开和目录存在性校验；`app/services/local-path.js` 把技术错误转换成 application error。
 - `shell/electron/main/sync-session/controller.js` 把 application use case 连接到 session window 的 events、review interaction、acknowledgement 和 cancellation。
 - `shell/electron/contracts/sync-session-stage.js` 定义 Main 与 Renderer 共用的 Analyze、Review、Sync UI stage 及其 phase 映射。
-- `shell/electron/main/sync-session/manager.js` 先通过 controller 解析只读 `SyncSessionContext`，再以本地和远程根路径执行原子 admission，并管理活跃 Electron session handle。
-- 任一侧路径相同或存在祖先/后代关系时，session manager 拒绝新会话并聚焦已有会话；未启动的重叠请求不写入 operation history。
+- `shell/electron/main/sync-session/manager.js` 只管理活跃 Electron session handle、取消和退出条件，不拥有同步重叠规则。
+- `startSync` 先解析一次 `SyncSessionContext`，再申请 lease；申请成功后才写 started history 并执行，结束时在 `finally` 中释放 lease。
+- lease 位于当前 config directory 下，因此同一用户、同一配置目录的 Electron 与 CLI 进程共享 admission 状态。不同配置目录、不同设备以及绕过本应用直接运行的 rclone 不在保护范围内。
+- lease 带有 owner PID；读取 registry 时会清除格式错误或 owner 进程已经结束的 lease。任一侧路径重叠时，`startSync` 返回 `sync_session.overlap`，被拒绝的请求不写 operation history。
 - admission 成功后，`shell/electron/main/sync-session/window.js` 为每个窗口维护独立 channel prefix、UI state、review Promise 和 AbortController。
 - `shell/electron/renderer/src/surfaces/shared/TreeNode.vue` 是 folder dialog 与 sync review 共用的树节点组件，不属于任一单独 surface。
 - session manager 在最后一个 session 清理后检查 Electron 窗口；没有窗口且不是显式 shutdown 时直接退出应用，不需要向 DesktopApplication 回传 idle 事件。

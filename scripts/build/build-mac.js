@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import { Arch, build, Platform } from 'electron-builder'
 
@@ -23,6 +24,20 @@ if (!['arm64', 'x64'].includes(archArg)) {
 
 const arch = archArg === 'x64' ? Arch.x64 : Arch.arm64
 const macBinaryName = archArg === 'x64' ? 'rclone-osx-amd64' : 'rclone-osx-arm64'
+const assetPlatform = archArg === 'x64' ? 'mac-x64' : 'mac'
+
+function runNodeScript(scriptPath, args = []) {
+  execFileSync(process.execPath, [scriptPath, ...args], { stdio: 'inherit' })
+}
+
+function runNpmScript(scriptName) {
+  const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+  execFileSync(npmCommand, ['run', scriptName], { stdio: 'inherit' })
+}
+
+runNodeScript('scripts/build/verify-assets.js', [assetPlatform])
+runNpmScript('build:renderer')
+runNodeScript('scripts/build/verify-build.js')
 
 const config = {
   ...packageJson.build,

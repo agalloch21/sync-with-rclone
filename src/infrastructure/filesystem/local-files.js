@@ -49,12 +49,20 @@ function checkIgnore(filters, entryPath, isDir) {
   return ignored
 }
 
+function resolveFilesystemPath(rootPath, relativePath = '.') {
+  if (!relativePath || relativePath === '.')
+    return rootPath
+
+  return path.join(rootPath, ...relativePath.split('/'))
+}
+
 async function walkDirectory(rootPath, dirPath, filterStack, fileEntries) {
-  const entryNames = await fs.readdir(path.posix.join(rootPath, dirPath))
+  const directoryPath = resolveFilesystemPath(rootPath, dirPath)
+  const entryNames = await fs.readdir(directoryPath)
   let filters = filterStack
 
   if (entryNames.includes(PATTERN_FILE)) {
-    const patterns = await readPatterns(path.posix.resolve(rootPath, dirPath, PATTERN_FILE))
+    const patterns = await readPatterns(path.join(directoryPath, PATTERN_FILE))
     filters = filterStack.concat({
       dirPath,
       patterns,
@@ -64,7 +72,7 @@ async function walkDirectory(rootPath, dirPath, filterStack, fileEntries) {
 
   for (const entryName of entryNames) {
     const entryPath = path.posix.join(dirPath, entryName)
-    const stat = await fs.stat(path.posix.join(rootPath, entryPath))
+    const stat = await fs.stat(path.join(directoryPath, entryName))
     const isFile = stat.isFile()
     const isDirectory = stat.isDirectory()
 
@@ -90,7 +98,7 @@ export async function listLocalFiles(rootAbsPath, extraPatterns = []) {
   if (!path.isAbsolute(rootAbsPath))
     throw new Error(`Input must be an absolute path. ${rootAbsPath}`)
 
-  const rootPath = rootAbsPath.replaceAll(path.sep, path.posix.sep)
+  const rootPath = path.resolve(rootAbsPath)
   const fileEntries = []
   const filterStack = []
 
@@ -107,7 +115,7 @@ export async function listLocalFiles(rootAbsPath, extraPatterns = []) {
     await walkDirectory(rootPath, '.', filterStack, fileEntries)
   }
   else if (rootStat.isFile()) {
-    const fileName = path.posix.basename(rootPath)
+    const fileName = path.basename(rootPath)
     if (isValidFilename(fileName)) {
       fileEntries.push({
         path: fileName,

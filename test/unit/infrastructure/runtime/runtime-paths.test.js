@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -72,4 +73,34 @@ test('getDefaultAppDirectory uses Application Support for packaged mac builds', 
 
   process.resourcesPath = previousResourcesPath
   fs.rmSync(resourcesDirectory, { recursive: true, force: true })
+})
+
+test('getDefaultAppDirectory uses roaming AppData for packaged Windows builds', () => {
+  const resourcesDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'swr-win-runtime-'))
+  const appDataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'swr-win-app-data-'))
+  fs.writeFileSync(path.join(resourcesDirectory, 'app.asar'), '')
+
+  const runtimePathsModuleUrl = new URL(
+    '../../../../src/infrastructure/runtime/runtime-paths.js',
+    import.meta.url,
+  ).href
+  const script = `
+    Object.defineProperty(process, 'platform', { value: 'win32' })
+    process.resourcesPath = ${JSON.stringify(resourcesDirectory)}
+    const { getDefaultAppDirectory } = await import(${JSON.stringify(runtimePathsModuleUrl)})
+    process.stdout.write(getDefaultAppDirectory())
+  `
+  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', script], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      APPDATA: appDataDirectory,
+    },
+  })
+
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout, `${appDataDirectory}/sync-with-rclone`)
+
+  fs.rmSync(resourcesDirectory, { recursive: true, force: true })
+  fs.rmSync(appDataDirectory, { recursive: true, force: true })
 })

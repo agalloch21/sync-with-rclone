@@ -133,10 +133,7 @@ macOS Finder Quick Action 只负责异步提交同步请求。同步进度和结
 
 ```bash
 # windows
-<安装目录>/config/
-
-# 例如默认管理员安装后常见为
-C:/Program Files/sync-with-rclone/config/
+%APPDATA%/sync-with-rclone/config/
 
 # mac
 ~/Library/Application Support/sync-with-rclone/config/
@@ -254,7 +251,7 @@ mac 当前推荐使用 `pkg` 安装。
 # 程序目录
 默认管理员安装通常为 C:/Program Files/sync-with-rclone/
 # 配置目录
-<安装目录>/config/
+%APPDATA%/sync-with-rclone/config/
 
 # mac
 # 程序目录
@@ -263,3 +260,5 @@ mac 当前推荐使用 `pkg` 安装。
 ~/Library/Application Support/sync-with-rclone/config/
 ```
 安装后即可在右键菜单里看到 `Push` / `Pull` / `Open Config` 选项
+
+Windows 升级旧版本时，安装目录中已有的 `config/` 会迁移到当前用户的 AppData 配置目录；卸载程序不会删除该用户配置目录。

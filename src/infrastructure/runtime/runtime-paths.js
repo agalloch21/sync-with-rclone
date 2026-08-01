@@ -35,10 +35,27 @@ function getBundledMacAppSupportDirectory() {
   return normalizePath(path.join(os.homedir(), 'Library', 'Application Support', 'sync-with-rclone'))
 }
 
+function getBundledWindowsAppDataDirectory() {
+  if (process.platform !== 'win32')
+    return ''
+
+  const bundledInstallDirectory = getBundledInstallDirectory()
+  if (!bundledInstallDirectory)
+    return ''
+
+  const roamingAppDataDirectory = process.env.APPDATA
+    || path.join(os.homedir(), 'AppData', 'Roaming')
+  return normalizePath(path.join(roamingAppDataDirectory, 'sync-with-rclone'))
+}
+
 export function getDefaultAppDirectory() {
   const bundledMacAppSupportDirectory = getBundledMacAppSupportDirectory()
   if (bundledMacAppSupportDirectory)
     return bundledMacAppSupportDirectory
+
+  const bundledWindowsAppDataDirectory = getBundledWindowsAppDataDirectory()
+  if (bundledWindowsAppDataDirectory)
+    return bundledWindowsAppDataDirectory
 
   const bundledInstallDirectory = getBundledInstallDirectory()
   if (bundledInstallDirectory)

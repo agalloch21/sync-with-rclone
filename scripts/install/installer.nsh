@@ -1,6 +1,6 @@
 !define WIN_HELPER_SCRIPT_PATH "$INSTDIR\\resources\\scripts\\windows-installer.ps1"
 !define WIN_APP_EXE "$INSTDIR\\sync-with-rclone.exe"
-!define WIN_CONFIG_DIR "$INSTDIR\\config"
+!define WIN_CONFIG_DIR "$APPDATA\\sync-with-rclone\\config"
 !define WIN_POWERSHELL_EXE "$SYSDIR\\WindowsPowerShell\\v1.0\\powershell.exe"
 
 !macro customInit

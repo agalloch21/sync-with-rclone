@@ -534,7 +534,7 @@ sequenceDiagram
 - 右键菜单注册已经接入安装器脚本
 - sync-session Electron 链已打通
 - GUI 使用单一 Electron Main 进程承载可选主窗口和多个互不重叠的 sync-session
-- 配置默认读取安装目录下的 `config/`
+- Windows packaged runtime 默认从 `%APPDATA%/sync-with-rclone/config/` 读取配置，macOS packaged runtime 默认从 Application Support 读取配置
 - 打包后的 session argv 会先由 `--session` 进入同步窗口，再按 `--mode`、`--local`、`--remote` 解析，避免额外参数导致位置漂移
 
 当前不应写成既成事实的内容：

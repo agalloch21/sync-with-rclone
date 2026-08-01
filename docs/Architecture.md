@@ -858,17 +858,18 @@ Progress 与 operation history 保持分离：
 
 ### 6.1 打包步骤
 
-1. Vite 先构建 renderer 页面
-2. electron-builder 收集 Electron main、preload、renderer 构建产物
-3. 打包时附带需要运行的 resources/ 内容
-4. Windows 下由 NSIS 生成安装器
-5. 安装器负责注册右键菜单
+1. macOS 打包统一由 `scripts/build/build-mac.js` 校验目标架构的 assets
+2. Vite 构建 renderer 页面，并校验 Electron 加载所需的构建产物
+3. electron-builder 收集 Electron main、preload、renderer 构建产物
+4. 打包时附带目标架构需要运行的 resources/ 内容
+5. Windows 下由 NSIS 生成安装器
+6. 安装器负责注册右键菜单
 
 ### 6.2 安装步骤
 
 1. 用户运行安装器
 2. 安装器写入程序文件
-3. 安装器准备配置目录和系统集成；默认 `config.json` 由应用启动时创建
+3. 安装器准备用户级配置目录和系统集成；默认 `config.json` 由应用启动时创建
 4. 安装器分发 bundled binaries 和安装脚本
 5. 安装器注册右键菜单
 6. 用户后续通过右键菜单或 CLI 启动程序
@@ -880,19 +881,23 @@ Windows 当前安装后的目录结构可按下面理解：
 
 安装目录（管理员安装时通常是 `C:/Program Files/sync-with-rclone/`）:
   sync-with-rclone.exe
-  config/
-    config.json
-    rclone.conf
-  logs/
   resources/
     app.asar
     binaries/
 
+用户数据目录（`%APPDATA%/sync-with-rclone/`）:
+  config/
+    config.json
+    rclone.conf
+    sync-admission/
+  logs/
+
 含义是：
 
 - 程序本体安装在安装目录
-- 程序运行时读取的配置默认位于安装目录下的 `config/`
-- 日志默认位于安装目录下的 `logs/`
+- 程序运行时读取的配置默认位于当前用户的 `%APPDATA%/sync-with-rclone/config/`
+- 日志默认位于当前用户的 `%APPDATA%/sync-with-rclone/logs/`
+- 升级旧版本时，安装目录下已有的 `config/` 会通过安装器备份恢复到新的用户级配置目录
 - `rclone` 二进制来自安装目录下的 bundled resources
 - Windows 右键菜单调用时使用显式 `--session` 加命名参数 `--mode` 和 `--local`，避免打包后的额外 argv 干扰参数定位
 
@@ -909,11 +914,11 @@ Windows 当前安装后的目录结构可按下面理解：
 - 使用 `electron-builder`
 - Windows 安装器使用 `NSIS`
 - 安装器负责注册右键菜单
-- 安装产物包含 bundled `rclone` 和配置模板
+- 安装产物包含 bundled `rclone`
 - mac 当前主要安装链路是 `pkg`，配置目录和 Finder Quick Actions 初始化由安装阶段承担
 - `dmg` / `zip` 产物当前只作为开发验证和手动安装产物，不作为主要安装初始化链路
 
 当前尚未视为稳定事实的部分是：
 
-- Windows 安装阶段自动初始化安装目录 `config/` 的细节
+- Windows 用户级配置目录的升级迁移与卸载保留策略
 - 覆盖安装 / 卸载链路

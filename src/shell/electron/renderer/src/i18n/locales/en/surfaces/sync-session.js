@@ -28,11 +28,12 @@ const syncSession = {
   },
   closeButton: 'Close',
   syncPhases: {
-    start: 'start applying operations',
-    copy: 'applying copy operations',
-    delete: 'applying delete operations',
-    cleanup: 'cleaning up empty folders',
-    complete: 'syncing completed',
+    'start': 'start applying operations',
+    'resolve-conflicts': 'resolving destination path conflicts',
+    'copy': 'applying copy operations',
+    'delete': 'applying delete operations',
+    'cleanup': 'cleaning up empty folders',
+    'complete': 'syncing completed',
   },
   result: {
     [SYNC_RESULT.COMPLETED]: {

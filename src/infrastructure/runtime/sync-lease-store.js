@@ -1,15 +1,9 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { withFileMutex } from './file-mutex.js'
 
 const LEASE_DIRECTORY_NAME = 'leases'
 const MUTEX_FILE_NAME = 'registry.lock'
-const MUTEX_RETRY_DELAY_MS = 20
-const MUTEX_ACQUIRE_TIMEOUT_MS = 5000
-const INCOMPLETE_MUTEX_STALE_AFTER_MS = 1000
-
-function delay(milliseconds) {
-  return new Promise(resolve => setTimeout(resolve, milliseconds))
-}
 
 function getStorePaths(runtimePaths) {
   if (!runtimePaths?.syncAdmissionDirectory)
@@ -20,81 +14,6 @@ function getStorePaths(runtimePaths) {
     directory,
     leaseDirectory: path.join(directory, LEASE_DIRECTORY_NAME),
     mutexPath: path.join(directory, MUTEX_FILE_NAME),
-  }
-}
-
-async function removeStaleMutex(mutexPath) {
-  try {
-    const stat = await fs.stat(mutexPath)
-    let owner = null
-    try {
-      owner = JSON.parse(await fs.readFile(mutexPath, 'utf8'))
-    }
-    catch (error) {
-      if (error?.code === 'ENOENT')
-        return true
-    }
-
-    if (Number.isInteger(owner?.pid) && owner.pid > 0) {
-      if (isProcessAlive(owner.pid))
-        return false
-    }
-    else if (Date.now() - stat.mtimeMs <= INCOMPLETE_MUTEX_STALE_AFTER_MS) {
-      return false
-    }
-
-    await fs.unlink(mutexPath)
-    return true
-  }
-  catch (error) {
-    if (error?.code === 'ENOENT')
-      return true
-    return false
-  }
-}
-
-async function acquireMutex(storePaths) {
-  await fs.mkdir(storePaths.leaseDirectory, { recursive: true })
-  const deadline = Date.now() + MUTEX_ACQUIRE_TIMEOUT_MS
-
-  while (true) {
-    let handle = null
-    try {
-      handle = await fs.open(storePaths.mutexPath, 'wx')
-      await handle.writeFile(JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() }), 'utf8')
-      await handle.close()
-      return
-    }
-    catch (error) {
-      if (handle) {
-        await handle.close().catch(() => {})
-        await removeLeaseFile(storePaths.mutexPath)
-      }
-
-      if (error?.code !== 'EEXIST')
-        throw error
-
-      if (await removeStaleMutex(storePaths.mutexPath))
-        continue
-
-      if (Date.now() >= deadline) {
-        const timeoutError = new Error('Timed out while waiting for the sync admission registry lock.')
-        timeoutError.code = 'SYNC_ADMISSION_LOCK_TIMEOUT'
-        throw timeoutError
-      }
-
-      await delay(MUTEX_RETRY_DELAY_MS)
-    }
-  }
-}
-
-async function releaseMutex(mutexPath) {
-  try {
-    await fs.unlink(mutexPath)
-  }
-  catch (error) {
-    if (error?.code !== 'ENOENT')
-      throw error
   }
 }
 
@@ -175,9 +94,9 @@ export async function acquireSyncLease(candidate, conflictsWith, runtimePaths) {
     throw new TypeError('Sync admission requires a conflict predicate.')
 
   const storePaths = getStorePaths(runtimePaths)
-  await acquireMutex(storePaths)
+  await fs.mkdir(storePaths.leaseDirectory, { recursive: true })
 
-  try {
+  return await withFileMutex(storePaths.mutexPath, async () => {
     const activeLeases = await readActiveLeases(storePaths.leaseDirectory)
     const conflict = activeLeases.find(activeLease => conflictsWith(candidate, activeLease)) || null
     if (conflict)
@@ -186,10 +105,7 @@ export async function acquireSyncLease(candidate, conflictsWith, runtimePaths) {
     const leasePath = path.join(storePaths.leaseDirectory, `${candidate.id}.json`)
     await fs.writeFile(leasePath, JSON.stringify(candidate), { encoding: 'utf8', flag: 'wx' })
     return { acquired: true, lease: candidate }
-  }
-  finally {
-    await releaseMutex(storePaths.mutexPath)
-  }
+  })
 }
 
 export async function releaseSyncLease(lease, runtimePaths) {

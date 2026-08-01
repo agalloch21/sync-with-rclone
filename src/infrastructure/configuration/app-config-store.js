@@ -6,9 +6,8 @@ import {
   INFRASTRUCTURE_ERROR_CODE,
   throwInfrastructureError,
 } from '#src/infrastructure/infrastructure-error.js'
+import { withFileMutex } from '#src/infrastructure/runtime/file-mutex.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
-
-const updatingConfigPaths = new Set()
 
 //* ================================ App Config Helpers ==============================*/
 
@@ -134,26 +133,34 @@ async function saveAppConfig(config, runtimePaths = getRuntimePaths()) {
 
 export async function updateAppConfig(mutator, runtimePaths = getRuntimePaths()) {
   const configPath = runtimePaths.configPath
-  if (updatingConfigPaths.has(configPath)) {
-    throwInfrastructureError(
-      INFRASTRUCTURE_ERROR_CODE.CONFIG_UPDATE_IN_PROGRESS,
-      'Another configuration update is already in progress.',
-      { meta: { configPath } },
-    )
-  }
-
-  updatingConfigPaths.add(configPath)
+  const mutexPath = `${configPath}.lock`
 
   try {
-    const currentConfig = await loadAppConfig(configPath)
-    const nextConfig = await mutator(currentConfig)
+    return await withFileMutex(mutexPath, async () => {
+      const currentConfig = await loadAppConfig(configPath)
+      const nextConfig = await mutator(currentConfig)
 
-    if (nextConfig == null)
-      return currentConfig
+      if (nextConfig == null)
+        return currentConfig
 
-    return await saveAppConfig(nextConfig, runtimePaths)
+      return await saveAppConfig(nextConfig, runtimePaths)
+    })
   }
-  finally {
-    updatingConfigPaths.delete(configPath)
+  catch (error) {
+    if (error?.code === 'FILE_MUTEX_TIMEOUT') {
+      throwInfrastructureError(
+        INFRASTRUCTURE_ERROR_CODE.CONFIG_UPDATE_IN_PROGRESS,
+        'Another configuration update is still in progress.',
+        { cause: error, meta: { configPath } },
+      )
+    }
+    if (error?.code !== 'FILE_MUTEX_FAILED')
+      throw error
+
+    throwInfrastructureError(
+      INFRASTRUCTURE_ERROR_CODE.CONFIG_UPDATE_FAILED,
+      `Failed to coordinate config update at ${configPath}: ${error.message}`,
+      { cause: error.cause || error, meta: { configPath } },
+    )
   }
 }

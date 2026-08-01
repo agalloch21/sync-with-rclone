@@ -2,9 +2,8 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { listGlobalIgnorePatterns, updateGlobalIgnorePatterns } from '#src/app/operations/settings.js'
-import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
+import { updateConfiguration } from '#src/app/services/app-config.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('listGlobalIgnorePatterns reads global patterns through settings operations', async () => {
@@ -42,24 +41,27 @@ test('updateGlobalIgnorePatterns changes global patterns and preserves sync task
   })
 })
 
-test('configuration updates reject concurrent writes', async () => {
+test('configuration updates serialize concurrent read-modify-write sections', async () => {
   await withFakeAppRuntime({
     appConfig: {
       globalIgnorePatterns: [],
       syncTasks: [],
     },
   }, async () => {
-    const firstUpdate = updateGlobalIgnorePatterns(['first'])
-    const concurrentUpdate = updateGlobalIgnorePatterns(['second'])
+    const appendPattern = pattern => updateConfiguration(async (config) => {
+      await new Promise(resolve => setTimeout(resolve, 10))
+      return {
+        ...config,
+        globalIgnorePatterns: [...config.globalIgnorePatterns, pattern],
+      }
+    })
 
-    await assert.rejects(
-      concurrentUpdate,
-      error => (
-        error?.code === APP_ERROR_CODE.CONFIG_UPDATE_FAILED
-        && error?.cause?.code === INFRASTRUCTURE_ERROR_CODE.CONFIG_UPDATE_IN_PROGRESS
-      ),
+    await Promise.all([appendPattern('first'), appendPattern('second')])
+
+    assert.deepEqual(
+      [...await listGlobalIgnorePatterns()].sort(),
+      ['first', 'second'],
     )
-    assert.deepEqual(await firstUpdate, ['first'])
   })
 })
 

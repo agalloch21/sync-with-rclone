@@ -15,7 +15,7 @@ function getFakeRcloneFileName() {
   return 'rclone'
 }
 
-export async function withFakeAppRuntime({ appConfig = null, rcloneConfig = {} } = {}, callback) {
+export async function withFakeAppRuntime({ appConfig = null, rcloneConfig = {}, failDeleteNames = [] } = {}, callback) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-runtime-'))
   const resourcesPath = path.join(tempDir, 'resources')
   const binariesPath = path.join(resourcesPath, 'binaries')
@@ -65,6 +65,10 @@ if (command[0] === 'config' && command[1] === 'create') {
   process.exit(0)
 }
 if (command[0] === 'config' && command[1] === 'delete') {
+  if (${JSON.stringify(failDeleteNames)}.includes(command[2])) {
+    process.stderr.write('delete failed')
+    process.exit(1)
+  }
   const state = readState()
   delete state[command[2]]
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2))

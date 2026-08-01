@@ -89,28 +89,27 @@ async function createServerImpl(expectedName, protocolType, protocolFields, onPr
   notifyConfigUpdate()
 }
 
-async function updateServerImpl(name, expectedName, protocolType, protocolFields, onProgress) {
-  const shouldRename = typeof name === 'string' && typeof expectedName === 'string'
-    ? name.trim() !== expectedName.trim()
-    : name !== expectedName
-
-  if (shouldRename) {
-    await renameServerImpl(name, expectedName, protocolType, protocolFields, onProgress)
+function attachRollbackError(error, rollbackError) {
+  if (!error || (typeof error !== 'object' && typeof error !== 'function'))
     return
+
+  error.meta = {
+    ...error.meta,
+    rollbackErrorCode: getErrorCode(rollbackError),
+    rollbackErrorMessage: rollbackError?.message || String(rollbackError),
   }
-
-  await serverOperations.updateServerConnection(name, protocolType, protocolFields, onProgress)
-  notifyConfigUpdate()
 }
 
-async function deleteServerImpl(name, onProgress) {
-  await serverOperations.deleteServerConnection(name, onProgress)
-
-  notifyConfigUpdate()
-}
-
-async function renameServerImpl(name, expectedName, protocolType = null, protocolFields = null, onProgress) {
-  const renameReceipt = await serverOperations.renameServerConnection(
+async function replaceServerAndRetargetTasks(
+  name,
+  expectedName,
+  protocolType,
+  protocolFields,
+  onProgress,
+) {
+  // This app-level coordinator spans the server and task resource boundaries.
+  const previousStoredConfig = await serverOperations.getStoredServerConfiguration(name)
+  await serverOperations.replaceServerConnection(
     name,
     expectedName,
     protocolType,
@@ -123,20 +122,44 @@ async function renameServerImpl(name, expectedName, protocolType = null, protoco
   }
   catch (error) {
     try {
-      await serverOperations.rollbackServerRename(renameReceipt, onProgress)
+      await serverOperations.restoreServerConnection(
+        expectedName,
+        name,
+        previousStoredConfig,
+        onProgress,
+      )
     }
     catch (rollbackError) {
-      if (error && (typeof error === 'object' || typeof error === 'function')) {
-        error.meta = {
-          ...error.meta,
-          rollbackErrorCode: getErrorCode(rollbackError),
-          rollbackErrorMessage: rollbackError?.message || String(rollbackError),
-        }
-      }
+      attachRollbackError(error, rollbackError)
     }
+
     throw error
   }
+}
 
+async function updateServerImpl(name, expectedName, protocolType, protocolFields, onProgress) {
+  const shouldRename = typeof name === 'string' && typeof expectedName === 'string'
+    ? name.trim() !== expectedName.trim()
+    : name !== expectedName
+
+  if (shouldRename) {
+    await replaceServerAndRetargetTasks(name, expectedName, protocolType, protocolFields, onProgress)
+  }
+  else {
+    await serverOperations.updateServerConnection(name, protocolType, protocolFields, onProgress)
+  }
+
+  notifyConfigUpdate()
+}
+
+async function deleteServerImpl(name, onProgress) {
+  await serverOperations.deleteServerConnection(name, onProgress)
+
+  notifyConfigUpdate()
+}
+
+async function renameServerImpl(name, expectedName, onProgress) {
+  await replaceServerAndRetargetTasks(name, expectedName, null, null, onProgress)
   notifyConfigUpdate()
 }
 

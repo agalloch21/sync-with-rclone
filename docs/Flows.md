@@ -240,6 +240,8 @@ sequenceDiagram
 
   A->>A: 根据 ReviewResult 生成 SyncPlan
   A-->>U: emit activity=start
+  A->>RC: 预删除阻挡 copy 的结构冲突并清理空目录
+  A-->>U: emit activity=resolve-conflicts
   A->>RC: 通过 infrastructure 批量执行 copy
   RC-->>A: 返回 copy 字节进度
   A-->>U: emit activity=copy + measurement
@@ -256,8 +258,10 @@ sequenceDiagram
 当前 apply 的执行策略是：
 
 - `copy` / `delete` 使用 batch file 批量执行
-- `delete` 后会执行 `rclone rmdirs <destination-root> --leave-root` 清理目标端空目录
-- apply 进度以 `start` / `copy` / `delete` / `cleanup` / `complete` activity 表达
+- `buildSyncPlan()` 用 path trie 找出与 copy path 互为祖先/后代的 delete path，不对所有 copy/delete 做两两比较
+- 被选中的结构冲突 delete 排在 copy 前；如果 copy 所需的冲突删除没有被用户选中，plan 构建会拒绝执行
+- apply 依次执行结构冲突 delete、空目录清理、copy、普通 delete、最终空目录清理；copy 失败时不会继续删除不构成阻挡的目标端旧文件
+- apply 进度以 `start` / `resolve-conflicts` / `copy` / `delete` / `cleanup` / `complete` activity 表达
 - 只有 `copy` activity 会携带 `measurement` 字节进度
 - `rclone` 调用显式指定配置路径
 
@@ -393,6 +397,7 @@ sequenceDiagram
   participant MB as Message Box
   participant APP as App Layer
   participant SO as Server Operations
+  participant TO as Task Operations
   participant SS as Server Service
   participant RC as infrastructure/rclone/remote-config.js
   participant MW as Main Window Renderer
@@ -464,17 +469,26 @@ sequenceDiagram
   M->>M: UI 表单预校验
   M->>EM: updateServer(payload)
   EM->>APP: updateServer(...)
-  APP->>APP: 判断 same-name update 或 rename-with-update
-  APP->>SO: updateServerConnection(...) 或 renameServerConnection(...)
-  SO->>SS: updateServer(...) 或 renameServer(...)
-  SS->>RC: updateRemoteConfig(...) 或 create target + delete source
-  alt rename 成功但 task 引用重定向失败
-    APP->>SO: rollbackServerRename(receipt)
-    SO->>SS: rollbackServerRename(receipt)
-    SS->>RC: recreate source + delete target
-    EM-->>M: OperationResult success=false
-    M->>MB: useMessageBox.error(result.error)
-  else 其它失败
+  APP->>APP: 判断 same-name update 或 server replacement
+  alt same-name update
+    APP->>SO: updateServerConnection(...)
+    SO->>SS: updateServer(...)
+    SS->>RC: update existing
+  else server replacement
+    APP->>SO: getStoredServerConfiguration(source)
+    SO->>SS: getStoredServerConfig(source)
+    SS-->>APP: original stored protocol copy
+    APP->>SO: replaceServerConnection(...)
+    SO->>SS: replaceServer(source, target, new protocol)
+    SS->>RC: create target + delete source
+    APP->>TO: retargetSyncTasks(source, target)
+    opt task retarget 失败
+      APP->>SO: restoreServerConnection(target, source, original stored protocol)
+      SO->>SS: replaceServer(target, source, original stored protocol)
+      SS->>RC: recreate source + delete target
+    end
+  end
+  alt 失败
     EM-->>M: OperationResult success=false
     M->>MB: useMessageBox.error(result.error)
   else 成功
@@ -487,13 +501,14 @@ sequenceDiagram
 关键点：
 
 - 需要 main-managed progress 的 server/task mutation 统一通过 `message-box/operation-presentation.js` 接入 `createOperationReporter()`
-- `app-api.js` 负责判断保存动作是同名 update 还是 rename
-- `operations/server.js` 负责 progress lifecycle 和 operation sequencing
-- `services/server.js` 负责 server validation、existence policy、remote/server 转换、rename implementation，并把 adapter error 转成 `SERVER_*`
+- `app-api.js` 判断保存动作是同名 update 还是 replacement；replacement 时协调 server 与 task 两类 resource operation，保存原 stored protocol 副本，并在成功后发布 config update
+- `operations/server.js` 只负责 server operation progress、server replacement 和使用指定 stored protocol 的恢复，不引用 task operation
+- `operations/task.js` 负责 task references 的 retarget
+- `services/server.js` 负责 server validation、existence policy、remote/server 转换，以及一个完整 replace 内部的 create target → delete source，并把 adapter error 转成 `SERVER_*`
 - `remote-config.js` 只负责 raw rclone config dump/create/update/delete/test 命令
-- rename-with-update 先创建目标 remote，再删除旧 remote；删除旧 remote 失败时会尝试回滚新 remote
+- replacement service 先创建 target，再删除 source；删除 source 失败时会删除刚创建的 target
 - 纯 rename 使用专用 stored-config create capability 和 `--no-obscure`，避免把 `config dump` 返回的 password 再 obscure 一次
-- rename 返回局部补偿所需的 receipt；后续 task 引用重定向失败时，app-api 恢复原 remote。补偿失败只作为 metadata 附加在原错误上，不引入通用 transaction abstraction
+- `app-api.js` 在正向 replace 前通过 server operation 取得原 stored protocol 副本；task retarget 失败时用该副本调用 server restore operation，因此同时恢复旧名称和旧 protocol，不需要 mutation receipt
 - 普通 operation 失败由 renderer composable 调用 `messageBox.error(error)` 展示一次
 
 ## 14. Delete Server / Delete Task 流程

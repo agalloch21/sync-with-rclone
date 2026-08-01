@@ -81,7 +81,7 @@ export const SYNC_RESULT = {
 
 /**
  * @typedef {object} SyncSessionApplyProgress
- * @property {'start' | 'copy' | 'delete' | 'cleanup' | 'complete'} activity
+ * @property {'start' | 'resolve-conflicts' | 'copy' | 'delete' | 'cleanup' | 'complete'} activity
  * @property {number} index
  * @property {number} total
  * @property {SyncSessionApplyProgressMeasurement | null} measurement

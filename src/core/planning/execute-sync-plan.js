@@ -26,6 +26,25 @@ function getOperationsByType(operations, type) {
   return operations.filter(operation => operation.type === type)
 }
 
+function splitDeleteOperationsByCopyBoundary(operations) {
+  const firstCopyIndex = operations.findIndex(operation => operation.type === 'copy')
+  if (firstCopyIndex === -1) {
+    return {
+      preCopyDeleteOperations: [],
+      postCopyDeleteOperations: getOperationsByType(operations, 'delete'),
+    }
+  }
+
+  return {
+    preCopyDeleteOperations: operations
+      .slice(0, firstCopyIndex)
+      .filter(operation => operation.type === 'delete'),
+    postCopyDeleteOperations: operations
+      .slice(firstCopyIndex)
+      .filter(operation => operation.type === 'delete'),
+  }
+}
+
 function attachExecutionSummary(error, operations, message = 'Apply failed') {
   const target = error && (typeof error === 'object' || typeof error === 'function')
     ? error
@@ -39,6 +58,15 @@ function attachExecutionSummary(error, operations, message = 'Apply failed') {
   return target
 }
 
+/**
+ * Applies a confirmed mirror plan in failure-safe dependency order:
+ * 1. delete file/directory shape conflicts and remove empty directories;
+ * 2. copy every selected added or modified file;
+ * 3. delete the remaining destination-only files and clean up again.
+ *
+ * Ordinary deletes deliberately happen after copy. If copying fails, target
+ * extras that did not block the copy are therefore left intact.
+ */
 export async function executeSyncPlan(syncPlan, context, onProgress = null, cancelSignal = null) {
   if (!syncPlan || syncPlan.action !== 'confirm') {
     return {
@@ -49,7 +77,10 @@ export async function executeSyncPlan(syncPlan, context, onProgress = null, canc
 
   const operations = createSyncOperations(syncPlan)
   const copyOperations = getOperationsByType(operations, 'copy')
-  const deleteOperations = getOperationsByType(operations, 'delete')
+  const {
+    preCopyDeleteOperations,
+    postCopyDeleteOperations,
+  } = splitDeleteOperationsByCopyBoundary(operations)
   const { sourceRoot, destinationRoot } = getApplyRoots(
     context.mode,
     context.localFolderPath,
@@ -57,6 +88,7 @@ export async function executeSyncPlan(syncPlan, context, onProgress = null, canc
   )
   const activities = {
     START: 'start',
+    RESOLVE_CONFLICTS: 'resolve-conflicts',
     COPY: 'copy',
     DELETE: 'delete',
     CLEANUP: 'cleanup',
@@ -75,6 +107,27 @@ export async function executeSyncPlan(syncPlan, context, onProgress = null, canc
     emitProgress(activities.START)
 
     if (copyOperations.length > 0) {
+      cancelSignal?.throwIfAborted()
+      emitProgress(activities.RESOLVE_CONFLICTS)
+
+      if (preCopyDeleteOperations.length > 0) {
+        try {
+          const confirmedFiles = await deleteFiles(
+            destinationRoot,
+            preCopyDeleteOperations.map(operation => operation.path),
+            context.runtimePaths,
+            cancelSignal,
+          )
+          markOperationsSynced(preCopyDeleteOperations, confirmedFiles)
+        }
+        catch (error) {
+          markOperationsSynced(preCopyDeleteOperations, error?.confirmedFiles || [])
+          throw error
+        }
+      }
+
+      await cleanupEmptyDirectories(destinationRoot, context.runtimePaths, cancelSignal)
+
       cancelSignal?.throwIfAborted()
       emitProgress(activities.COPY)
 
@@ -102,21 +155,21 @@ export async function executeSyncPlan(syncPlan, context, onProgress = null, canc
       }
     }
 
-    if (deleteOperations.length > 0) {
+    if (postCopyDeleteOperations.length > 0) {
       cancelSignal?.throwIfAborted()
       emitProgress(activities.DELETE)
 
       try {
         const confirmedFiles = await deleteFiles(
           destinationRoot,
-          deleteOperations.map(operation => operation.path),
+          postCopyDeleteOperations.map(operation => operation.path),
           context.runtimePaths,
           cancelSignal,
         )
-        markOperationsSynced(deleteOperations, confirmedFiles)
+        markOperationsSynced(postCopyDeleteOperations, confirmedFiles)
       }
       catch (error) {
-        markOperationsSynced(deleteOperations, error?.confirmedFiles || [])
+        markOperationsSynced(postCopyDeleteOperations, error?.confirmedFiles || [])
         throw error
       }
 

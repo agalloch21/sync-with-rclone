@@ -230,6 +230,45 @@ test('updateServer restores the original remote when task retargeting fails', as
   })
 })
 
+test('updateServer leaves tasks and source unchanged when replacement fails', async () => {
+  await withFakeAppRuntime({
+    failDeleteNames: ['synology'],
+    rcloneConfig: {
+      synology: { type: 'sftp', host: 'old.local', port: '22', user: 'old', pass: 'old-obscured' },
+    },
+    appConfig: {
+      syncTasks: [{
+        displayName: 'Projects',
+        rcloneRemote: 'synology',
+        localBasePath: '/local/projects',
+        remoteBasePath: 'Projects',
+        ignorePatterns: [],
+      }],
+    },
+  }, async ({ configPath, readRcloneState }) => {
+    const progress = []
+
+    await assert.rejects(
+      () => updateServer('synology', 'nas', 'sftp', {
+        host: 'new.local',
+        port: 2222,
+        user: 'new',
+        pass: 'new-secret',
+      }, step => progress.push(step)),
+      error => error?.code === 'server.operation_failed',
+    )
+
+    const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
+    assert.deepEqual(saved.syncTasks.map(task => task.rcloneRemote), ['synology'])
+    assert.deepEqual(await readRcloneState(), {
+      synology: { type: 'sftp', host: 'old.local', port: '22', user: 'old', pass: 'old-obscured' },
+    })
+    assert.deepEqual(progress, [
+      SERVER_UPDATE_PROGRESS_STEP.SAVE,
+    ])
+  })
+})
+
 test('deleteSyncTask throws when the requested task was not deleted', async () => {
   await withFakeAppRuntime({
     appConfig: {

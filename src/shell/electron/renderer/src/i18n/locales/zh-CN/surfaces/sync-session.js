@@ -28,11 +28,12 @@ const syncSession = {
   },
   closeButton: '关闭',
   syncPhases: {
-    start: '开始应用操作',
-    copy: '正在应用复制操作',
-    delete: '正在应用删除操作',
-    cleanup: '正在清理空文件夹',
-    complete: '同步完成',
+    'start': '开始应用操作',
+    'resolve-conflicts': '正在解决目标路径结构冲突',
+    'copy': '正在应用复制操作',
+    'delete': '正在应用删除操作',
+    'cleanup': '正在清理空文件夹',
+    'complete': '同步完成',
   },
   result: {
     [SYNC_RESULT.COMPLETED]: {

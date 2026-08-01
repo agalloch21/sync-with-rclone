@@ -12,9 +12,10 @@ import {
 import {
   createServerConnection,
   deleteServerConnection,
+  getStoredServerConfiguration,
   listServerConnections,
-  renameServerConnection,
-  rollbackServerRename,
+  replaceServerConnection,
+  restoreServerConnection,
   testServerConnection,
   updateServerConnection,
 } from '#src/app/operations/server.js'
@@ -63,10 +64,12 @@ async function createFakeRuntime({ initialConfig = {}, failLsf = false, failDele
   const logPath = path.join(tempDir, 'calls.jsonl')
   const statePath = path.join(tempDir, 'state.json')
   const configDirectory = path.join(tempDir, 'config')
+  const configPath = path.join(configDirectory, 'config.json')
 
   await fs.mkdir(binariesPath, { recursive: true })
   await fs.mkdir(configDirectory, { recursive: true })
   await fs.writeFile(statePath, JSON.stringify(initialConfig, null, 2), 'utf8')
+  await fs.writeFile(configPath, JSON.stringify({ globalIgnorePatterns: [], syncTasks: [] }), 'utf8')
   await fs.writeFile(executablePath, `#!/usr/bin/env node
 const fs = require('node:fs')
 const args = process.argv.slice(2)
@@ -127,7 +130,7 @@ process.exit(0)
 
   process.env.APP_ROOT_PATH = tempDir
   process.env.CONFIG_DIRECTORY = configDirectory
-  process.env.CONFIG_PATH = path.join(configDirectory, 'config.json')
+  process.env.CONFIG_PATH = configPath
   process.env.RCLONE_CONFIG_PATH = path.join(configDirectory, 'rclone.conf')
   Object.defineProperty(process, 'resourcesPath', {
     value: resourcesPath,
@@ -135,6 +138,7 @@ process.exit(0)
   })
 
   return {
+    configPath,
     async readCalls() {
       try {
         const content = await fs.readFile(logPath, 'utf8')
@@ -324,11 +328,15 @@ test('updateServerConnection maps missing backend remote to server not found', a
   )
 })
 
-test('renameServerConnection validates both current and expected names', async () => {
-  await createFakeRuntime()
+test('replaceServerConnection validates both current and expected names', async () => {
+  await createFakeRuntime({
+    initialConfig: {
+      synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
+    },
+  })
 
   await assert.rejects(
-    () => renameServerConnection('synology', '', 'sftp', {
+    () => replaceServerConnection('synology', '', 'sftp', {
       host: 'nas.local',
       port: 22,
       user: 'xiaobo',
@@ -402,7 +410,7 @@ test('deleteServerConnection emits its delete step inside the server operation',
   assert.deepEqual(progress, [SERVER_DELETE_PROGRESS_STEP.DELETE])
 })
 
-test('renameServerConnection creates the target from server config then deletes the old server', async () => {
+test('replaceServerConnection replaces only the server resource', async () => {
   const runtime = await createFakeRuntime({
     initialConfig: {
       synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
@@ -410,7 +418,7 @@ test('renameServerConnection creates the target from server config then deletes 
   })
 
   const progress = []
-  const renameReceipt = await renameServerConnection('synology', 'nas', null, null, step => progress.push(step))
+  await replaceServerConnection('synology', 'nas', null, null, step => progress.push(step))
 
   assert.deepEqual(await runtime.readState(), {
     nas: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
@@ -421,35 +429,25 @@ test('renameServerConnection creates the target from server config then deletes 
     ['config', 'delete'],
   ])
   assert.deepEqual(progress, [SERVER_UPDATE_PROGRESS_STEP.SAVE])
-  assert.deepEqual(renameReceipt, {
-    previousName: 'synology',
-    nextName: 'nas',
-    previousStoredConfig: {
-      type: 'sftp',
-      host: 'nas.local',
-      port: 22,
-      user: 'xiaobo',
-      pass: 'secret',
-    },
-  })
   assert.equal((await runtime.readCalls())[1].at(-1), '--no-obscure')
 })
 
-test('rollbackServerRename restores the original name and stored config', async () => {
+test('restoreServerConnection restores a saved stored protocol exactly', async () => {
   const runtime = await createFakeRuntime({
     initialConfig: {
       synology: { type: 'sftp', host: 'old.local', port: '22', user: 'old', pass: 'old-obscured' },
     },
   })
   const progress = []
+  const previousStoredConfig = await getStoredServerConfiguration('synology')
 
-  const renameReceipt = await renameServerConnection('synology', 'nas', 'sftp', {
+  await replaceServerConnection('synology', 'nas', 'sftp', {
     host: 'new.local',
     port: 2222,
     user: 'new',
     pass: 'new-secret',
   }, step => progress.push(step))
-  await rollbackServerRename(renameReceipt, step => progress.push(step))
+  await restoreServerConnection('nas', 'synology', previousStoredConfig, step => progress.push(step))
 
   assert.deepEqual(await runtime.readState(), {
     synology: {
@@ -469,14 +467,14 @@ test('rollbackServerRename restores the original name and stored config', async 
   assert.equal(createCalls[1].at(-1), '--no-obscure')
 })
 
-test('renameServerConnection writes updated config when protocol input is provided', async () => {
+test('replaceServerConnection writes updated config when protocol input is provided', async () => {
   const runtime = await createFakeRuntime({
     initialConfig: {
       synology: { type: 'sftp', host: 'old.local', port: '22', user: 'old', pass: 'old' },
     },
   })
 
-  await renameServerConnection('synology', 'nas', 'sftp', {
+  await replaceServerConnection('synology', 'nas', 'sftp', {
     host: 'nas.local',
     port: 2222,
     user: 'xiaobo',
@@ -494,11 +492,11 @@ test('renameServerConnection writes updated config when protocol input is provid
   })
 })
 
-test('renameServerConnection rejects a missing source server before creating the target', async () => {
+test('replaceServerConnection rejects a missing source server before creating the target', async () => {
   const runtime = await createFakeRuntime()
 
   await assert.rejects(
-    () => renameServerConnection('missing', 'nas'),
+    () => replaceServerConnection('missing', 'nas'),
     {
       name: 'AppError',
       code: APP_ERROR_CODE.SERVER_NOT_FOUND,

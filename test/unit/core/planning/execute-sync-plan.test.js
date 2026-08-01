@@ -62,11 +62,22 @@ test('executeSyncPlan batches copy and delete operations and reports their lifec
 
     const calls = await readCalls()
     assert.deepEqual(calls.map(call => call.paths), [
+      [],
       ['added/added.txt', 'modified/modified.txt'],
       ['deleted/deleted.txt'],
       [],
     ])
     assert.deepEqual(calls.map(call => normalizeArgs(call.args)), [
+      [
+        '--config',
+        '/app/rclone.conf',
+        'rmdirs',
+        'synology:ProjectsSynced/app',
+        '--leave-root',
+        '--use-json-log',
+        '--log-level',
+        'INFO',
+      ],
       [
         '--config',
         '/app/rclone.conf',
@@ -116,12 +127,48 @@ test('executeSyncPlan batches copy and delete operations and reports their lifec
       { type: 'delete', path: 'deleted/deleted.txt', synced: true },
     ])
     assert.deepEqual(events, [
-      { activity: 'start', index: 0, total: 5, measurement: null },
-      { activity: 'copy', index: 1, total: 5, measurement: null },
-      { activity: 'delete', index: 2, total: 5, measurement: null },
-      { activity: 'cleanup', index: 3, total: 5, measurement: null },
-      { activity: 'complete', index: 4, total: 5, measurement: null },
+      { activity: 'start', index: 0, total: 6, measurement: null },
+      { activity: 'resolve-conflicts', index: 1, total: 6, measurement: null },
+      { activity: 'copy', index: 2, total: 6, measurement: null },
+      { activity: 'delete', index: 3, total: 6, measurement: null },
+      { activity: 'cleanup', index: 4, total: 6, measurement: null },
+      { activity: 'complete', index: 5, total: 6, measurement: null },
     ])
+  })
+})
+
+test('executeSyncPlan deletes structural conflicts before copying and ordinary deletes after copying', async () => {
+  await withFakeRcloneCommand({}, async ({ runtimePaths, readCalls }) => {
+    const result = await executeSyncPlan({
+      action: 'confirm',
+      operations: [
+        { type: 'delete', path: 'blocked' },
+        { type: 'copy', path: 'blocked/new.txt' },
+        { type: 'delete', path: 'ordinary-delete.txt' },
+      ],
+    }, {
+      mode: 'push',
+      localFolderPath: '/local/root',
+      remoteFolderPath: 'synology:ProjectsSynced/app',
+      runtimePaths,
+    })
+
+    const calls = await readCalls()
+    assert.deepEqual(calls.map(call => call.args[0]), [
+      'delete',
+      'rmdirs',
+      'copy',
+      'delete',
+      'rmdirs',
+    ])
+    assert.deepEqual(calls.map(call => call.paths), [
+      ['blocked'],
+      [],
+      ['blocked/new.txt'],
+      ['ordinary-delete.txt'],
+      [],
+    ])
+    assert.equal(result.operations.every(operation => operation.synced), true)
   })
 })
 
@@ -208,7 +255,6 @@ test('executeSyncPlan preserves completed operations when cleanup fails', async 
     await assert.rejects(() => executeSyncPlan({
       action: 'confirm',
       operations: [
-        { type: 'copy', path: 'one.txt' },
         { type: 'delete', path: 'two.txt' },
       ],
     }, {
@@ -218,7 +264,6 @@ test('executeSyncPlan preserves completed operations when cleanup fails', async 
       runtimePaths,
     }), (error) => {
       assert.deepEqual(error.operations, [
-        { type: 'copy', path: 'one.txt', synced: true },
         { type: 'delete', path: 'two.txt', synced: true },
       ])
       return true

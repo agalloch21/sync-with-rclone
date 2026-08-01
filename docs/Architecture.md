@@ -167,7 +167,8 @@ sequenceDiagram
 - core execution contract 定义在 `core/contract.js`；application session events 定义在 `app/contracts/sync.js`。
 - remote-folder probe/mkdir 是可复用的 infrastructure action；`startSync` 在 application policy 确认需要创建目标目录后直接调用它。
 - `infrastructure/runtime/runtime-paths.js` 从进程、平台、安装目录和环境变量解析运行时路径。
-- `infrastructure/runtime/sync-admission-store.js` 用短时原子 mutex 串行化 registry 更新，并为每个活跃同步保存独立 lease；它只存取跨进程状态，不决定路径是否冲突。
+- `infrastructure/runtime/file-mutex.js` 提供基于原子锁文件、owner PID、token、超时和 stale-owner recovery 的通用跨进程临界区。
+- `infrastructure/runtime/sync-lease-store.js` 在该 mutex 下串行化 registry 更新，并为每个活跃同步保存独立 lease；它只存取跨进程状态，不决定路径是否冲突。
 - `infrastructure/filesystem/local-path.js` 负责本地路径规范化、home 展开和目录存在性校验；`app/services/local-path.js` 把技术错误转换成 application error。
 - `shell/electron/main/sync-session/controller.js` 把 application use case 连接到 session window 的 events、review interaction、acknowledgement 和 cancellation。
 - `shell/electron/contracts/sync-session-stage.js` 定义 Main 与 Renderer 共用的 Analyze、Review、Sync UI stage 及其 phase 映射。
@@ -334,6 +335,7 @@ export const DiffState = Object.freeze({
 {
   action: "confirm",
   operations: [
+    { type: "delete", path: "blocked-path" },
     { type: "copy", path: "README.md" },
     { type: "copy", path: "src/index.js" },
     { type: "delete", path: "old.txt" }
@@ -343,6 +345,7 @@ export const DiffState = Object.freeze({
 // 说明:
 // - 这里表达的是明确的执行意图，而不是 UI 状态
 // - SyncPlan 只包含文件操作，不包含目录操作
+// - copy 前的 delete 用来解决路径结构冲突；copy 后的 delete 是普通 mirror cleanup
 ```
 
 示例含义：
@@ -351,15 +354,16 @@ export const DiffState = Object.freeze({
 - 它把“要做什么”压缩成明确的动作集合
 - `core/planning/execute-sync-plan.js` 解释计划并协调 copy、delete 和 cleanup
 - `infrastructure/rclone/remote-files.js` 执行具体 rclone batch commands，不拥有 SyncPlan 生命周期
-- delete 后会执行内部 `rclone rmdirs <destination-root> --leave-root` 清理因文件删除而变空的目标目录，但不会把空目录作为同步内容或 review 项
+- `build-sync-plan.js` 用 path trie 找出与 copy path 互为祖先/后代的结构冲突 delete，并将它们排在 copy 前；必要的冲突删除没有被用户选中时，plan 构建会失败
+- apply 顺序为 structural-conflict delete → empty-directory cleanup → copy → ordinary delete → final cleanup；普通 delete 延后，使 copy 失败时尽量保留未阻挡 copy 的目标端旧内容
 
 ### 4.5 `ApplyProgress`
 
 ```js
 {
   activity: "copy",
-  index: 1,
-  total: 5,
+  index: 2,
+  total: 6,
   measurement: {
     current: 1048576,
     total: 2097152,
@@ -371,7 +375,7 @@ export const DiffState = Object.freeze({
 说明：
 
 - `ApplyProgress` 是 apply 阶段的进度观察事件结构，只用于 UI 展示和调试，不推进主流程
-- `activity` 当前固定为 `start` / `copy` / `delete` / `cleanup` / `complete`
+- `activity` 当前固定为 `start` / `resolve-conflicts` / `copy` / `delete` / `cleanup` / `complete`
 - `index` 是当前 activity 在固定 activity 列表中的位置，`total` 是固定 activity 总数
 - `measurement` 只在 copy 阶段有字节进度；其他 activity 为 `null`
 - UI 可以用 `index` 和 copy 阶段的 `measurement` 推导整体进度条，但同步执行不直接暴露一个最终百分比
@@ -382,8 +386,8 @@ copy 之外的示例：
 ```js
 {
   activity: "cleanup",
-  index: 3,
-  total: 5,
+  index: 4,
+  total: 6,
   measurement: null
 }
 ```
@@ -506,7 +510,7 @@ copy 之外的示例：
 - `type` 从 `config.type` 派生
 - `address` 从 `config.host` / `config.url` / `config.remote` / `config.endpoint` 派生，只用于展示
 - `status` 是 app/UI 状态，不写入 rclone config
-- 上层模块不直接使用 remote 术语；`app-api.js` 调用 `createServerConnection` / `updateServerConnection` / `renameServerConnection` / `deleteServerConnection`
+- 上层模块不直接使用 remote 术语；`app-api.js` 调用 `createServerConnection` / `updateServerConnection` / `replaceServerConnection` / `restoreServerConnection` / `deleteServerConnection`
 
 ### 4.8.2 Server operation flow
 
@@ -518,11 +522,11 @@ sequenceDiagram
   participant RC as infrastructure/rclone/remote-config.js
   participant PR as contracts/server-protocols.js
 
-  APP->>SO: create/update/rename/delete server connection
+  APP->>SO: query/create/update/replace/restore/delete server connection
   SO->>SO: emit operation progress / sequence create-test-rollback
   SO->>SS: semantic server capability
   SS->>PR: validateProtocolForm(config.type, config fields)
-  SS->>SS: existence policy / normalize / rename implementation
+  SS->>SS: existence policy / normalize / complete resource replacement
   SS->>RC: list/create/update/delete/test raw remote config
   RC-->>SS: raw remote result or neutral InfrastructureError
   SS-->>SO: server value or stable SERVER_* AppError
@@ -531,21 +535,22 @@ sequenceDiagram
 
 当前职责边界：
 
-- `app-api.js` 判断用户意图，例如 create、same-name update、rename-with-update，并在成功后通过 `app-events.js` 发布更新；rename 后如果 task 引用重定向失败，它使用 rename receipt 恢复原 remote
-- `operations/server.js` 负责 operation progress 和 create → test → rollback 等 use-case sequencing，不读取 raw rclone config
-- `services/server.js` 负责 name/protocol validation、remote existence policy、remote/server 对象转换、adapter error mapping 和 rename implementation
+- `app-api.js` 判断用户意图，例如 create、same-name update、纯 rename 和 rename-with-protocol-update replacement；跨 server/task 的 replacement 协调也位于这里，并在成功后通过 `app-events.js` 发布更新
+- `operations/server.js` 只负责 server resource 的 operation progress、create → test → rollback、replace 和按 stored protocol 恢复，不引用 task operation
+- `operations/task.js` 负责 task resource operation，包括 server name 变化后的 task retarget
+- `services/server.js` 负责 name/protocol validation、remote existence policy、remote/server 对象转换、adapter error mapping，以及单次 replacement 内部的 create target → delete source
 - `remote-config.js` 负责 config dump/create/update/delete/test 命令和 raw `{ name, config }` 解析，不判断资源应该存在或不应存在
 - 已识别的 rclone 技术失败由 `remote-config.js` 包装为带 `INFRASTRUCTURE_ERROR_CODE` 的 `InfrastructureError`；`services/server.js` 按当前 server capability 抛出 `SERVER_*` AppError，并通过 cause 保留 infrastructure 和 native process error，不逐项翻译 lower-level code
 - `name` 是 server 与 remote 共享的资源标识；name 校验、normalize 和 same-name rename no-op 由 server service 处理
 - 协议字段校验由 `services/server.js` 调用 `contracts/server-protocols.js` 完成
-- rename 的 rclone-backed implementation 位于 server service：先 create target，再 delete source；delete source 失败时尝试删除 target。无表单配置的纯 rename 复制 `config dump` 返回的已存储配置，通过专用 `createRemoteConfigFromStoredConfig()` 和 `--no-obscure` 避免 password 字段被二次 obscure
-- rename service 返回只供该工作流补偿使用的 receipt；task 引用重定向失败时，app-api 先用 receipt 重建原 remote，再删除新 remote。补偿失败不会替换最初的 task/config error，其错误 code 和 message 只附加到原错误 metadata 供排查
+- `app-api.js` 在正向 replace 前通过 server operation 取得原 stored protocol 副本，调用 server operation 完成 replacement，再调用 task operation retarget tasks；task 更新失败时调用 server restore operation 使用该副本反向 replace，从而恢复旧名称和旧 protocol，不使用 mutation receipt
+- 无 protocol override 的纯 rename target 复制 `config dump` 返回的已存储配置，通过专用 `createRemoteConfigFromStoredConfig()` 和 `--no-obscure` 避免 password 字段被二次 obscure；rename 与 protocol update 同时发生时，target 使用新的 protocol form
 - `remote-files.js` 负责远端 raw folder entries、recursive file listing、folder ensure 和 copy/delete/cleanup actions，不与 remote configuration CRUD 混合；`server-folder-tree.js` 把 raw entries 组装为 application TreeNode
 - adapter command/parse 错误在 server service 边界转换为稳定的 `SERVER_*` error
 
 ### 4.8.3 App config store、services 与 operation policy
 
-- `infrastructure/configuration/app-config-store.js` 负责 default config、读取、schema normalization、序列化、原子写入和同一路径写入互斥
+- `infrastructure/configuration/app-config-store.js` 负责 default config、读取、schema normalization、序列化和原子写入；完整 load → mutate → save 临界区复用 `runtime/file-mutex.js`，因此同一 config path 的 GUI/CLI 写入会跨进程串行
 - `operations/task.js` 负责 task input/reference validation、path normalization 和 progress lifecycle
 - `services/task.js` 负责 task conflict、create/update/delete/retarget policy，并把完整 JSON transaction 隐藏在 service boundary 后
 - `operations/settings.js` 负责 global ignore pattern input validation；`services/global-settings.js` 负责读取和更新 capability
@@ -559,7 +564,7 @@ sequenceDiagram
 - `core/snapshots/build-snapshot.js` 从 neutral entries 构建并排序 Snapshot，不知道 entries 来自本地文件系统还是 rclone
 - `core/snapshots/acquire-snapshots.js` 使用 local/rclone scanners 获取 neutral entries，再建立 Snapshot
 - `core/planning/sync-plan-result.js` 创建 execution-result operations 并根据 confirmed paths 标记 `synced`
-- `core/planning/execute-sync-plan.js` 使用 infrastructure file actions 执行 SyncPlan；core 不经过 app services
+- `core/planning/execute-sync-plan.js` 使用 infrastructure file actions 按结构冲突 delete、copy、普通 delete 的顺序执行 SyncPlan；core 不经过 app services
 - `app/operations/sync/start.js` 只处理 application lifecycle，不拥有 Snapshot 或 SyncPlan 流程
 
 ### 4.9 `FormModalState`

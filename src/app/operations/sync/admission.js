@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { acquireSyncLease, releaseSyncLease } from '#src/infrastructure/runtime/sync-admission-store.js'
+import { acquireSyncLease, releaseSyncLease } from '#src/infrastructure/runtime/sync-lease-store.js'
 import { APP_ERROR_CODE, throwAppError } from '../../app-errors.js'
 
 function trimPath(value) {

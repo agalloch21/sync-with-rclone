@@ -248,7 +248,30 @@ export async function deleteCreatedServer(name) {
   }
 }
 
-export async function renameServer(name, expectedName, protocolType = null, protocolFields = null) {
+export async function getStoredServerConfig(name) {
+  try {
+    const normalizedName = normalizeName(name)
+    const remotes = await remoteConfig.listRemoteConfigs()
+    const remote = findRemote(remotes, normalizedName)
+    if (!remote)
+      throwServerError(APP_ERROR_CODE.SERVER_NOT_FOUND, 'Server does not exist.', { meta: { name: normalizedName } })
+
+    return normalizeRemoteConfig(remote.config)
+  }
+  catch (error) {
+    throwServerErrorFromAdapter(error, 'Failed to read the stored server configuration.', { name })
+  }
+}
+
+export async function replaceServer(
+  name,
+  expectedName,
+  {
+    protocolType = null,
+    protocolFields = null,
+    storedConfig = null,
+  } = {},
+) {
   try {
     const currentName = normalizeName(name)
     const nextName = normalizeName(expectedName, 'expectedName')
@@ -262,16 +285,18 @@ export async function renameServer(name, expectedName, protocolType = null, prot
     if (findRemote(remotes, nextName))
       throwServerError(APP_ERROR_CODE.SERVER_ALREADY_EXISTS, 'Server already exists.', { meta: { name: nextName } })
 
-    const previousStoredConfig = normalizeRemoteConfig(sourceRemote.config)
-    const copiesStoredConfig = protocolType == null && protocolFields == null
-    const nextConfig = copiesStoredConfig
-      ? previousStoredConfig
-      : buildRemoteConfig(protocolType, protocolFields)
+    const usesStoredConfig = storedConfig != null || (protocolType == null && protocolFields == null)
+    const nextConfig = storedConfig != null
+      ? normalizeRemoteConfig(storedConfig)
+      : usesStoredConfig
+        ? normalizeRemoteConfig(sourceRemote.config)
+        : buildRemoteConfig(protocolType, protocolFields)
 
-    if (copiesStoredConfig)
+    if (usesStoredConfig)
       await remoteConfig.createRemoteConfigFromStoredConfig(nextName, nextConfig)
     else
       await remoteConfig.createRemoteConfig(nextName, nextConfig)
+
     try {
       await remoteConfig.deleteRemoteConfig(currentName)
     }
@@ -279,31 +304,13 @@ export async function renameServer(name, expectedName, protocolType = null, prot
       try {
         await remoteConfig.deleteRemoteConfig(nextName)
       }
-      catch {}
+      catch (rollbackError) {
+        error.rollbackError = rollbackError
+      }
       throw error
     }
-
-    return {
-      previousName: currentName,
-      nextName,
-      previousStoredConfig,
-    }
   }
   catch (error) {
-    throwServerErrorFromAdapter(error, 'Failed to rename the server.', { name, expectedName })
-  }
-}
-
-export async function rollbackServerRename(renameReceipt) {
-  try {
-    const { previousName, nextName, previousStoredConfig } = renameReceipt || {}
-    if (!previousName || !nextName || !previousStoredConfig)
-      throw new TypeError('Invalid server rename receipt.')
-
-    await remoteConfig.createRemoteConfigFromStoredConfig(previousName, previousStoredConfig)
-    await remoteConfig.deleteRemoteConfig(nextName)
-  }
-  catch (error) {
-    throwServerErrorFromAdapter(error, 'Failed to roll back the server rename.')
+    throwServerErrorFromAdapter(error, 'Failed to replace the server.', { name, expectedName })
   }
 }

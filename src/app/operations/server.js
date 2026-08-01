@@ -10,6 +10,7 @@ export const buildEmptyServerObject = serverService.buildEmptyServer
 export const getFolderTree = serverService.getServerFolderTree
 export const listServerConnections = serverService.listServers
 export const getServerConnection = serverService.getServer
+export const getStoredServerConfiguration = serverService.getStoredServerConfig
 export const testServerConnection = serverService.testServer
 
 export async function createServerConnection(expectedName, protocolType, protocolFields, onProgress) {
@@ -47,7 +48,7 @@ export async function deleteServerConnection(name, onProgress) {
   await serverService.deleteServer(name)
 }
 
-export async function renameServerConnection(
+export async function replaceServerConnection(
   name,
   expectedName,
   protocolType = null,
@@ -55,10 +56,10 @@ export async function renameServerConnection(
   onProgress,
 ) {
   onProgress?.(SERVER_UPDATE_PROGRESS_STEP.SAVE)
-  return await serverService.renameServer(name, expectedName, protocolType, protocolFields)
+  await serverService.replaceServer(name, expectedName, { protocolType, protocolFields })
 }
 
-export async function rollbackServerRename(renameReceipt, onProgress) {
+export async function restoreServerConnection(name, expectedName, storedConfig, onProgress) {
   onProgress?.(SERVER_UPDATE_PROGRESS_STEP.ROLLBACK)
-  await serverService.rollbackServerRename(renameReceipt)
+  await serverService.replaceServer(name, expectedName, { storedConfig })
 }

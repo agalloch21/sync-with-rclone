@@ -26,9 +26,10 @@ const ACTION_MODE = {
   CREATE: 'create',
 }
 const mode = ref(props.view === FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING ? ACTION_MODE.EDIT : ACTION_MODE.CREATE)
+const initialSyncTask = mode.value === ACTION_MODE.EDIT ? props.context?.selectedSyncTask : null
 
-const localBasePath = ref(props.context?.selectedSyncTask?.localBasePath ?? '')
-const remoteBasePath = ref(props.context?.selectedSyncTask?.remoteBasePath ?? '')
+const localBasePath = ref(initialSyncTask?.localBasePath ?? '')
+const remoteBasePath = ref(initialSyncTask?.remoteBasePath ?? '')
 const isSelectingFolder = ref(false)
 const isSubmitting = ref(false)
 

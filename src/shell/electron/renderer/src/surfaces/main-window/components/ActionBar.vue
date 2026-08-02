@@ -1,6 +1,10 @@
 <script setup>
 import Button from '#frontend/surfaces/shared/Button.vue'
-import { MAIN_WINDOW_ACTION } from '../main-window-action.js'
+import {
+  ACTION_BAR_PRIMARY_ACTION,
+  ACTION_BAR_SERVER_ACTIONS,
+  ACTION_BAR_TASK_ACTIONS,
+} from './ActionBar.presentation.js'
 
 defineProps({
   isServerSelected: {
@@ -14,31 +18,18 @@ defineProps({
 })
 
 const emit = defineEmits(['requestAction'])
-const primaryAction = {
-  name: 'create',
-  action: MAIN_WINDOW_ACTION.CREATE_TASK,
-}
-const serverActions = [
-  { name: 'edit', action: MAIN_WINDOW_ACTION.EDIT_SERVER },
-  { name: 'delete', action: MAIN_WINDOW_ACTION.DELETE_SERVER },
-]
-const taskActions = [
-  { name: 'edit', action: MAIN_WINDOW_ACTION.EDIT_FOLDER_MAPPING },
-  { name: 'delete', action: MAIN_WINDOW_ACTION.DELETE_TASK },
-  { name: 'editPatterns', action: MAIN_WINDOW_ACTION.EDIT_PATTERNS },
-]
 </script>
 
 <template>
   <div class="action-bar-stage flex items-stretch gap-4">
-    <Button :primary="true" :wide="true" @click="emit('requestAction', primaryAction.action)">
+    <Button :primary="true" :wide="true" @click="emit('requestAction', ACTION_BAR_PRIMARY_ACTION.action)">
       <span class="icon-[lucide--circle-plus] w-4 aspect-square" />
-      {{ $t(`syncTasksPanel.actions.${primaryAction.name}`) }}
+      {{ $t(`syncTasksPanel.actions.${ACTION_BAR_PRIMARY_ACTION.name}`) }}
     </Button>
     <span class="shrink-0 bg-(--surface-soft) w-0.5" />
     <div v-if="isTaskSelected || isServerSelected" class="flex gap-4">
       <Button
-        v-for="action in (isTaskSelected ? taskActions : serverActions)" :key="action.action"
+        v-for="action in (isTaskSelected ? ACTION_BAR_TASK_ACTIONS : ACTION_BAR_SERVER_ACTIONS)" :key="action.action"
         :primary="false" :wide="false" @click="emit('requestAction', action.action)"
       >
         {{ $t(`syncTasksPanel.actions.${action.name}`) }}

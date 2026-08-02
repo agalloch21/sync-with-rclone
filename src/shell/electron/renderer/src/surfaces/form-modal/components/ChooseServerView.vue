@@ -7,6 +7,13 @@ import { unwrapResult } from '#src/app/operation-result.js'
 import { onMounted, ref } from 'vue'
 import ModalLayout from './ModalLayout.vue'
 
+const props = defineProps({
+  context: {
+    type: Object,
+    default: () => ({}),
+  },
+})
+
 const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
 
 const serverOperations = useServerOperations(window?.formModal)
@@ -39,7 +46,10 @@ async function loadServers() {
 
   availableServers.value = servers.value.filter(server => server.status !== 'missing')
   canChooseExisting.value = availableServers.value.length > 0
-  selectedServerName.value = availableServers.value[0]?.name || ''
+  const contextServerName = props.context?.selectedServer?.name || props.context?.selectedSyncTask?.rcloneRemote
+  selectedServerName.value = availableServers.value.some(server => server.name === contextServerName)
+    ? contextServerName
+    : availableServers.value[0]?.name || ''
   if (availableServers.value.length === 0)
     selectedPlan.value = SERVER_PLAN.CREATE_NEW
 

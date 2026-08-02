@@ -5,7 +5,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
 import { useMessageBox } from '../../../composables/useMessageBox.js'
 import { useServerOperations } from '../../../composables/useServerOperations.js'
 import { useTaskOperations } from '../../../composables/useTaskOperations.js'
-import { MAIN_WINDOW_ACTION } from '../main-window-action.js'
+import { MAIN_WINDOW_ACTION } from './ActionBar.presentation.js'
 import ActionBar from './ActionBar.vue'
 import ServerItem from './ServerItem.vue'
 import TaskItem from './TaskItem.vue'
@@ -147,6 +147,7 @@ async function handleAction(action) {
       <div class="task-list-stage h-full overflow-x-auto overflow-y-auto scrollbar-gutter-stable divide-y divide-(--surface-soft)">
         <ServerItem
           v-for="server in servers" :key="server.name" :server="server" :selected="server === selectedServer && selectedSyncTask === null"
+          :has-tasks="getSyncTasksByServer(server.name).length > 0"
           @click.prevent="onSelectServer(server)"
         >
           <TaskItem

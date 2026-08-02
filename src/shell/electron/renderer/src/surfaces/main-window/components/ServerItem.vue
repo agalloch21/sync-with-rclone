@@ -8,6 +8,10 @@ defineProps({
   selected: {
     type: Boolean,
   },
+  hasTasks: {
+    type: Boolean,
+    default: false,
+  },
 })
 const isOpened = ref(true)
 function onClickArrow() {
@@ -51,8 +55,8 @@ function onClickArrow() {
       </div>
     </summary>
     <div
-      class="tasks-dock pl-(--task-row-pl) has-[*]:border-t border-(--surface-soft) divide-y divide-(--surface-soft)
-    flex flex-col"
+      class="tasks-dock pl-(--task-row-pl) border-(--surface-soft) divide-y divide-(--surface-soft) flex flex-col"
+      :class="{ 'border-t': hasTasks }"
     >
       <slot />
     </div>

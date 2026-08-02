@@ -4,17 +4,10 @@ import { computed, inject } from 'vue'
 import ResultIcon from '../../shared/ResultIcon.vue'
 
 const state = inject('state')
+const analyzePhases = SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.ANALYZE]?.phases || []
 
 const currentPhaseIndex = computed(() => {
-  if (!state.value || SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.ANALYZE]?.phases?.length === 0) {
-    return 0
-  }
-
-  if (state.value.stage === SYNC_SESSION_STAGE.ANALYZE) {
-    return SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.ANALYZE]?.phases.findIndex(phase => phase === state.value.phase)
-  }
-
-  return SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.ANALYZE]?.phases?.length
+  return analyzePhases.findIndex(phase => phase === state.value?.phase)
 })
 </script>
 
@@ -24,7 +17,7 @@ const currentPhaseIndex = computed(() => {
       Preparing Sync
     </div>
     <div class="row-start-3 row-span-3 flex flex-col justify-center items-left gap-4 text-xs text-(--text-subtle)">
-      <div v-for="(phase, index) in SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.ANALYZE]?.phases" :key="phase" class="flex items-center gap-2">
+      <div v-for="(phase, index) in analyzePhases" :key="phase" class="flex items-center gap-2">
         <Transition name="fade" mode="out-in" type="transition">
           <div v-if="index > currentPhaseIndex" class="icon waiting" />
           <div v-else-if="index === currentPhaseIndex" class="icon running" />

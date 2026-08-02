@@ -21,62 +21,51 @@ const closeVisible = computed(() => showFinalAcknowledgement.value)
 </script>
 
 <template>
-  <TransitionGroup
-    tag="div"
-    name="slide-fade"
-    class="footer-stage flex flex-row justify-end items-center gap-6 px-6 py-4 relative"
-  >
-    <button
-      v-if="confirmVisible"
-      key="confirm"
-      :disabled="props.hasPendingCommand"
-      class="button-primary clickable focusable"
-      @click="emit('onClickConfirm')"
-    >
-      {{ $t(`confirmButton.${mode}`) }}
-    </button>
+  <div class="footer-stage flex flex-row justify-end items-center gap-6 px-6 py-4">
+    <Transition name="footer-fade">
+      <button
+        v-if="confirmVisible"
+        :disabled="props.hasPendingCommand"
+        class="button-primary clickable focusable"
+        @click="emit('onClickConfirm')"
+      >
+        {{ $t(`confirmButton.${mode}`) }}
+      </button>
+    </Transition>
 
-    <button
-      v-if="cancelVisible"
-      key="cancel"
-      :disabled="props.hasPendingCommand"
-      class="button-secondary clickable focusable"
-      @click="emit('onClickCancel')"
-    >
-      {{ $t('cancelButton') }}
-    </button>
+    <Transition name="footer-fade">
+      <button
+        v-if="cancelVisible"
+        :disabled="props.hasPendingCommand"
+        class="button-secondary clickable focusable"
+        @click="emit('onClickCancel')"
+      >
+        {{ $t('cancelButton') }}
+      </button>
+    </Transition>
 
-    <button
-      v-if="closeVisible"
-      key="close"
-      :disabled="props.hasPendingCommand"
-      class="button-secondary clickable focusable"
-      @click="emit('onClickClose')"
-    >
-      {{ $t('closeButton') }}
-    </button>
-  </TransitionGroup>
+    <Transition name="footer-fade">
+      <button
+        v-if="closeVisible"
+        :disabled="props.hasPendingCommand"
+        class="button-secondary clickable focusable"
+        @click="emit('onClickClose')"
+      >
+        {{ $t('closeButton') }}
+      </button>
+    </Transition>
+  </div>
 </template>
 
 <style scoped>
 @reference "tailwindcss";
-.slide-fade-move{
-transition: transform 0.5s ease;
+.footer-fade-enter-active,
+.footer-fade-leave-active{
+  transition: opacity 0.5s ease;
 }
-.slide-fade-enter-active,
-.slide-fade-leave-active {
-
-  transition: all 1s 0.5s ease;
-}
-
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  /* transform: translateX(2rem); */
+.footer-fade-enter-from,
+.footer-fade-leave-to{
   opacity: 0;
-}
-
-.slide-fade-leave-active {
-position:absolute;
 }
 
 .button-secondary{

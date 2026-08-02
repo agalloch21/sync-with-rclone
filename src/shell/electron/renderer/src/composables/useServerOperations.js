@@ -64,14 +64,9 @@ export function useServerOperations(windowPreload) {
     return await invokeRequest(() => windowPreload?.createServer?.(payload))
   }
 
-  async function updateServer(serverName, expectedServerName, protocolType, protocolFields) {
+  async function updateServer(serverName, protocolType, protocolFields) {
     if (!serverName || typeof serverName !== 'string' || serverName.trim().length === 0) {
       await messageBox.warning(APP_MESSAGE_CODE.SERVER_SELECTION_REQUIRED)
-      return toFailureResult()
-    }
-
-    if (!expectedServerName || typeof expectedServerName !== 'string' || expectedServerName.trim().length === 0) {
-      await messageBox.warning(APP_MESSAGE_CODE.SERVER_NAME_INVALID)
       return toFailureResult()
     }
 
@@ -83,7 +78,7 @@ export function useServerOperations(windowPreload) {
       return toFailureResult()
     }
 
-    const payload = { serverName, expectedServerName, protocolType, protocolFields: toPlainObject(protocolFields) }
+    const payload = { serverName, protocolType, protocolFields: toPlainObject(protocolFields) }
     return await invokeRequest(() => windowPreload?.updateServer?.(payload))
   }
 

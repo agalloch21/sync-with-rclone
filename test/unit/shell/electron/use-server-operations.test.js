@@ -124,7 +124,7 @@ test('updateServer sends plain protocol fields through preload', async () => {
     async showMessageBox() {},
   })
 
-  const result = await serverOperations.updateServer('synology', 'nas', 'sftp', reactive({
+  const result = await serverOperations.updateServer('synology', 'sftp', reactive({
     host: 'nas.local',
     port: 22,
     user: 'xiaobo',
@@ -134,7 +134,6 @@ test('updateServer sends plain protocol fields through preload', async () => {
   assert.equal(result.success, true)
   assert.deepEqual(receivedPayload, {
     serverName: 'synology',
-    expectedServerName: 'nas',
     protocolType: 'sftp',
     protocolFields: {
       host: 'nas.local',
@@ -162,7 +161,7 @@ test('updateServer does not present a failure already handled by the main proces
     },
   })
 
-  const result = await serverOperations.updateServer('synology', 'synology', 'sftp', {
+  const result = await serverOperations.updateServer('synology', 'sftp', {
     host: 'nas.local',
     port: 22,
     user: 'xiaobo',

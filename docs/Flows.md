@@ -397,7 +397,6 @@ sequenceDiagram
   participant MB as Message Box
   participant APP as App Layer
   participant SO as Server Operations
-  participant TO as Task Operations
   participant SS as Server Service
   participant RC as infrastructure/rclone/remote-config.js
   participant MW as Main Window Renderer
@@ -467,27 +466,12 @@ sequenceDiagram
 
   U->>M: 点击 Confirm
   M->>M: UI 表单预校验
+  M->>M: server name disabled，只编辑 protocol fields
   M->>EM: updateServer(payload)
   EM->>APP: updateServer(...)
-  APP->>APP: 判断 same-name update 或 server replacement
-  alt same-name update
-    APP->>SO: updateServerConnection(...)
-    SO->>SS: updateServer(...)
-    SS->>RC: update existing
-  else server replacement
-    APP->>SO: getStoredServerConfiguration(source)
-    SO->>SS: getStoredServerConfig(source)
-    SS-->>APP: original stored protocol copy
-    APP->>SO: replaceServerConnection(...)
-    SO->>SS: replaceServer(source, target, new protocol)
-    SS->>RC: create target + delete source
-    APP->>TO: retargetSyncTasks(source, target)
-    opt task retarget 失败
-      APP->>SO: restoreServerConnection(target, source, original stored protocol)
-      SO->>SS: replaceServer(target, source, original stored protocol)
-      SS->>RC: recreate source + delete target
-    end
-  end
+  APP->>SO: updateServerConnection(name, protocol)
+  SO->>SS: updateServer(name, protocol)
+  SS->>RC: update existing remote config
   alt 失败
     EM-->>M: OperationResult success=false
     M->>MB: useMessageBox.error(result.error)
@@ -501,14 +485,12 @@ sequenceDiagram
 关键点：
 
 - 需要 main-managed progress 的 server/task mutation 统一通过 `message-box/operation-presentation.js` 接入 `createOperationReporter()`
-- `app-api.js` 判断保存动作是同名 update 还是 replacement；replacement 时协调 server 与 task 两类 resource operation，保存原 stored protocol 副本，并在成功后发布 config update
-- `operations/server.js` 只负责 server operation progress、server replacement 和使用指定 stored protocol 的恢复，不引用 task operation
-- `operations/task.js` 负责 task references 的 retarget
-- `services/server.js` 负责 server validation、existence policy、remote/server 转换，以及一个完整 replace 内部的 create target → delete source，并把 adapter error 转成 `SERVER_*`
+- server name 在 edit surface 中 disabled；update payload 不包含新名称
+- `app-api.js` 只协调现有 server 的 protocol update，并在成功后发布 config update
+- `operations/server.js` 负责 update progress lifecycle，不引用 task operation
+- `services/server.js` 负责 server validation、existence policy、remote/server 转换，并把 adapter error 转成 `SERVER_*`
 - `remote-config.js` 只负责 raw rclone config dump/create/update/delete/test 命令
-- replacement service 先创建 target，再删除 source；删除 source 失败时会删除刚创建的 target
-- 纯 rename 使用专用 stored-config create capability 和 `--no-obscure`，避免把 `config dump` 返回的 password 再 obscure 一次
-- `app-api.js` 在正向 replace 前通过 server operation 取得原 stored protocol 副本；task retarget 失败时用该副本调用 server restore operation，因此同时恢复旧名称和旧 protocol，不需要 mutation receipt
+- application 不提供 server rename；手动修改 rclone config 名称后，需要重新指定引用旧名称的 sync tasks
 - 普通 operation 失败由 renderer composable 调用 `messageBox.error(error)` 展示一次
 
 ## 14. Delete Server / Delete Task 流程

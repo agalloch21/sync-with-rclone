@@ -78,6 +78,36 @@ test('runCli reports a successful server connection query without operation prog
   })
 })
 
+test('runCli updates an existing server without accepting a replacement name', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {
+      synology: { type: 'sftp', host: 'old.local', user: 'old', pass: 'old' },
+    },
+  }, async ({ readRcloneState }) => {
+    const output = createOutput()
+    const exitCode = await runCli([
+      'update-server',
+      'synology',
+      'sftp',
+      'host=nas.local',
+      'port=22',
+      'user=xiaobo',
+      'pass=secret',
+    ], output)
+
+    assert.equal(exitCode, 0)
+    assert.deepEqual(await readRcloneState(), {
+      synology: {
+        type: 'sftp',
+        host: 'nas.local',
+        port: '22',
+        user: 'xiaobo',
+        pass: 'secret',
+      },
+    })
+  })
+})
+
 test('runCli rejects legacy sync routing without an explicit sync command', async () => {
   const output = createOutput()
   const exitCode = await runCli(['pull', '/local', 'remote:path'], output)

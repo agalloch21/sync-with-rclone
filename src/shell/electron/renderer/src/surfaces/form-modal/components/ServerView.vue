@@ -28,8 +28,7 @@ const ACTION_MODE = {
 }
 const mode = ref(props.view === FORM_MODAL_VIEW.EDIT_SERVER ? ACTION_MODE.EDIT : ACTION_MODE.CREATE)
 
-const currentServerName = ref((mode.value === ACTION_MODE.EDIT && props.context?.selectedServer?.name) || '')
-const expectedServerName = ref((mode.value === ACTION_MODE.EDIT && currentServerName.value) || '')
+const serverName = ref((mode.value === ACTION_MODE.EDIT && props.context?.selectedServer?.name) || '')
 const protocolType = ref((mode.value === ACTION_MODE.EDIT && props.context?.selectedServer?.type) || getDefaultProtocolType())
 const protocolForm = ref(
   mode.value === ACTION_MODE.EDIT
@@ -67,8 +66,8 @@ async function submitServer() {
   let result
   try {
     result = mode.value === ACTION_MODE.EDIT
-      ? await serverOperations.updateServer(currentServerName.value, expectedServerName.value, protocolType.value, protocolForm.value)
-      : await serverOperations.createServer(expectedServerName.value, protocolType.value, protocolForm.value)
+      ? await serverOperations.updateServer(serverName.value, protocolType.value, protocolForm.value)
+      : await serverOperations.createServer(serverName.value, protocolType.value, protocolForm.value)
   }
   finally {
     isSubmitting.value = false
@@ -79,7 +78,7 @@ async function submitServer() {
       emit('onClickConfirm')
     }
     else {
-      const result = await serverOperations.getServer(expectedServerName.value)
+      const result = await serverOperations.getServer(serverName.value)
       if (!result.success)
         return
 
@@ -100,8 +99,9 @@ async function submitServer() {
         <input
           id="server-name"
           class="field-control"
-          :value="expectedServerName"
-          @input="expectedServerName = $event.target.value"
+          :disabled="mode === ACTION_MODE.EDIT"
+          :value="serverName"
+          @input="serverName = $event.target.value"
         >
         <!-- Protocol Type Selection -->
         <label class="field-label" for="protocol">Protocol</label>
@@ -168,7 +168,7 @@ async function submitServer() {
 .field-control{
   @apply w-full border-0 border-b border-(--text-subtle) bg-transparent px-2 py-2 text-center text-sm text-(--text-subtle) outline-none;
 }
-.field-control[readonly]{
+.field-control:disabled{
   @apply opacity-70;
 }
 .field-select{

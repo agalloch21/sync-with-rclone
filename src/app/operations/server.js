@@ -10,7 +10,6 @@ export const buildEmptyServerObject = serverService.buildEmptyServer
 export const getFolderTree = serverService.getServerFolderTree
 export const listServerConnections = serverService.listServers
 export const getServerConnection = serverService.getServer
-export const getStoredServerConfiguration = serverService.getStoredServerConfig
 export const testServerConnection = serverService.testServer
 
 export async function createServerConnection(expectedName, protocolType, protocolFields, onProgress) {
@@ -46,20 +45,4 @@ export async function updateServerConnection(name, protocolType, protocolFields,
 export async function deleteServerConnection(name, onProgress) {
   onProgress?.(SERVER_DELETE_PROGRESS_STEP.DELETE)
   await serverService.deleteServer(name)
-}
-
-export async function replaceServerConnection(
-  name,
-  expectedName,
-  protocolType = null,
-  protocolFields = null,
-  onProgress,
-) {
-  onProgress?.(SERVER_UPDATE_PROGRESS_STEP.SAVE)
-  await serverService.replaceServer(name, expectedName, { protocolType, protocolFields })
-}
-
-export async function restoreServerConnection(name, expectedName, storedConfig, onProgress) {
-  onProgress?.(SERVER_UPDATE_PROGRESS_STEP.ROLLBACK)
-  await serverService.replaceServer(name, expectedName, { storedConfig })
 }

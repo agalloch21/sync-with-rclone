@@ -49,11 +49,8 @@ function formatTimestamp(value) {
 }
 
 function subjectLabel(subject = {}) {
-  if (subject.type === 'server') {
-    return subject.expectedName && subject.expectedName !== subject.name
-      ? `${subject.name} → ${subject.expectedName}`
-      : subject.name
-  }
+  if (subject.type === 'server')
+    return subject.name
 
   if (subject.type === 'syncTask')
     return [subject.rcloneRemote, subject.localBasePath].filter(Boolean).join(' · ')

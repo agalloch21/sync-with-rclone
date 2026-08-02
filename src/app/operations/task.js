@@ -1,7 +1,6 @@
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
 import {
   SYNC_TASK_DELETE_PROGRESS_STEP,
-  SYNC_TASK_RETARGET_PROGRESS_STEP,
   SYNC_TASK_SAVE_PROGRESS_STEP,
 } from '../contracts/task.js'
 import { normalizeLocalPath, resolveLocalDirectoryPath, trimTrailingSlash } from '../services/local-path.js'
@@ -40,13 +39,6 @@ function assertIgnorePatterns(ignorePatterns) {
     throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, 'Ignore patterns must be an array of strings.')
 }
 
-function normalizeServerName(name) {
-  if (typeof name !== 'string' || name.trim().length === 0)
-    throwAppError(APP_ERROR_CODE.SERVER_VALIDATION_FAILED, 'A server name is required.')
-
-  return name.trim()
-}
-
 export const listSyncTasks = taskService.listTasks
 
 export async function createSyncTask(task, onProgress) {
@@ -76,17 +68,6 @@ export async function updateSyncTaskIgnorePatterns(task, ignorePatterns, onProgr
   assertIgnorePatterns(ignorePatterns)
   onProgress?.(SYNC_TASK_SAVE_PROGRESS_STEP.SAVE)
   return await taskService.updateTaskIgnorePatterns(task, ignorePatterns)
-}
-
-export async function retargetSyncTasks(serverName, expectedServerName, onProgress) {
-  const currentName = normalizeServerName(serverName)
-  const nextName = normalizeServerName(expectedServerName)
-
-  if (currentName === nextName)
-    return await taskService.listTasks()
-
-  onProgress?.(SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET)
-  return await taskService.retargetTasks(currentName, nextName)
 }
 
 export async function deleteTaskFromConfig(task, onProgress) {

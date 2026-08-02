@@ -105,25 +105,6 @@ export async function updateTaskIgnorePatterns(task, ignorePatterns) {
   return savedConfig.syncTasks[taskIndex]
 }
 
-export async function retargetTasks(serverName, expectedServerName) {
-  const savedConfig = await updateConfiguration((loadedConfig) => {
-    const config = requireConfig(loadedConfig)
-    const nextTasks = config.syncTasks.map(task => task.rcloneRemote === serverName
-      ? { ...task, rcloneRemote: expectedServerName }
-      : task)
-
-    if (nextTasks.every((task, index) => task === config.syncTasks[index]))
-      return null
-
-    return {
-      ...config,
-      syncTasks: nextTasks,
-    }
-  })
-
-  return savedConfig.syncTasks
-}
-
 export async function deleteTask(task) {
   let deletedTask
   await updateConfiguration((loadedConfig) => {

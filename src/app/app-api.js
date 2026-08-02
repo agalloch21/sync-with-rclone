@@ -1,4 +1,3 @@
-import { getErrorCode } from './app-errors.js'
 import {
   notifyConfigUpdate,
   registerConfigUpdateListener,
@@ -89,65 +88,8 @@ async function createServerImpl(expectedName, protocolType, protocolFields, onPr
   notifyConfigUpdate()
 }
 
-function attachRollbackError(error, rollbackError) {
-  if (!error || (typeof error !== 'object' && typeof error !== 'function'))
-    return
-
-  error.meta = {
-    ...error.meta,
-    rollbackErrorCode: getErrorCode(rollbackError),
-    rollbackErrorMessage: rollbackError?.message || String(rollbackError),
-  }
-}
-
-async function replaceServerAndRetargetTasks(
-  name,
-  expectedName,
-  protocolType,
-  protocolFields,
-  onProgress,
-) {
-  // This app-level coordinator spans the server and task resource boundaries.
-  const previousStoredConfig = await serverOperations.getStoredServerConfiguration(name)
-  await serverOperations.replaceServerConnection(
-    name,
-    expectedName,
-    protocolType,
-    protocolFields,
-    onProgress,
-  )
-
-  try {
-    await taskOperations.retargetSyncTasks(name, expectedName, onProgress)
-  }
-  catch (error) {
-    try {
-      await serverOperations.restoreServerConnection(
-        expectedName,
-        name,
-        previousStoredConfig,
-        onProgress,
-      )
-    }
-    catch (rollbackError) {
-      attachRollbackError(error, rollbackError)
-    }
-
-    throw error
-  }
-}
-
-async function updateServerImpl(name, expectedName, protocolType, protocolFields, onProgress) {
-  const shouldRename = typeof name === 'string' && typeof expectedName === 'string'
-    ? name.trim() !== expectedName.trim()
-    : name !== expectedName
-
-  if (shouldRename) {
-    await replaceServerAndRetargetTasks(name, expectedName, protocolType, protocolFields, onProgress)
-  }
-  else {
-    await serverOperations.updateServerConnection(name, protocolType, protocolFields, onProgress)
-  }
+async function updateServerImpl(name, protocolType, protocolFields, onProgress) {
+  await serverOperations.updateServerConnection(name, protocolType, protocolFields, onProgress)
 
   notifyConfigUpdate()
 }
@@ -155,11 +97,6 @@ async function updateServerImpl(name, expectedName, protocolType, protocolFields
 async function deleteServerImpl(name, onProgress) {
   await serverOperations.deleteServerConnection(name, onProgress)
 
-  notifyConfigUpdate()
-}
-
-async function renameServerImpl(name, expectedName, onProgress) {
-  await replaceServerAndRetargetTasks(name, expectedName, null, null, onProgress)
   notifyConfigUpdate()
 }
 
@@ -193,13 +130,10 @@ async function deleteSyncTaskImpl(task, onProgress) {
   return result
 }
 
-function serverSubject(name, expectedName = undefined) {
+function serverSubject(name) {
   return {
     type: 'server',
     name: typeof name === 'string' ? name.trim() : '',
-    ...(expectedName !== undefined && {
-      expectedName: typeof expectedName === 'string' ? expectedName.trim() : '',
-    }),
   }
 }
 
@@ -219,18 +153,13 @@ export const createServer = defineAppOperation({
 
 export const updateServer = defineAppOperation({
   operation: SERVER_OPERATION.UPDATE,
-  getSubject: ([name, expectedName]) => serverSubject(name, expectedName),
+  getSubject: ([name]) => serverSubject(name),
 }, updateServerImpl)
 
 export const deleteServer = defineAppOperation({
   operation: SERVER_OPERATION.DELETE,
   getSubject: ([name]) => serverSubject(name),
 }, deleteServerImpl)
-
-export const renameServer = defineAppOperation({
-  operation: SERVER_OPERATION.UPDATE,
-  getSubject: ([name, expectedName]) => serverSubject(name, expectedName),
-}, renameServerImpl)
 
 export const createSyncTask = defineAppOperation({
   operation: SYNC_TASK_OPERATION.CREATE,

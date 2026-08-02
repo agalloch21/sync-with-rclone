@@ -11,7 +11,6 @@ import {
 import {
   SYNC_TASK_OPERATION,
   SYNC_TASK_OPERATION_PROGRESS_STEPS,
-  SYNC_TASK_RETARGET_PROGRESS_STEP,
 } from '#src/app/contracts/task.js'
 import { createI18n } from 'vue-i18n'
 
@@ -35,10 +34,6 @@ const operations = [
 const operationProgressSteps = {
   ...SERVER_OPERATION_PROGRESS_STEPS,
   ...SYNC_TASK_OPERATION_PROGRESS_STEPS,
-  [SERVER_OPERATION.UPDATE]: {
-    ...SERVER_OPERATION_PROGRESS_STEPS[SERVER_OPERATION.UPDATE],
-    ...SYNC_TASK_RETARGET_PROGRESS_STEP,
-  },
 }
 
 test('English and Chinese locale keys match', () => {

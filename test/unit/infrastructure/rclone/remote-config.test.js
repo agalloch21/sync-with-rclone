@@ -5,7 +5,6 @@ import path from 'node:path'
 import test from 'node:test'
 import {
   createRemoteConfig,
-  createRemoteConfigFromStoredConfig,
   deleteRemoteConfig,
   listRemoteConfigs,
   updateRemoteConfig,
@@ -135,29 +134,6 @@ test('createRemoteConfig writes the supplied protocol config', async () => {
     },
   })
   assert.equal((await fakeRclone.readCalls())[0].at(-1), '--obscure')
-})
-
-test('createRemoteConfigFromStoredConfig preserves already-obscured passwords for rename', async () => {
-  const fakeRclone = await createFakeRclone()
-
-  await createRemoteConfigFromStoredConfig('renamed', {
-    type: 'sftp',
-    host: 'nas.local',
-    port: '22',
-    user: 'xiaobo',
-    pass: 'already-obscured-password',
-  }, fakeRclone.runtimePaths)
-
-  assert.deepEqual(await fakeRclone.readState(), {
-    renamed: {
-      type: 'sftp',
-      host: 'nas.local',
-      port: '22',
-      user: 'xiaobo',
-      pass: 'already-obscured-password',
-    },
-  })
-  assert.equal((await fakeRclone.readCalls())[0].at(-1), '--no-obscure')
 })
 
 test('updateRemoteConfig updates a remote config', async () => {

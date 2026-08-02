@@ -510,7 +510,7 @@ copy 之外的示例：
 - `type` 从 `config.type` 派生
 - `address` 从 `config.host` / `config.url` / `config.remote` / `config.endpoint` 派生，只用于展示
 - `status` 是 app/UI 状态，不写入 rclone config
-- 上层模块不直接使用 remote 术语；`app-api.js` 调用 `createServerConnection` / `updateServerConnection` / `replaceServerConnection` / `restoreServerConnection` / `deleteServerConnection`
+- 上层模块不直接使用 remote 术语；`app-api.js` 调用 `createServerConnection` / `updateServerConnection` / `deleteServerConnection`
 
 ### 4.8.2 Server operation flow
 
@@ -522,11 +522,11 @@ sequenceDiagram
   participant RC as infrastructure/rclone/remote-config.js
   participant PR as contracts/server-protocols.js
 
-  APP->>SO: query/create/update/replace/restore/delete server connection
+  APP->>SO: query/create/update/delete server connection
   SO->>SO: emit operation progress / sequence create-test-rollback
   SO->>SS: semantic server capability
   SS->>PR: validateProtocolForm(config.type, config fields)
-  SS->>SS: existence policy / normalize / complete resource replacement
+  SS->>SS: existence policy / normalize
   SS->>RC: list/create/update/delete/test raw remote config
   RC-->>SS: raw remote result or neutral InfrastructureError
   SS-->>SO: server value or stable SERVER_* AppError
@@ -535,16 +535,15 @@ sequenceDiagram
 
 当前职责边界：
 
-- `app-api.js` 判断用户意图，例如 create、same-name update、纯 rename 和 rename-with-protocol-update replacement；跨 server/task 的 replacement 协调也位于这里，并在成功后通过 `app-events.js` 发布更新
-- `operations/server.js` 只负责 server resource 的 operation progress、create → test → rollback、replace 和按 stored protocol 恢复，不引用 task operation
-- `operations/task.js` 负责 task resource operation，包括 server name 变化后的 task retarget
-- `services/server.js` 负责 name/protocol validation、remote existence policy、remote/server 对象转换、adapter error mapping，以及单次 replacement 内部的 create target → delete source
+- `app-api.js` 暴露 create、update 和 delete 用户意图，并在成功后通过 `app-events.js` 发布更新
+- `operations/server.js` 负责 server resource 的 operation progress，以及 create → test → rollback、update 和 delete sequencing
+- `operations/task.js` 负责独立的 task resource operations，不承担 server rename 补偿
+- `services/server.js` 负责 name/protocol validation、remote existence policy、remote/server 对象转换和 adapter error mapping
 - `remote-config.js` 负责 config dump/create/update/delete/test 命令和 raw `{ name, config }` 解析，不判断资源应该存在或不应存在
 - 已识别的 rclone 技术失败由 `remote-config.js` 包装为带 `INFRASTRUCTURE_ERROR_CODE` 的 `InfrastructureError`；`services/server.js` 按当前 server capability 抛出 `SERVER_*` AppError，并通过 cause 保留 infrastructure 和 native process error，不逐项翻译 lower-level code
-- `name` 是 server 与 remote 共享的资源标识；name 校验、normalize 和 same-name rename no-op 由 server service 处理
+- `name` 是 server 与 remote 共享的资源标识；创建后在 application UI/API 中视为不可变标识，server update 只修改 protocol configuration
 - 协议字段校验由 `services/server.js` 调用 `contracts/server-protocols.js` 完成
-- `app-api.js` 在正向 replace 前通过 server operation 取得原 stored protocol 副本，调用 server operation 完成 replacement，再调用 task operation retarget tasks；task 更新失败时调用 server restore operation 使用该副本反向 replace，从而恢复旧名称和旧 protocol，不使用 mutation receipt
-- 无 protocol override 的纯 rename target 复制 `config dump` 返回的已存储配置，通过专用 `createRemoteConfigFromStoredConfig()` 和 `--no-obscure` 避免 password 字段被二次 obscure；rename 与 protocol update 同时发生时，target 使用新的 protocol form
+- application 不提供 server rename；外部手动修改 rclone config 中的名称后，引用旧名称的 sync tasks 会显示 missing server，必须由用户重新指定 server
 - `remote-files.js` 负责远端 raw folder entries、recursive file listing、folder ensure 和 copy/delete/cleanup actions，不与 remote configuration CRUD 混合；`server-folder-tree.js` 把 raw entries 组装为 application TreeNode
 - adapter command/parse 错误在 server service 边界转换为稳定的 `SERVER_*` error
 

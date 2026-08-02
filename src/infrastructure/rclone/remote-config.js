@@ -63,7 +63,7 @@ export async function testRemoteConfig(name, runtimePaths = getRuntimePaths()) {
   await runRcloneConfigCommand(command, 'Failed to test rclone remote connection.', { name })
 }
 
-async function createRemoteConfigWithPasswordMode(name, config, passwordMode, runtimePaths) {
+export async function createRemoteConfig(name, config, runtimePaths = getRuntimePaths()) {
   const { type, ...fields } = config
   const command = createRcloneCommand(runtimePaths, [
     'config',
@@ -71,25 +71,10 @@ async function createRemoteConfigWithPasswordMode(name, config, passwordMode, ru
     name,
     type,
     ...buildOptionArgs(fields),
-    passwordMode,
+    '--obscure',
   ])
 
   await runRcloneConfigCommand(command, 'Failed to create rclone remote.', { name })
-}
-
-export async function createRemoteConfig(name, config, runtimePaths = getRuntimePaths()) {
-  await createRemoteConfigWithPasswordMode(name, config, '--obscure', runtimePaths)
-}
-
-/**
- * Creates a remote from config previously returned by `rclone config dump`.
- *
- * This capability exists specifically for server rename and rename rollback.
- * Stored password fields are already obscured, so `--no-obscure` must preserve
- * them verbatim instead of obscuring the stored values a second time.
- */
-export async function createRemoteConfigFromStoredConfig(name, storedConfig, runtimePaths = getRuntimePaths()) {
-  await createRemoteConfigWithPasswordMode(name, storedConfig, '--no-obscure', runtimePaths)
 }
 
 export async function updateRemoteConfig(name, config, runtimePaths = getRuntimePaths()) {

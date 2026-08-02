@@ -4,13 +4,11 @@ import path from 'node:path'
 import test from 'node:test'
 import {
   SYNC_TASK_DELETE_PROGRESS_STEP,
-  SYNC_TASK_RETARGET_PROGRESS_STEP,
   SYNC_TASK_SAVE_PROGRESS_STEP,
 } from '#src/app/contracts/task.js'
 import {
   createSyncTask,
   deleteTaskFromConfig,
-  retargetSyncTasks,
   updateSyncTask,
   updateSyncTaskIgnorePatterns,
 } from '#src/app/operations/task.js'
@@ -209,57 +207,5 @@ test('updateSyncTask rejects a conflicting server and local folder pair', async 
       localBasePath: localB,
       remoteBasePath: 'Other',
     }), error => error?.code === 'sync_task.already_exists')
-  })
-})
-
-test('retargetSyncTasks updates every task for the renamed server and preserves task metadata', async () => {
-  await withFakeAppRuntime({
-    appConfig: {
-      globalIgnorePatterns: ['.DS_Store'],
-      syncTasks: [
-        {
-          displayName: 'A',
-          rcloneRemote: 'synology',
-          localBasePath: '/local/a',
-          remoteBasePath: 'A',
-          ignorePatterns: ['node_modules/'],
-          lastSyncMode: 'push',
-          lastSyncFolder: 'src',
-          lastSyncDate: '2026-07-19',
-        },
-        {
-          displayName: 'B',
-          rcloneRemote: 'synology',
-          localBasePath: '/local/b',
-          remoteBasePath: 'B',
-          ignorePatterns: [],
-        },
-        {
-          displayName: 'Other',
-          rcloneRemote: 'backup',
-          localBasePath: '/local/other',
-          remoteBasePath: 'Other',
-          ignorePatterns: [],
-        },
-      ],
-    },
-  }, async ({ configPath }) => {
-    const progress = []
-    await retargetSyncTasks(' synology ', ' nas ', step => progress.push(step))
-
-    const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
-    assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
-    assert.deepEqual(saved.syncTasks.map(task => task.rcloneRemote), ['nas', 'nas', 'backup'])
-    assert.deepEqual(saved.syncTasks[0], {
-      displayName: 'A',
-      rcloneRemote: 'nas',
-      localBasePath: path.resolve('/local/a'),
-      remoteBasePath: 'A',
-      ignorePatterns: ['node_modules/'],
-      lastSyncMode: 'push',
-      lastSyncFolder: 'src',
-      lastSyncDate: '2026-07-19',
-    })
-    assert.deepEqual(progress, [SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET])
   })
 })

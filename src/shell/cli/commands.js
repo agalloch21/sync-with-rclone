@@ -194,12 +194,12 @@ async function runCreateServer(args, output) {
 }
 
 async function runUpdateServer(args, output) {
-  requireArguments(args, 3, 'update-server <server> <new-server> <protocol> [field=value ...]')
-  const [name, expectedName, protocolType, ...fieldEntries] = args
+  requireArguments(args, 2, 'update-server <server> <protocol> [field=value ...]')
+  const [name, protocolType, ...fieldEntries] = args
   const protocolFields = parseProtocolFields(fieldEntries)
   return await runReportedOperation(
     SERVER_OPERATION.UPDATE,
-    onProgress => appApi.updateServer(name, expectedName, protocolType, protocolFields, onProgress),
+    onProgress => appApi.updateServer(name, protocolType, protocolFields, onProgress),
     output,
   )
 }

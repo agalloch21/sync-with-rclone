@@ -76,10 +76,10 @@ export function createFormModalHandlers() {
       return await reportRequestError(error)
     }
 
-    const { serverName, expectedServerName, protocolType, protocolFields } = payload
+    const { serverName, protocolType, protocolFields } = payload
     return await runReportedOperation(
       SERVER_OPERATION.UPDATE,
-      onProgress => updateServer(serverName, expectedServerName, protocolType, protocolFields, onProgress),
+      onProgress => updateServer(serverName, protocolType, protocolFields, onProgress),
     )
   }
 

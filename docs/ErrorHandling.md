@@ -68,11 +68,11 @@ type ErrorInfo = {
   message: 'Server validation failed.',
   detail: 'Fix the highlighted fields and try again.',
   fields: {
-    expectedServerName: 'Server name is required.',
+    serverName: 'Server name is required.',
     'protocolFields.host': 'Host is required.',
   },
   meta: {
-    operation: 'updateServer',
+    operation: 'createServer',
     serverName: 'synology',
   },
 }
@@ -116,16 +116,16 @@ export function throwAppError(code, message, options = {}) {
 使用示例：
 
 ```js
-if (!payload.expectedServerName) {
+if (!payload.serverName) {
   throwAppError(
     APP_ERROR_CODE.SERVER_VALIDATION_FAILED,
     'Server name is required.',
     {
       fields: {
-        expectedServerName: 'Server name is required.',
+        serverName: 'Server name is required.',
       },
       meta: {
-        operation: 'updateServer',
+        operation: 'createServer',
       },
     },
   )
@@ -180,7 +180,6 @@ App operation 负责用户意图和跨资源编排，例如：
 
 - `createServer(payload)`
 - `updateServer(payload)`
-- server rename 后同步更新 task 引用。
 - 判断 create/update 的流程是否合法。
 - 将业务失败抛为 `AppError`。
 
@@ -367,7 +366,7 @@ catch (error) {
       cause: error,
       meta: {
         operation: 'updateServer',
-        step: 'renameServer',
+        step: 'updateRemoteConfig',
       },
     },
   )
@@ -384,19 +383,17 @@ catch (error) {
 
 ## 9. Server create/update 示例
 
-Renderer 可以使用统一 payload 形状调用两个不同 IPC 方法：
+Renderer 为 create 和 update 使用各自明确的 payload：
 
 ```js
-const payload = {
-  serverName: currentServerName.value,
-  expectedServerName: expectedServerName.value,
+const protocol = {
   protocolType: protocolType.value,
   protocolFields: protocolForm.value,
 }
 
 return mode.value === EDIT_MODE.UPDATE
-  ? window.formModal?.updateServer?.(payload)
-  : window.formModal?.createServer?.(payload)
+  ? window.formModal?.updateServer?.({ serverName: serverName.value, ...protocol })
+  : window.formModal?.createServer?.({ expectedServerName: serverName.value, ...protocol })
 ```
 
 推荐职责分布：
@@ -418,15 +415,9 @@ operations/server.js
   createServerConnection(...)
   updateServerConnection(...)
 
-operations/task.js
-  updateTaskServerReferences(...)
-
 services/server.js
   createServer(...)
   updateServer(...)
-
-services/task.js
-  retargetTasks(...)
 
 infrastructure/rclone/remote-config.js
   createRemoteConfig(...)

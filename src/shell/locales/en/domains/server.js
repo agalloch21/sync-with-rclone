@@ -6,7 +6,6 @@ import {
   SERVER_OPERATION,
   SERVER_UPDATE_PROGRESS_STEP,
 } from '#src/app/contracts/server.js'
-import { SYNC_TASK_RETARGET_PROGRESS_STEP } from '#src/app/contracts/task.js'
 import { defineLocaleTree } from '../../locale-tree.js'
 
 export default {
@@ -55,8 +54,6 @@ export default {
       message: 'Preparing the server update...',
       steps: {
         [SERVER_UPDATE_PROGRESS_STEP.SAVE]: 'Saving the server configuration...',
-        [SYNC_TASK_RETARGET_PROGRESS_STEP.RETARGET]: 'Updating sync task references...',
-        [SERVER_UPDATE_PROGRESS_STEP.ROLLBACK]: 'Restoring the previous server configuration...',
       },
       succeeded: {
         message: 'The server was updated successfully.',

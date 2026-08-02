@@ -24,7 +24,7 @@ function getTaskDisplayName(syncTask) {
       :class="{ 'task-item-selected': selected }"
     >
       <div class="task-icon flex justify-center items-center">
-        <span class="icon-[lucide--folder-closed] w-(--server-icon-size) h-(--server-icon-size) text-(--primary)" />
+        <span class="icon-[lucide--folder-closed] size-(--server-icon-size) text-(--primary)" />
       </div>
       <div class="task-base-info min-w-44 flex-1 flex flex-col gap-1">
         <label class="local-folder-name h-lh text-sm font-semibold text-(--text-primary) break-all line-clamp-1">

@@ -10,14 +10,17 @@ const panels = [
   {
     name: 'syncTasks',
     component: SyncTasksPanel,
+    icon: 'icon-[custom--nav-tasks]',
   },
   {
     name: 'logs',
     component: LogPanel,
+    icon: 'icon-[custom--nav-logs]',
   },
   {
     name: 'settings',
     component: SettingsPanel,
+    icon: 'icon-[custom--nav-settings]',
   },
 ]
 

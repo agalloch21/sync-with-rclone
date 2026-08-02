@@ -11,6 +11,7 @@ const state = inject('state')
 const showFinalAcknowledgement = inject('showFinalAcknowledgement')
 
 const stage = computed(() => state.value?.stage?.length > 0 ? state.value?.stage : '')
+// const stage = computed(() => SYNC_SESSION_STAGE.ANALYZE)
 </script>
 
 <template>

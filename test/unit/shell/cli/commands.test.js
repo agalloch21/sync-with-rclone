@@ -33,6 +33,18 @@ test('runCli prints list-servers as a table', async () => {
   })
 })
 
+test('runCli reports a missing server consistently in text and JSON modes', async () => {
+  await withFakeAppRuntime({}, async () => {
+    const textOutput = createOutput()
+    assert.equal(await runCli(['get-server', 'missing'], textOutput), 1)
+    assert.match(textOutput.errors[0], /Server does not exist/)
+
+    const jsonOutput = createOutput()
+    assert.equal(await runCli(['get-server', 'missing', '--json'], jsonOutput), 1)
+    assert.match(jsonOutput.errors[0], /Server does not exist/)
+  })
+})
+
 test('runCli prints list-tasks through the app API', async () => {
   await withFakeAppRuntime({
     appConfig: {

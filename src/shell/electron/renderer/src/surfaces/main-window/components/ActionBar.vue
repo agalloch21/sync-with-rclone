@@ -36,7 +36,7 @@ const taskActions = [
       {{ $t(`syncTasksPanel.actions.${primaryAction.name}`) }}
     </Button>
     <span class="shrink-0 bg-(--surface-soft) w-0.5" />
-    <div v-if="isServerSelected || isTaskSelected" class="flex gap-4">
+    <div v-if="isTaskSelected || isServerSelected" class="flex gap-4">
       <Button
         v-for="action in (isTaskSelected ? taskActions : serverActions)" :key="action.action"
         :primary="false" :wide="false" @click="emit('requestAction', action.action)"

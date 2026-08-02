@@ -45,9 +45,20 @@ function replaceExistingProperties(baseObj, newObj) {
     [fieldName, Object.hasOwn(newObj, fieldName) && newObj[fieldName] ? newObj[fieldName] : fieldValue]))
 }
 
+function createProtocolFormForType(type, currentForm) {
+  const defaults = createDefaultProtocolForm(type)
+  return Object.fromEntries(Object.entries(defaults).map(([fieldName, defaultValue]) => [
+    fieldName,
+    defaultValue !== null
+      ? defaultValue
+      : Object.hasOwn(currentForm, fieldName) ? currentForm[fieldName] : defaultValue,
+  ]))
+}
+
 function updateProtocolType(type) {
   protocolType.value = type
-  protocolForm.value = replaceExistingProperties(protocolForm.value, createDefaultProtocolForm(type))
+  protocolForm.value = createProtocolFormForType(type, protocolForm.value)
+  formFields.value = getProtocolDefinition(type)?.fields || []
 }
 
 function updateField(fieldName, fieldValue) {

@@ -138,7 +138,8 @@ async function handleAction(action) {
   <div class="task-panel-stage h-full flex flex-col gap-5">
     <div class="action-dock">
       <ActionBar
-        :is-server-selected="selectedServer !== null" :is-task-selected="selectedSyncTask !== null"
+        :is-server-selected="selectedServer !== null && selectedServer.status !== 'missing'"
+        :is-task-selected="selectedSyncTask !== null"
         @request-action="handleAction"
       />
     </div>

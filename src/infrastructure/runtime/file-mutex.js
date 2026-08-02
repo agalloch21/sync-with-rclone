@@ -149,10 +149,26 @@ export async function withFileMutex(
     throw mutexError
   }
 
+  let result
+  let callbackFailed = false
+  let callbackError = null
   try {
-    return await callback()
+    result = await callback()
   }
-  finally {
+  catch (error) {
+    callbackFailed = true
+    callbackError = error
+  }
+
+  try {
     await unlinkIfUnchanged(mutexPath, ownerContent)
   }
+  catch (error) {
+    console.warn(`Failed to release file mutex ${mutexPath}: ${error?.message || String(error)}`)
+  }
+
+  if (callbackFailed)
+    throw callbackError
+
+  return result
 }

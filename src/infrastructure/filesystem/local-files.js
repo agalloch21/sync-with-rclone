@@ -58,21 +58,25 @@ function resolveFilesystemPath(rootPath, relativePath = '.') {
   return path.join(rootPath, ...relativePath.split('/'))
 }
 
-async function walkDirectory(rootPath, dirPath, filterStack, fileEntries) {
+async function walkDirectory(rootPath, dirPath, filterStack, fileEntries, cancelSignal) {
+  cancelSignal?.throwIfAborted()
   const directoryPath = resolveFilesystemPath(rootPath, dirPath)
   const entryNames = await fs.readdir(directoryPath)
   let filters = filterStack
 
   if (entryNames.includes(PATTERN_FILE)) {
     const patterns = await readPatterns(path.join(directoryPath, PATTERN_FILE))
-    filters = filterStack.concat({
-      dirPath,
-      patterns,
-      ig: ignore().add(patterns),
-    })
+    if (patterns) {
+      filters = filterStack.concat({
+        dirPath,
+        patterns,
+        ig: ignore().add(patterns),
+      })
+    }
   }
 
   for (const entryName of entryNames) {
+    cancelSignal?.throwIfAborted()
     const entryPath = path.posix.join(dirPath, entryName)
     const stat = await fs.lstat(path.join(directoryPath, entryName))
     if (stat.isSymbolicLink())
@@ -87,7 +91,7 @@ async function walkDirectory(rootPath, dirPath, filterStack, fileEntries) {
       continue
 
     if (isDirectory) {
-      await walkDirectory(rootPath, entryPath, filters, fileEntries)
+      await walkDirectory(rootPath, entryPath, filters, fileEntries, cancelSignal)
     }
     else {
       fileEntries.push({
@@ -99,7 +103,7 @@ async function walkDirectory(rootPath, dirPath, filterStack, fileEntries) {
   }
 }
 
-export async function listLocalFiles(rootAbsPath, extraPatterns = []) {
+export async function listLocalFiles(rootAbsPath, extraPatterns = [], cancelSignal = null) {
   if (!path.isAbsolute(rootAbsPath))
     throw new Error(`Input must be an absolute path. ${rootAbsPath}`)
 
@@ -115,12 +119,10 @@ export async function listLocalFiles(rootAbsPath, extraPatterns = []) {
     })
   }
 
-  const rootStat = await fs.lstat(rootPath)
-  if (rootStat.isSymbolicLink())
-    throw new Error(`Symbolic link sync roots are not supported: ${rootPath}`)
+  const rootStat = await fs.stat(rootPath)
 
   if (rootStat.isDirectory()) {
-    await walkDirectory(rootPath, '.', filterStack, fileEntries)
+    await walkDirectory(rootPath, '.', filterStack, fileEntries, cancelSignal)
   }
   else if (rootStat.isFile()) {
     const fileName = path.basename(rootPath)

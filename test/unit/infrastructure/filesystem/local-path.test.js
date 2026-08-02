@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -40,4 +41,39 @@ test('resolveLocalDirectoryPath preserves absolute Windows-style paths', () => {
     resolveLocalDirectoryPath(absoluteWindowsPath),
     absoluteWindowsPath.replaceAll(path.sep, path.posix.sep),
   )
+})
+
+test('resolveLocalDirectoryPath canonicalizes parent links and a linked root', async (t) => {
+  const temporaryPath = await fs.mkdtemp(path.join(os.tmpdir(), 'local-path-links-'))
+  const realParent = path.join(temporaryPath, 'real-parent')
+  const linkedParent = path.join(temporaryPath, 'linked-parent')
+  const directoryPath = path.join(realParent, 'directory')
+  const rootLink = path.join(temporaryPath, 'root-link')
+
+  try {
+    await fs.mkdir(directoryPath, { recursive: true })
+    try {
+      await fs.symlink(realParent, linkedParent, 'dir')
+      await fs.symlink(directoryPath, rootLink, 'dir')
+    }
+    catch (error) {
+      if (error?.code === 'EPERM') {
+        t.skip('Creating symbolic links requires additional privileges on this platform.')
+        return
+      }
+      throw error
+    }
+
+    assert.equal(
+      resolveLocalDirectoryPath(path.join(linkedParent, 'directory')),
+      (await fs.realpath(directoryPath)).replaceAll(path.sep, path.posix.sep),
+    )
+    assert.equal(
+      resolveLocalDirectoryPath(rootLink),
+      (await fs.realpath(directoryPath)).replaceAll(path.sep, path.posix.sep),
+    )
+  }
+  finally {
+    await fs.rm(temporaryPath, { recursive: true, force: true })
+  }
 })

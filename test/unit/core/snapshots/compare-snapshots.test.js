@@ -50,3 +50,22 @@ test('compareSnapshots marks added, modified, and deleted files', () => {
   ])
   assert.deepEqual(diffSnapshot.summary, { modified: 1, added: 1, deleted: 1 })
 })
+
+test('compareSnapshots treats files omitted from one snapshot as ordinary differences', () => {
+  const srcSnapshot = createEmptySnapshot('/src-root')
+  const dstSnapshot = createEmptySnapshot('/dst-root')
+
+  dstSnapshot.files.push(
+    { path: 'local-link', size: 1, mtimeMs: 1 },
+    { path: 'ignored-directory/nested.txt', size: 1, mtimeMs: 1 },
+  )
+
+  assert.deepEqual(compareSnapshots(srcSnapshot, dstSnapshot).files, [
+    { path: 'ignored-directory/nested.txt', size: 1, mtimeMs: 1, state: DiffState.deleted },
+    { path: 'local-link', size: 1, mtimeMs: 1, state: DiffState.deleted },
+  ])
+  assert.deepEqual(compareSnapshots(dstSnapshot, srcSnapshot).files, [
+    { path: 'ignored-directory/nested.txt', size: 1, mtimeMs: 1, state: DiffState.added },
+    { path: 'local-link', size: 1, mtimeMs: 1, state: DiffState.added },
+  ])
+})

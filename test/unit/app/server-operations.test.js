@@ -12,6 +12,7 @@ import {
 import {
   createServerConnection,
   deleteServerConnection,
+  getServerConnection,
   listServerConnections,
   testServerConnection,
   updateServerConnection,
@@ -203,6 +204,15 @@ test('listServerConnections removes password fields from server config', async (
       },
     },
   ])
+})
+
+test('getServerConnection reports a missing server with a stable application error', async () => {
+  await createFakeRuntime()
+
+  await assert.rejects(
+    () => getServerConnection('missing'),
+    error => error.code === APP_ERROR_CODE.SERVER_NOT_FOUND,
+  )
 })
 
 test('testServerConnection performs a read-only connection check without progress reporting', async () => {

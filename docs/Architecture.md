@@ -41,7 +41,7 @@ sequenceDiagram
 - `app/services` 为普通资源 operations 与 startSync 提供配置、路径、server/task 等 application capabilities
 - `core` 是完整同步工作模块：拥有 Snapshot、Diff、SyncPlan 和已解析同步的执行流程
 - `infrastructure/filesystem` 负责读取本地文件系统并返回 neutral file entries
-- `infrastructure/rclone` 负责 raw rclone config、远端 file entries 和 copy/delete/cleanup actions
+- `infrastructure/rclone` 负责 rclone remote path 的解析与规范化、raw rclone config、远端 file entries 和 copy/delete/cleanup actions
 
 
 ## 2. 目录职责
@@ -162,14 +162,15 @@ sequenceDiagram
 - 第二次 GUI 启动通过 single-instance `additionalData` 传递规范化 launch request，不依赖可能被 Chromium 重排的 argv。
 - 主窗口是可重建的进程级单例；`desktop-application.js` 直接调用 `main-window/window.js` 创建窗口，不增加无职责的 runner。关闭主窗口不会取消活跃同步。
 - `app/operations/sync/start.js` 是 shell-neutral application operation，负责 context resolution、sync admission、history、session events、error mapping 和最终结果。
-- `app/operations/sync/admission.js` 拥有“本地或远端根路径相同或互为祖先/后代即冲突”的 application policy；非重叠同步可以并行。
+- `app/operations/sync/admission.js` 拥有“本地或远端根路径相同或互为祖先/后代即冲突”的 application policy；本地路径先解析为 canonical filesystem path，远端路径先按 rclone remote/folder 语义消解 `.`、`..` 和斜杠，非重叠同步才可以并行。
 - `core/execute-sync.js` 负责已解析上下文中的 snapshot、compare、review、plan 和 apply 流程。
 - core execution contract 定义在 `core/contract.js`；application session events 定义在 `app/contracts/sync.js`。
 - remote-folder probe/mkdir 是可复用的 infrastructure action；`startSync` 在 application policy 确认需要创建目标目录后直接调用它。
 - `infrastructure/runtime/runtime-paths.js` 从进程、平台、安装目录和环境变量解析运行时路径。
 - `infrastructure/runtime/file-mutex.js` 提供基于原子锁文件、owner PID、token、超时和 stale-owner recovery 的通用跨进程临界区。
 - `infrastructure/runtime/sync-lease-store.js` 在该 mutex 下串行化 registry 更新，并为每个活跃同步保存独立 lease；它只存取跨进程状态，不决定路径是否冲突。
-- `infrastructure/filesystem/local-path.js` 负责本地路径规范化、home 展开和目录存在性校验；`app/services/local-path.js` 把技术错误转换成 application error。
+- `infrastructure/filesystem/local-path.js` 负责本地路径规范化、home 展开、目录存在性校验、real path 解析和 platform-aware comparison key；所选同步根目录及其父级 link 都解析到真实目录。`app/services/local-path.js` 把技术错误转换成 application error。
+- `infrastructure/rclone/remote-path.js` 是 remote name、relative/absolute folder path、dot segment、范围和重叠判断的统一入口；application operations 与 config store 不再各自解释 rclone path。
 - `shell/electron/main/sync-session/controller.js` 把 application use case 连接到 session window 的 events、review interaction、acknowledgement 和 cancellation。
 - `shell/electron/contracts/sync-session-stage.js` 定义 Main 与 Renderer 共用的 Analyze、Review、Sync UI stage 及其 phase 映射。
 - `shell/electron/main/sync-session/manager.js` 只管理活跃 Electron session handle、取消和退出条件，不拥有同步重叠规则。
@@ -195,7 +196,7 @@ sequenceDiagram
 
 /**
  * @typedef {object} Snapshot
- * @property {string} root - Absolute path of the root directory
+ * @property {string} root - Canonical local root or normalized rclone remote root
  * @property {FileEntry[]} files - Serializable file entries sorted by path
  */
 ```
@@ -203,12 +204,13 @@ sequenceDiagram
 说明：
 
 - `Snapshot` 是扫描结果的正式结构定义
-- `root` 是绝对路径
+- `root` 是 canonical 本地绝对路径或 normalized rclone remote path
 - `files` 只记录文件，不记录目录
 - 目录不是同步内容，只在 review UI 中由文件路径派生出来
 - 空目录不会作为 snapshot 内容保存
 - 本地扫描会在进入目录前应用 ignore 规则，已忽略目录不会继续读取子内容
-- `Snapshot` 只表达扫描到的文件事实，不携带远端协议能力、hash 能力或 backend 精度等基础设施属性
+- 本地 ignore policy 只改变 local Snapshot；remote Snapshot 保持完整，不应用本地 ignore policy
+- `Snapshot` 只表达扫描到的文件事实，不携带扫描省略原因、远端协议能力、hash 能力或 backend 精度等基础设施属性
 
 示例：
 
@@ -558,9 +560,10 @@ sequenceDiagram
 
 ### 4.8.4 File services、Snapshot 与 plan application
 
-- `infrastructure/filesystem/local-files.js` 扫描本地文件并返回 neutral `{ path, size, mtimeMs }` entries；它不创建 Snapshot
+- `infrastructure/filesystem/local-files.js` 扫描本地普通文件并返回 neutral file entries；ignore patterns、内部 symbolic links 和特殊对象只影响本地扫描结果，扫描循环响应 AbortSignal，但不创建 Snapshot
 - `infrastructure/rclone/remote-files.js` 返回相同 entry shape，并提供 raw copy/delete/cleanup/ensure actions
 - `core/snapshots/build-snapshot.js` 从 neutral entries 构建并排序 Snapshot，不知道 entries 来自本地文件系统还是 rclone
+- `core/snapshots/compare-snapshots.js` 只比较两侧文件事实；本地省略路径在 Push 中表现为远端删除，在 Pull 中表现为从完整远端 truth 恢复
 - `core/snapshots/acquire-snapshots.js` 使用 local/rclone scanners 获取 neutral entries，再建立 Snapshot
 - `core/planning/sync-plan-result.js` 创建 execution-result operations 并根据 confirmed paths 标记 `synced`
 - `core/planning/execute-sync-plan.js` 使用 infrastructure file actions 按结构冲突 delete、copy、普通 delete 的顺序执行 SyncPlan；core 不经过 app services

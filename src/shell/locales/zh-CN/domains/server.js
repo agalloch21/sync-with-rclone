@@ -29,7 +29,6 @@ export default {
     },
   }),
   errors: defineLocaleTree({
-    [APP_ERROR_CODE.SERVER_INVALID_OPERATION]: '服务器操作无效。',
     [APP_ERROR_CODE.SERVER_VALIDATION_FAILED]: '服务器验证失败。',
     [APP_ERROR_CODE.SERVER_ALREADY_EXISTS]: '服务器已存在。',
     [APP_ERROR_CODE.SERVER_NOT_FOUND]: '服务器不存在。',

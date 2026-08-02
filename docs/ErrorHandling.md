@@ -448,7 +448,7 @@ server.already_exists
 server.not_found
 server.validation_failed
 config.load_failed
-rclone.unsupported_protocol
+remote.folder_path_invalid
 rclone.command_failed
 unknown
 ```

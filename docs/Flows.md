@@ -102,6 +102,7 @@ sequenceDiagram
 
 - 当前本地目录是源
 - 默认对应的远端目录是目标
+- `.gitignore`、global ignore 和 task ignore 只过滤 local Snapshot；远端存在但过滤后本地不存在的内容属于目标端多余内容，会进入删除差异
 
 ## 5. `Pull` 流程
 
@@ -131,6 +132,7 @@ sequenceDiagram
 
 - 默认对应的远端目录是源
 - 当前本地目录是目标
+- remote Snapshot 不应用本地 ignore policy；远端作为 truth，能够恢复本地当前被 ignore 规则省略的同名内容
 
 ## 6. `Push To...` 流程
 
@@ -308,7 +310,7 @@ sequenceDiagram
   E->>SM: 创建并追踪 session window
   SM->>A: startSync(options, runtime)
   C->>A: startSync(options, runtime)
-  A->>A: resolve SyncSessionContext once
+  A->>A: use the requested path for task-relative mapping, then expose only its real local path and normalized remote path
   A->>R: 原子读取活跃 leases 并尝试写入新 lease
   alt local and remote roots are disjoint
     R-->>A: admitted
@@ -330,7 +332,7 @@ sequenceDiagram
 - Main window is created directly by `desktop-application.js`; the Electron sync-session uses a controller because it must bridge the long-running `startSync` application operation with an interactive window.
 - Session Manager 只管理 Electron 窗口和取消生命周期；GUI、CLI 与未来 agent 调用都经过 `startSync` 的同一 admission gate。
 - Registry 位于 config directory，通过短时 mutex 和每个同步独立的 lease 在进程间共享状态；owner 进程消失后，其 lease 会在下次读取时清理。
-- 只有本地和远端范围都不重叠时才允许并行；任一侧相同或互为祖先/后代都会拒绝后来请求。
+- 只有 canonical 本地范围和 normalized 远端范围都不重叠时才允许并行；任一侧相同或互为祖先/后代都会拒绝后来请求。远端显式路径必须在 normalization 后仍位于 task remote root 内。
 - 每个 session 的 progress channel 独立，history 不持久化 progress sample。
 - 关闭主窗口不会终止 session；没有窗口且没有活跃 session 时应用退出。
 - session 失败页只在 `quick-actions.log` 存在时提供文件定位入口，不创建或导航主窗口。

@@ -9,7 +9,7 @@ import {
   getErrorDetail,
   toAppError,
 } from '../../app-errors.js'
-import { SYNC_PHASE_EVENT, SYNC_RESULT, SYNC_SESSION_EVENT, SYNC_SESSION_OPERATION } from '../../contracts/sync.js'
+import { SYNC_CANCEL_REASON, SYNC_PHASE_EVENT, SYNC_RESULT, SYNC_SESSION_EVENT, SYNC_SESSION_OPERATION } from '../../contracts/sync.js'
 import {
   OPERATION_HISTORY_STATUS,
   runOperationWithHistory,
@@ -76,10 +76,36 @@ function createPhaseEventListener(emit) {
   }
 }
 
-function emitFailedSessionResult(error, context, runtimePaths, emit) {
-  const sessionResult = createFailedSessionResult(error, context, runtimePaths)
+function createCancelledSessionResult(context, phase = null) {
+  return {
+    result: SYNC_RESULT.CANCELLED,
+    reason: SYNC_CANCEL_REASON.ABORT_SIGNAL,
+    phase,
+    context,
+    operations: [],
+  }
+}
+
+function emitSessionResult(sessionResult, emit) {
   emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
   return sessionResult
+}
+
+function emitErrorSessionResult(error, context, runtimePaths, emit, cancelSignal) {
+  const sessionResult = cancelSignal?.aborted
+    ? createCancelledSessionResult(context)
+    : createFailedSessionResult(error, context, runtimePaths)
+
+  return emitSessionResult(sessionResult, emit)
+}
+
+async function releaseAdmissionWithoutChangingResult(admission, runtimePaths) {
+  try {
+    await releaseSyncAdmission(admission, runtimePaths)
+  }
+  catch (error) {
+    console.warn(`Failed to release sync admission: ${error?.message || String(error)}`)
+  }
 }
 
 function getSyncOperation(mode) {
@@ -132,6 +158,8 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
 
   const emit = runtime.events?.eventListener || (() => {})
   const runtimePaths = getRuntimePaths()
+  const completeError = (error, context) =>
+    emitErrorSessionResult(error, context, runtimePaths, emit, cancelSignal)
   const unresolvedContext = {
     mode: options.mode,
     localFolderPath: options.localFolderPath,
@@ -152,7 +180,7 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
 
     return await runOperationWithHistory(historyDefinition, () => {
       emit({ type: SYNC_SESSION_EVENT.STARTED })
-      return emitFailedSessionResult(error, unresolvedContext, runtimePaths, emit)
+      return completeError(error, unresolvedContext)
     })
   }
 
@@ -168,7 +196,7 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
     admission = await acquireSyncAdmission(context, runtimePaths)
   }
   catch (error) {
-    return emitFailedSessionResult(error, context, runtimePaths, emit)
+    return completeError(error, context)
   }
 
   return await runOperationWithHistory(historyDefinition, async () => {
@@ -206,14 +234,13 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
         enrichFailedSessionResult(sessionResult, sessionResult.error, runtimePaths)
       }
 
-      emit({ type: SYNC_SESSION_EVENT.RESULT, ...sessionResult })
-      return sessionResult
+      return emitSessionResult(sessionResult, emit)
     }
     catch (error) {
-      return emitFailedSessionResult(error, context, runtimePaths, emit)
+      return completeError(error, context)
     }
     finally {
-      await releaseSyncAdmission(admission, runtimePaths)
+      await releaseAdmissionWithoutChangingResult(admission, runtimePaths)
     }
   })
 }

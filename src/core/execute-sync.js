@@ -135,6 +135,7 @@ export async function executeSync(
       () => buildLocalSnapshot(
         normalizedOptions.localFolderPath,
         normalizedOptions.extraIgnorePatterns,
+        cancelSignal,
       ),
       'Building local snapshot',
     )
@@ -149,6 +150,9 @@ export async function executeSync(
       'Building remote snapshot',
     )
 
+    // Ignore rules deliberately affect only the local snapshot. Push therefore
+    // removes remote paths omitted by local policy, while Pull treats the
+    // unfiltered remote snapshot as truth and restores those paths locally.
     const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot
     const dstSnapshot = normalizedOptions.mode === 'push' ? remoteSnapshot : localSnapshot
     const diffSnapshot = await runPhase(

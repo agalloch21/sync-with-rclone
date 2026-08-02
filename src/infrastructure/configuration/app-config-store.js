@@ -6,6 +6,7 @@ import {
   INFRASTRUCTURE_ERROR_CODE,
   throwInfrastructureError,
 } from '#src/infrastructure/infrastructure-error.js'
+import { normalizeRemoteBasePath } from '#src/infrastructure/rclone/remote-path.js'
 import { withFileMutex } from '#src/infrastructure/runtime/file-mutex.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 
@@ -43,7 +44,7 @@ function normalizeAppConfig(rawConfig) {
         displayName: task.displayName || '',
         rcloneRemote: task.rcloneRemote,
         localBasePath: normalizeLocalPath(path.resolve(task.localBasePath)),
-        remoteBasePath: normalizeLocalPath(task.remoteBasePath),
+        remoteBasePath: normalizeRemoteBasePath(task.remoteBasePath),
         ignorePatterns: Array.isArray(task.ignorePatterns) ? task.ignorePatterns : [],
         lastSyncMode: task.lastSyncMode || null,
         lastSyncFolder: task.lastSyncFolder || null,
@@ -74,8 +75,18 @@ export async function ensureAppConfig(runtimePaths = getRuntimePaths()) {
       throw error
   }
 
-  await fs.writeFile(runtimePaths.configPath, createDefaultAppConfigContent(), 'utf8')
-  return { configCreated: true, configPath: runtimePaths.configPath }
+  try {
+    await fs.writeFile(runtimePaths.configPath, createDefaultAppConfigContent(), {
+      encoding: 'utf8',
+      flag: 'wx',
+    })
+    return { configCreated: true, configPath: runtimePaths.configPath }
+  }
+  catch (error) {
+    if (error?.code === 'EEXIST')
+      return { configCreated: false, configPath: runtimePaths.configPath }
+    throw error
+  }
 }
 
 export async function loadAppConfig(configPath = getDefaultAppConfigPath()) {

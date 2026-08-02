@@ -91,7 +91,7 @@ test('buildLocalSnapshot skips symbolic links without following their targets', 
   }
 })
 
-test('buildLocalSnapshot rejects a symbolic link as its sync root', async (t) => {
+test('buildLocalSnapshot follows a symbolic link used as its sync root', async (t) => {
   const temporaryPath = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-root-symlink-'))
   const directoryPath = path.join(temporaryPath, 'directory')
   const linkPath = path.join(temporaryPath, 'directory-link')
@@ -109,12 +109,22 @@ test('buildLocalSnapshot rejects a symbolic link as its sync root', async (t) =>
       throw error
     }
 
-    await assert.rejects(
-      () => buildLocalSnapshot(linkPath),
-      /Symbolic link sync roots are not supported/,
-    )
+    await fs.writeFile(path.join(directoryPath, 'file.txt'), 'file')
+    const snapshot = await buildLocalSnapshot(linkPath)
+    assert.deepEqual(filePaths(snapshot), ['file.txt'])
   }
   finally {
     await fs.rm(temporaryPath, { recursive: true, force: true })
   }
+})
+
+test('buildLocalSnapshot stops when its cancellation signal is aborted', async () => {
+  const controller = new AbortController()
+  const reason = new Error('cancel local scan')
+  controller.abort(reason)
+
+  await assert.rejects(
+    () => buildLocalSnapshot(path.resolve('test/fixtures/local/nested'), [], controller.signal),
+    error => error === reason,
+  )
 })

@@ -168,3 +168,33 @@ test('startSync rejects an overlapping session before writing operation history'
     }
   })
 })
+
+test('startSync keeps pre-execution aborts as cancelled results', async () => {
+  await withHistoryRuntime(async (appRoot) => {
+    const localFolderPath = path.join(appRoot, 'project')
+    const configDirectory = path.join(appRoot, 'config')
+    await fs.mkdir(localFolderPath)
+    await fs.mkdir(configDirectory)
+    await fs.writeFile(path.join(configDirectory, 'config.json'), JSON.stringify({
+      globalIgnorePatterns: [],
+      syncTasks: [{
+        displayName: 'Project',
+        rcloneRemote: 'nas',
+        localBasePath: localFolderPath,
+        remoteBasePath: 'remote/project',
+        ignorePatterns: [],
+      }],
+    }))
+
+    const controller = new AbortController()
+    controller.abort(new Error('cancelled by user'))
+    const result = await startSync({
+      mode: 'push',
+      localFolderPath,
+    }, {}, controller.signal)
+
+    assert.equal(result.result, 'cancelled')
+    assert.equal(result.reason, 'abort-signal')
+    assert.equal((await listOperationHistory())[0].status, OPERATION_HISTORY_STATUS.CANCELLED)
+  })
+})

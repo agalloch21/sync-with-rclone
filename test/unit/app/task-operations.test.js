@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
+import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
 import {
   SYNC_TASK_DELETE_PROGRESS_STEP,
   SYNC_TASK_SAVE_PROGRESS_STEP,
@@ -12,7 +13,31 @@ import {
   updateSyncTask,
   updateSyncTaskIgnorePatterns,
 } from '#src/app/operations/task.js'
+import {
+  INFRASTRUCTURE_ERROR_CODE,
+  InfrastructureError,
+} from '#src/infrastructure/infrastructure-error.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
+
+test('createSyncTask reports an invalid local directory and preserves its native cause', async () => {
+  const missingPath = path.resolve('test/fixtures/path-does-not-exist')
+
+  await assert.rejects(() => createSyncTask({
+    rcloneRemote: 'synology',
+    localBasePath: missingPath,
+    remoteBasePath: 'Projects',
+  }), (error) => {
+    assert.ok(error instanceof AppError)
+    assert.equal(error.code, APP_ERROR_CODE.PATH_INVALID)
+    assert.ok(error.cause instanceof InfrastructureError)
+    assert.equal(error.cause.code, INFRASTRUCTURE_ERROR_CODE.PATH_NOT_FOUND)
+    assert.equal(error.cause.cause.code, 'ENOENT')
+    assert.deepEqual(error.meta, {
+      path: missingPath.replaceAll(path.sep, path.posix.sep),
+    })
+    return true
+  })
+})
 
 test('deleteTaskFromConfig removes the selected task and preserves global ignore patterns', async () => {
   await withFakeAppRuntime({
@@ -95,8 +120,36 @@ test('createSyncTask saves a normalized mapping with default metadata', async ()
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
     assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
-    assert.equal(saved.syncTasks[0].localBasePath, localPath)
+    assert.equal(saved.syncTasks[0].localBasePath, await fs.realpath(localPath))
     assert.deepEqual(progress, [SYNC_TASK_SAVE_PROGRESS_STEP.SAVE])
+  })
+})
+
+test('createSyncTask stores the real directory behind a linked mapping root', async (t) => {
+  await withFakeAppRuntime({
+    appConfig: { globalIgnorePatterns: [], syncTasks: [] },
+  }, async ({ tempDir }) => {
+    const realPath = path.join(tempDir, 'real-local')
+    const linkPath = path.join(tempDir, 'linked-local')
+    await fs.mkdir(realPath)
+    try {
+      await fs.symlink(realPath, linkPath, 'dir')
+    }
+    catch (error) {
+      if (error?.code === 'EPERM') {
+        t.skip('Creating symbolic links requires additional privileges on this platform.')
+        return
+      }
+      throw error
+    }
+
+    const result = await createSyncTask({
+      rcloneRemote: 'synology',
+      localBasePath: linkPath,
+      remoteBasePath: 'Projects',
+    })
+
+    assert.equal(result.localBasePath, await fs.realpath(realPath))
   })
 })
 
@@ -131,7 +184,7 @@ test('updateSyncTask changes the mapping and preserves task metadata', async () 
     assert.equal(result.displayName, 'Project')
     assert.deepEqual(result.ignorePatterns, ['node_modules/'])
     assert.equal(result.lastSyncMode, 'push')
-    assert.equal(result.localBasePath, nextPath)
+    assert.equal(result.localBasePath, await fs.realpath(nextPath))
     assert.equal(result.remoteBasePath, 'Next')
   })
 })

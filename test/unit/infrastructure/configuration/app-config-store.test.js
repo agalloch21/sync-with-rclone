@@ -58,6 +58,22 @@ test('loadAppConfig allows an empty remoteBasePath for syncing to the remote roo
   assert.equal(config.syncTasks[0].remoteBasePath, '')
 })
 
+test('loadAppConfig normalizes remote base paths with remote path rules', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-remote-path-'))
+  const configPath = path.join(tempDir, 'config.json')
+
+  await fs.writeFile(configPath, JSON.stringify({
+    syncTasks: [{
+      rcloneRemote: 'synology',
+      localBasePath: './test/fixtures/local',
+      remoteBasePath: 'Projects\\Current/../Archive/',
+    }],
+  }))
+
+  const config = await loadAppConfig(configPath)
+  assert.equal(config.syncTasks[0].remoteBasePath, 'Projects/Archive')
+})
+
 test('loadAppConfig defaults last sync fields to null', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-last-sync-'))
   const configPath = path.join(tempDir, 'config.json')
@@ -146,6 +162,24 @@ test('ensureAppConfig does not overwrite an existing config', async () => {
   assert.deepEqual(result, { configCreated: false, configPath })
   assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
     globalIgnorePatterns: ['keep'],
+    syncTasks: [],
+  })
+})
+
+test('ensureAppConfig atomically creates a missing config once', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-ensure-config-race-'))
+  const configDirectory = path.join(tempDir, 'config')
+  const configPath = path.join(configDirectory, 'config.json')
+  const runtimePaths = { configDirectory, configPath }
+
+  const results = await Promise.all([
+    ensureAppConfig(runtimePaths),
+    ensureAppConfig(runtimePaths),
+  ])
+
+  assert.equal(results.filter(result => result.configCreated).length, 1)
+  assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
+    globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
     syncTasks: [],
   })
 })

@@ -38,7 +38,7 @@ test('toAppError wraps a capability failure and preserves the complete cause cha
 
 test('toAppError uses caller capability instead of a matching lower-level code', () => {
   const nativeError = Object.assign(new Error('native failure'), {
-    code: APP_ERROR_CODE.PATH_NOT_FOUND,
+    code: APP_ERROR_CODE.PATH_INVALID,
   })
   const applicationError = toAppError(
     nativeError,

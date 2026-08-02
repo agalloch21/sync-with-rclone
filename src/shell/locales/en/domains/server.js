@@ -29,7 +29,6 @@ export default {
     },
   }),
   errors: defineLocaleTree({
-    [APP_ERROR_CODE.SERVER_INVALID_OPERATION]: 'Invalid server operation.',
     [APP_ERROR_CODE.SERVER_VALIDATION_FAILED]: 'Server validation failed.',
     [APP_ERROR_CODE.SERVER_ALREADY_EXISTS]: 'Server already exists.',
     [APP_ERROR_CODE.SERVER_NOT_FOUND]: 'Server does not exist.',

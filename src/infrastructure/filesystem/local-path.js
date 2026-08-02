@@ -54,7 +54,7 @@ export function resolveLocalDirectoryPath(inputPath) {
     )
   }
 
-  return absolutePath
+  return trimTrailingSlash(normalizeLocalPath(fs.realpathSync(absolutePath)))
 }
 
 export function trimTrailingSlash(inputPath) {
@@ -62,4 +62,9 @@ export function trimTrailingSlash(inputPath) {
     return inputPath
 
   return inputPath.replace(/\/+$/, '')
+}
+
+export function getLocalPathComparisonKey(inputPath, platform = process.platform) {
+  const normalized = trimTrailingSlash(normalizeLocalPath(String(inputPath || '')))
+  return platform === 'win32' ? normalized.toLowerCase() : normalized
 }

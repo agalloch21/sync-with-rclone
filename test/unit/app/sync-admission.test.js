@@ -64,6 +64,10 @@ test('sync admission detects exact and nested local or remote folders', () => {
     descriptor('/projects/a', 'nas:remote/a'),
     descriptor('/projects/ab', 'backup:remote/a'),
   ), false)
+  assert.equal(syncAdmissionsOverlap(
+    descriptor('/projects/a', 'nas:safe/root/../../outside'),
+    descriptor('/projects/b', 'nas:outside/child'),
+  ), true)
 })
 
 test('sync admission allows non-overlapping work and releases its lease', async () => {

@@ -2,13 +2,9 @@ export const APP_ERROR_CODE = Object.freeze({
   UNKNOWN: 'unknown',
 
   PATH_INVALID: 'path.invalid',
-  PATH_EMPTY: 'path.empty',
-  PATH_NOT_FOUND: 'path.not_found',
-  PATH_NOT_DIRECTORY: 'path.not_directory',
 
   CONFIG_LOAD_FAILED: 'config.load_failed',
   CONFIG_UPDATE_FAILED: 'config.update_failed',
-  CONFIG_UPDATE_IN_PROGRESS: 'config.update_in_progress',
   CONFIG_NO_MATCHING_SYNC_TASK: 'config.no_matching_sync_task',
   CONFIG_REMOTE_PATH_OUTSIDE_TASK: 'config.remote_path_outside_task',
 
@@ -18,27 +14,16 @@ export const APP_ERROR_CODE = Object.freeze({
   SYNC_EXECUTION_FAILED: 'sync.execution_failed',
 
   REMOTE_FOLDER_PATH_REQUIRED: 'remote.folder_path_required',
-  REMOTE_FOLDER_PROBE_FAILED: 'remote.folder_probe_failed',
-  REMOTE_FOLDER_CREATE_FAILED: 'remote.folder_create_failed',
+  REMOTE_FOLDER_PATH_INVALID: 'remote.folder_path_invalid',
 
   IPC_INVALID_PAYLOAD: 'ipc.invalid_payload',
   IPC_UNAVAILABLE: 'ipc.unavailable',
 
-  SERVER_INVALID_OPERATION: 'server.invalid_operation',
   SERVER_VALIDATION_FAILED: 'server.validation_failed',
   SERVER_ALREADY_EXISTS: 'server.already_exists',
   SERVER_NOT_FOUND: 'server.not_found',
   SERVER_CONNECTION_FAILED: 'server.connection_failed',
   SERVER_OPERATION_FAILED: 'server.operation_failed',
-
-  RCLONE_UNSUPPORTED_PROTOCOL: 'rclone.unsupported_protocol',
-  RCLONE_INVALID_OPERATION: 'rclone.invalid_operation',
-  RCLONE_INVALID_REMOTE: 'rclone.invalid_remote',
-  RCLONE_REMOTE_EXISTS: 'rclone.remote_exists',
-  RCLONE_REMOTE_MISSING: 'rclone.remote_missing',
-  RCLONE_COMMAND_FAILED: 'rclone.command_failed',
-  RCLONE_PARSE_FAILED: 'rclone.parse_failed',
-  RCLONE_OPERATION_FAILED: 'rclone.operation_failed',
 })
 
 export class AppError extends Error {

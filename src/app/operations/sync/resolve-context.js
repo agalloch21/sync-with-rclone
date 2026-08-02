@@ -1,8 +1,8 @@
+import { normalizeRemoteFolderPath } from '#src/infrastructure/rclone/remote-path.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import { APP_ERROR_CODE, throwAppError } from '../../app-errors.js'
 import { loadConfiguration } from '../../services/app-config.js'
-import { resolveLocalDirectoryPath } from '../../services/local-path.js'
-import { resolveSyncTask } from './resolve-task.js'
+import { resolveSyncLocalFolderPath, resolveSyncTask } from './resolve-task.js'
 
 export async function resolveSyncContext(options, runtimePaths = getRuntimePaths()) {
   const { bypassConfig = false } = options
@@ -18,15 +18,28 @@ export async function resolveSyncContext(options, runtimePaths = getRuntimePaths
     ? null
     : resolveSyncTask(config, options.localFolderPath, options.remoteFolderPath)
 
+  let explicitRemoteFolderPath = ''
+  if (!resolvedTask) {
+    try {
+      explicitRemoteFolderPath = normalizeRemoteFolderPath(options.remoteFolderPath)
+    }
+    catch (error) {
+      throwAppError(APP_ERROR_CODE.REMOTE_FOLDER_PATH_INVALID, 'Invalid remote folder path.', {
+        cause: error,
+        meta: { remoteFolderPath: options.remoteFolderPath },
+      })
+    }
+  }
+
   return {
     context: {
       mode: options.mode,
       localFolderPath: resolvedTask
         ? resolvedTask.localFolderPath
-        : resolveLocalDirectoryPath(options.localFolderPath),
+        : resolveSyncLocalFolderPath(options.localFolderPath),
       remoteFolderPath: resolvedTask
         ? resolvedTask.remoteFolderPath
-        : options.remoteFolderPath,
+        : explicitRemoteFolderPath,
       extraIgnorePatterns: resolvedTask ? resolvedTask.extraIgnorePatterns : [],
     },
     resolvedTask,

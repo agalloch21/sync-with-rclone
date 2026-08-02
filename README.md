@@ -69,7 +69,7 @@ Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv�
 
 ### Symbolic link 限制
 
-当前版本不支持同步 symbolic link。同步目录中的 symbolic link（包括指向文件和目录的 link）会被跳过，不会复制 link 本身，也不会读取或复制 link 指向的内容。symbolic link 不能直接作为同步根路径；这样可以避免把空 Snapshot 误认为空目录并删除目标端内容。
+symbolic link 可以作为同步根路径；context resolution 会先解析它的 real path，后续扫描、执行和并发范围判断只使用真实目录。同步根目录内部的 symbolic link 当前不会作为本地文件上传，也不会扫描它指向的内容。内部目录 link 在 Pull 时应被视为本地挂载点还是由远端普通目录替换仍待确定；在该规则落实前，应避免 Pull 到包含同名内部目录 link 的本地路径。
 
 
 ### 4. 使用 Electron 运行

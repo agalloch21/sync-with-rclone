@@ -1,30 +1,8 @@
 import crypto from 'node:crypto'
+import { getLocalPathComparisonKey } from '#src/infrastructure/filesystem/local-path.js'
+import { remoteFolderPathsOverlap } from '#src/infrastructure/rclone/remote-path.js'
 import { acquireSyncLease, releaseSyncLease } from '#src/infrastructure/runtime/sync-lease-store.js'
 import { APP_ERROR_CODE, throwAppError } from '../../app-errors.js'
-
-function trimPath(value) {
-  const normalized = String(value || '').replaceAll('\\', '/')
-  if (normalized === '/')
-    return normalized
-  return normalized.replace(/\/+$/, '')
-}
-
-function normalizeLocalPath(value, platform = process.platform) {
-  const normalized = trimPath(value)
-  return platform === 'win32' ? normalized.toLowerCase() : normalized
-}
-
-function parseRemotePath(value) {
-  const normalized = trimPath(value)
-  const separatorIndex = normalized.indexOf(':')
-  if (separatorIndex < 0)
-    return { remote: '', folderPath: normalized }
-
-  return {
-    remote: normalized.slice(0, separatorIndex),
-    folderPath: normalized.slice(separatorIndex + 1).replace(/^\/+/, ''),
-  }
-}
 
 function isSameOrNested(left, right) {
   if (left === right)
@@ -36,21 +14,14 @@ function isSameOrNested(left, right) {
 
 function localPathsOverlap(left, right, platform = process.platform) {
   return isSameOrNested(
-    normalizeLocalPath(left, platform),
-    normalizeLocalPath(right, platform),
+    getLocalPathComparisonKey(left, platform),
+    getLocalPathComparisonKey(right, platform),
   )
-}
-
-function remotePathsOverlap(left, right) {
-  const leftRemote = parseRemotePath(left)
-  const rightRemote = parseRemotePath(right)
-  return leftRemote.remote === rightRemote.remote
-    && isSameOrNested(leftRemote.folderPath, rightRemote.folderPath)
 }
 
 export function syncAdmissionsOverlap(left, right, platform = process.platform) {
   return localPathsOverlap(left.localFolderPath, right.localFolderPath, platform)
-    || remotePathsOverlap(left.remoteFolderPath, right.remoteFolderPath)
+    || remoteFolderPathsOverlap(left.remoteFolderPath, right.remoteFolderPath)
 }
 
 function toDescriptor(context) {

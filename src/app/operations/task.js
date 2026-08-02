@@ -1,9 +1,10 @@
+import { resolveLocalDirectoryPath as resolveInfrastructureLocalDirectoryPath } from '#src/infrastructure/filesystem/local-path.js'
+import { normalizeRemoteBasePath as normalizeInfrastructureRemoteBasePath } from '#src/infrastructure/rclone/remote-path.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
 import {
   SYNC_TASK_DELETE_PROGRESS_STEP,
   SYNC_TASK_SAVE_PROGRESS_STEP,
 } from '../contracts/task.js'
-import { normalizeLocalPath, resolveLocalDirectoryPath, trimTrailingSlash } from '../services/local-path.js'
 import * as taskService from '../services/task.js'
 
 function assertTaskInput(task) {
@@ -25,12 +26,36 @@ function assertTaskReference(task) {
     throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, 'A sync task reference requires a server and local folder.')
 }
 
+function resolveTaskLocalBasePath(inputPath) {
+  try {
+    return resolveInfrastructureLocalDirectoryPath(inputPath)
+  }
+  catch (error) {
+    throwAppError(APP_ERROR_CODE.PATH_INVALID, 'Invalid local directory path.', {
+      cause: error,
+    })
+  }
+}
+
+function normalizeRemoteBasePath(inputPath) {
+  try {
+    return normalizeInfrastructureRemoteBasePath(inputPath)
+  }
+  catch (error) {
+    throwAppError(APP_ERROR_CODE.REMOTE_FOLDER_PATH_INVALID, 'Invalid remote folder path.', {
+      cause: error,
+      meta: { remoteBasePath: inputPath },
+    })
+  }
+}
+
 function normalizeTaskMapping(task) {
   assertTaskInput(task)
+
   return {
     rcloneRemote: task.rcloneRemote.trim(),
-    localBasePath: resolveLocalDirectoryPath(task.localBasePath),
-    remoteBasePath: trimTrailingSlash(normalizeLocalPath(task.remoteBasePath)),
+    localBasePath: resolveTaskLocalBasePath(task.localBasePath),
+    remoteBasePath: normalizeRemoteBasePath(task.remoteBasePath),
   }
 }
 

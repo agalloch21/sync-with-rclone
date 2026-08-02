@@ -171,7 +171,11 @@ export async function getServer(name) {
   const normalizedName = normalizeName(name)
   try {
     const remotes = await remoteConfig.listRemoteConfigs()
-    return remoteToServer(findRemote(remotes, normalizedName))
+    const remote = findRemote(remotes, normalizedName)
+    if (!remote)
+      throwServerError(APP_ERROR_CODE.SERVER_NOT_FOUND, 'Server does not exist.', { meta: { name: normalizedName } })
+
+    return remoteToServer(remote)
   }
   catch (error) {
     throwServerErrorFromAdapter(error, 'Failed to get server.', { name })

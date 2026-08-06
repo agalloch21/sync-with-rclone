@@ -2,17 +2,17 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { deleteSyncTask, getMainWindowData, listOperationHistory, testServerConnection, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-api.js'
+import { deleteMapping, getMainWindowData, listOperationHistory, testServerConnection, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-api.js'
 import { SERVER_UPDATE_PROGRESS_STEP } from '#src/app/contracts/server.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
-test('getMainWindowData returns servers and sync tasks through the app API', async () => {
+test('getMainWindowData returns servers and mappings through the app API', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {
       synology: { type: 'sftp', host: 'nas.local' },
     },
     appConfig: {
-      syncTasks: [
+      mappings: [
         {
           displayName: 'Projects',
           rcloneRemote: 'synology',
@@ -35,7 +35,7 @@ test('getMainWindowData returns servers and sync tasks through the app API', asy
           config: { type: 'sftp', host: 'nas.local' },
         },
       ],
-      syncTasks: [
+      mappings: [
         {
           displayName: 'Projects',
           rcloneRemote: 'synology',
@@ -57,7 +57,7 @@ test('getMainWindowData returns global ignore patterns', async () => {
     rcloneConfig: {},
     appConfig: {
       globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
-      syncTasks: [],
+      mappings: [],
     },
   }, async () => {
     const data = await getMainWindowData()
@@ -83,7 +83,7 @@ test('updateGlobalIgnorePatterns persists through the app API', async () => {
     rcloneConfig: {},
     appConfig: {
       globalIgnorePatterns: ['old'],
-      syncTasks: [],
+      mappings: [],
     },
   }, async ({ configPath }) => {
     assert.deepEqual(await updateGlobalIgnorePatterns(['.DS_Store']), ['.DS_Store'])
@@ -93,11 +93,11 @@ test('updateGlobalIgnorePatterns persists through the app API', async () => {
   })
 })
 
-test('getMainWindowData adds a missing server placeholder for task references without a server', async () => {
+test('getMainWindowData adds a missing server placeholder for mapping references without a server', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {},
     appConfig: {
-      syncTasks: [
+      mappings: [
         {
           displayName: 'Missing',
           rcloneRemote: 'missing-server',
@@ -122,14 +122,14 @@ test('getMainWindowData adds a missing server placeholder for task references wi
   })
 })
 
-test('updateServer changes protocol configuration without changing task references', async () => {
+test('updateServer changes protocol configuration without changing mapping references', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {
       synology: { type: 'sftp', host: 'old.local', port: '22', user: 'xiaobo', pass: 'secret' },
     },
     appConfig: {
       globalIgnorePatterns: ['.DS_Store'],
-      syncTasks: [
+      mappings: [
         {
           displayName: 'Projects',
           rcloneRemote: 'synology',
@@ -156,7 +156,7 @@ test('updateServer changes protocol configuration without changing task referenc
     }, step => progress.push(step))
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
-    assert.deepEqual(saved.syncTasks.map(task => task.rcloneRemote), ['synology', 'backup'])
+    assert.deepEqual(saved.mappings.map(mapping => mapping.rcloneRemote), ['synology', 'backup'])
     assert.deepEqual(await readRcloneState(), {
       synology: {
         type: 'sftp',
@@ -175,18 +175,18 @@ test('updateServer changes protocol configuration without changing task referenc
   })
 })
 
-test('deleteSyncTask throws when the requested task was not deleted', async () => {
+test('deleteMapping throws when the requested mapping was not deleted', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      syncTasks: [],
+      mappings: [],
     },
   }, async () => {
     await assert.rejects(
-      () => deleteSyncTask({
+      () => deleteMapping({
         rcloneRemote: 'synology',
         localBasePath: '/local/missing',
       }),
-      error => error?.code === 'sync_task.not_found',
+      error => error?.code === 'mapping.not_found',
     )
   })
 })

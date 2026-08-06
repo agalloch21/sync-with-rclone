@@ -11,15 +11,15 @@ const formModal = {
       changeFolder: '选择文件夹',
     },
     [FORM_MODAL_VIEW.CHOOSE_SERVER]: {
-      title: '创建任务',
+      title: '创建映射',
       message: '选择远程服务器',
     },
     [FORM_MODAL_VIEW.CREATE_SERVER]: {
-      title: '创建任务',
+      title: '创建映射',
       message: '连接到新服务器',
     },
     [FORM_MODAL_VIEW.CREATE_FOLDER_MAPPING]: {
-      title: '创建任务',
+      title: '创建映射',
       message: '映射本地文件夹与远程文件夹',
     },
     [FORM_MODAL_VIEW.EDIT_SERVER]: {
@@ -32,9 +32,9 @@ const formModal = {
     },
     [FORM_MODAL_VIEW.EDIT_PATTERNS]: {
       title: '编辑忽略规则',
-      message: '为同步任务设置额外的忽略规则',
-      taskSpecificPatterns: {
-        title: '任务专用忽略规则',
+      message: '为映射设置额外的忽略规则',
+      mappingSpecificPatterns: {
+        title: '映射专用忽略规则',
         description: '同步时，这些规则将与 .ignore 文件一起用于过滤文件。',
       },
       globalPatterns: {

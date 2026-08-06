@@ -62,7 +62,7 @@ npm start -- sync push <local-path> <remote-path>
 npm start -- sync --yes push <local-path> <remote-path>
 ```
 
-CLI 必须显式提供 `sync`、`list-tasks` 等正式子命令；同步参数推荐使用带名字的写法。
+CLI 必须显式提供 `sync`、`list-mappings` 等正式子命令；同步参数推荐使用带名字的写法。
 当 stdin 或 stdout 不是 TTY（例如 agent、脚本或管道调用）时，同步必须显式传入 `--yes`，否则会在写入文件前拒绝执行。
 `npm start` 会先构建 renderer，因此同一个命令也可以不带参数启动主窗口，或者通过 `--session` 启动 sync-session。
 Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv，主流程现在会优先解析 `--mode`、`--local`、`--remote`，避免因为参数位置漂移而取错值。
@@ -93,7 +93,7 @@ sync-with-rclone --session --mode=push --local=<local-path>
 
 # 执行 CLI command
 sync-with-rclone list-servers
-sync-with-rclone list-tasks --json
+sync-with-rclone list-mappings --json
 sync-with-rclone sync --yes push <local-path> <remote-path>
 ```
 
@@ -152,7 +152,7 @@ macOS Finder Quick Action 只负责异步提交同步请求。同步进度和结
     ".DS_Store",
     "Thumbs.db"
   ],
-  "syncTasks": [
+  "mappings": [
     {
       "name": "ProjectsSynced",
       "rcloneRemote": "synology-sftp",
@@ -167,16 +167,16 @@ macOS Finder Quick Action 只负责异步提交同步请求。同步进度和结
 }
 ```
 
-- `globalIgnorePatterns`: 全局忽略规则，作用于所有同步任务，规则语法按 `.gitignore` 风格理解。
-- `syncTasks`: 同步任务列表。每次从某个本地目录发起同步时，程序会从这里找出匹配的任务。
-- `syncTasks[].name`: 任务名称，用于标识这组同步关系，当前主要用于可读性和后续扩展。
-- `syncTasks[].rcloneRemote`: `rclone.conf` 中定义的 remote 名称，例如 `synology-sftp`。
-- `syncTasks[].localBasePath`: 本地根目录。当前右键触发的目录必须落在这个目录下，程序才会认为它属于该任务。
-- `syncTasks[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology-sftp:ProjectsSynced` 这样的根路径；如果想直接同步到 remote 根目录，可以写成空字符串 `""`。
-- `syncTasks[].ignorePatterns`: 只对当前任务生效的额外忽略规则，会和 `globalIgnorePatterns` 合并。
-- `syncTasks[].lastSyncMode`: 上一次同步方向，当前可为空。
-- `syncTasks[].lastSyncFolder`: 上一次同步的相对文件夹，当前可为空。
-- `syncTasks[].lastSyncDate`: 上一次同步时间，建议使用 ISO 字符串，当前可为空。
+- `globalIgnorePatterns`: 全局忽略规则，作用于所有映射，规则语法按 `.gitignore` 风格理解。
+- `mappings`: 映射列表。每个映射持久定义一个本地根目录、一个远端根目录及其同步规则；映射本身不会自动执行同步。每次用户从某个本地目录手动发起同步时，程序会从这里找出匹配的映射。
+- `mappings[].name`: 映射名称，用于标识这组同步关系，当前主要用于可读性和后续扩展。
+- `mappings[].rcloneRemote`: `rclone.conf` 中定义的 remote 名称，例如 `synology-sftp`。
+- `mappings[].localBasePath`: 本地根目录。当前右键触发的目录必须落在这个目录下，程序才会认为它属于该映射。
+- `mappings[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology-sftp:ProjectsSynced` 这样的根路径；如果想直接同步到 remote 根目录，可以写成空字符串 `""`。
+- `mappings[].ignorePatterns`: 只对当前映射生效的额外忽略规则，会和 `globalIgnorePatterns` 合并。
+- `mappings[].lastSyncMode`: 上一次同步方向，当前可为空。
+- `mappings[].lastSyncFolder`: 上一次同步的相对文件夹，当前可为空。
+- `mappings[].lastSyncDate`: 上一次同步时间，建议使用 ISO 字符串，当前可为空。
 
 ### 推荐远端协议
 
@@ -202,7 +202,7 @@ shell_type = unix
 
 - 如果触发目录是 `localBasePath` 本身，则默认同步到对应的远端根目录。
 - 如果触发目录是 `localBasePath` 的子目录，则会把相对子路径追加到远端根目录后面。
-- 多个 `syncTasks` 同时命中时，当前实现会优先选择 `localBasePath` 更长、更具体的那一项。
+- 多个 `mappings` 同时命中时，当前实现会优先选择 `localBasePath` 更长、更具体的那一项。
 
 ### 环境变量
 

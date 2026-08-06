@@ -1,19 +1,19 @@
+import mapping from './domains/mapping.js'
 import server from './domains/server.js'
-import syncTask from './domains/sync-task.js'
 import errors from './errors.js'
 
 export default {
   messages: {
     ...server.messages,
-    ...syncTask.messages,
+    ...mapping.messages,
   },
   errors: {
     ...errors.errors,
     ...server.errors,
-    ...syncTask.errors,
+    ...mapping.errors,
   },
   operations: {
     ...server.operations,
-    ...syncTask.operations,
+    ...mapping.operations,
   },
 }

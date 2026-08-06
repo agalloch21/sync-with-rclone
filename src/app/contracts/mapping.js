@@ -1,0 +1,21 @@
+export const MAPPING_OPERATION = Object.freeze({
+  CREATE: 'createMapping',
+  UPDATE: 'updateMapping',
+  UPDATE_IGNORE_PATTERNS: 'updateMappingIgnorePatterns',
+  DELETE: 'deleteMapping',
+})
+
+export const MAPPING_SAVE_PROGRESS_STEP = Object.freeze({
+  SAVE: 'save',
+})
+
+export const MAPPING_DELETE_PROGRESS_STEP = Object.freeze({
+  DELETE: 'delete',
+})
+
+export const MAPPING_OPERATION_PROGRESS_STEPS = Object.freeze({
+  [MAPPING_OPERATION.CREATE]: MAPPING_SAVE_PROGRESS_STEP,
+  [MAPPING_OPERATION.UPDATE]: MAPPING_SAVE_PROGRESS_STEP,
+  [MAPPING_OPERATION.UPDATE_IGNORE_PATTERNS]: MAPPING_SAVE_PROGRESS_STEP,
+  [MAPPING_OPERATION.DELETE]: MAPPING_DELETE_PROGRESS_STEP,
+})

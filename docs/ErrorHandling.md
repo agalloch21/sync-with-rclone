@@ -5,7 +5,7 @@
 这套错误处理方案用于多层调用链中的应用操作，例如：
 
 ```text
-UI -> IPC -> Electron Main window handler -> app operations -> server/task operations -> rclone/config adapters
+UI -> IPC -> Electron Main window handler -> app operations -> server/mapping operations -> rclone/config adapters
 ```
 
 目标是：
@@ -185,12 +185,12 @@ App operation 负责用户意图和跨资源编排，例如：
 
 App operation 不应该返回 `{ success, error }` 给内部调用者；它成功时返回正常值，失败时抛错。
 
-### Server / Task operations
+### Server / Mapping operations
 
 这些层负责资源级操作：
 
 - server operation 处理 server connection 的创建、更新、测试、删除。
-- task operation 处理 `config.json` 中 task 的增删改和引用维护。
+- mapping operation 处理 `config.json` 中 mapping 的增删改和引用维护。
 - 发现预期内失败时抛 `AppError`。
 
 如果 server operation 内部需要调用 rclone，它可以隐藏 rclone/remote 术语，对上层暴露 app 语言，例如 `createServerConnection`、`updateServerConnection`。
@@ -433,7 +433,7 @@ infrastructure/rclone/remote-config.js
 使用这个判断：
 
 - 函数是 IPC handler 或公开给 renderer 的 API：返回 `OperationResult`。
-- 函数是内部 app/server/task/config 操作：成功返回 value，失败 throw。
+- 函数是内部 app/server/mapping/config 操作：成功返回 value，失败 throw。
 - 失败是用户输入、业务规则、资源状态导致的预期失败：throw `AppError`。
 - 失败是 bug、系统异常、未知外部异常：允许原始错误抛出，在 IPC 边界统一转成 unknown。
 

@@ -184,7 +184,7 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
     })
   }
 
-  const { context, resolvedTask } = resolution
+  const { context, resolvedMapping } = resolution
   const historyDefinition = {
     operation: getSyncOperation(options?.mode),
     subject: getSyncSubject(options, context),
@@ -203,7 +203,7 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
     try {
       emit({ type: SYNC_SESSION_EVENT.STARTED })
 
-      if (resolvedTask && context.mode === 'push') {
+      if (resolvedMapping && context.mode === 'push') {
         await ensureRemoteFolder(
           context.remoteFolderPath,
           runtimePaths,

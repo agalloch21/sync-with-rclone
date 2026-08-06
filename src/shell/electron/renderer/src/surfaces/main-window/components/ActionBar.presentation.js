@@ -1,15 +1,15 @@
 export const MAIN_WINDOW_ACTION = Object.freeze({
-  CREATE_TASK: 'createTask',
+  CREATE_MAPPING: 'createMapping',
   EDIT_SERVER: 'editServer',
   DELETE_SERVER: 'deleteServer',
   EDIT_FOLDER_MAPPING: 'editFolderMapping',
-  DELETE_TASK: 'deleteTask',
+  DELETE_MAPPING: 'deleteMapping',
   EDIT_PATTERNS: 'editPatterns',
 })
 
 export const ACTION_BAR_PRIMARY_ACTION = Object.freeze({
   name: 'create',
-  action: MAIN_WINDOW_ACTION.CREATE_TASK,
+  action: MAIN_WINDOW_ACTION.CREATE_MAPPING,
 })
 
 export const ACTION_BAR_SERVER_ACTIONS = Object.freeze([
@@ -17,8 +17,8 @@ export const ACTION_BAR_SERVER_ACTIONS = Object.freeze([
   { name: 'delete', action: MAIN_WINDOW_ACTION.DELETE_SERVER },
 ])
 
-export const ACTION_BAR_TASK_ACTIONS = Object.freeze([
+export const ACTION_BAR_MAPPING_ACTIONS = Object.freeze([
   { name: 'edit', action: MAIN_WINDOW_ACTION.EDIT_FOLDER_MAPPING },
-  { name: 'delete', action: MAIN_WINDOW_ACTION.DELETE_TASK },
+  { name: 'delete', action: MAIN_WINDOW_ACTION.DELETE_MAPPING },
   { name: 'editPatterns', action: MAIN_WINDOW_ACTION.EDIT_PATTERNS },
 ])

@@ -1,14 +1,14 @@
 const mainWindow = {
   appShell: {
     nav: {
-      syncTasks: '同步任务',
+      mappings: '映射',
       logs: '日志',
       settings: '设置',
     },
     version: '版本',
   },
-  syncTasksPanel: {
-    taskItem: {
+  mappingsPanel: {
+    mappingItem: {
       mappedTo: '映射到',
       lastSync: '上次同步',
     },
@@ -25,7 +25,7 @@ const mainWindow = {
     },
     globalPatterns: {
       title: '全局忽略规则',
-      description: '这些规则将应用于所有同步任务。',
+      description: '这些规则将应用于所有映射。',
     },
   },
   logPanel: {
@@ -44,10 +44,10 @@ const mainWindow = {
       createServer: '创建服务器',
       updateServer: '更新服务器',
       deleteServer: '删除服务器',
-      createSyncTask: '创建同步任务',
-      updateSyncTask: '更新同步任务',
-      updateSyncTaskIgnorePatterns: '更新任务忽略规则',
-      deleteSyncTask: '删除同步任务',
+      createMapping: '创建映射',
+      updateMapping: '更新映射',
+      updateMappingIgnorePatterns: '更新映射忽略规则',
+      deleteMapping: '删除映射',
       updateGlobalIgnorePatterns: '更新全局忽略规则',
       syncPush: '推送文件',
       syncPull: '拉取文件',

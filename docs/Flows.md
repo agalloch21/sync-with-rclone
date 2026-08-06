@@ -102,7 +102,7 @@ sequenceDiagram
 
 - 当前本地目录是源
 - 默认对应的远端目录是目标
-- `.gitignore`、global ignore 和 task ignore 只过滤 local Snapshot；远端存在但过滤后本地不存在的内容属于目标端多余内容，会进入删除差异
+- `.gitignore`、global ignore 和 mapping ignore 只过滤 local Snapshot；远端存在但过滤后本地不存在的内容属于目标端多余内容，会进入删除差异
 
 ## 5. `Pull` 流程
 
@@ -146,8 +146,8 @@ sequenceDiagram
 
   U->>S: 触发 Push To...
   S->>A: 传入本地路径
-  A->>A: 匹配当前同步任务
-  A->>T: 读取该任务对应的远端目录树
+  A->>A: 匹配当前映射
+  A->>T: 读取该映射对应的远端目录树
   T->>U: 展示可选远端目录
   U->>T: 选择目标目录
   T-->>A: 返回选中的远端目录
@@ -180,8 +180,8 @@ sequenceDiagram
 
   U->>S: 触发 Pull From...
   S->>A: 传入本地路径
-  A->>A: 匹配当前同步任务
-  A->>T: 读取该任务对应的远端目录树
+  A->>A: 匹配当前映射
+  A->>T: 读取该映射对应的远端目录树
   T->>U: 展示可选远端目录
   U->>T: 选择来源目录
   T-->>A: 返回选中的远端目录
@@ -310,7 +310,7 @@ sequenceDiagram
   E->>SM: 创建并追踪 session window
   SM->>A: startSync(options, runtime)
   C->>A: startSync(options, runtime)
-  A->>A: use the requested path for task-relative mapping, then expose only its real local path and normalized remote path
+  A->>A: use the requested path for mapping-relative resolution, then expose only its real local path and normalized remote path
   A->>R: 原子读取活跃 leases 并尝试写入新 lease
   alt local and remote roots are disjoint
     R-->>A: admitted
@@ -332,7 +332,7 @@ sequenceDiagram
 - Main window is created directly by `desktop-application.js`; the Electron sync-session uses a controller because it must bridge the long-running `startSync` application operation with an interactive window.
 - Session Manager 只管理 Electron 窗口和取消生命周期；GUI、CLI 与未来 agent 调用都经过 `startSync` 的同一 admission gate。
 - Registry 位于 config directory，通过短时 mutex 和每个同步独立的 lease 在进程间共享状态；owner 进程消失后，其 lease 会在下次读取时清理。
-- 只有 canonical 本地范围和 normalized 远端范围都不重叠时才允许并行；任一侧相同或互为祖先/后代都会拒绝后来请求。远端显式路径必须在 normalization 后仍位于 task remote root 内。
+- 只有 canonical 本地范围和 normalized 远端范围都不重叠时才允许并行；任一侧相同或互为祖先/后代都会拒绝后来请求。远端显式路径必须在 normalization 后仍位于 mapping remote root 内。
 - 每个 session 的 progress channel 独立，history 不持久化 progress sample。
 - 关闭主窗口不会终止 session；没有窗口且没有活跃 session 时应用退出。
 - session 失败页只在 `quick-actions.log` 存在时提供文件定位入口，不创建或导航主窗口。
@@ -358,7 +358,7 @@ sequenceDiagram
   U->>M: 提交操作
   M->>M: composable 进行 UI 预校验
   M->>EM: invoke app operation
-  EM->>APP: 执行 server/task operation
+  EM->>APP: 执行 server/mapping operation
   APP-->>EM: result / throw AppError
   EM-->>M: OperationResult
   opt 普通 operation 失败
@@ -376,12 +376,12 @@ sequenceDiagram
 
 当前结论：
 
-- 主窗口 renderer 传完整的 plain `server` 和 `syncTask` 对象；`server.tasks` 只属于主窗口组合视图，不传给 modal
+- 主窗口 renderer 传完整的 plain `server` 和 `mapping` 对象；`server.mappings` 只属于主窗口组合视图，不传给 modal
 - Electron Main 不重新组装 modal context，只校验 modal 名称并创建窗口
 - Electron Main 负责 modal 和 message-box 的窗口生命周期；app operation 的返回值或异常负责业务控制流
 - form modal renderer 不直接读取 app config，也不直接调用 rclone
-- App Layer 提供应用操作：组合主窗口数据、读写 app config、读写 rclone config、删除 task
-- server/syncTask 修改成功后，App Layer 通过 `app-events.js` 发出 config update 通知，主窗口 renderer 再读取 `MainWindowData`
+- App Layer 提供应用操作：组合主窗口数据、读写 app config、读写 rclone config、删除 mapping
+- server/mapping 修改成功后，App Layer 通过 `app-events.js` 发出 config update 通知，主窗口 renderer 再读取 `MainWindowData`
 - message-box 只作为临时状态窗口，不替换普通 modal 的内容
 - 普通 validation/message/confirmation 由 renderer 的 `useMessageBox()` facade 发起
 - 需要观察 operation 进度时，shell 使用 `createOperationReporter(operation, display)`
@@ -393,7 +393,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant U as 用户
-  participant M as Sync Task Modal
+  participant M as Mapping Modal
   participant EM as Electron Main
   participant OR as Operation Reporter
   participant MB as Message Box
@@ -458,7 +458,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant U as 用户
-  participant M as Sync Task Modal
+  participant M as Mapping Modal
   participant EM as Electron Main
   participant APP as App Layer
   participant SO as Server Operations
@@ -486,16 +486,16 @@ sequenceDiagram
 
 关键点：
 
-- 需要 main-managed progress 的 server/task mutation 统一通过 `message-box/operation-presentation.js` 接入 `createOperationReporter()`
+- 需要 main-managed progress 的 server/mapping mutation 统一通过 `message-box/operation-presentation.js` 接入 `createOperationReporter()`
 - server name 在 edit surface 中 disabled；update payload 不包含新名称
 - `app-api.js` 只协调现有 server 的 protocol update，并在成功后发布 config update
-- `operations/server.js` 负责 update progress lifecycle，不引用 task operation
+- `operations/server.js` 负责 update progress lifecycle，不引用 mapping operation
 - `services/server.js` 负责 server validation、existence policy、remote/server 转换，并把 adapter error 转成 `SERVER_*`
 - `remote-config.js` 只负责 raw rclone config dump/create/update/delete/test 命令
-- application 不提供 server rename；手动修改 rclone config 名称后，需要重新指定引用旧名称的 sync tasks
+- application 不提供 server rename；手动修改 rclone config 名称后，需要重新指定引用旧名称的 mappings
 - 普通 operation 失败由 renderer composable 调用 `messageBox.error(error)` 展示一次
 
-## 14. Delete Server / Delete Task 流程
+## 14. Delete Server / Delete Mapping 流程
 
 ```mermaid
 sequenceDiagram
@@ -512,8 +512,8 @@ sequenceDiagram
   alt 未确认
     R->>R: 不调用 delete operation
   else confirmed
-    R->>EM: deleteServer(payload) / deleteSyncTask(payload)
-    EM->>APP: 删除 rclone remote 或 config task
+    R->>EM: deleteServer(payload) / deleteMapping(payload)
+    EM->>APP: 删除 rclone remote 或 config mapping
     alt 删除失败
       EM-->>R: OperationResult success=false
       R->>MB: error(result.error)
@@ -527,10 +527,10 @@ sequenceDiagram
 
 关键点：
 
-- confirmation 属于 renderer intent：`confirm()` 自动使用 `messages.` 前缀，并传入 `serverName` / `taskLabel` 插值参数
+- confirmation 属于 renderer intent：`confirm()` 自动使用 `messages.` 前缀，并传入 `serverName` / `mappingLabel` 插值参数
 - confirm state 不携带 level，使用中性的 question icon
 - Electron Main 只在用户确认后收到 delete IPC，不重复决定是否需要确认
-- task 删除只修改 `config.json`，不删除本地或远端文件
+- mapping 删除只修改 `config.json`，不删除本地或远端文件
 - 删除成功后由 App Layer 发出 config update 通知，主窗口 renderer 重新读取数据
 - 删除失败通过 `errors.${error.code}` 展示一次
 

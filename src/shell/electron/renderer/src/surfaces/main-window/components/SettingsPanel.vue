@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { formatIgnorePatterns, parseIgnorePatterns, useTaskOperations } from '#frontend/composables/useTaskOperations.js'
+import { formatIgnorePatterns, parseIgnorePatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useMessageBox } from '../../../composables/useMessageBox.js'
 import Button from '../../shared/Button.vue'
 
 const messageBox = useMessageBox(window?.mainWindow)
-const taskOperations = useTaskOperations(window?.mainWindow)
+const mappingOperations = useMappingOperations(window?.mainWindow)
 
 const globalPatternsText = ref('')
 const isLoading = ref(false)
@@ -47,7 +47,7 @@ async function applyGlobalPatterns() {
   const ignorePatterns = parseIgnorePatterns(globalPatternsText.value)
   isSubmitting.value = true
   try {
-    const result = await taskOperations.updateGlobalIgnorePatterns(ignorePatterns)
+    const result = await mappingOperations.updateGlobalIgnorePatterns(ignorePatterns)
     if (result?.success)
       globalPatternsText.value = formatIgnorePatterns(unwrapResult(result))
   }

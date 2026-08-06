@@ -177,7 +177,7 @@ test('startSync keeps pre-execution aborts as cancelled results', async () => {
     await fs.mkdir(configDirectory)
     await fs.writeFile(path.join(configDirectory, 'config.json'), JSON.stringify({
       globalIgnorePatterns: [],
-      syncTasks: [{
+      mappings: [{
         displayName: 'Project',
         rcloneRemote: 'nas',
         localBasePath: localFolderPath,

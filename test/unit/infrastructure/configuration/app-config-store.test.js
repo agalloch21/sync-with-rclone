@@ -12,7 +12,7 @@ test('loadAppConfig reads and normalizes sync config', async () => {
 
   await fs.writeFile(configPath, JSON.stringify({
     globalIgnorePatterns: ['.DS_Store'],
-    syncTasks: [
+    mappings: [
       {
         displayName: 'Projects',
         rcloneRemote: 'synology',
@@ -29,13 +29,13 @@ test('loadAppConfig reads and normalizes sync config', async () => {
   const config = await loadAppConfig(configPath)
   assert.equal(config.path, configPath)
   assert.deepEqual(config.globalIgnorePatterns, ['.DS_Store'])
-  assert.equal(config.syncTasks[0].displayName, 'Projects')
-  assert.equal(config.syncTasks[0].rcloneRemote, 'synology')
-  assert.deepEqual(config.syncTasks[0].ignorePatterns, ['node_modules/'])
-  assert.equal(config.syncTasks[0].lastSyncMode, 'push')
-  assert.equal(config.syncTasks[0].lastSyncFolder, 'compare-push')
-  assert.equal(config.syncTasks[0].lastSyncDate, '2026-06-13T00:00:00.000Z')
-  assert.ok(path.isAbsolute(config.syncTasks[0].localBasePath))
+  assert.equal(config.mappings[0].displayName, 'Projects')
+  assert.equal(config.mappings[0].rcloneRemote, 'synology')
+  assert.deepEqual(config.mappings[0].ignorePatterns, ['node_modules/'])
+  assert.equal(config.mappings[0].lastSyncMode, 'push')
+  assert.equal(config.mappings[0].lastSyncFolder, 'compare-push')
+  assert.equal(config.mappings[0].lastSyncDate, '2026-06-13T00:00:00.000Z')
+  assert.ok(path.isAbsolute(config.mappings[0].localBasePath))
 })
 
 test('loadAppConfig allows an empty remoteBasePath for syncing to the remote root', async () => {
@@ -43,7 +43,7 @@ test('loadAppConfig allows an empty remoteBasePath for syncing to the remote roo
   const configPath = path.join(tempDir, 'config.json')
 
   await fs.writeFile(configPath, JSON.stringify({
-    syncTasks: [
+    mappings: [
       {
         displayName: 'Projects',
         rcloneRemote: 'synology',
@@ -55,7 +55,7 @@ test('loadAppConfig allows an empty remoteBasePath for syncing to the remote roo
   }, null, 2))
 
   const config = await loadAppConfig(configPath)
-  assert.equal(config.syncTasks[0].remoteBasePath, '')
+  assert.equal(config.mappings[0].remoteBasePath, '')
 })
 
 test('loadAppConfig normalizes remote base paths with remote path rules', async () => {
@@ -63,7 +63,7 @@ test('loadAppConfig normalizes remote base paths with remote path rules', async 
   const configPath = path.join(tempDir, 'config.json')
 
   await fs.writeFile(configPath, JSON.stringify({
-    syncTasks: [{
+    mappings: [{
       rcloneRemote: 'synology',
       localBasePath: './test/fixtures/local',
       remoteBasePath: 'Projects\\Current/../Archive/',
@@ -71,7 +71,7 @@ test('loadAppConfig normalizes remote base paths with remote path rules', async 
   }))
 
   const config = await loadAppConfig(configPath)
-  assert.equal(config.syncTasks[0].remoteBasePath, 'Projects/Archive')
+  assert.equal(config.mappings[0].remoteBasePath, 'Projects/Archive')
 })
 
 test('loadAppConfig defaults last sync fields to null', async () => {
@@ -79,7 +79,7 @@ test('loadAppConfig defaults last sync fields to null', async () => {
   const configPath = path.join(tempDir, 'config.json')
 
   await fs.writeFile(configPath, JSON.stringify({
-    syncTasks: [
+    mappings: [
       {
         displayName: 'Projects',
         rcloneRemote: 'synology',
@@ -91,9 +91,9 @@ test('loadAppConfig defaults last sync fields to null', async () => {
   }, null, 2))
 
   const config = await loadAppConfig(configPath)
-  assert.equal(config.syncTasks[0].lastSyncMode, null)
-  assert.equal(config.syncTasks[0].lastSyncFolder, null)
-  assert.equal(config.syncTasks[0].lastSyncDate, null)
+  assert.equal(config.mappings[0].lastSyncMode, null)
+  assert.equal(config.mappings[0].lastSyncFolder, null)
+  assert.equal(config.mappings[0].lastSyncDate, null)
 })
 
 test('loadAppConfig returns null when config file does not exist', async () => {
@@ -105,7 +105,7 @@ test('loadAppConfig wraps invalid config errors with a stable error code', async
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-invalid-'))
   const configPath = path.join(tempDir, 'config.json')
 
-  await fs.writeFile(configPath, JSON.stringify({ syncTasks: {} }, null, 2))
+  await fs.writeFile(configPath, JSON.stringify({ mappings: {} }, null, 2))
 
   await assert.rejects(
     () => loadAppConfig(configPath),
@@ -123,7 +123,7 @@ test('loadAppConfig defaults to APP_ROOT_PATH config subdirectory', async () => 
 
   await fs.mkdir(configDir, { recursive: true })
   await fs.writeFile(configPath, JSON.stringify({
-    syncTasks: [],
+    mappings: [],
   }, null, 2))
 
   process.env.APP_ROOT_PATH = tempDir
@@ -145,7 +145,7 @@ test('ensureAppConfig creates a default config when config is missing', async ()
   assert.deepEqual(result, { configCreated: true, configPath })
   assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
     globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
-    syncTasks: [],
+    mappings: [],
   })
 })
 
@@ -155,14 +155,14 @@ test('ensureAppConfig does not overwrite an existing config', async () => {
   const configPath = path.join(configDirectory, 'config.json')
 
   await fs.mkdir(configDirectory, { recursive: true })
-  await fs.writeFile(configPath, JSON.stringify({ globalIgnorePatterns: ['keep'], syncTasks: [] }))
+  await fs.writeFile(configPath, JSON.stringify({ globalIgnorePatterns: ['keep'], mappings: [] }))
 
   const result = await ensureAppConfig({ configDirectory, configPath })
 
   assert.deepEqual(result, { configCreated: false, configPath })
   assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
     globalIgnorePatterns: ['keep'],
-    syncTasks: [],
+    mappings: [],
   })
 })
 
@@ -180,6 +180,6 @@ test('ensureAppConfig atomically creates a missing config once', async () => {
   assert.equal(results.filter(result => result.configCreated).length, 1)
   assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
     globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
-    syncTasks: [],
+    mappings: [],
   })
 })

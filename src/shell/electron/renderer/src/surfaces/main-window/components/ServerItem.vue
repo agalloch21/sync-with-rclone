@@ -8,7 +8,7 @@ defineProps({
   selected: {
     type: Boolean,
   },
-  hasTasks: {
+  hasMappings: {
     type: Boolean,
     default: false,
   },
@@ -49,8 +49,8 @@ function onClickArrow() {
       </div>
     </summary>
     <div
-      class="tasks-dock pl-(--task-row-pl) border-(--surface-soft) divide-y divide-(--surface-soft) flex flex-col"
-      :class="{ 'border-t': hasTasks }"
+      class="mappings-dock pl-(--mapping-row-pl) border-(--surface-soft) divide-y divide-(--surface-soft) flex flex-col"
+      :class="{ 'border-t': hasMappings }"
     >
       <slot />
     </div>
@@ -66,7 +66,7 @@ function onClickArrow() {
     --server-row-arrow-size: calc(var(--spacing) * 3);
     --server-icon-size: calc(var(--spacing) * 8);
 
-    --task-row-pl: calc(var( --server-row-px) + var(--server-row-arrow-size) + var(--server-row-gap) + var(--server-icon-size) + var(--server-row-gap) - var(--server-row-px))
+    --mapping-row-pl: calc(var( --server-row-px) + var(--server-row-arrow-size) + var(--server-row-gap) + var(--server-icon-size) + var(--server-row-gap) - var(--server-row-px))
 }
 .server-item-selected{
     @apply bg-(--surface-soft);

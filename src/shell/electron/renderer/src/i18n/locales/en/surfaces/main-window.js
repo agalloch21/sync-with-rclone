@@ -1,14 +1,14 @@
 const mainWindow = {
   appShell: {
     nav: {
-      syncTasks: 'Sync Tasks',
+      mappings: 'Mappings',
       logs: 'Logs',
       settings: 'Settings',
     },
     version: 'version',
   },
-  syncTasksPanel: {
-    taskItem: {
+  mappingsPanel: {
+    mappingItem: {
       mappedTo: 'Mapped to',
       lastSync: 'Last Sync',
     },
@@ -25,7 +25,7 @@ const mainWindow = {
     },
     globalPatterns: {
       title: 'Global Ignore Patterns',
-      description: 'These patterns will be applied to all sync tasks.',
+      description: 'These patterns will be applied to all mappings.',
     },
   },
   logPanel: {
@@ -44,10 +44,10 @@ const mainWindow = {
       createServer: 'Create server',
       updateServer: 'Update server',
       deleteServer: 'Delete server',
-      createSyncTask: 'Create sync task',
-      updateSyncTask: 'Update sync task',
-      updateSyncTaskIgnorePatterns: 'Update task ignore patterns',
-      deleteSyncTask: 'Delete sync task',
+      createMapping: 'Create mapping',
+      updateMapping: 'Update mapping',
+      updateMappingIgnorePatterns: 'Update mapping ignore patterns',
+      deleteMapping: 'Delete mapping',
       updateGlobalIgnorePatterns: 'Update global ignore patterns',
       syncPush: 'Push files',
       syncPull: 'Pull files',

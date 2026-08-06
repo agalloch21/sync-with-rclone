@@ -24,7 +24,7 @@ export const SYNC_SESSION_OPERATION = {
  * @property {'push' | 'pull'} mode - Synchronization direction.
  * @property {string} localFolderPath - Requested local directory.
  * @property {string} [remoteFolderPath] - Optional explicit remote directory.
- * @property {boolean} [bypassConfig] - Whether to bypass configured sync tasks.
+ * @property {boolean} [bypassConfig] - Whether to bypass configured mappings.
  */
 
 /**

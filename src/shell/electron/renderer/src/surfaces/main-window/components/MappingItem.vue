@@ -1,6 +1,6 @@
 <script setup>
 const props = defineProps({
-  syncTask: {
+  mapping: {
     type: Object,
   },
   selected: {
@@ -12,57 +12,57 @@ function getBaseName(filePath = '') {
   return filePath.replaceAll('\\', '/').split('/').filter(Boolean).at(-1) || filePath
 }
 
-function getTaskDisplayName(syncTask) {
-  return syncTask?.displayName || getBaseName(syncTask?.localBasePath || '') || syncTask?.localBasePath || ''
+function getMappingDisplayName(mapping) {
+  return mapping?.displayName || getBaseName(mapping?.localBasePath || '') || mapping?.localBasePath || ''
 }
 </script>
 
 <template>
-  <div class="task-item-dock h-20 py-0.5 cursor-default">
+  <div class="mapping-item-dock h-20 py-0.5 cursor-default">
     <div
-      class="task-item-stage h-full px-(--server-row-px) py-(--server-row-py) rounded-lg flex items-center gap-(--server-row-gap)"
-      :class="{ 'task-item-selected': selected }"
+      class="mapping-item-stage h-full px-(--server-row-px) py-(--server-row-py) rounded-lg flex items-center gap-(--server-row-gap)"
+      :class="{ 'mapping-item-selected': selected }"
     >
-      <div class="task-icon flex justify-center items-center">
+      <div class="mapping-icon flex justify-center items-center">
         <span class="icon-[lucide--folder-closed] size-(--server-icon-size) text-(--primary)" />
       </div>
-      <div class="task-base-info min-w-44 flex-1 flex flex-col gap-1">
+      <div class="mapping-base-info min-w-44 flex-1 flex flex-col gap-1">
         <label class="local-folder-name h-lh text-sm font-semibold text-(--text-primary) break-all line-clamp-1">
-          {{ getTaskDisplayName(props.syncTask) }}
+          {{ getMappingDisplayName(props.mapping) }}
         </label>
         <div class="local-folder-path h-[2lh] text-[0.625rem] leading-3 underline text-blue-500 break-all line-clamp-2 cursor-pointer">
-          {{ props.syncTask?.localBasePath }}
+          {{ props.mapping?.localBasePath }}
         </div>
       </div>
-      <dl class="task-extra-info min-w-64 flex-1 pl-4 flex flex-col text-[0.6rem] text-(--text-subtle)">
+      <dl class="mapping-extra-info min-w-64 flex-1 pl-4 flex flex-col text-[0.6rem] text-(--text-subtle)">
         <div class="extra-info-row">
           <dt class="extra-info-property">
             <span class="extra-info-icon icon-[lucide--link] " />
-            <span class="extra-info-label">{{ $t('syncTasksPanel.taskItem.mappedTo') }}:</span>
+            <span class="extra-info-label">{{ $t('mappingsPanel.mappingItem.mappedTo') }}:</span>
           </dt>
           <dd class="break-all line-clamp-2">
-            {{ props.syncTask?.rcloneRemote }}:{{ props.syncTask?.remoteBasePath }}
+            {{ props.mapping?.rcloneRemote }}:{{ props.mapping?.remoteBasePath }}
           </dd>
         </div>
         <div class="extra-info-row">
           <dt class="extra-info-property">
             <span class="icon-[lucide--folder-clock] extra-info-icon" />
-            <span class="extra-info-label">{{ $t('syncTasksPanel.taskItem.lastSync') }}:</span>
+            <span class="extra-info-label">{{ $t('mappingsPanel.mappingItem.lastSync') }}:</span>
           </dt>
           <dd class="flex flex-col">
             <p class="break-all line-clamp-1">
-              {{ props.syncTask?.lastSyncMode || '-' }} | {{ props.syncTask?.lastSyncDate || '-' }}
+              {{ props.mapping?.lastSyncMode || '-' }} | {{ props.mapping?.lastSyncDate || '-' }}
             </p>
             <p class="">
-              {{ props.syncTask?.lastSyncFolder || '-' }}
+              {{ props.mapping?.lastSyncFolder || '-' }}
             </p>
           </dd>
         </div>
       </dl>
-    <!-- <div class="task-extra-info flex-2 pl-8 grid grid-cols-[max-content_max-content_1fr] grid-rows-4 items-center text-[0.6rem] text-(--text-subtle) gap-x-1">
+    <!-- <div class="mapping-extra-info flex-2 pl-8 grid grid-cols-[max-content_max-content_1fr] grid-rows-4 items-center text-[0.6rem] text-(--text-subtle) gap-x-1">
       <span class="row-start-1 col-start-1 icon-[lucide--link] w-3 h-3" />
       <span class="row-start-1 col-start-2 font-bold">Mapped to:</span>
-      <label class="row-start-1 row-end-3 col-start-3 remote-folder-path break-all line-clamp-2">{{ props.syncTask?.remoteBasePath }}ProjectsSyncedProjectsSyncedProjectsSyncedProjectsSynced</label>
+      <label class="row-start-1 row-end-3 col-start-3 remote-folder-path break-all line-clamp-2">{{ props.mapping?.remoteBasePath }}ProjectsSyncedProjectsSyncedProjectsSyncedProjectsSynced</label>
 
       <span class="row-start-3 col-start-1 icon-[lucide--folder-clock] w-3 h-3" />
       <span class="row-start-3 col-start-2 font-bold">Last Sync:</span>
@@ -89,7 +89,7 @@ function getTaskDisplayName(syncTask) {
 .extra-info-label{
     @apply font-bold text-nowrap shrink-0;
 }
-.task-item-selected{
+.mapping-item-selected{
     @apply bg-(--surface-soft);
 }
 </style>

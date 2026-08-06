@@ -5,13 +5,13 @@ import zhCN from '#frontend/i18n/locales/zh-CN/index.js'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 import {
+  MAPPING_OPERATION,
+  MAPPING_OPERATION_PROGRESS_STEPS,
+} from '#src/app/contracts/mapping.js'
+import {
   SERVER_OPERATION,
   SERVER_OPERATION_PROGRESS_STEPS,
 } from '#src/app/contracts/server.js'
-import {
-  SYNC_TASK_OPERATION,
-  SYNC_TASK_OPERATION_PROGRESS_STEPS,
-} from '#src/app/contracts/task.js'
 import { createI18n } from 'vue-i18n'
 
 function collectLeafPaths(value, basePath = '') {
@@ -29,11 +29,11 @@ function createTranslator(locale, messages) {
 
 const operations = [
   ...Object.values(SERVER_OPERATION),
-  ...Object.values(SYNC_TASK_OPERATION),
+  ...Object.values(MAPPING_OPERATION),
 ]
 const operationProgressSteps = {
   ...SERVER_OPERATION_PROGRESS_STEPS,
-  ...SYNC_TASK_OPERATION_PROGRESS_STEPS,
+  ...MAPPING_OPERATION_PROGRESS_STEPS,
 }
 
 test('English and Chinese locale keys match', () => {

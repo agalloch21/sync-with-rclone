@@ -19,14 +19,14 @@ contextBridge.exposeInMainWorld('formModal', {
   updateServer(payload) {
     return ipcRenderer.invoke('form-modal:update-server', payload)
   },
-  createSyncTask(payload) {
-    return ipcRenderer.invoke('form-modal:create-sync-task', payload)
+  createMapping(payload) {
+    return ipcRenderer.invoke('form-modal:create-mapping', payload)
   },
-  updateSyncTask(payload) {
-    return ipcRenderer.invoke('form-modal:update-sync-task', payload)
+  updateMapping(payload) {
+    return ipcRenderer.invoke('form-modal:update-mapping', payload)
   },
-  updateSyncTaskIgnorePatterns(payload) {
-    return ipcRenderer.invoke('form-modal:update-sync-task-ignore-patterns', payload)
+  updateMappingIgnorePatterns(payload) {
+    return ipcRenderer.invoke('form-modal:update-mapping-ignore-patterns', payload)
   },
   selectLocalFolder(payload = {}) {
     return ipcRenderer.invoke('form-modal:select-local-folder', payload)

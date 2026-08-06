@@ -16,8 +16,8 @@ contextBridge.exposeInMainWorld('mainWindow', {
   deleteServer(payload) {
     return ipcRenderer.invoke('main-window:delete-server', payload)
   },
-  deleteSyncTask(payload) {
-    return ipcRenderer.invoke('main-window:delete-sync-task', payload)
+  deleteMapping(payload) {
+    return ipcRenderer.invoke('main-window:delete-mapping', payload)
   },
   updateGlobalIgnorePatterns(payload) {
     return ipcRenderer.invoke('main-window:update-global-ignore-patterns', payload)

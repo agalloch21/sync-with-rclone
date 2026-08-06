@@ -4,25 +4,25 @@ import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
 import {
-  SYNC_TASK_DELETE_PROGRESS_STEP,
-  SYNC_TASK_SAVE_PROGRESS_STEP,
-} from '#src/app/contracts/task.js'
+  MAPPING_DELETE_PROGRESS_STEP,
+  MAPPING_SAVE_PROGRESS_STEP,
+} from '#src/app/contracts/mapping.js'
 import {
-  createSyncTask,
-  deleteTaskFromConfig,
-  updateSyncTask,
-  updateSyncTaskIgnorePatterns,
-} from '#src/app/operations/task.js'
+  createMapping,
+  deleteMapping,
+  updateMapping,
+  updateMappingIgnorePatterns,
+} from '#src/app/operations/mapping.js'
 import {
   INFRASTRUCTURE_ERROR_CODE,
   InfrastructureError,
 } from '#src/infrastructure/infrastructure-error.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
-test('createSyncTask reports an invalid local directory and preserves its native cause', async () => {
+test('createMapping reports an invalid local directory and preserves its native cause', async () => {
   const missingPath = path.resolve('test/fixtures/path-does-not-exist')
 
-  await assert.rejects(() => createSyncTask({
+  await assert.rejects(() => createMapping({
     rcloneRemote: 'synology',
     localBasePath: missingPath,
     remoteBasePath: 'Projects',
@@ -39,11 +39,11 @@ test('createSyncTask reports an invalid local directory and preserves its native
   })
 })
 
-test('deleteTaskFromConfig removes the selected task and preserves global ignore patterns', async () => {
+test('deleteMapping removes the selected mapping and preserves global ignore patterns', async () => {
   await withFakeAppRuntime({
     appConfig: {
       globalIgnorePatterns: ['.DS_Store'],
-      syncTasks: [
+      mappings: [
         {
           displayName: 'A',
           rcloneRemote: 'synology',
@@ -62,25 +62,25 @@ test('deleteTaskFromConfig removes the selected task and preserves global ignore
     },
   }, async ({ configPath }) => {
     const progress = []
-    const deletedTask = await deleteTaskFromConfig({
+    const deletedMapping = await deleteMapping({
       rcloneRemote: 'synology',
       localBasePath: path.resolve('/local/a'),
     }, step => progress.push(step))
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
-    assert.equal(deletedTask.displayName, 'A')
-    assert.equal(deletedTask.localBasePath, path.resolve('/local/a'))
+    assert.equal(deletedMapping.displayName, 'A')
+    assert.equal(deletedMapping.localBasePath, path.resolve('/local/a'))
     assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
-    assert.deepEqual(saved.syncTasks.map(task => task.displayName), ['B'])
-    assert.deepEqual(saved.syncTasks[0].ignorePatterns, ['node_modules/'])
-    assert.deepEqual(progress, [SYNC_TASK_DELETE_PROGRESS_STEP.DELETE])
+    assert.deepEqual(saved.mappings.map(mapping => mapping.displayName), ['B'])
+    assert.deepEqual(saved.mappings[0].ignorePatterns, ['node_modules/'])
+    assert.deepEqual(progress, [MAPPING_DELETE_PROGRESS_STEP.DELETE])
   })
 })
 
-test('deleteTaskFromConfig returns an error when the task does not exist', async () => {
+test('deleteMapping returns an error when the mapping does not exist', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      syncTasks: [{
+      mappings: [{
         displayName: 'A',
         rcloneRemote: 'synology',
         localBasePath: '/local/a',
@@ -90,24 +90,24 @@ test('deleteTaskFromConfig returns an error when the task does not exist', async
     },
   }, async () => {
     await assert.rejects(
-      () => deleteTaskFromConfig({
+      () => deleteMapping({
         rcloneRemote: 'synology',
         localBasePath: path.resolve('/local/missing'),
       }),
-      error => error?.code === 'sync_task.not_found',
+      error => error?.code === 'mapping.not_found',
     )
   })
 })
 
-test('createSyncTask saves a normalized mapping with default metadata', async () => {
+test('createMapping saves a normalized mapping with default metadata', async () => {
   await withFakeAppRuntime({
-    appConfig: { globalIgnorePatterns: ['.DS_Store'], syncTasks: [] },
+    appConfig: { globalIgnorePatterns: ['.DS_Store'], mappings: [] },
   }, async ({ tempDir, configPath }) => {
     const localPath = path.join(tempDir, 'local')
     await fs.mkdir(localPath)
 
     const progress = []
-    const result = await createSyncTask({
+    const result = await createMapping({
       rcloneRemote: ' synology ',
       localBasePath: localPath,
       remoteBasePath: 'Projects\\Current/',
@@ -120,14 +120,14 @@ test('createSyncTask saves a normalized mapping with default metadata', async ()
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
     assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
-    assert.equal(saved.syncTasks[0].localBasePath, await fs.realpath(localPath))
-    assert.deepEqual(progress, [SYNC_TASK_SAVE_PROGRESS_STEP.SAVE])
+    assert.equal(saved.mappings[0].localBasePath, await fs.realpath(localPath))
+    assert.deepEqual(progress, [MAPPING_SAVE_PROGRESS_STEP.SAVE])
   })
 })
 
-test('createSyncTask stores the real directory behind a linked mapping root', async (t) => {
+test('createMapping stores the real directory behind a linked mapping root', async (t) => {
   await withFakeAppRuntime({
-    appConfig: { globalIgnorePatterns: [], syncTasks: [] },
+    appConfig: { globalIgnorePatterns: [], mappings: [] },
   }, async ({ tempDir }) => {
     const realPath = path.join(tempDir, 'real-local')
     const linkPath = path.join(tempDir, 'linked-local')
@@ -143,7 +143,7 @@ test('createSyncTask stores the real directory behind a linked mapping root', as
       throw error
     }
 
-    const result = await createSyncTask({
+    const result = await createMapping({
       rcloneRemote: 'synology',
       localBasePath: linkPath,
       remoteBasePath: 'Projects',
@@ -153,11 +153,11 @@ test('createSyncTask stores the real directory behind a linked mapping root', as
   })
 })
 
-test('updateSyncTask changes the mapping and preserves task metadata', async () => {
+test('updateMapping changes the mapping and preserves mapping metadata', async () => {
   await withFakeAppRuntime({
     appConfig: {
       globalIgnorePatterns: [],
-      syncTasks: [{
+      mappings: [{
         displayName: 'Project',
         rcloneRemote: 'synology',
         localBasePath: '/local/current',
@@ -172,7 +172,7 @@ test('updateSyncTask changes the mapping and preserves task metadata', async () 
     const nextPath = path.join(tempDir, 'next')
     await fs.mkdir(nextPath)
 
-    const result = await updateSyncTask({
+    const result = await updateMapping({
       rcloneRemote: 'synology',
       localBasePath: path.resolve('/local/current'),
     }, {
@@ -189,12 +189,12 @@ test('updateSyncTask changes the mapping and preserves task metadata', async () 
   })
 })
 
-test('updateSyncTaskIgnorePatterns changes patterns and preserves global patterns and task metadata', async () => {
+test('updateMappingIgnorePatterns changes patterns and preserves global patterns and mapping metadata', async () => {
   const localPath = process.cwd()
   await withFakeAppRuntime({
     appConfig: {
       globalIgnorePatterns: ['.DS_Store'],
-      syncTasks: [{
+      mappings: [{
         displayName: 'Project',
         rcloneRemote: 'synology',
         localBasePath: localPath,
@@ -206,7 +206,7 @@ test('updateSyncTaskIgnorePatterns changes patterns and preserves global pattern
       }],
     },
   }, async ({ configPath }) => {
-    const result = await updateSyncTaskIgnorePatterns({
+    const result = await updateMappingIgnorePatterns({
       rcloneRemote: 'synology',
       localBasePath: localPath,
     }, ['node_modules/', '*.tmp', '*.tmp'])
@@ -217,16 +217,16 @@ test('updateSyncTaskIgnorePatterns changes patterns and preserves global pattern
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
     assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
-    assert.deepEqual(saved.syncTasks[0].ignorePatterns, ['node_modules/', '*.tmp', '*.tmp'])
-    assert.equal(saved.syncTasks[0].lastSyncFolder, 'src')
-    assert.equal(saved.syncTasks[0].lastSyncDate, '2026-07-20')
+    assert.deepEqual(saved.mappings[0].ignorePatterns, ['node_modules/', '*.tmp', '*.tmp'])
+    assert.equal(saved.mappings[0].lastSyncFolder, 'src')
+    assert.equal(saved.mappings[0].lastSyncDate, '2026-07-20')
   })
 })
 
-test('updateSyncTaskIgnorePatterns rejects non-string entries', async () => {
+test('updateMappingIgnorePatterns rejects non-string entries', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      syncTasks: [{
+      mappings: [{
         rcloneRemote: 'synology',
         localBasePath: '/local/current',
         remoteBasePath: 'Current',
@@ -234,31 +234,31 @@ test('updateSyncTaskIgnorePatterns rejects non-string entries', async () => {
       }],
     },
   }, async () => {
-    await assert.rejects(() => updateSyncTaskIgnorePatterns({
+    await assert.rejects(() => updateMappingIgnorePatterns({
       rcloneRemote: 'synology',
       localBasePath: path.resolve('/local/current'),
     }, ['valid', 42]), error => error?.code === 'ipc.invalid_payload')
   })
 })
 
-test('updateSyncTask rejects a conflicting server and local folder pair', async () => {
+test('updateMapping rejects a conflicting server and local folder pair', async () => {
   const localA = process.cwd()
   const localB = path.dirname(localA)
   await withFakeAppRuntime({
     appConfig: {
-      syncTasks: [
+      mappings: [
         { rcloneRemote: 'synology', localBasePath: localA, remoteBasePath: 'A' },
         { rcloneRemote: 'synology', localBasePath: localB, remoteBasePath: 'B' },
       ],
     },
   }, async () => {
-    await assert.rejects(() => updateSyncTask({
+    await assert.rejects(() => updateMapping({
       rcloneRemote: 'synology',
       localBasePath: localA,
     }, {
       rcloneRemote: 'synology',
       localBasePath: localB,
       remoteBasePath: 'Other',
-    }), error => error?.code === 'sync_task.already_exists')
+    }), error => error?.code === 'mapping.already_exists')
   })
 })

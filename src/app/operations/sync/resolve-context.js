@@ -2,7 +2,7 @@ import { normalizeRemoteFolderPath } from '#src/infrastructure/rclone/remote-pat
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import { APP_ERROR_CODE, throwAppError } from '../../app-errors.js'
 import { loadConfiguration } from '../../services/app-config.js'
-import { resolveSyncLocalFolderPath, resolveSyncTask } from './resolve-task.js'
+import { resolveMapping, resolveSyncLocalFolderPath } from './resolve-mapping.js'
 
 export async function resolveSyncContext(options, runtimePaths = getRuntimePaths()) {
   const { bypassConfig = false } = options
@@ -14,12 +14,12 @@ export async function resolveSyncContext(options, runtimePaths = getRuntimePaths
   }
 
   const config = bypassConfig ? null : await loadConfiguration(runtimePaths.configPath)
-  const resolvedTask = bypassConfig
+  const resolvedMapping = bypassConfig
     ? null
-    : resolveSyncTask(config, options.localFolderPath, options.remoteFolderPath)
+    : resolveMapping(config, options.localFolderPath, options.remoteFolderPath)
 
   let explicitRemoteFolderPath = ''
-  if (!resolvedTask) {
+  if (!resolvedMapping) {
     try {
       explicitRemoteFolderPath = normalizeRemoteFolderPath(options.remoteFolderPath)
     }
@@ -34,15 +34,15 @@ export async function resolveSyncContext(options, runtimePaths = getRuntimePaths
   return {
     context: {
       mode: options.mode,
-      localFolderPath: resolvedTask
-        ? resolvedTask.localFolderPath
+      localFolderPath: resolvedMapping
+        ? resolvedMapping.localFolderPath
         : resolveSyncLocalFolderPath(options.localFolderPath),
-      remoteFolderPath: resolvedTask
-        ? resolvedTask.remoteFolderPath
+      remoteFolderPath: resolvedMapping
+        ? resolvedMapping.remoteFolderPath
         : explicitRemoteFolderPath,
-      extraIgnorePatterns: resolvedTask ? resolvedTask.extraIgnorePatterns : [],
+      extraIgnorePatterns: resolvedMapping ? resolvedMapping.extraIgnorePatterns : [],
     },
-    resolvedTask,
+    resolvedMapping,
     runtimePaths,
   }
 }

@@ -11,15 +11,15 @@ const formModal = {
       changeFolder: 'Select Folder',
     },
     [FORM_MODAL_VIEW.CHOOSE_SERVER]: {
-      title: 'Create Task',
+      title: 'Create Mapping',
       message: 'Choose a remote server',
     },
     [FORM_MODAL_VIEW.CREATE_SERVER]: {
-      title: 'Create Task',
+      title: 'Create Mapping',
       message: 'Connect to a new server',
     },
     [FORM_MODAL_VIEW.CREATE_FOLDER_MAPPING]: {
-      title: 'Create Task',
+      title: 'Create Mapping',
       message: 'Map the local folder with the remote',
     },
     [FORM_MODAL_VIEW.EDIT_SERVER]: {
@@ -32,9 +32,9 @@ const formModal = {
     },
     [FORM_MODAL_VIEW.EDIT_PATTERNS]: {
       title: 'Edit Patterns',
-      message: 'Set extra ignore patterns for sync task',
-      taskSpecificPatterns: {
-        title: 'Task-specific Ignore Patterns',
+      message: 'Set extra ignore patterns for mapping',
+      mappingSpecificPatterns: {
+        title: 'Mapping-specific Ignore Patterns',
         description: 'These patterns will work in conjunction with .ignore file to filter files when syncing.',
       },
       globalPatterns: {

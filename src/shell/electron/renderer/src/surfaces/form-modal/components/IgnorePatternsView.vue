@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
-import { formatIgnorePatterns, parseIgnorePatterns, useTaskOperations } from '#frontend/composables/useTaskOperations.js'
+import { formatIgnorePatterns, parseIgnorePatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
 import { ref } from 'vue'
 import Button from '../../shared/Button.vue'
 import ModalLayout from './ModalLayout.vue'
@@ -13,9 +13,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['onClickCancel', 'onClickConfirm'])
-const taskOperations = useTaskOperations(window.formModal)
+const mappingOperations = useMappingOperations(window.formModal)
 
-const taskPatternsText = ref(formatIgnorePatterns(props.context?.selectedSyncTask?.ignorePatterns))
+const mappingPatternsText = ref(formatIgnorePatterns(props.context?.selectedMapping?.ignorePatterns))
 const globalPatternsText = formatIgnorePatterns(props.context?.globalIgnorePatterns)
 const isSubmitting = ref(false)
 
@@ -23,12 +23,12 @@ async function submitPatterns() {
   if (isSubmitting.value)
     return
 
-  const selectedSyncTask = props.context?.selectedSyncTask
-  const ignorePatterns = parseIgnorePatterns(taskPatternsText.value)
+  const selectedMapping = props.context?.selectedMapping
+  const ignorePatterns = parseIgnorePatterns(mappingPatternsText.value)
 
   isSubmitting.value = true
   try {
-    const result = await taskOperations.updateSyncTaskIgnorePatterns(selectedSyncTask, ignorePatterns)
+    const result = await mappingOperations.updateMappingIgnorePatterns(selectedMapping, ignorePatterns)
     if (result?.success)
       emit('onClickConfirm')
   }
@@ -41,18 +41,18 @@ async function submitPatterns() {
 <template>
   <ModalLayout :view="FORM_MODAL_VIEW.EDIT_PATTERNS">
     <div class="content-stage h-full w-full px-10 py-4 grid grid-rows-[max-content_1fr_max-content] grid-cols-[2fr_1fr] gap-x-8 gap-y-2 content-stretch">
-      <label for="task-ignore-patterns" class="col-start-1 title text-(--text-primary)">
-        {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.taskSpecificPatterns.title`) }}
+      <label for="mapping-ignore-patterns" class="col-start-1 title text-(--text-primary)">
+        {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.mappingSpecificPatterns.title`) }}
       </label>
       <textarea
-        id="task-ignore-patterns"
-        v-model="taskPatternsText"
+        id="mapping-ignore-patterns"
+        v-model="mappingPatternsText"
         class="pattern-area enabled-area "
         placeholder="Type patterns here..."
         autofocus
       />
       <p class="description text-(--text-subtle)">
-        {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.taskSpecificPatterns.description`) }}
+        {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.mappingSpecificPatterns.description`) }}
       </p>
       <label for="global-ignore-patterns" class="col-start-2 title text-gray-400">
         {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.globalPatterns.title`) }}

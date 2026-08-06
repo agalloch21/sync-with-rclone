@@ -117,7 +117,7 @@ async function ensureMacAppSupport(version) {
     path.join(CONFIG_DIRECTORY, 'config.json'),
     `${JSON.stringify({
       globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
-      syncTasks: [],
+      mappings: [],
     }, null, 2)}\n`,
   )
 

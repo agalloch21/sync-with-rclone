@@ -2,16 +2,16 @@
 import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
+import { useMappingOperations } from '../../../composables/useMappingOperations.js'
 import { useMessageBox } from '../../../composables/useMessageBox.js'
 import { useServerOperations } from '../../../composables/useServerOperations.js'
-import { useTaskOperations } from '../../../composables/useTaskOperations.js'
 import { MAIN_WINDOW_ACTION } from './ActionBar.presentation.js'
 import ActionBar from './ActionBar.vue'
+import MappingItem from './MappingItem.vue'
 import ServerItem from './ServerItem.vue'
-import TaskItem from './TaskItem.vue'
 
 const FORM_VIEW_BY_ACTION = Object.freeze({
-  [MAIN_WINDOW_ACTION.CREATE_TASK]: FORM_MODAL_VIEW.CHOOSE_SERVER,
+  [MAIN_WINDOW_ACTION.CREATE_MAPPING]: FORM_MODAL_VIEW.CHOOSE_SERVER,
   [MAIN_WINDOW_ACTION.EDIT_SERVER]: FORM_MODAL_VIEW.EDIT_SERVER,
   [MAIN_WINDOW_ACTION.EDIT_FOLDER_MAPPING]: FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING,
   [MAIN_WINDOW_ACTION.EDIT_PATTERNS]: FORM_MODAL_VIEW.EDIT_PATTERNS,
@@ -19,23 +19,23 @@ const FORM_VIEW_BY_ACTION = Object.freeze({
 
 const messageBox = useMessageBox(window?.mainWindow)
 const serverOperations = useServerOperations(window?.mainWindow)
-const taskOperations = useTaskOperations(window?.mainWindow)
+const mappingOperations = useMappingOperations(window?.mainWindow)
 
 const servers = ref([])
-const syncTasks = ref([])
+const mappings = ref([])
 const globalIgnorePatterns = ref([])
-const tasksByServerName = computed(() => {
-  const groupedTasks = new Map()
-  for (const syncTask of syncTasks.value) {
-    const serverTasks = groupedTasks.get(syncTask.rcloneRemote) || []
-    serverTasks.push(syncTask)
-    groupedTasks.set(syncTask.rcloneRemote, serverTasks)
+const mappingsByServerName = computed(() => {
+  const groupedMappings = new Map()
+  for (const mapping of mappings.value) {
+    const serverMappings = groupedMappings.get(mapping.rcloneRemote) || []
+    serverMappings.push(mapping)
+    groupedMappings.set(mapping.rcloneRemote, serverMappings)
   }
-  return groupedTasks
+  return groupedMappings
 })
 
 const selectedServer = shallowRef(null)
-const selectedSyncTask = shallowRef(null)
+const selectedMapping = shallowRef(null)
 
 let unsubscribeConfigUpdated = null
 
@@ -55,47 +55,47 @@ onUnmounted(() => {
 function applyMainWindowData(result) {
   if (!result?.success) {
     servers.value = []
-    syncTasks.value = []
+    mappings.value = []
     globalIgnorePatterns.value = []
-    showSyncTasksPanelLoadError(result?.error)
+    showMappingsPanelLoadError(result?.error)
     return
   }
 
   const payload = unwrapResult(result)
   servers.value = payload?.servers || []
-  syncTasks.value = payload?.syncTasks || []
+  mappings.value = payload?.mappings || []
   globalIgnorePatterns.value = payload?.globalIgnorePatterns || []
 
-  updateSyncTasksPanelSelection()
+  updateMappingsPanelSelection()
 }
 
-function getSyncTasksByServer(serverName) {
-  return tasksByServerName.value.get(serverName) || []
+function getMappingsByServer(serverName) {
+  return mappingsByServerName.value.get(serverName) || []
 }
 
-function updateSyncTasksPanelSelection() {
-  const previousSyncTask = selectedSyncTask.value
+function updateMappingsPanelSelection() {
+  const previousMapping = selectedMapping.value
   const previousServer = selectedServer.value
   const nextServer = servers.value.find(server => server.name === previousServer?.name) || servers.value?.[0] || null
-  const nextSyncTask = previousSyncTask && nextServer
-    ? getSyncTasksByServer(nextServer.name).find(syncTask => syncTask.localBasePath === previousSyncTask.localBasePath)
+  const nextMapping = previousMapping && nextServer
+    ? getMappingsByServer(nextServer.name).find(mapping => mapping.localBasePath === previousMapping.localBasePath)
     : null
 
   selectedServer.value = nextServer
-  selectedSyncTask.value = nextSyncTask || null
+  selectedMapping.value = nextMapping || null
 }
 
-function showSyncTasksPanelLoadError(error) {
+function showMappingsPanelLoadError(error) {
   messageBox.error(error)
 }
 
 function onSelectServer(server) {
   selectedServer.value = server
-  selectedSyncTask.value = null
+  selectedMapping.value = null
 }
-function onSelectTask(server, syncTask) {
+function onSelectMapping(server, mapping) {
   selectedServer.value = server
-  selectedSyncTask.value = syncTask
+  selectedMapping.value = mapping
 }
 
 function createSerializableServer(server) {
@@ -106,9 +106,9 @@ function createSerializableServer(server) {
   return structuredClone(rawServer)
 }
 
-function createSerializableSyncTask(syncTask) {
-  const rawSyncTask = toRaw(syncTask)
-  return rawSyncTask ? structuredClone(rawSyncTask) : null
+function createSerializableMapping(mapping) {
+  const rawMapping = toRaw(mapping)
+  return rawMapping ? structuredClone(rawMapping) : null
 }
 
 async function handleAction(action) {
@@ -117,8 +117,8 @@ async function handleAction(action) {
     return
   }
 
-  if (action === MAIN_WINDOW_ACTION.DELETE_TASK) {
-    await taskOperations.deleteSyncTask(selectedSyncTask.value)
+  if (action === MAIN_WINDOW_ACTION.DELETE_MAPPING) {
+    await mappingOperations.deleteMapping(selectedMapping.value)
     return
   }
 
@@ -128,31 +128,31 @@ async function handleAction(action) {
 
   window.mainWindow?.openFormModal?.(view, {
     selectedServer: createSerializableServer(selectedServer.value),
-    selectedSyncTask: createSerializableSyncTask(selectedSyncTask.value),
+    selectedMapping: createSerializableMapping(selectedMapping.value),
     globalIgnorePatterns: structuredClone(toRaw(globalIgnorePatterns.value)),
   })
 }
 </script>
 
 <template>
-  <div class="task-panel-stage h-full flex flex-col gap-5">
+  <div class="mapping-panel-stage h-full flex flex-col gap-5">
     <div class="action-dock">
       <ActionBar
         :is-server-selected="selectedServer !== null && selectedServer.status !== 'missing'"
-        :is-task-selected="selectedSyncTask !== null"
+        :is-mapping-selected="selectedMapping !== null"
         @request-action="handleAction"
       />
     </div>
-    <div class="task-list-dock min-h-0 flex-1 border-t border-(--surface-soft)">
-      <div class="task-list-stage h-full overflow-x-auto overflow-y-auto scrollbar-gutter-stable divide-y divide-(--surface-soft)">
+    <div class="mapping-list-dock min-h-0 flex-1 border-t border-(--surface-soft)">
+      <div class="mapping-list-stage h-full overflow-x-auto overflow-y-auto scrollbar-gutter-stable divide-y divide-(--surface-soft)">
         <ServerItem
-          v-for="server in servers" :key="server.name" :server="server" :selected="server === selectedServer && selectedSyncTask === null"
-          :has-tasks="getSyncTasksByServer(server.name).length > 0"
+          v-for="server in servers" :key="server.name" :server="server" :selected="server === selectedServer && selectedMapping === null"
+          :has-mappings="getMappingsByServer(server.name).length > 0"
           @click.prevent="onSelectServer(server)"
         >
-          <TaskItem
-            v-for="syncTask in getSyncTasksByServer(server.name)" :key="syncTask.localBasePath" :sync-task="syncTask" :selected="server === selectedServer && syncTask === selectedSyncTask"
-            @click.stop="onSelectTask(server, syncTask)"
+          <MappingItem
+            v-for="mapping in getMappingsByServer(server.name)" :key="mapping.localBasePath" :mapping="mapping" :selected="server === selectedServer && mapping === selectedMapping"
+            @click.stop="onSelectMapping(server, mapping)"
           />
         </ServerItem>
       </div>

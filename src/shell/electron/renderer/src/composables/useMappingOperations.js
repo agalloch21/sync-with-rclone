@@ -24,7 +24,7 @@ export function parseIgnorePatterns(value) {
     .filter(Boolean)
 }
 
-export function useTaskOperations(windowPreload) {
+export function useMappingOperations(windowPreload) {
   const messageBox = useMessageBox(windowPreload)
 
   function toPlainObject(value) {
@@ -48,21 +48,21 @@ export function useTaskOperations(windowPreload) {
     if (typeof serverName === 'string' && serverName.trim().length > 0)
       return true
 
-    await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_SERVER_REQUIRED)
+    await messageBox.warning(APP_MESSAGE_CODE.MAPPING_SERVER_REQUIRED)
     return false
   }
 
-  async function validateTaskMapping(task) {
-    if (!await validateServerName(task?.rcloneRemote))
+  async function validateMapping(mapping) {
+    if (!await validateServerName(mapping?.rcloneRemote))
       return false
 
-    if (typeof task.localBasePath !== 'string' || task.localBasePath.trim().length === 0) {
-      await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_LOCAL_FOLDER_REQUIRED)
+    if (typeof mapping.localBasePath !== 'string' || mapping.localBasePath.trim().length === 0) {
+      await messageBox.warning(APP_MESSAGE_CODE.MAPPING_LOCAL_FOLDER_REQUIRED)
       return false
     }
 
-    if (typeof task.remoteBasePath !== 'string') {
-      await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_REMOTE_FOLDER_REQUIRED)
+    if (typeof mapping.remoteBasePath !== 'string') {
+      await messageBox.warning(APP_MESSAGE_CODE.MAPPING_REMOTE_FOLDER_REQUIRED)
       return false
     }
 
@@ -80,36 +80,36 @@ export function useTaskOperations(windowPreload) {
     return await invokeRequest(() => windowPreload?.selectRemoteFolder?.({ serverName, currentPath }))
   }
 
-  async function createSyncTask(task) {
-    if (!await validateTaskMapping(task))
+  async function createMapping(mapping) {
+    if (!await validateMapping(mapping))
       return toFailureResult()
 
-    return await invokeRequest(() => windowPreload?.createSyncTask?.({ task: toPlainObject(task) }))
+    return await invokeRequest(() => windowPreload?.createMapping?.({ mapping: toPlainObject(mapping) }))
   }
 
-  async function updateSyncTask(task, expectedTask) {
-    if (!task?.rcloneRemote || !task?.localBasePath) {
-      await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_REQUIRED)
+  async function updateMapping(mapping, expectedMapping) {
+    if (!mapping?.rcloneRemote || !mapping?.localBasePath) {
+      await messageBox.warning(APP_MESSAGE_CODE.MAPPING_REQUIRED)
       return toFailureResult()
     }
 
-    if (!await validateTaskMapping(expectedTask))
+    if (!await validateMapping(expectedMapping))
       return toFailureResult()
 
-    return await invokeRequest(() => windowPreload?.updateSyncTask?.({
-      task: toPlainObject(task),
-      expectedTask: toPlainObject(expectedTask),
+    return await invokeRequest(() => windowPreload?.updateMapping?.({
+      mapping: toPlainObject(mapping),
+      expectedMapping: toPlainObject(expectedMapping),
     }))
   }
 
-  async function updateSyncTaskIgnorePatterns(task, ignorePatterns) {
-    if (!task?.rcloneRemote || !task?.localBasePath) {
-      await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_REQUIRED)
+  async function updateMappingIgnorePatterns(mapping, ignorePatterns) {
+    if (!mapping?.rcloneRemote || !mapping?.localBasePath) {
+      await messageBox.warning(APP_MESSAGE_CODE.MAPPING_REQUIRED)
       return toFailureResult()
     }
 
-    return await invokeRequest(() => windowPreload?.updateSyncTaskIgnorePatterns?.({
-      task: toPlainObject(task),
+    return await invokeRequest(() => windowPreload?.updateMappingIgnorePatterns?.({
+      mapping: toPlainObject(mapping),
       ignorePatterns: structuredClone(toRaw(ignorePatterns)),
     }))
   }
@@ -120,17 +120,17 @@ export function useTaskOperations(windowPreload) {
     }))
   }
 
-  async function deleteSyncTask(task) {
-    if (!task?.rcloneRemote || !task?.localBasePath) {
-      await messageBox.warning(APP_MESSAGE_CODE.SYNC_TASK_REQUIRED)
+  async function deleteMapping(mapping) {
+    if (!mapping?.rcloneRemote || !mapping?.localBasePath) {
+      await messageBox.warning(APP_MESSAGE_CODE.MAPPING_REQUIRED)
       return toFailureResult()
     }
 
-    const taskLabel = task.displayName || task.localBasePath
+    const mappingLabel = mapping.displayName || mapping.localBasePath
     let confirmation
     try {
-      confirmation = await messageBox.confirm(APP_MESSAGE_CODE.SYNC_TASK_DELETE_CONFIRMATION, {
-        params: { taskLabel },
+      confirmation = await messageBox.confirm(APP_MESSAGE_CODE.MAPPING_DELETE_CONFIRMATION, {
+        params: { mappingLabel },
       })
     }
     catch (error) {
@@ -144,10 +144,10 @@ export function useTaskOperations(windowPreload) {
     if (!confirmation || confirmation.value !== OPERATION_REPORT_ACKNOWLEDGEMENT.CONFIRMED)
       return confirmation || toFailureResult()
 
-    return await invokeRequest(() => windowPreload?.deleteSyncTask?.({
-      task: toPlainObject({
-        rcloneRemote: task.rcloneRemote,
-        localBasePath: task.localBasePath,
+    return await invokeRequest(() => windowPreload?.deleteMapping?.({
+      mapping: toPlainObject({
+        rcloneRemote: mapping.rcloneRemote,
+        localBasePath: mapping.localBasePath,
       }),
     }))
   }
@@ -156,10 +156,10 @@ export function useTaskOperations(windowPreload) {
     validateServerName,
     selectLocalFolder,
     selectRemoteFolder,
-    createSyncTask,
-    updateSyncTask,
-    updateSyncTaskIgnorePatterns,
+    createMapping,
+    updateMapping,
+    updateMappingIgnorePatterns,
     updateGlobalIgnorePatterns,
-    deleteSyncTask,
+    deleteMapping,
   }
 }

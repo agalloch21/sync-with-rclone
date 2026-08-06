@@ -1,6 +1,6 @@
 <script setup>
 import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
-import { useTaskOperations } from '#frontend/composables/useTaskOperations.js'
+import { useMappingOperations } from '#frontend/composables/useMappingOperations.js'
 import Button from '#frontend/surfaces/shared/Button.vue'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { computed, ref } from 'vue'
@@ -19,28 +19,28 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['onClickCancel', 'onClickConfirm'])
-const taskOperations = useTaskOperations(window.formModal)
+const mappingOperations = useMappingOperations(window.formModal)
 
 const ACTION_MODE = {
   EDIT: 'edit',
   CREATE: 'create',
 }
 const mode = ref(props.view === FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING ? ACTION_MODE.EDIT : ACTION_MODE.CREATE)
-const initialSyncTask = mode.value === ACTION_MODE.EDIT ? props.context?.selectedSyncTask : null
+const initialMapping = mode.value === ACTION_MODE.EDIT ? props.context?.selectedMapping : null
 
-const localBasePath = ref(initialSyncTask?.localBasePath ?? '')
-const remoteBasePath = ref(initialSyncTask?.remoteBasePath ?? '')
+const localBasePath = ref(initialMapping?.localBasePath ?? '')
+const remoteBasePath = ref(initialMapping?.remoteBasePath ?? '')
 const isSelectingFolder = ref(false)
 const isSubmitting = ref(false)
 
-const selectedServerName = computed(() => props.context?.selectedServer?.name || props.context?.selectedSyncTask?.rcloneRemote || '')
+const selectedServerName = computed(() => props.context?.selectedServer?.name || props.context?.selectedMapping?.rcloneRemote || '')
 
 async function selectLocalFolder() {
   if (isSelectingFolder.value)
     return
 
   isSelectingFolder.value = true
-  const result = await taskOperations.selectLocalFolder(localBasePath.value)
+  const result = await mappingOperations.selectLocalFolder(localBasePath.value)
   if (result?.success) {
     const selectedPath = unwrapResult(result)
     if (typeof selectedPath === 'string')
@@ -54,7 +54,7 @@ async function selectRemoteFolder() {
     return
 
   isSelectingFolder.value = true
-  const result = await taskOperations.selectRemoteFolder(selectedServerName.value, remoteBasePath.value)
+  const result = await mappingOperations.selectRemoteFolder(selectedServerName.value, remoteBasePath.value)
   if (result?.success) {
     const selectedPath = unwrapResult(result)
     if (typeof selectedPath === 'string')
@@ -67,7 +67,7 @@ async function submitMapping() {
   if (isSubmitting.value)
     return
 
-  const expectedTask = {
+  const expectedMapping = {
     rcloneRemote: selectedServerName.value,
     localBasePath: localBasePath.value,
     remoteBasePath: remoteBasePath.value,
@@ -75,8 +75,8 @@ async function submitMapping() {
 
   isSubmitting.value = true
   const result = mode.value === ACTION_MODE.EDIT
-    ? await taskOperations.updateSyncTask(props.context?.selectedSyncTask, expectedTask)
-    : await taskOperations.createSyncTask(expectedTask)
+    ? await mappingOperations.updateMapping(props.context?.selectedMapping, expectedMapping)
+    : await mappingOperations.createMapping(expectedMapping)
   isSubmitting.value = false
 
   if (result?.success)

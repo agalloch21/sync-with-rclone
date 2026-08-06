@@ -44,7 +44,7 @@ function onClickConfirm() {
 onMounted(async () => {
   const state = await window.formModal?.getState?.() || { view: '', context: {} }
   view.value = state.view || ''
-  context.value = state.context || { selectedServer: null, selectedSyncTask: null }
+  context.value = state.context || { selectedServer: null, selectedMapping: null }
 
   await nextTick()
   await document.fonts.ready

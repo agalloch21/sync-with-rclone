@@ -4,9 +4,9 @@ export const APP_MESSAGE_CODE = Object.freeze({
   SERVER_PROTOCOL_FIELDS_INVALID: 'server.protocol_fields_invalid',
   SERVER_DELETE_CONFIRMATION: 'server.delete_confirmation',
 
-  SYNC_TASK_SERVER_REQUIRED: 'sync_task.server_required',
-  SYNC_TASK_LOCAL_FOLDER_REQUIRED: 'sync_task.local_folder_required',
-  SYNC_TASK_REMOTE_FOLDER_REQUIRED: 'sync_task.remote_folder_required',
-  SYNC_TASK_REQUIRED: 'sync_task.required',
-  SYNC_TASK_DELETE_CONFIRMATION: 'sync_task.delete_confirmation',
+  MAPPING_SERVER_REQUIRED: 'mapping.server_required',
+  MAPPING_LOCAL_FOLDER_REQUIRED: 'mapping.local_folder_required',
+  MAPPING_REMOTE_FOLDER_REQUIRED: 'mapping.remote_folder_required',
+  MAPPING_REQUIRED: 'mapping.required',
+  MAPPING_DELETE_CONFIRMATION: 'mapping.delete_confirmation',
 })

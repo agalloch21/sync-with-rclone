@@ -21,20 +21,20 @@ test('classifyLaunch detects CLI commands after the application entry', () => {
   const argv = [
     '/Applications/sync-with-rclone.app/Contents/MacOS/sync-with-rclone',
     '/Applications/sync-with-rclone.app/Contents/Resources/app.asar/src/shell/index.cjs',
-    'list-tasks',
+    'list-mappings',
     '--json',
   ]
 
   assert.deepEqual(classifyLaunch(argv), {
     type: 'cli',
-    argv: ['list-tasks', '--json'],
+    argv: ['list-mappings', '--json'],
   })
 })
 
 test('classifyLaunch detects packaged CLI commands without a main entry argument', () => {
   const argv = [
     '/Applications/sync-with-rclone.app/Contents/MacOS/sync-with-rclone',
-    'create-task',
+    'create-mapping',
     'synology',
     '/local/project',
     'Projects',
@@ -50,7 +50,7 @@ test('classifyLaunch requires a formal CLI command in the first application argu
   const argv = [
     '/Applications/sync-with-rclone.app/Contents/MacOS/sync-with-rclone',
     '--original-process-start-time=123456',
-    'list-tasks',
+    'list-mappings',
   ]
 
   assert.deepEqual(classifyLaunch(argv), {
@@ -79,7 +79,7 @@ test('classifyLaunch gives an explicit session flag priority over command-like a
     'sync',
     '--session',
     '--mode=push',
-    '--local=/local/list-tasks',
+    '--local=/local/list-mappings',
   ]
 
   assert.deepEqual(classifyLaunch(argv), {
@@ -91,6 +91,6 @@ test('classifyLaunch gives an explicit session flag priority over command-like a
 test('isDesktopLaunchRequest validates serialized single-instance requests', () => {
   assert.equal(isDesktopLaunchRequest({ type: 'main', argv: [] }), true)
   assert.equal(isDesktopLaunchRequest({ type: 'session', argv: ['--session'] }), true)
-  assert.equal(isDesktopLaunchRequest({ type: 'cli', argv: ['list-tasks'] }), false)
+  assert.equal(isDesktopLaunchRequest({ type: 'cli', argv: ['list-mappings'] }), false)
   assert.equal(isDesktopLaunchRequest({ type: 'main', argv: [1] }), false)
 })

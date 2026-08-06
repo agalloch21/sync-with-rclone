@@ -2,15 +2,15 @@
 import { ref } from 'vue'
 
 import LogPanel from './components/LogPanel.vue'
+import MappingsPanel from './components/MappingsPanel.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import SideBar from './components/Sidebar.vue'
-import SyncTasksPanel from './components/SyncTasksPanel.vue'
 
 const panels = [
   {
-    name: 'syncTasks',
-    component: SyncTasksPanel,
-    icon: 'icon-[custom--nav-tasks]',
+    name: 'mappings',
+    component: MappingsPanel,
+    icon: 'icon-[custom--nav-mappings]',
   },
   {
     name: 'logs',

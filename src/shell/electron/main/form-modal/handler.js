@@ -1,9 +1,9 @@
 import { createRequire } from 'node:module'
 import os from 'node:os'
-import { createServer, createSyncTask, getServer, listServers, updateServer, updateSyncTask, updateSyncTaskIgnorePatterns } from '#src/app/app-api.js'
+import { createMapping, createServer, getServer, listServers, updateMapping, updateMappingIgnorePatterns, updateServer } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
+import { MAPPING_OPERATION } from '#src/app/contracts/mapping.js'
 import { SERVER_OPERATION } from '#src/app/contracts/server.js'
-import { SYNC_TASK_OPERATION } from '#src/app/contracts/task.js'
 import { toSuccessfulResult } from '#src/app/operation-result.js'
 import { getActiveModalWindow } from '../app-state.js'
 import { openFolderDialog } from '../folder-dialog/window.js'
@@ -83,7 +83,7 @@ export function createFormModalHandlers() {
     )
   }
 
-  async function createSyncTaskHandler(_event, payload) {
+  async function createMappingHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
     }
@@ -92,12 +92,12 @@ export function createFormModalHandlers() {
     }
 
     return await runReportedOperation(
-      SYNC_TASK_OPERATION.CREATE,
-      onProgress => createSyncTask(payload.task, onProgress),
+      MAPPING_OPERATION.CREATE,
+      onProgress => createMapping(payload.mapping, onProgress),
     )
   }
 
-  async function updateSyncTaskHandler(_event, payload) {
+  async function updateMappingHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
     }
@@ -106,12 +106,12 @@ export function createFormModalHandlers() {
     }
 
     return await runReportedOperation(
-      SYNC_TASK_OPERATION.UPDATE,
-      onProgress => updateSyncTask(payload.task, payload.expectedTask, onProgress),
+      MAPPING_OPERATION.UPDATE,
+      onProgress => updateMapping(payload.mapping, payload.expectedMapping, onProgress),
     )
   }
 
-  async function updateSyncTaskIgnorePatternsHandler(_event, payload) {
+  async function updateMappingIgnorePatternsHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
     }
@@ -120,8 +120,8 @@ export function createFormModalHandlers() {
     }
 
     return await runReportedOperation(
-      SYNC_TASK_OPERATION.UPDATE_IGNORE_PATTERNS,
-      onProgress => updateSyncTaskIgnorePatterns(payload.task, payload.ignorePatterns, onProgress),
+      MAPPING_OPERATION.UPDATE_IGNORE_PATTERNS,
+      onProgress => updateMappingIgnorePatterns(payload.mapping, payload.ignorePatterns, onProgress),
     )
   }
 
@@ -155,9 +155,9 @@ export function createFormModalHandlers() {
     getServerHandler,
     createServerHandler,
     updateServerHandler,
-    createSyncTaskHandler,
-    updateSyncTaskHandler,
-    updateSyncTaskIgnorePatternsHandler,
+    createMappingHandler,
+    updateMappingHandler,
+    updateMappingIgnorePatternsHandler,
     selectLocalFolderHandler,
     selectRemoteFolderHandler,
 

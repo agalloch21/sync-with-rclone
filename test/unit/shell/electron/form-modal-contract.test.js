@@ -13,7 +13,7 @@ test('isValidFormModalView accepts supported form views only', () => {
   assert.equal(isValidFormModalView(FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING), true)
   assert.equal(isValidFormModalView(FORM_MODAL_VIEW.EDIT_PATTERNS), true)
   assert.equal(isValidFormModalView('confirmDeleteServer'), false)
-  assert.equal(isValidFormModalView('confirmDeleteTask'), false)
+  assert.equal(isValidFormModalView('confirmDeleteMapping'), false)
   assert.equal(isValidFormModalView('sync'), false)
   assert.equal(isValidFormModalView(''), false)
 })

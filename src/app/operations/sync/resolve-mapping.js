@@ -41,8 +41,8 @@ function getRelativePathIfWithin(candidatePath, rootPath) {
   return candidatePath.slice(rootPrefix.length)
 }
 
-function buildRemoteRoot(syncTask) {
-  return normalizeRemoteFolderPath(`${syncTask.rcloneRemote}:${normalizeRemoteBasePath(syncTask.remoteBasePath)}`)
+function buildRemoteRoot(mapping) {
+  return normalizeRemoteFolderPath(`${mapping.rcloneRemote}:${normalizeRemoteBasePath(mapping.remoteBasePath)}`)
 }
 
 function joinRemotePath(remoteRoot, relativePath) {
@@ -52,19 +52,19 @@ function joinRemotePath(remoteRoot, relativePath) {
   return normalizeRemoteFolderPath(`${remoteRoot}/${relativePath}`)
 }
 
-function getSyncTaskLabel(syncTask) {
-  return syncTask.displayName || syncTask.localBasePath
+function getMappingLabel(mapping) {
+  return mapping.displayName || mapping.localBasePath
 }
 
-export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPath = '') {
+export function resolveMapping(config, localFolderPath, explicitRemoteFolderPath = '') {
   if (!config)
     return null
 
   const resolvedLocalPath = resolveSyncLocalFolderPath(localFolderPath)
   const requestedLocalPath = resolveLogicalLocalPath(localFolderPath)
-  const candidates = config.syncTasks
-    .map((syncTask) => {
-      const requestedRoot = resolveLogicalLocalPath(syncTask.localBasePath)
+  const candidates = config.mappings
+    .map((mapping) => {
+      const requestedRoot = resolveLogicalLocalPath(mapping.localBasePath)
       let resolvedRoot = requestedRoot
       try {
         resolvedRoot = resolveSyncLocalFolderPath(requestedRoot)
@@ -75,7 +75,7 @@ export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPat
       const requestedRelativePath = getRelativePathIfWithin(requestedLocalPath, requestedRoot)
       const relativePath = resolvedRelativePath ?? requestedRelativePath
       const matchedRoot = resolvedRelativePath != null ? resolvedRoot : requestedRoot
-      return { syncTask, relativePath, matchedRoot }
+      return { mapping, relativePath, matchedRoot }
     })
     .filter(({ relativePath }) => relativePath != null)
     .sort((left, right) => {
@@ -88,19 +88,19 @@ export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPat
 
   const match = candidates[0]
   if (!match)
-    throwAppError(APP_ERROR_CODE.CONFIG_NO_MATCHING_SYNC_TASK, `No syncTask matches local path: ${resolvedLocalPath}`)
+    throwAppError(APP_ERROR_CODE.CONFIG_NO_MATCHING_MAPPING, `No mapping matches local path: ${resolvedLocalPath}`)
 
-  const { syncTask, relativePath } = match
+  const { mapping, relativePath } = match
   let remoteRoot
   try {
-    remoteRoot = buildRemoteRoot(syncTask)
+    remoteRoot = buildRemoteRoot(mapping)
   }
   catch (error) {
     throwAppError(APP_ERROR_CODE.REMOTE_FOLDER_PATH_INVALID, 'Invalid configured remote folder path.', {
       cause: error,
       meta: {
-        rcloneRemote: syncTask.rcloneRemote,
-        remoteBasePath: syncTask.remoteBasePath,
+        rcloneRemote: mapping.rcloneRemote,
+        remoteBasePath: mapping.remoteBasePath,
       },
     })
   }
@@ -121,19 +121,19 @@ export function resolveSyncTask(config, localFolderPath, explicitRemoteFolderPat
 
   if (normalizedExplicitRemotePath && !isRemoteFolderPathWithin(normalizedExplicitRemotePath, remoteRoot)) {
     throwAppError(
-      APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_TASK,
-      `Remote path must stay within syncTask '${getSyncTaskLabel(syncTask)}': ${normalizedExplicitRemotePath}`,
+      APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_MAPPING,
+      `Remote path must stay within mapping '${getMappingLabel(mapping)}': ${normalizedExplicitRemotePath}`,
     )
   }
 
   return {
-    matchedTask: syncTask,
+    matchedMapping: mapping,
     localFolderPath: resolvedLocalPath,
     relativePath,
     remoteFolderPath: normalizedExplicitRemotePath || defaultRemoteFolderPath,
     extraIgnorePatterns: [
       ...config.globalIgnorePatterns,
-      ...syncTask.ignorePatterns,
+      ...mapping.ignorePatterns,
     ],
   }
 }

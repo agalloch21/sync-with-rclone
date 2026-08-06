@@ -5,11 +5,11 @@ export const APP_ERROR_CODE = Object.freeze({
 
   CONFIG_LOAD_FAILED: 'config.load_failed',
   CONFIG_UPDATE_FAILED: 'config.update_failed',
-  CONFIG_NO_MATCHING_SYNC_TASK: 'config.no_matching_sync_task',
-  CONFIG_REMOTE_PATH_OUTSIDE_TASK: 'config.remote_path_outside_task',
+  CONFIG_NO_MATCHING_MAPPING: 'config.no_matching_mapping',
+  CONFIG_REMOTE_PATH_OUTSIDE_MAPPING: 'config.remote_path_outside_mapping',
 
-  SYNC_TASK_ALREADY_EXISTS: 'sync_task.already_exists',
-  SYNC_TASK_NOT_FOUND: 'sync_task.not_found',
+  MAPPING_ALREADY_EXISTS: 'mapping.already_exists',
+  MAPPING_NOT_FOUND: 'mapping.not_found',
   SYNC_SESSION_OVERLAP: 'sync_session.overlap',
   SYNC_EXECUTION_FAILED: 'sync.execution_failed',
 

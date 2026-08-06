@@ -38,7 +38,7 @@ sequenceDiagram
 - `shell/cli` 是当前保留的命令行壳层
 - `shell/index.cjs` 是统一产品入口，根据启动协议选择桌面、session 或 CLI 模式
 - `app/operations/sync/start.js` 拥有同步请求的 application lifecycle：history、context resolution、session events 和最终结果
-- `app/services` 为普通资源 operations 与 startSync 提供配置、路径、server/task 等 application capabilities
+- `app/services` 为普通资源 operations 与 startSync 提供配置、路径、server/mapping 等 application capabilities
 - `core` 是完整同步工作模块：拥有 Snapshot、Diff、SyncPlan 和已解析同步的执行流程
 - `infrastructure/filesystem` 负责读取本地文件系统并返回 neutral file entries
 - `infrastructure/rclone` 负责 rclone remote path 的解析与规范化、raw rclone config、远端 file entries 和 copy/delete/cleanup actions
@@ -52,7 +52,7 @@ src/           // 运行时代码
     contracts/ // shell 与 application 共用的 operation、sync 和 server-protocol contracts
     app-events.js // shell-neutral application notifications
     operations/ // user-intent operations 与生命周期；sync/ 包含同步 application flow
-    services/  // server/task/settings/configuration/path capabilities
+    services/  // server/mapping/settings/configuration/path capabilities
   core/        // 独立同步工作模块
     execute-sync.js // 已解析同步上下文的完整执行流
     contract.js // sync phases、review 和 execution result contracts
@@ -96,7 +96,7 @@ resources/     // bundled binaries、图标等静态资源
 
 ```text
 sync-with-rclone                 -> 启动桌面 UI
-sync-with-rclone list-tasks      -> 命令模式，列出同步任务
+sync-with-rclone list-mappings      -> 命令模式，列出映射
 sync-with-rclone list-servers    -> 命令模式，列出 servers
 sync-with-rclone sync push ...   -> 命令模式，执行同步
 ```
@@ -433,7 +433,7 @@ copy 之外的示例：
 说明：
 
 - `startSync` 是 app 层 synchronization use case
-- `startSync` 负责读取配置、解析同步任务、生成 `SyncSessionContext`
+- `startSync` 负责读取配置、解析映射、生成 `SyncSessionContext`
 - `startSync` 把 sync phase event 转换成 `SYNC_SESSION_EVENT.PROGRESS`
 - `startSync` 返回 `SyncSessionResult`
 - `startSync` 会 emit `SYNC_SESSION_EVENT.RESULT`（值为 `sync.session.result`）作为观察事件，但 Electron final 流程由返回值驱动
@@ -455,21 +455,21 @@ copy 之外的示例：
       }
     }
   ],
-  syncTasks: []
+  mappings: []
 }
 ```
 
 说明：
 
 - `MainWindowData` 是主窗口 renderer 的当前只读展示数据
-- `src/app/app-api.js` 通过 `getMainWindowData()` 组合 server 列表和 sync task 列表
+- `src/app/app-api.js` 通过 `getMainWindowData()` 组合 server 列表和 mapping 列表
 - server connection 由 `src/app/services/server.js` 从 raw rclone remote 转换而来，对外结构固定为 `{ name, type, address, status, config }`
-- sync task 通过 `src/app/services/task.js` 访问；JSON persistence 位于 `src/infrastructure/configuration/app-config-store.js`
-- 如果 task 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
+- mapping 通过 `src/app/services/mapping.js` 访问；JSON persistence 位于 `src/infrastructure/configuration/app-config-store.js`
+- 如果 mapping 引用了不存在的 server，`getMainWindowData()` 会补充 `status = "missing"` 的 server 占位对象，方便 UI 显示异常状态
 - `src/shell/electron/main/app-state.js` 只保存 Electron 窗口状态，不缓存业务数据
 - renderer 通过 preload bridge 调用 `main-window:get-data`
-- form modal view 名称和校验属于 Electron shared contract，位于 `src/shell/electron/contracts/form-modal.js`，供 Electron Main 和 renderer 共用；删除 server/task 是 main-window action，不属于 form view
-- server/task 修改成功后，app operation 通过 `src/app/app-events.js` 发布 config update；Electron Main 通过 `app-api.js` 注册监听，再发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
+- form modal view 名称和校验属于 Electron shared contract，位于 `src/shell/electron/contracts/form-modal.js`，供 Electron Main 和 renderer 共用；删除 server/mapping 是 main-window action，不属于 form view
+- server/mapping 修改成功后，app operation 通过 `src/app/app-events.js` 发布 config update；Electron Main 通过 `app-api.js` 注册监听，再发送 `main-window:config-updated` 通知主窗口 renderer 重新读取数据
 
 ### 4.8.1 `RcloneRemote` 与 `ServerConnection`
 
@@ -539,21 +539,21 @@ sequenceDiagram
 
 - `app-api.js` 暴露 create、update 和 delete 用户意图，并在成功后通过 `app-events.js` 发布更新
 - `operations/server.js` 负责 server resource 的 operation progress，以及 create → test → rollback、update 和 delete sequencing
-- `operations/task.js` 负责独立的 task resource operations，不承担 server rename 补偿
+- `operations/mapping.js` 负责独立的 mapping resource operations，不承担 server rename 补偿
 - `services/server.js` 负责 name/protocol validation、remote existence policy、remote/server 对象转换和 adapter error mapping
 - `remote-config.js` 负责 config dump/create/update/delete/test 命令和 raw `{ name, config }` 解析，不判断资源应该存在或不应存在
 - 已识别的 rclone 技术失败由 `remote-config.js` 包装为带 `INFRASTRUCTURE_ERROR_CODE` 的 `InfrastructureError`；`services/server.js` 按当前 server capability 抛出 `SERVER_*` AppError，并通过 cause 保留 infrastructure 和 native process error，不逐项翻译 lower-level code
 - `name` 是 server 与 remote 共享的资源标识；创建后在 application UI/API 中视为不可变标识，server update 只修改 protocol configuration
 - 协议字段校验由 `services/server.js` 调用 `contracts/server-protocols.js` 完成
-- application 不提供 server rename；外部手动修改 rclone config 中的名称后，引用旧名称的 sync tasks 会显示 missing server，必须由用户重新指定 server
+- application 不提供 server rename；外部手动修改 rclone config 中的名称后，引用旧名称的 mappings 会显示 missing server，必须由用户重新指定 server
 - `remote-files.js` 负责远端 raw folder entries、recursive file listing、folder ensure 和 copy/delete/cleanup actions，不与 remote configuration CRUD 混合；`server-folder-tree.js` 把 raw entries 组装为 application TreeNode
 - adapter command/parse 错误在 server service 边界转换为稳定的 `SERVER_*` error
 
 ### 4.8.3 App config store、services 与 operation policy
 
 - `infrastructure/configuration/app-config-store.js` 负责 default config、读取、schema normalization、序列化和原子写入；完整 load → mutate → save 临界区复用 `runtime/file-mutex.js`，因此同一 config path 的 GUI/CLI 写入会跨进程串行
-- `operations/task.js` 负责 task input/reference validation、path normalization 和 progress lifecycle
-- `services/task.js` 负责 task conflict、create/update/delete/retarget policy，并把完整 JSON transaction 隐藏在 service boundary 后
+- `operations/mapping.js` 负责 mapping input/reference validation、path normalization 和 progress lifecycle
+- `services/mapping.js` 负责 mapping conflict、create/update/delete/retarget policy，并把完整 JSON transaction 隐藏在 service boundary 后
 - `operations/settings.js` 负责 global ignore pattern input validation；`services/global-settings.js` 负责读取和更新 capability
 - `services/app-config.js` 为 sync context resolution 提供完整 configuration read capability
 - store 的 `updateAppConfig(mutator)` 只通过 `services/app-config.js` 暴露给 application services，不暴露给 operations、core 或 shells
@@ -582,7 +582,7 @@ sequenceDiagram
       status: "unknown",
       config: {}
     },
-    selectedSyncTask: {
+    selectedMapping: {
       displayName: "Projects",
       rcloneRemote: "synology",
       localBasePath: "/Users/me/Projects",
@@ -596,12 +596,12 @@ sequenceDiagram
 
 - 主窗口 renderer 只能把可 structured-clone 的纯数据传给 Electron Main
 - Vue reactive proxy、DOM 对象、函数和窗口对象不能作为 IPC payload
-- 主窗口 renderer 打开 modal 时传完整的 plain `server` 和 `syncTask` 对象
+- 主窗口 renderer 打开 modal 时传完整的 plain `server` 和 `mapping` 对象
 - server 对象使用 app-level 结构 `{ name, type, address, status, config }`
 - 任何主窗口 renderer 的 UI 组合字段都不传给 modal
 - Electron Main 不重新组装 modal context，只校验 form view 并创建窗口
 - Electron Main 的 server IPC handler 只校验 payload 是否为 plain object；字段语义错误交给 app/server/rclone operation 返回 `SERVER_*`
-- `context.selectedServer` 和 `context.selectedSyncTask` 是 Electron Main 传给 form modal 的纯数据
+- `context.selectedServer` 和 `context.selectedMapping` 是 Electron Main 传给 form modal 的纯数据
 - form modal 的初始状态不通过 `additionalArguments` 传入 renderer
 - Electron Main 保存 `modalState`，preload 暴露 `window.formModal.getState()`，renderer 启动后异步读取
 
@@ -783,7 +783,7 @@ src/shell/locales/
     errors.js
     domains/
       server.js
-      sync-task.js
+      mapping.js
 
 src/shell/electron/renderer/src/i18n/locales/<locale>/
   index.js

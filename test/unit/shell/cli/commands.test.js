@@ -45,10 +45,10 @@ test('runCli reports a missing server consistently in text and JSON modes', asyn
   })
 })
 
-test('runCli prints list-tasks through the app API', async () => {
+test('runCli prints list-mappings through the app API', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      syncTasks: [{
+      mappings: [{
         displayName: 'Project',
         rcloneRemote: 'synology',
         localBasePath: '/local/project',
@@ -58,7 +58,7 @@ test('runCli prints list-tasks through the app API', async () => {
     },
   }, async () => {
     const output = createOutput()
-    const exitCode = await runCli(['list-tasks'], output)
+    const exitCode = await runCli(['list-mappings'], output)
 
     assert.equal(exitCode, 0)
     assert.match(output.lines[0], /LOCAL/)
@@ -69,10 +69,10 @@ test('runCli prints list-tasks through the app API', async () => {
 
 test('runCli reports invalid adapter arguments without invoking an operation', async () => {
   const output = createOutput()
-  const exitCode = await runCli(['create-task', 'synology'], output)
+  const exitCode = await runCli(['create-mapping', 'synology'], output)
 
   assert.equal(exitCode, 1)
-  assert.match(output.errors[0], /Usage: create-task/)
+  assert.match(output.errors[0], /Usage: create-mapping/)
 })
 
 test('runCli reports a successful server connection query without operation progress', async () => {

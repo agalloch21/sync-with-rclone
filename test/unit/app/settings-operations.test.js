@@ -10,23 +10,23 @@ test('listGlobalIgnorePatterns reads global patterns through settings operations
   await withFakeAppRuntime({
     appConfig: {
       globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
-      syncTasks: [],
+      mappings: [],
     },
   }, async () => {
     assert.deepEqual(await listGlobalIgnorePatterns(), ['.DS_Store', 'Thumbs.db'])
   })
 })
 
-test('updateGlobalIgnorePatterns changes global patterns and preserves sync tasks', async () => {
+test('updateGlobalIgnorePatterns changes global patterns and preserves mappings', async () => {
   await withFakeAppRuntime({
     appConfig: {
       globalIgnorePatterns: ['old'],
-      syncTasks: [{
+      mappings: [{
         displayName: 'Project',
         rcloneRemote: 'synology',
         localBasePath: '/local/project',
         remoteBasePath: 'Project',
-        ignorePatterns: ['task-only'],
+        ignorePatterns: ['mapping-only'],
       }],
     },
   }, async ({ configPath }) => {
@@ -35,8 +35,8 @@ test('updateGlobalIgnorePatterns changes global patterns and preserves sync task
     assert.deepEqual(result, ['.DS_Store', '*.tmp', '*.tmp'])
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
     assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store', '*.tmp', '*.tmp'])
-    assert.equal(saved.syncTasks[0].displayName, 'Project')
-    assert.deepEqual(saved.syncTasks[0].ignorePatterns, ['task-only'])
+    assert.equal(saved.mappings[0].displayName, 'Project')
+    assert.deepEqual(saved.mappings[0].ignorePatterns, ['mapping-only'])
     assert.deepEqual(await fs.readdir(path.dirname(configPath)), ['config.json'])
   })
 })
@@ -45,7 +45,7 @@ test('configuration updates serialize concurrent read-modify-write sections', as
   await withFakeAppRuntime({
     appConfig: {
       globalIgnorePatterns: [],
-      syncTasks: [],
+      mappings: [],
     },
   }, async () => {
     const appendPattern = pattern => updateConfiguration(async (config) => {
@@ -69,7 +69,7 @@ test('updateGlobalIgnorePatterns rejects non-string entries', async () => {
   await withFakeAppRuntime({
     appConfig: {
       globalIgnorePatterns: [],
-      syncTasks: [],
+      mappings: [],
     },
   }, async () => {
     await assert.rejects(

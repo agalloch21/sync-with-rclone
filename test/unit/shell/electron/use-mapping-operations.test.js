@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { formatIgnorePatterns, parseIgnorePatterns, useTaskOperations } from '#frontend/composables/useTaskOperations.js'
+import { formatIgnorePatterns, parseIgnorePatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 
 function createPreload(overrides = {}) {
@@ -29,9 +29,9 @@ test('formatIgnorePatterns displays patterns as comma-separated lines', () => {
   assert.equal(formatIgnorePatterns([]), '')
 })
 
-test('selectLocalFolder sends the current path through the task operations composable', async () => {
+test('selectLocalFolder sends the current path through the mapping operations composable', async () => {
   let receivedPayload = null
-  const operations = useTaskOperations(createPreload({
+  const operations = useMappingOperations(createPreload({
     selectLocalFolder: async (payload) => {
       receivedPayload = payload
       return { success: true, value: '/selected' }
@@ -43,9 +43,9 @@ test('selectLocalFolder sends the current path through the task operations compo
   assert.deepEqual(result, { success: true, value: '/selected' })
 })
 
-test('selectRemoteFolder sends the server and current path through the task operations composable', async () => {
+test('selectRemoteFolder sends the server and current path through the mapping operations composable', async () => {
   let receivedPayload = null
-  const operations = useTaskOperations(createPreload({
+  const operations = useMappingOperations(createPreload({
     selectRemoteFolder: async (payload) => {
       receivedPayload = payload
       return { success: true, value: 'Projects' }
@@ -57,37 +57,37 @@ test('selectRemoteFolder sends the server and current path through the task oper
   assert.deepEqual(result, { success: true, value: 'Projects' })
 })
 
-test('createSyncTask and updateSyncTask send plain task payloads', async () => {
+test('createMapping and updateMapping send plain mapping payloads', async () => {
   const payloads = []
-  const operations = useTaskOperations(createPreload({
-    createSyncTask: async (payload) => {
+  const operations = useMappingOperations(createPreload({
+    createMapping: async (payload) => {
       payloads.push(payload)
       return { success: true }
     },
-    updateSyncTask: async (payload) => {
+    updateMapping: async (payload) => {
       payloads.push(payload)
       return { success: true }
     },
   }))
-  const task = { rcloneRemote: 'synology', localBasePath: '/local', remoteBasePath: 'Projects' }
+  const mapping = { rcloneRemote: 'synology', localBasePath: '/local', remoteBasePath: 'Projects' }
 
-  await operations.createSyncTask(task)
-  await operations.updateSyncTask(task, { ...task, remoteBasePath: 'Next' })
+  await operations.createMapping(mapping)
+  await operations.updateMapping(mapping, { ...mapping, remoteBasePath: 'Next' })
 
   assert.deepEqual(payloads, [
-    { task },
-    { task, expectedTask: { ...task, remoteBasePath: 'Next' } },
+    { mapping },
+    { mapping, expectedMapping: { ...mapping, remoteBasePath: 'Next' } },
   ])
 })
 
-test('task mutations do not present failures already handled by the main process', async () => {
+test('mapping mutations do not present failures already handled by the main process', async () => {
   let messageShown = false
-  const operations = useTaskOperations(createPreload({
-    createSyncTask: async () => ({
+  const operations = useMappingOperations(createPreload({
+    createMapping: async () => ({
       success: false,
       error: {
-        code: 'sync_task.already_exists',
-        message: 'Task already exists.',
+        code: 'mapping.already_exists',
+        message: 'Mapping already exists.',
       },
     }),
     showMessageBox: async () => {
@@ -95,7 +95,7 @@ test('task mutations do not present failures already handled by the main process
     },
   }))
 
-  const result = await operations.createSyncTask({
+  const result = await operations.createMapping({
     rcloneRemote: 'synology',
     localBasePath: '/local',
     remoteBasePath: 'Projects',
@@ -105,34 +105,34 @@ test('task mutations do not present failures already handled by the main process
   assert.equal(messageShown, false)
 })
 
-test('updateSyncTaskIgnorePatterns sends a dedicated plain payload', async () => {
+test('updateMappingIgnorePatterns sends a dedicated plain payload', async () => {
   let receivedPayload = null
-  const operations = useTaskOperations(createPreload({
-    updateSyncTaskIgnorePatterns: async (payload) => {
+  const operations = useMappingOperations(createPreload({
+    updateMappingIgnorePatterns: async (payload) => {
       receivedPayload = payload
       structuredClone(payload)
       return { success: true }
     },
   }))
-  const task = {
+  const mapping = {
     rcloneRemote: 'synology',
     localBasePath: '/local',
     remoteBasePath: 'Projects',
     ignorePatterns: ['old'],
   }
 
-  const result = await operations.updateSyncTaskIgnorePatterns(task, ['node_modules/', '*.tmp'])
+  const result = await operations.updateMappingIgnorePatterns(mapping, ['node_modules/', '*.tmp'])
 
   assert.equal(result.success, true)
   assert.deepEqual(receivedPayload, {
-    task,
+    mapping,
     ignorePatterns: ['node_modules/', '*.tmp'],
   })
 })
 
 test('updateGlobalIgnorePatterns sends a dedicated plain payload', async () => {
   let receivedPayload = null
-  const operations = useTaskOperations(createPreload({
+  const operations = useMappingOperations(createPreload({
     updateGlobalIgnorePatterns: async (payload) => {
       receivedPayload = payload
       structuredClone(payload)
@@ -148,11 +148,11 @@ test('updateGlobalIgnorePatterns sends a dedicated plain payload', async () => {
   })
 })
 
-test('createSyncTask validates the mapping before invoking preload', async () => {
+test('createMapping validates the mapping before invoking preload', async () => {
   let createWasCalled = false
   const messages = []
-  const operations = useTaskOperations(createPreload({
-    createSyncTask: async () => {
+  const operations = useMappingOperations(createPreload({
+    createMapping: async () => {
       createWasCalled = true
       return { success: true }
     },
@@ -162,7 +162,7 @@ test('createSyncTask validates the mapping before invoking preload', async () =>
     },
   }))
 
-  const result = await operations.createSyncTask({
+  const result = await operations.createMapping({
     rcloneRemote: 'synology',
     localBasePath: '',
     remoteBasePath: 'Projects',
@@ -170,14 +170,14 @@ test('createSyncTask validates the mapping before invoking preload', async () =>
 
   assert.equal(result.success, false)
   assert.equal(createWasCalled, false)
-  assert.equal(messages[0].key, `messages.${APP_MESSAGE_CODE.SYNC_TASK_LOCAL_FOLDER_REQUIRED}`)
+  assert.equal(messages[0].key, `messages.${APP_MESSAGE_CODE.MAPPING_LOCAL_FOLDER_REQUIRED}`)
 })
 
-test('updateSyncTask validates the task reference before invoking preload', async () => {
+test('updateMapping validates the mapping reference before invoking preload', async () => {
   let updateWasCalled = false
   const messages = []
-  const operations = useTaskOperations(createPreload({
-    updateSyncTask: async () => {
+  const operations = useMappingOperations(createPreload({
+    updateMapping: async () => {
       updateWasCalled = true
       return { success: true }
     },
@@ -187,7 +187,7 @@ test('updateSyncTask validates the task reference before invoking preload', asyn
     },
   }))
 
-  const result = await operations.updateSyncTask(null, {
+  const result = await operations.updateMapping(null, {
     rcloneRemote: 'synology',
     localBasePath: '/local',
     remoteBasePath: 'Projects',
@@ -195,20 +195,20 @@ test('updateSyncTask validates the task reference before invoking preload', asyn
 
   assert.equal(result.success, false)
   assert.equal(updateWasCalled, false)
-  assert.equal(messages[0].key, `messages.${APP_MESSAGE_CODE.SYNC_TASK_REQUIRED}`)
+  assert.equal(messages[0].key, `messages.${APP_MESSAGE_CODE.MAPPING_REQUIRED}`)
 })
 
-test('deleteSyncTask skips deletion when confirmation is cancelled', async () => {
+test('deleteMapping skips deletion when confirmation is cancelled', async () => {
   let deleteWasCalled = false
-  const operations = useTaskOperations(createPreload({
-    deleteSyncTask: async () => {
+  const operations = useMappingOperations(createPreload({
+    deleteMapping: async () => {
       deleteWasCalled = true
       return { success: true }
     },
     showMessageBox: async () => ({ success: true, value: 'cancelled' }),
   }))
 
-  const result = await operations.deleteSyncTask({
+  const result = await operations.deleteMapping({
     displayName: 'Project',
     rcloneRemote: 'synology',
     localBasePath: '/local',
@@ -218,11 +218,11 @@ test('deleteSyncTask skips deletion when confirmation is cancelled', async () =>
   assert.equal(deleteWasCalled, false)
 })
 
-test('deleteSyncTask sends its stable reference after confirmation', async () => {
+test('deleteMapping sends its stable reference after confirmation', async () => {
   let receivedPayload = null
   let confirmationPayload = null
-  const operations = useTaskOperations(createPreload({
-    deleteSyncTask: async (payload) => {
+  const operations = useMappingOperations(createPreload({
+    deleteMapping: async (payload) => {
       receivedPayload = payload
       structuredClone(payload)
       return { success: true }
@@ -233,7 +233,7 @@ test('deleteSyncTask sends its stable reference after confirmation', async () =>
     },
   }))
 
-  const result = await operations.deleteSyncTask({
+  const result = await operations.deleteMapping({
     displayName: 'Project',
     rcloneRemote: 'synology',
     localBasePath: '/local',
@@ -242,15 +242,15 @@ test('deleteSyncTask sends its stable reference after confirmation', async () =>
 
   assert.equal(result.success, true)
   assert.deepEqual(receivedPayload, {
-    task: {
+    mapping: {
       rcloneRemote: 'synology',
       localBasePath: '/local',
     },
   })
   assert.deepEqual(confirmationPayload, {
     mode: 'confirm',
-    key: `messages.${APP_MESSAGE_CODE.SYNC_TASK_DELETE_CONFIRMATION}`,
-    params: { taskLabel: 'Project' },
+    key: `messages.${APP_MESSAGE_CODE.MAPPING_DELETE_CONFIRMATION}`,
+    params: { mappingLabel: 'Project' },
   })
   assert.equal(Object.hasOwn(confirmationPayload, 'level'), false)
 })

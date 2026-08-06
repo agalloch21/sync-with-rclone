@@ -1,7 +1,7 @@
 <script setup>
 import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
+import { useMappingOperations } from '#frontend/composables/useMappingOperations.js'
 import { useServerOperations } from '#frontend/composables/useServerOperations.js'
-import { useTaskOperations } from '#frontend/composables/useTaskOperations.js'
 import Button from '#frontend/surfaces/shared/Button.vue'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { onMounted, ref } from 'vue'
@@ -17,7 +17,7 @@ const props = defineProps({
 const emit = defineEmits(['onClickCancel', 'onClickConfirm', 'onClickNext'])
 
 const serverOperations = useServerOperations(window?.formModal)
-const taskOperations = useTaskOperations(window?.formModal)
+const mappingOperations = useMappingOperations(window?.formModal)
 
 const SERVER_PLAN = Object.freeze({
   CREATE_NEW: 'create-new-server',
@@ -46,7 +46,7 @@ async function loadServers() {
 
   availableServers.value = servers.value.filter(server => server.status !== 'missing')
   canChooseExisting.value = availableServers.value.length > 0
-  const contextServerName = props.context?.selectedServer?.name || props.context?.selectedSyncTask?.rcloneRemote
+  const contextServerName = props.context?.selectedServer?.name || props.context?.selectedMapping?.rcloneRemote
   selectedServerName.value = availableServers.value.some(server => server.name === contextServerName)
     ? contextServerName
     : availableServers.value[0]?.name || ''
@@ -58,7 +58,7 @@ async function loadServers() {
 
 async function onClickNext() {
   if (selectedPlan.value === SERVER_PLAN.CHOOSE_FROM_EXISTING) {
-    if (!await taskOperations.validateServerName(selectedServerName.value))
+    if (!await mappingOperations.validateServerName(selectedServerName.value))
       return
 
     emit('onClickNext', FORM_MODAL_VIEW.CREATE_FOLDER_MAPPING, {

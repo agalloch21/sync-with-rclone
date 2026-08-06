@@ -35,7 +35,7 @@ test('updateConfiguration wraps storage failure and preserves its native cause',
 
   await assert.rejects(() => updateConfiguration(() => ({
     globalIgnorePatterns: [],
-    syncTasks: [],
+    mappings: [],
   }), { configDirectory, configPath }), (error) => {
     assert.ok(error instanceof AppError)
     assert.equal(error.code, APP_ERROR_CODE.CONFIG_UPDATE_FAILED)

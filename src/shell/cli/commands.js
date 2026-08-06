@@ -1,7 +1,7 @@
 import { parseSyncArgs } from '#shell/parse-sync-args.js'
 import * as appApi from '#src/app/app-api.js'
+import { MAPPING_OPERATION } from '#src/app/contracts/mapping.js'
 import { SERVER_OPERATION } from '#src/app/contracts/server.js'
-import { SYNC_TASK_OPERATION } from '#src/app/contracts/task.js'
 import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
 import { SYNC_RESULT } from '#src/core/contract.js'
 import commandContract from './command-contract.cjs'
@@ -36,16 +36,16 @@ function parseProtocolFields(entries) {
   }))
 }
 
-function createTaskReference(serverName, localFolderPath) {
+function createMappingReference(serverName, localFolderPath) {
   return {
     rcloneRemote: serverName,
     localBasePath: localFolderPath,
   }
 }
 
-function createTaskMapping(serverName, localFolderPath, remoteFolderPath) {
+function createMapping(serverName, localFolderPath, remoteFolderPath) {
   return {
-    ...createTaskReference(serverName, localFolderPath),
+    ...createMappingReference(serverName, localFolderPath),
     remoteBasePath: remoteFolderPath,
   }
 }
@@ -80,8 +80,8 @@ function printServers(output, servers) {
   ]))
 }
 
-function printTasks(output, syncTasks) {
-  output.log(stringifyTable(syncTasks, [
+function printMappings(output, mappings) {
+  output.log(stringifyTable(mappings, [
     { key: 'rcloneRemote', label: 'SERVER' },
     { key: 'displayName', label: 'DISPLAY' },
     { key: 'localBasePath', label: 'LOCAL' },
@@ -98,11 +98,11 @@ function flattenFolderPaths(folder, paths = []) {
   return paths
 }
 
-function toTaskRows(syncTasks) {
-  return syncTasks.map(task => ({
-    ...task,
-    remotePath: `${task.rcloneRemote}:${task.remoteBasePath}`,
-    lastSync: [task.lastSyncMode, task.lastSyncDate, task.lastSyncFolder].filter(Boolean).join(' | ') || '-',
+function toMappingRows(mappings) {
+  return mappings.map(mapping => ({
+    ...mapping,
+    remotePath: `${mapping.rcloneRemote}:${mapping.remoteBasePath}`,
+    lastSync: [mapping.lastSyncMode, mapping.lastSyncDate, mapping.lastSyncFolder].filter(Boolean).join(' | ') || '-',
   }))
 }
 
@@ -213,62 +213,62 @@ async function runDeleteServer(args, output) {
   )
 }
 
-async function runListTasks(json, output) {
-  const syncTasks = await appApi.listSyncTasks()
+async function runListMappings(json, output) {
+  const mappings = await appApi.listMappings()
 
   if (json)
-    printJson(output, { syncTasks })
+    printJson(output, { mappings })
   else
-    printTasks(output, toTaskRows(syncTasks))
+    printMappings(output, toMappingRows(mappings))
 
   return 0
 }
 
-async function runCreateTask(args, output) {
-  requireArguments(args, 3, 'create-task <server> <local-folder> <remote-folder>')
-  const task = createTaskMapping(args[0], args[1], args[2])
+async function runCreateMapping(args, output) {
+  requireArguments(args, 3, 'create-mapping <server> <local-folder> <remote-folder>')
+  const mapping = createMapping(args[0], args[1], args[2])
   return await runReportedOperation(
-    SYNC_TASK_OPERATION.CREATE,
-    onProgress => appApi.createSyncTask(task, onProgress),
+    MAPPING_OPERATION.CREATE,
+    onProgress => appApi.createMapping(mapping, onProgress),
     output,
   )
 }
 
-async function runUpdateTask(args, output) {
+async function runUpdateMapping(args, output) {
   requireArguments(
     args,
     5,
-    'update-task <server> <local-folder> <new-server> <new-local-folder> <new-remote-folder>',
+    'update-mapping <server> <local-folder> <new-server> <new-local-folder> <new-remote-folder>',
   )
-  const task = createTaskReference(args[0], args[1])
-  const expectedTask = createTaskMapping(args[2], args[3], args[4])
+  const mapping = createMappingReference(args[0], args[1])
+  const expectedMapping = createMapping(args[2], args[3], args[4])
   return await runReportedOperation(
-    SYNC_TASK_OPERATION.UPDATE,
-    onProgress => appApi.updateSyncTask(task, expectedTask, onProgress),
+    MAPPING_OPERATION.UPDATE,
+    onProgress => appApi.updateMapping(mapping, expectedMapping, onProgress),
     output,
   )
 }
 
-async function runUpdateTaskIgnorePatterns(args, output) {
+async function runUpdateMappingIgnorePatterns(args, output) {
   requireArguments(
     args,
     2,
-    'update-task-ignore-patterns <server> <local-folder> [pattern ...]',
+    'update-mapping-ignore-patterns <server> <local-folder> [pattern ...]',
   )
-  const task = createTaskReference(args[0], args[1])
+  const mapping = createMappingReference(args[0], args[1])
   return await runReportedOperation(
-    SYNC_TASK_OPERATION.UPDATE_IGNORE_PATTERNS,
-    onProgress => appApi.updateSyncTaskIgnorePatterns(task, args.slice(2), onProgress),
+    MAPPING_OPERATION.UPDATE_IGNORE_PATTERNS,
+    onProgress => appApi.updateMappingIgnorePatterns(mapping, args.slice(2), onProgress),
     output,
   )
 }
 
-async function runDeleteTask(args, output) {
-  requireArguments(args, 2, 'delete-task <server> <local-folder>')
-  const task = createTaskReference(args[0], args[1])
+async function runDeleteMapping(args, output) {
+  requireArguments(args, 2, 'delete-mapping <server> <local-folder>')
+  const mapping = createMappingReference(args[0], args[1])
   return await runReportedOperation(
-    SYNC_TASK_OPERATION.DELETE,
-    onProgress => appApi.deleteSyncTask(task, onProgress),
+    MAPPING_OPERATION.DELETE,
+    onProgress => appApi.deleteMapping(mapping, onProgress),
     output,
   )
 }
@@ -299,11 +299,11 @@ const COMMAND_HANDLERS = new Map([
   [CLI_COMMAND.CREATE_SERVER, ({ args, output }) => runCreateServer(args, output)],
   [CLI_COMMAND.UPDATE_SERVER, ({ args, output }) => runUpdateServer(args, output)],
   [CLI_COMMAND.DELETE_SERVER, ({ args, output }) => runDeleteServer(args, output)],
-  [CLI_COMMAND.LIST_TASKS, ({ json, output }) => runListTasks(json, output)],
-  [CLI_COMMAND.CREATE_TASK, ({ args, output }) => runCreateTask(args, output)],
-  [CLI_COMMAND.UPDATE_TASK, ({ args, output }) => runUpdateTask(args, output)],
-  [CLI_COMMAND.UPDATE_TASK_IGNORE_PATTERNS, ({ args, output }) => runUpdateTaskIgnorePatterns(args, output)],
-  [CLI_COMMAND.DELETE_TASK, ({ args, output }) => runDeleteTask(args, output)],
+  [CLI_COMMAND.LIST_MAPPINGS, ({ json, output }) => runListMappings(json, output)],
+  [CLI_COMMAND.CREATE_MAPPING, ({ args, output }) => runCreateMapping(args, output)],
+  [CLI_COMMAND.UPDATE_MAPPING, ({ args, output }) => runUpdateMapping(args, output)],
+  [CLI_COMMAND.UPDATE_MAPPING_IGNORE_PATTERNS, ({ args, output }) => runUpdateMappingIgnorePatterns(args, output)],
+  [CLI_COMMAND.DELETE_MAPPING, ({ args, output }) => runDeleteMapping(args, output)],
   [CLI_COMMAND.LIST_GLOBAL_IGNORE_PATTERNS, ({ json, output }) => runListGlobalIgnorePatterns(json, output)],
   [CLI_COMMAND.UPDATE_GLOBAL_IGNORE_PATTERNS, ({ args, output }) => runUpdateGlobalIgnorePatterns(args, output)],
 ])

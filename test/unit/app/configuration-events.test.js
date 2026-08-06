@@ -11,7 +11,7 @@ test('configuration commands publish updates through configuration events', asyn
   await withFakeAppRuntime({
     appConfig: {
       globalIgnorePatterns: [],
-      syncTasks: [],
+      mappings: [],
     },
   }, async () => {
     const updates = []

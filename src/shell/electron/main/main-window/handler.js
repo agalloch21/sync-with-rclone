@@ -1,8 +1,8 @@
 import { isValidFormModalView } from '#electron/contracts/form-modal.js'
-import { deleteServer, deleteSyncTask, getMainWindowData, getServer, listOperationHistory, updateGlobalIgnorePatterns } from '#src/app/app-api.js'
+import { deleteMapping, deleteServer, getMainWindowData, getServer, listOperationHistory, updateGlobalIgnorePatterns } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
+import { MAPPING_OPERATION } from '#src/app/contracts/mapping.js'
 import { SERVER_OPERATION } from '#src/app/contracts/server.js'
-import { SYNC_TASK_OPERATION } from '#src/app/contracts/task.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
 import { getActiveModalWindow } from '../app-state.js'
 import { createFormModalWindow } from '../form-modal/window.js'
@@ -96,7 +96,7 @@ export function createMainWindowHandlers() {
     )
   }
 
-  async function deleteSyncTaskHandler(_event, payload) {
+  async function deleteMappingHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
     }
@@ -105,8 +105,8 @@ export function createMainWindowHandlers() {
     }
 
     return await runReportedOperation(
-      SYNC_TASK_OPERATION.DELETE,
-      onProgress => deleteSyncTask(payload.task, onProgress),
+      MAPPING_OPERATION.DELETE,
+      onProgress => deleteMapping(payload.mapping, onProgress),
     )
   }
 
@@ -126,7 +126,7 @@ export function createMainWindowHandlers() {
     getServerHandler,
     getOperationHistoryHandler,
     deleteServerHandler,
-    deleteSyncTaskHandler,
+    deleteMappingHandler,
     updateGlobalIgnorePatternsHandler,
   }
 }

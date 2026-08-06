@@ -19,7 +19,7 @@ function getDefaultAppConfigPath() {
 function createDefaultAppConfigContent() {
   return `${JSON.stringify({
     globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
-    syncTasks: [],
+    mappings: [],
   }, null, 2)}\n`
 }
 
@@ -27,28 +27,28 @@ function normalizeAppConfig(rawConfig) {
   if (!rawConfig || typeof rawConfig !== 'object')
     throw new Error('Config must be an object')
 
-  if (!Array.isArray(rawConfig.syncTasks))
-    throw new Error('Config must contain syncTasks')
+  if (!Array.isArray(rawConfig.mappings))
+    throw new Error('Config must contain mappings')
 
   return {
     globalIgnorePatterns: Array.isArray(rawConfig.globalIgnorePatterns) ? rawConfig.globalIgnorePatterns : [],
-    syncTasks: rawConfig.syncTasks.map((task, index) => {
-      if (!task?.rcloneRemote)
-        throw new Error(`syncTasks[${index}].rcloneRemote is required`)
-      if (!task?.localBasePath)
-        throw new Error(`syncTasks[${index}].localBasePath is required`)
-      if (!Object.hasOwn(task ?? {}, 'remoteBasePath'))
-        throw new Error(`syncTasks[${index}].remoteBasePath is required`)
+    mappings: rawConfig.mappings.map((mapping, index) => {
+      if (!mapping?.rcloneRemote)
+        throw new Error(`mappings[${index}].rcloneRemote is required`)
+      if (!mapping?.localBasePath)
+        throw new Error(`mappings[${index}].localBasePath is required`)
+      if (!Object.hasOwn(mapping ?? {}, 'remoteBasePath'))
+        throw new Error(`mappings[${index}].remoteBasePath is required`)
 
       return {
-        displayName: task.displayName || '',
-        rcloneRemote: task.rcloneRemote,
-        localBasePath: normalizeLocalPath(path.resolve(task.localBasePath)),
-        remoteBasePath: normalizeRemoteBasePath(task.remoteBasePath),
-        ignorePatterns: Array.isArray(task.ignorePatterns) ? task.ignorePatterns : [],
-        lastSyncMode: task.lastSyncMode || null,
-        lastSyncFolder: task.lastSyncFolder || null,
-        lastSyncDate: task.lastSyncDate || null,
+        displayName: mapping.displayName || '',
+        rcloneRemote: mapping.rcloneRemote,
+        localBasePath: normalizeLocalPath(path.resolve(mapping.localBasePath)),
+        remoteBasePath: normalizeRemoteBasePath(mapping.remoteBasePath),
+        ignorePatterns: Array.isArray(mapping.ignorePatterns) ? mapping.ignorePatterns : [],
+        lastSyncMode: mapping.lastSyncMode || null,
+        lastSyncFolder: mapping.lastSyncFolder || null,
+        lastSyncDate: mapping.lastSyncDate || null,
       }
     }),
   }
@@ -57,7 +57,7 @@ function normalizeAppConfig(rawConfig) {
 function serializeAppConfig(config) {
   return `${JSON.stringify({
     globalIgnorePatterns: Array.isArray(config?.globalIgnorePatterns) ? config.globalIgnorePatterns : [],
-    syncTasks: Array.isArray(config?.syncTasks) ? config.syncTasks : [],
+    mappings: Array.isArray(config?.mappings) ? config.mappings : [],
   }, null, 2)}\n`
 }
 

@@ -3,9 +3,10 @@ import {
   registerConfigUpdateListener,
   unregisterConfigUpdateListener,
 } from './app-events.js'
+import { MAPPING_OPERATION } from './contracts/mapping.js'
 import { SERVER_OPERATION } from './contracts/server.js'
 import { SETTINGS_OPERATION } from './contracts/settings.js'
-import { SYNC_TASK_OPERATION } from './contracts/task.js'
+import * as mappingOperations from './operations/mapping.js'
 import {
   defineAppOperation,
   listOperationHistory as readOperationHistory,
@@ -14,7 +15,6 @@ import {
 } from './operations/operation-history.js'
 import * as serverOperations from './operations/server.js'
 import * as settingsOperations from './operations/settings.js'
-import * as taskOperations from './operations/task.js'
 
 export {
   registerConfigUpdateListener,
@@ -29,24 +29,24 @@ export { startSync } from './operations/sync/start.js'
 // Queries only read and return application state; they do not report progress or publish updates.
 export async function getMainWindowData() {
   const servers = await listServers()
-  const syncTasks = await listSyncTasks()
+  const mappings = await listMappings()
   const globalIgnorePatterns = await listGlobalIgnorePatterns()
 
   const serverByName = new Map(servers.map((server) => {
     return [server.name, server]
   }))
 
-  syncTasks.forEach((task) => {
-    if (!serverByName.has(task.rcloneRemote)) {
-      const missingServer = serverOperations.buildEmptyServerObject(task.rcloneRemote)
+  mappings.forEach((mapping) => {
+    if (!serverByName.has(mapping.rcloneRemote)) {
+      const missingServer = serverOperations.buildEmptyServerObject(mapping.rcloneRemote)
       missingServer.status = 'missing'
-      serverByName.set(task.rcloneRemote, missingServer)
+      serverByName.set(mapping.rcloneRemote, missingServer)
     }
   })
 
   return {
     servers: [...serverByName.values()],
-    syncTasks,
+    mappings,
     globalIgnorePatterns,
   }
 }
@@ -67,8 +67,8 @@ export async function testServerConnection(name) {
   return await serverOperations.testServerConnection(name)
 }
 
-export async function listSyncTasks() {
-  return await taskOperations.listSyncTasks()
+export async function listMappings() {
+  return await mappingOperations.listMappings()
 }
 
 export async function listGlobalIgnorePatterns() {
@@ -100,20 +100,20 @@ async function deleteServerImpl(name, onProgress) {
   notifyConfigUpdate()
 }
 
-async function createSyncTaskImpl(task, onProgress) {
-  const result = await taskOperations.createSyncTask(task, onProgress)
+async function createMappingImpl(mapping, onProgress) {
+  const result = await mappingOperations.createMapping(mapping, onProgress)
   notifyConfigUpdate()
   return result
 }
 
-async function updateSyncTaskImpl(task, expectedTask, onProgress) {
-  const result = await taskOperations.updateSyncTask(task, expectedTask, onProgress)
+async function updateMappingImpl(mapping, expectedMapping, onProgress) {
+  const result = await mappingOperations.updateMapping(mapping, expectedMapping, onProgress)
   notifyConfigUpdate()
   return result
 }
 
-async function updateSyncTaskIgnorePatternsImpl(task, ignorePatterns, onProgress) {
-  const result = await taskOperations.updateSyncTaskIgnorePatterns(task, ignorePatterns, onProgress)
+async function updateMappingIgnorePatternsImpl(mapping, ignorePatterns, onProgress) {
+  const result = await mappingOperations.updateMappingIgnorePatterns(mapping, ignorePatterns, onProgress)
   notifyConfigUpdate()
   return result
 }
@@ -124,8 +124,8 @@ async function updateGlobalIgnorePatternsImpl(ignorePatterns) {
   return result
 }
 
-async function deleteSyncTaskImpl(task, onProgress) {
-  const result = await taskOperations.deleteTaskFromConfig(task, onProgress)
+async function deleteMappingImpl(mapping, onProgress) {
+  const result = await mappingOperations.deleteMapping(mapping, onProgress)
   notifyConfigUpdate()
   return result
 }
@@ -137,12 +137,12 @@ function serverSubject(name) {
   }
 }
 
-function syncTaskSubject(task = {}) {
+function mappingSubject(mapping = {}) {
   return {
-    type: 'syncTask',
-    rcloneRemote: typeof task?.rcloneRemote === 'string' ? task.rcloneRemote.trim() : '',
-    localBasePath: typeof task?.localBasePath === 'string' ? task.localBasePath : '',
-    ...(typeof task?.remoteBasePath === 'string' && { remoteBasePath: task.remoteBasePath }),
+    type: 'mapping',
+    rcloneRemote: typeof mapping?.rcloneRemote === 'string' ? mapping.rcloneRemote.trim() : '',
+    localBasePath: typeof mapping?.localBasePath === 'string' ? mapping.localBasePath : '',
+    ...(typeof mapping?.remoteBasePath === 'string' && { remoteBasePath: mapping.remoteBasePath }),
   }
 }
 
@@ -161,30 +161,30 @@ export const deleteServer = defineAppOperation({
   getSubject: ([name]) => serverSubject(name),
 }, deleteServerImpl)
 
-export const createSyncTask = defineAppOperation({
-  operation: SYNC_TASK_OPERATION.CREATE,
-  getSubject: ([task]) => syncTaskSubject(task),
-}, createSyncTaskImpl)
+export const createMapping = defineAppOperation({
+  operation: MAPPING_OPERATION.CREATE,
+  getSubject: ([mapping]) => mappingSubject(mapping),
+}, createMappingImpl)
 
-export const updateSyncTask = defineAppOperation({
-  operation: SYNC_TASK_OPERATION.UPDATE,
-  getSubject: ([task, expectedTask]) => ({
-    ...syncTaskSubject(task),
-    expected: syncTaskSubject(expectedTask),
+export const updateMapping = defineAppOperation({
+  operation: MAPPING_OPERATION.UPDATE,
+  getSubject: ([mapping, expectedMapping]) => ({
+    ...mappingSubject(mapping),
+    expected: mappingSubject(expectedMapping),
   }),
-}, updateSyncTaskImpl)
+}, updateMappingImpl)
 
-export const updateSyncTaskIgnorePatterns = defineAppOperation({
-  operation: SYNC_TASK_OPERATION.UPDATE_IGNORE_PATTERNS,
-  getSubject: ([task]) => syncTaskSubject(task),
-}, updateSyncTaskIgnorePatternsImpl)
+export const updateMappingIgnorePatterns = defineAppOperation({
+  operation: MAPPING_OPERATION.UPDATE_IGNORE_PATTERNS,
+  getSubject: ([mapping]) => mappingSubject(mapping),
+}, updateMappingIgnorePatternsImpl)
 
 export const updateGlobalIgnorePatterns = defineAppOperation({
   operation: SETTINGS_OPERATION.UPDATE_GLOBAL_IGNORE_PATTERNS,
   getSubject: () => ({ type: 'settings', name: 'globalIgnorePatterns' }),
 }, updateGlobalIgnorePatternsImpl)
 
-export const deleteSyncTask = defineAppOperation({
-  operation: SYNC_TASK_OPERATION.DELETE,
-  getSubject: ([task]) => syncTaskSubject(task),
-}, deleteSyncTaskImpl)
+export const deleteMapping = defineAppOperation({
+  operation: MAPPING_OPERATION.DELETE,
+  getSubject: ([mapping]) => mappingSubject(mapping),
+}, deleteMappingImpl)

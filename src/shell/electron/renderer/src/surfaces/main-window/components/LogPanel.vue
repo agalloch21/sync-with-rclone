@@ -52,7 +52,7 @@ function subjectLabel(subject = {}) {
   if (subject.type === 'server')
     return subject.name
 
-  if (subject.type === 'syncTask')
+  if (subject.type === 'mapping')
     return [subject.rcloneRemote, subject.localBasePath].filter(Boolean).join(' · ')
 
   if (subject.type === 'sync')

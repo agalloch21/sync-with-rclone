@@ -75,7 +75,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="log-panel-stage w-full h-full min-h-0 flex flex-col text-(--text-primary)">
+  <section class="log-panel-stage w-full h-full min-h-0 pr-4 pb-4 flex flex-col text-(--text-primary)">
     <header class="h-10 shrink-0 flex items-center justify-between border-b border-(--surface-soft)">
       <h1 class="text-base font-bold">
         {{ $t('logPanel.title') }}

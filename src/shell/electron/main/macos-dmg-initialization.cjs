@@ -11,7 +11,6 @@ const SERVICES_DIRECTORY = path.join(os.homedir(), 'Library', 'Services')
 const EXPECTED_WORKFLOWS = [
   'Sync with Rclone - 1 Push.workflow',
   'Sync with Rclone - 2 Pull.workflow',
-  'Sync with Rclone - 3 Open Config.workflow',
 ]
 
 async function ensureDirectory(directoryPath) {

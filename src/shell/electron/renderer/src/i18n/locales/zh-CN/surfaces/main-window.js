@@ -32,6 +32,7 @@ const mainWindow = {
       title: '全局忽略规则',
       description: '这些规则将应用于所有映射。',
     },
+    openConfigFolder: '打开配置文件夹',
   },
   logPanel: {
     title: '操作记录',

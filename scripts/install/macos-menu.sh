@@ -1089,7 +1089,6 @@ EOF
     # Use the silent workflow so Finder only launches the Electron UI.
     create_workflow "Sync with Rclone - 1 Push" "push" "false"
     create_workflow "Sync with Rclone - 2 Pull" "pull" "false"
-    create_config_workflow "Sync with Rclone - 3 Open Config"
     
     success "Context menu entries installed successfully!"
     info "Right-click on any folder in Finder to access 'Sync with Rclone' options."

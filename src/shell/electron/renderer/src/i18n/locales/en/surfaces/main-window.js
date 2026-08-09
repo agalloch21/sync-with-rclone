@@ -32,6 +32,7 @@ const mainWindow = {
       title: 'Global Ignore Patterns',
       description: 'These patterns will be applied to all mappings.',
     },
+    openConfigFolder: 'Open Config Folder',
   },
   logPanel: {
     title: 'Operation History',

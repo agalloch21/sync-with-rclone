@@ -54,15 +54,33 @@ async function applyGlobalPatterns() {
     isSubmitting.value = false
   }
 }
+
+function openConfigFolder() {
+  return window.mainWindow?.openConfigFolder?.()
+}
 </script>
 
 <template>
-  <div class="settings-panel-stage w-full h-full pr-4 pb-4 flex flex-col items-stretch gap-2">
-    <header class="header-dock w-full flex items-center border-b border-(--surface-soft)">
+  <div class="settings-panel-stage w-full h-full pr-4 pb-4 flex flex-col items-stretch gap-2 text-(--text-primary)">
+    <!-- <header class="header-dock w-full flex items-center border-b border-(--surface-soft)">
       <div class="tab-patterns h-10 text-base text-(--text-primary) font-bold content-center">
         {{ $t('settingsPanel.globalPatterns.title') }}
       </div>
+    </header> -->
+
+    <header class="h-10 shrink-0 flex items-center justify-between border-b border-(--surface-soft)">
+      <h1 class="text-base font-bold">
+        {{ $t('settingsPanel.globalPatterns.title') }}
+      </h1>
+      <button
+        class="clickable focusable rounded px-3 py-1 text-xs text-(--primary)"
+        type="button"
+        @click="openConfigFolder"
+      >
+        {{ $t('settingsPanel.openConfigFolder') }}
+      </button>
     </header>
+
     <main class="content-dock flex-1 flex flex-col gap-2">
       <ConfigurationLoadError v-if="loadError" :error="loadError" />
       <template v-else>

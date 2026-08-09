@@ -23,7 +23,7 @@ const props = defineProps({
 <style scoped>
 @reference "tailwindcss";
 button{
-    @apply py-2 rounded text-sm font-semibold;
+    @apply py-2 rounded text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50;
 }
 .button-narrow{
     @apply px-4;

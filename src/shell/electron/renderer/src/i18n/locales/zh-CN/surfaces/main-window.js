@@ -7,6 +7,11 @@ const mainWindow = {
     },
     version: '版本',
   },
+  configurationError: {
+    title: '配置需要立即处理',
+    instruction: '请修正配置文件后重新启动应用。',
+    openFolder: '打开配置文件夹',
+  },
   mappingsPanel: {
     mappingItem: {
       mappedTo: '映射到',

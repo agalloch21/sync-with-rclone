@@ -4,18 +4,18 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
-import { loadConfiguration, updateConfiguration } from '#src/app/services/app-config.js'
+import { loadAppConfiguration, updateConfiguration } from '#src/app/services/app-config.js'
 import {
   INFRASTRUCTURE_ERROR_CODE,
   InfrastructureError,
 } from '#src/infrastructure/infrastructure-error.js'
 
-test('loadConfiguration wraps config parsing failure and preserves its native cause', async () => {
+test('loadAppConfiguration wraps config parsing failure and preserves its native cause', async () => {
   const temporaryDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-config-load-error-'))
   const configPath = path.join(temporaryDirectory, 'config.json')
   await fs.writeFile(configPath, '{broken', 'utf8')
 
-  await assert.rejects(() => loadConfiguration(configPath), (error) => {
+  await assert.rejects(() => loadAppConfiguration(configPath), (error) => {
     assert.ok(error instanceof AppError)
     assert.equal(error.code, APP_ERROR_CODE.CONFIG_LOAD_FAILED)
     assert.ok(error.cause instanceof InfrastructureError)

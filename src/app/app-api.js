@@ -30,7 +30,6 @@ export { startSync } from './operations/sync/start.js'
 export async function getMainWindowData() {
   const servers = await listServers()
   const mappings = await listMappings()
-  const globalIgnorePatterns = await listGlobalIgnorePatterns()
 
   const serverByName = new Map(servers.map((server) => {
     return [server.name, server]
@@ -47,7 +46,6 @@ export async function getMainWindowData() {
   return {
     servers: [...serverByName.values()],
     mappings,
-    globalIgnorePatterns,
   }
 }
 

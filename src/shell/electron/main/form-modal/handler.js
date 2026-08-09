@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import os from 'node:os'
-import { createMapping, createServer, getServer, listServers, updateMapping, updateMappingIgnorePatterns, updateServer } from '#src/app/app-api.js'
+import { createMapping, createServer, getServer, listGlobalIgnorePatterns, listServers, updateMapping, updateMappingIgnorePatterns, updateServer } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { MAPPING_OPERATION } from '#src/app/contracts/mapping.js'
 import { SERVER_OPERATION } from '#src/app/contracts/server.js'
@@ -47,6 +47,15 @@ export function createFormModalHandlers() {
       const { serverName } = payload || {}
       const result = await getServer(serverName)
       return toSuccessfulResult(result)
+    }
+    catch (error) {
+      return await reportRequestError(error)
+    }
+  }
+
+  async function getGlobalIgnorePatternsHandler(_event) {
+    try {
+      return toSuccessfulResult(await listGlobalIgnorePatterns())
     }
     catch (error) {
       return await reportRequestError(error)
@@ -153,6 +162,7 @@ export function createFormModalHandlers() {
   return {
     listServersHandler,
     getServerHandler,
+    getGlobalIgnorePatternsHandler,
     createServerHandler,
     updateServerHandler,
     createMappingHandler,

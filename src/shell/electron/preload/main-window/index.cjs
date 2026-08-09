@@ -7,6 +7,12 @@ contextBridge.exposeInMainWorld('mainWindow', {
   getMainWindowData() {
     return ipcRenderer.invoke('main-window:get-data')
   },
+  getGlobalIgnorePatterns() {
+    return ipcRenderer.invoke('main-window:get-global-ignore-patterns')
+  },
+  openConfigFolder() {
+    return ipcRenderer.invoke('main-window:open-config-folder')
+  },
   getOperationHistory(payload = {}) {
     return ipcRenderer.invoke('main-window:get-operation-history', payload)
   },
@@ -29,7 +35,7 @@ contextBridge.exposeInMainWorld('mainWindow', {
     return ipcRenderer.invoke('main-window:close-message-box', payload)
   },
   onConfigUpdated(callback) {
-    const listener = (_event, payload) => callback(payload)
+    const listener = () => callback()
     ipcRenderer.on('main-window:config-updated', listener)
     return () => ipcRenderer.removeListener('main-window:config-updated', listener)
   },

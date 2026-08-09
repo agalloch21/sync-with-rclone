@@ -7,6 +7,11 @@ const mainWindow = {
     },
     version: 'version',
   },
+  configurationError: {
+    title: 'Configuration requires immediate attention',
+    instruction: 'Correct the configuration file, then restart the application.',
+    openFolder: 'Open configuration folder',
+  },
   mappingsPanel: {
     mappingItem: {
       mappedTo: 'Mapped to',

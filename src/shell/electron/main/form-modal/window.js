@@ -47,6 +47,7 @@ export function createFormModalWindow(view, context = {}) {
 
   ipcMain.handle('form-modal:list-servers', handlers.listServersHandler)
   ipcMain.handle('form-modal:get-server', handlers.getServerHandler)
+  ipcMain.handle('form-modal:get-global-ignore-patterns', handlers.getGlobalIgnorePatternsHandler)
   ipcMain.handle('form-modal:create-server', handlers.createServerHandler)
   ipcMain.handle('form-modal:update-server', handlers.updateServerHandler)
   ipcMain.handle('form-modal:create-mapping', handlers.createMappingHandler)
@@ -71,6 +72,7 @@ export function createFormModalWindow(view, context = {}) {
     ipcMain.removeHandler('form-modal:close')
     ipcMain.removeHandler('form-modal:list-servers')
     ipcMain.removeHandler('form-modal:get-server')
+    ipcMain.removeHandler('form-modal:get-global-ignore-patterns')
     ipcMain.removeHandler('form-modal:create-server')
     ipcMain.removeHandler('form-modal:update-server')
     ipcMain.removeHandler('form-modal:create-mapping')

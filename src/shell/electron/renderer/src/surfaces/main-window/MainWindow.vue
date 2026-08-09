@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { shallowRef } from 'vue'
 
 import LogPanel from './components/LogPanel.vue'
 import MappingsPanel from './components/MappingsPanel.vue'
@@ -24,10 +24,10 @@ const panels = [
   },
 ]
 
-const selectedPanel = ref(panels[0].name)
+const selectedPanel = shallowRef(panels[0])
 
-function onSelectPanel(panelName) {
-  selectedPanel.value = panels.find(p => p.name === panelName)?.name || ''
+function onSelectPanel(panel) {
+  selectedPanel.value = panel
 }
 </script>
 
@@ -42,10 +42,9 @@ function onSelectPanel(panelName) {
     </aside>
     <main class="main-dock h-full flex-3 min-w-0 px-(--main-stage-px) py-(--main-stage-py) justify-stretch items-stretch">
       <component
-        :is="panel.component"
-        v-for="(panel, index) in panels"
-        v-show="panel.name === selectedPanel"
-        :key="index"
+        :is="selectedPanel.component"
+        v-if="selectedPanel"
+        :key="selectedPanel.name"
       />
     </main>
   </div>

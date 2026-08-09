@@ -23,34 +23,55 @@ function createDefaultAppConfigContent() {
   }, null, 2)}\n`
 }
 
-function normalizeAppConfig(rawConfig) {
-  if (!rawConfig || typeof rawConfig !== 'object')
+function requireAppConfigObject(rawConfig) {
+  if (!rawConfig || typeof rawConfig !== 'object' || Array.isArray(rawConfig))
     throw new Error('Config must be an object')
 
-  if (!Array.isArray(rawConfig.mappings))
+  return rawConfig
+}
+
+function normalizeGlobalIgnorePatterns(rawConfig) {
+  const config = requireAppConfigObject(rawConfig)
+  if (config.globalIgnorePatterns === undefined)
+    return []
+
+  if (!Array.isArray(config.globalIgnorePatterns) || config.globalIgnorePatterns.some(pattern => typeof pattern !== 'string'))
+    throw new Error('globalIgnorePatterns must be an array of strings')
+
+  return [...config.globalIgnorePatterns]
+}
+
+function normalizeMappings(rawConfig) {
+  const config = requireAppConfigObject(rawConfig)
+
+  if (!Array.isArray(config.mappings))
     throw new Error('Config must contain mappings')
 
-  return {
-    globalIgnorePatterns: Array.isArray(rawConfig.globalIgnorePatterns) ? rawConfig.globalIgnorePatterns : [],
-    mappings: rawConfig.mappings.map((mapping, index) => {
-      if (!mapping?.rcloneRemote)
-        throw new Error(`mappings[${index}].rcloneRemote is required`)
-      if (!mapping?.localBasePath)
-        throw new Error(`mappings[${index}].localBasePath is required`)
-      if (!Object.hasOwn(mapping ?? {}, 'remoteBasePath'))
-        throw new Error(`mappings[${index}].remoteBasePath is required`)
+  return config.mappings.map((mapping, index) => {
+    if (!mapping?.rcloneRemote)
+      throw new Error(`mappings[${index}].rcloneRemote is required`)
+    if (!mapping?.localBasePath)
+      throw new Error(`mappings[${index}].localBasePath is required`)
+    if (!Object.hasOwn(mapping ?? {}, 'remoteBasePath'))
+      throw new Error(`mappings[${index}].remoteBasePath is required`)
 
-      return {
-        displayName: mapping.displayName || '',
-        rcloneRemote: mapping.rcloneRemote,
-        localBasePath: normalizeLocalPath(path.resolve(mapping.localBasePath)),
-        remoteBasePath: normalizeRemoteBasePath(mapping.remoteBasePath),
-        ignorePatterns: Array.isArray(mapping.ignorePatterns) ? mapping.ignorePatterns : [],
-        lastSyncMode: mapping.lastSyncMode || null,
-        lastSyncFolder: mapping.lastSyncFolder || null,
-        lastSyncDate: mapping.lastSyncDate || null,
-      }
-    }),
+    return {
+      displayName: mapping.displayName || '',
+      rcloneRemote: mapping.rcloneRemote,
+      localBasePath: normalizeLocalPath(path.resolve(mapping.localBasePath)),
+      remoteBasePath: normalizeRemoteBasePath(mapping.remoteBasePath),
+      ignorePatterns: Array.isArray(mapping.ignorePatterns) ? mapping.ignorePatterns : [],
+      lastSyncMode: mapping.lastSyncMode || null,
+      lastSyncFolder: mapping.lastSyncFolder || null,
+      lastSyncDate: mapping.lastSyncDate || null,
+    }
+  })
+}
+
+function normalizeAppConfig(rawConfig) {
+  return {
+    globalIgnorePatterns: normalizeGlobalIgnorePatterns(rawConfig),
+    mappings: normalizeMappings(rawConfig),
   }
 }
 
@@ -59,6 +80,23 @@ function serializeAppConfig(config) {
     globalIgnorePatterns: Array.isArray(config?.globalIgnorePatterns) ? config.globalIgnorePatterns : [],
     mappings: Array.isArray(config?.mappings) ? config.mappings : [],
   }, null, 2)}\n`
+}
+
+async function loadRawAppConfig(configPath) {
+  try {
+    const content = await fs.readFile(configPath, 'utf8')
+    return JSON.parse(content)
+  }
+  catch (error) {
+    if (error?.code === 'ENOENT')
+      return null
+
+    throwInfrastructureError(
+      INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED,
+      `Failed to load config from ${configPath}: ${error.message}`,
+      { cause: error, meta: { configPath } },
+    )
+  }
 }
 
 //* ================================ App Config File Operations ==============================*/
@@ -91,8 +129,10 @@ export async function ensureAppConfig(runtimePaths = getRuntimePaths()) {
 
 export async function loadAppConfig(configPath = getDefaultAppConfigPath()) {
   try {
-    const content = await fs.readFile(configPath, 'utf8')
-    const rawConfig = JSON.parse(content)
+    const rawConfig = await loadRawAppConfig(configPath)
+    if (!rawConfig)
+      return null
+
     const config = normalizeAppConfig(rawConfig)
 
     return {
@@ -101,12 +141,46 @@ export async function loadAppConfig(configPath = getDefaultAppConfigPath()) {
     }
   }
   catch (error) {
-    if (error?.code === 'ENOENT')
-      return null
+    if (error?.code === INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED)
+      throw error
 
     throwInfrastructureError(
       INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED,
       `Failed to load config from ${configPath}: ${error.message}`,
+      { cause: error, meta: { configPath } },
+    )
+  }
+}
+
+export async function loadAppMappings(configPath = getDefaultAppConfigPath()) {
+  try {
+    const rawConfig = await loadRawAppConfig(configPath)
+    return rawConfig ? normalizeMappings(rawConfig) : null
+  }
+  catch (error) {
+    if (error?.code === INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED)
+      throw error
+
+    throwInfrastructureError(
+      INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED,
+      `Failed to load mappings from ${configPath}: ${error.message}`,
+      { cause: error, meta: { configPath } },
+    )
+  }
+}
+
+export async function loadAppGlobalIgnorePatterns(configPath = getDefaultAppConfigPath()) {
+  try {
+    const rawConfig = await loadRawAppConfig(configPath)
+    return rawConfig ? normalizeGlobalIgnorePatterns(rawConfig) : null
+  }
+  catch (error) {
+    if (error?.code === INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED)
+      throw error
+
+    throwInfrastructureError(
+      INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED,
+      `Failed to load global ignore patterns from ${configPath}: ${error.message}`,
       { cause: error, meta: { configPath } },
     )
   }

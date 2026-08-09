@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { ensureAppConfig, loadAppConfig } from '#src/infrastructure/configuration/app-config-store.js'
+import { ensureAppConfig, loadAppConfig, loadAppGlobalIgnorePatterns, loadAppMappings } from '#src/infrastructure/configuration/app-config-store.js'
 import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
 
 test('loadAppConfig reads and normalizes sync config', async () => {
@@ -109,6 +109,51 @@ test('loadAppConfig wraps invalid config errors with a stable error code', async
 
   await assert.rejects(
     () => loadAppConfig(configPath),
+    {
+      name: 'InfrastructureError',
+      code: INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED,
+    },
+  )
+})
+
+test('loadAppGlobalIgnorePatterns does not validate mappings', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-global-patterns-'))
+  const configPath = path.join(tempDir, 'config.json')
+
+  await fs.writeFile(configPath, JSON.stringify({
+    globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+    syncTasks: [],
+  }))
+
+  assert.deepEqual(
+    await loadAppGlobalIgnorePatterns(configPath),
+    ['.DS_Store', 'Thumbs.db'],
+  )
+})
+
+test('loadAppMappings does not validate global ignore patterns', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-mappings-'))
+  const configPath = path.join(tempDir, 'config.json')
+
+  await fs.writeFile(configPath, JSON.stringify({
+    globalIgnorePatterns: {},
+    mappings: [],
+  }))
+
+  assert.deepEqual(await loadAppMappings(configPath), [])
+})
+
+test('loadAppGlobalIgnorePatterns validates its own projection', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-global-patterns-invalid-'))
+  const configPath = path.join(tempDir, 'config.json')
+
+  await fs.writeFile(configPath, JSON.stringify({
+    globalIgnorePatterns: ['valid', null],
+    mappings: [],
+  }))
+
+  await assert.rejects(
+    () => loadAppGlobalIgnorePatterns(configPath),
     {
       name: 'InfrastructureError',
       code: INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED,

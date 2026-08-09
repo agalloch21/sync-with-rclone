@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('formModal', {
   getServer(payload) {
     return ipcRenderer.invoke('form-modal:get-server', payload)
   },
+  getGlobalIgnorePatterns() {
+    return ipcRenderer.invoke('form-modal:get-global-ignore-patterns')
+  },
   createServer(payload) {
     return ipcRenderer.invoke('form-modal:create-server', payload)
   },

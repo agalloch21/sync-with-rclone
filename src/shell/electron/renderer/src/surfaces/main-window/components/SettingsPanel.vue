@@ -1,43 +1,42 @@
 <script setup lang="ts">
 import { formatIgnorePatterns, parseIgnorePatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
 import { unwrapResult } from '#src/app/operation-result.js'
-import { onMounted, onUnmounted, ref } from 'vue'
-import { useMessageBox } from '../../../composables/useMessageBox.js'
+import { onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import Button from '../../shared/Button.vue'
+import ConfigurationLoadError from './ConfigurationLoadError.vue'
 
-const messageBox = useMessageBox(window?.mainWindow)
 const mappingOperations = useMappingOperations(window?.mainWindow)
 
 const globalPatternsText = ref('')
 const isLoading = ref(false)
 const isSubmitting = ref(false)
-
+const loadError = shallowRef(null)
 let unsubscribeConfigUpdated = null
 
 onMounted(async () => {
-  isLoading.value = true
-  const result = await window.mainWindow?.getMainWindowData?.()
-  applyMainWindowData(result)
-  isLoading.value = false
-
-  unsubscribeConfigUpdated = window.mainWindow?.onConfigUpdated?.((result) => {
-    applyMainWindowData(result)
+  unsubscribeConfigUpdated = window.mainWindow?.onConfigUpdated?.(() => {
+    void loadGlobalIgnorePatterns()
   })
+  await loadGlobalIgnorePatterns()
 })
 
 onUnmounted(() => {
   unsubscribeConfigUpdated?.()
 })
 
-function applyMainWindowData(result) {
+async function loadGlobalIgnorePatterns() {
+  isLoading.value = true
+  const result = await window.mainWindow?.getGlobalIgnorePatterns?.()
+  isLoading.value = false
+
   if (!result?.success) {
     globalPatternsText.value = ''
-    messageBox.error(result?.error)
+    loadError.value = result?.error || null
     return
   }
 
-  const payload = unwrapResult(result)
-  globalPatternsText.value = formatIgnorePatterns(payload?.globalIgnorePatterns)
+  globalPatternsText.value = formatIgnorePatterns(unwrapResult(result))
+  loadError.value = null
 }
 
 async function applyGlobalPatterns() {
@@ -65,20 +64,23 @@ async function applyGlobalPatterns() {
       </div>
     </header>
     <main class="content-dock flex-1 flex flex-col gap-2">
-      <textarea
-        v-model="globalPatternsText"
-        class="pattern-area w-full h-full"
-        placeholder="Type patterns here..."
-        :disabled="isLoading || isSubmitting"
-        autofocus
-      />
-      <p class="description">
-        {{ $t('settingsPanel.globalPatterns.description') }}
-      </p>
+      <ConfigurationLoadError v-if="loadError" :error="loadError" />
+      <template v-else>
+        <textarea
+          v-model="globalPatternsText"
+          class="pattern-area w-full h-full"
+          placeholder="Type patterns here..."
+          :disabled="isLoading || isSubmitting"
+          autofocus
+        />
+        <p class="description">
+          {{ $t('settingsPanel.globalPatterns.description') }}
+        </p>
+      </template>
     </main>
     <footer class="footer-dock h-16 flex justify-end items-center">
       <Button
-        :primary="true" :wide="true" :disabled="isLoading || isSubmitting" @click="applyGlobalPatterns"
+        :primary="true" :wide="true" :disabled="isLoading || isSubmitting || loadError !== null" @click="applyGlobalPatterns"
       >
         {{ $t('settingsPanel.common.apply') }}
       </Button>

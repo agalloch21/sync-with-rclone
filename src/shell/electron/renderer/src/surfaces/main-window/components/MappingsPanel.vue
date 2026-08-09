@@ -3,10 +3,10 @@ import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
 import { useMappingOperations } from '../../../composables/useMappingOperations.js'
-import { useMessageBox } from '../../../composables/useMessageBox.js'
 import { useServerOperations } from '../../../composables/useServerOperations.js'
 import { MAIN_WINDOW_ACTION } from './ActionBar.presentation.js'
 import ActionBar from './ActionBar.vue'
+import ConfigurationLoadError from './ConfigurationLoadError.vue'
 import MappingItem from './MappingItem.vue'
 import ServerItem from './ServerItem.vue'
 
@@ -17,13 +17,12 @@ const FORM_VIEW_BY_ACTION = Object.freeze({
   [MAIN_WINDOW_ACTION.EDIT_PATTERNS]: FORM_MODAL_VIEW.EDIT_PATTERNS,
 })
 
-const messageBox = useMessageBox(window?.mainWindow)
 const serverOperations = useServerOperations(window?.mainWindow)
 const mappingOperations = useMappingOperations(window?.mainWindow)
 
 const servers = ref([])
 const mappings = ref([])
-const globalIgnorePatterns = ref([])
+const loadError = shallowRef(null)
 const mappingsByServerName = computed(() => {
   const groupedMappings = new Map()
   for (const mapping of mappings.value) {
@@ -36,35 +35,37 @@ const mappingsByServerName = computed(() => {
 
 const selectedServer = shallowRef(null)
 const selectedMapping = shallowRef(null)
-
 let unsubscribeConfigUpdated = null
 
 onMounted(async () => {
-  const result = await window.mainWindow?.getMainWindowData?.()
-  applyMainWindowData(result)
-
-  unsubscribeConfigUpdated = window.mainWindow?.onConfigUpdated?.((result) => {
-    applyMainWindowData(result)
+  unsubscribeConfigUpdated = window.mainWindow?.onConfigUpdated?.(() => {
+    void loadMainWindowData()
   })
+  await loadMainWindowData()
 })
 
 onUnmounted(() => {
   unsubscribeConfigUpdated?.()
 })
 
+async function loadMainWindowData() {
+  const result = await window.mainWindow?.getMainWindowData?.()
+  applyMainWindowData(result)
+}
+
 function applyMainWindowData(result) {
   if (!result?.success) {
     servers.value = []
     mappings.value = []
-    globalIgnorePatterns.value = []
-    showMappingsPanelLoadError(result?.error)
+    loadError.value = result?.error || null
+    updateMappingsPanelSelection()
     return
   }
 
   const payload = unwrapResult(result)
   servers.value = payload?.servers || []
   mappings.value = payload?.mappings || []
-  globalIgnorePatterns.value = payload?.globalIgnorePatterns || []
+  loadError.value = null
 
   updateMappingsPanelSelection()
 }
@@ -83,10 +84,6 @@ function updateMappingsPanelSelection() {
 
   selectedServer.value = nextServer
   selectedMapping.value = nextMapping || null
-}
-
-function showMappingsPanelLoadError(error) {
-  messageBox.error(error)
 }
 
 function onSelectServer(server) {
@@ -129,7 +126,6 @@ async function handleAction(action) {
   window.mainWindow?.openFormModal?.(view, {
     selectedServer: createSerializableServer(selectedServer.value),
     selectedMapping: createSerializableMapping(selectedMapping.value),
-    globalIgnorePatterns: structuredClone(toRaw(globalIgnorePatterns.value)),
   })
 }
 </script>
@@ -140,11 +136,13 @@ async function handleAction(action) {
       <ActionBar
         :is-server-selected="selectedServer !== null && selectedServer.status !== 'missing'"
         :is-mapping-selected="selectedMapping !== null"
+        :configuration-unavailable="loadError !== null"
         @request-action="handleAction"
       />
     </div>
     <div class="mapping-list-dock min-h-0 flex-1 border-t border-(--surface-soft)">
       <div class="mapping-list-stage h-full overflow-x-auto overflow-y-auto scrollbar-gutter-stable divide-y divide-(--surface-soft)">
+        <ConfigurationLoadError v-if="loadError" :error="loadError" />
         <ServerItem
           v-for="server in servers" :key="server.name" :server="server" :selected="server === selectedServer && selectedMapping === null"
           :has-mappings="getMappingsByServer(server.name).length > 0"

@@ -1,7 +1,7 @@
 import { normalizeRemoteFolderPath } from '#src/infrastructure/rclone/remote-path.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import { APP_ERROR_CODE, throwAppError } from '../../app-errors.js'
-import { loadConfiguration } from '../../services/app-config.js'
+import { loadAppConfiguration } from '../../services/app-config.js'
 import { resolveMapping, resolveSyncLocalFolderPath } from './resolve-mapping.js'
 
 export async function resolveSyncContext(options, runtimePaths = getRuntimePaths()) {
@@ -13,7 +13,7 @@ export async function resolveSyncContext(options, runtimePaths = getRuntimePaths
     )
   }
 
-  const config = bypassConfig ? null : await loadConfiguration(runtimePaths.configPath)
+  const config = bypassConfig ? null : await loadAppConfiguration(runtimePaths.configPath)
   const resolvedMapping = bypassConfig
     ? null
     : resolveMapping(config, options.localFolderPath, options.remoteFolderPath)

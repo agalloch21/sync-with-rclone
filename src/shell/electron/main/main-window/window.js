@@ -38,14 +38,13 @@ export function createMainWindow() {
   const handlers = createMainWindowHandlers()
   const messageBoxHandlers = createMessageBoxBridgeHandlers()
 
-  registerConfigUpdateListener(refreshMainWindowData)
+  registerConfigUpdateListener(publishConfigUpdate)
   registerOperationHistoryListener(publishOperationHistoryUpdate)
 
-  async function refreshMainWindowData() {
-    const payload = await handlers.getMainWindowDataHandler()
+  function publishConfigUpdate() {
     try {
       if (!mainWindow.isDestroyed())
-        mainWindow.webContents.send('main-window:config-updated', payload)
+        mainWindow.webContents.send('main-window:config-updated')
     }
     catch (error) {
       console.error(error)
@@ -63,6 +62,8 @@ export function createMainWindow() {
   }
 
   ipcMain.handle('main-window:get-data', handlers.getMainWindowDataHandler)
+  ipcMain.handle('main-window:get-global-ignore-patterns', handlers.getGlobalIgnorePatternsHandler)
+  ipcMain.handle('main-window:open-config-folder', handlers.openConfigFolderHandler)
   ipcMain.handle('main-window:get-operation-history', handlers.getOperationHistoryHandler)
   ipcMain.handle('main-window:open-form-modal', handlers.openFormModalHandler)
   ipcMain.handle('main-window:get-server', handlers.getServerHandler)
@@ -79,10 +80,12 @@ export function createMainWindow() {
   mainWindow.on('closed', () => {
     destroyMessageBox()
     clearMainWindow(mainWindow)
-    unregisterConfigUpdateListener(refreshMainWindowData)
+    unregisterConfigUpdateListener(publishConfigUpdate)
     unregisterOperationHistoryListener(publishOperationHistoryUpdate)
 
     ipcMain.removeHandler('main-window:get-data')
+    ipcMain.removeHandler('main-window:get-global-ignore-patterns')
+    ipcMain.removeHandler('main-window:open-config-folder')
     ipcMain.removeHandler('main-window:get-operation-history')
     ipcMain.removeHandler('main-window:open-form-modal')
     ipcMain.removeHandler('main-window:get-server')

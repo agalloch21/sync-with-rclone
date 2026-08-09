@@ -1,7 +1,7 @@
 <script setup>
 defineProps({
   panels: Array,
-  selectedPanel: String,
+  selectedPanel: Object,
 })
 
 defineEmits(['onSelectPanel'])
@@ -13,8 +13,8 @@ defineEmits(['onSelectPanel'])
       <div
         v-for="panel in panels" :key="panel.name"
         class="nav-item"
-        :class="panel.name === selectedPanel ? 'nav-item-selected' : 'nav-item-unselected'"
-        @click="$emit('onSelectPanel', panel.name)"
+        :class="panel === selectedPanel ? 'nav-item-selected' : 'nav-item-unselected'"
+        @click="$emit('onSelectPanel', panel)"
       >
         <span class="nav-item-icon" :class="panel.icon" />
         <p class="nav-item-label">

@@ -135,6 +135,7 @@ process.exit(0)
   })
 
   return {
+    configPath,
     async readCalls() {
       try {
         const content = await fs.readFile(logPath, 'utf8')
@@ -150,6 +151,13 @@ process.exit(0)
       return JSON.parse(await fs.readFile(statePath, 'utf8'))
     },
   }
+}
+
+async function writeAppConfig(runtime, mappings = []) {
+  await fs.writeFile(runtime.configPath, JSON.stringify({
+    globalIgnorePatterns: [],
+    mappings,
+  }, null, 2), 'utf8')
 }
 
 test('createServerConnection validates, creates, and tests a server connection', async () => {
@@ -385,10 +393,37 @@ test('deleteServerConnection emits its delete step inside the server operation',
       synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
     },
   })
+  await writeAppConfig(runtime)
 
   const progress = []
   await deleteServerConnection('synology', step => progress.push(step))
 
   assert.deepEqual(await runtime.readState(), {})
   assert.deepEqual(progress, [SERVER_DELETE_PROGRESS_STEP.DELETE])
+})
+
+test('deleteServerConnection rejects servers with active mappings', async () => {
+  const runtime = await createFakeRuntime({
+    initialConfig: {
+      synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
+    },
+  })
+  await writeAppConfig(runtime, [{
+    displayName: 'Projects',
+    rcloneRemote: 'synology',
+    localBasePath: runtime.configPath,
+    remoteBasePath: 'Projects',
+    ignorePatterns: [],
+    lastSyncMode: null,
+    lastSyncFolder: null,
+    lastSyncDate: null,
+  }])
+
+  await assert.rejects(
+    () => deleteServerConnection('synology'),
+    error => error?.code === APP_ERROR_CODE.SERVER_HAS_MAPPINGS,
+  )
+  assert.deepEqual(await runtime.readState(), {
+    synology: { type: 'sftp', host: 'nas.local', port: '22', user: 'xiaobo', pass: 'secret' },
+  })
 })

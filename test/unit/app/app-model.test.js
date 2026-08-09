@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { deleteMapping, getMainWindowData, listOperationHistory, testServerConnection, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-api.js'
+import { deleteMapping, getMainWindowData, listGlobalIgnorePatterns, listOperationHistory, testServerConnection, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-api.js'
 import { SERVER_UPDATE_PROGRESS_STEP } from '#src/app/contracts/server.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
@@ -47,22 +47,78 @@ test('getMainWindowData returns servers and mappings through the app API', async
           lastSyncDate: null,
         },
       ],
-      globalIgnorePatterns: [],
     })
   })
 })
 
-test('getMainWindowData returns global ignore patterns', async () => {
+test('listGlobalIgnorePatterns loads independently from mappings', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {},
     appConfig: {
       globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
       mappings: [],
     },
-  }, async () => {
-    const data = await getMainWindowData()
+  }, async ({ configPath }) => {
+    await fs.writeFile(configPath, JSON.stringify({
+      globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+      syncTasks: [],
+    }))
 
-    assert.deepEqual(data.globalIgnorePatterns, ['.DS_Store', 'Thumbs.db'])
+    assert.deepEqual(await listGlobalIgnorePatterns(), ['.DS_Store', 'Thumbs.db'])
+  })
+})
+
+test('getMainWindowData loads mappings independently from global ignore patterns', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {},
+    appConfig: {
+      globalIgnorePatterns: [],
+      mappings: [],
+    },
+  }, async ({ configPath }) => {
+    await fs.writeFile(configPath, JSON.stringify({
+      globalIgnorePatterns: {},
+      mappings: [],
+    }))
+
+    assert.deepEqual(await getMainWindowData(), {
+      servers: [],
+      mappings: [],
+    })
+  })
+})
+
+test('getMainWindowData preserves configuration load errors', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {
+      synology: { type: 'sftp', host: 'nas.local' },
+    },
+    appConfig: {
+      mappings: [],
+    },
+  }, async ({ configPath }) => {
+    await fs.writeFile(configPath, '{invalid json', 'utf8')
+
+    await assert.rejects(
+      () => getMainWindowData(),
+      error => error?.code === 'config.load_failed',
+    )
+  })
+})
+
+test('getMainWindowData reports a missing configuration', async () => {
+  await withFakeAppRuntime({
+    rcloneConfig: {},
+    appConfig: {
+      mappings: [],
+    },
+  }, async ({ configPath }) => {
+    await fs.unlink(configPath)
+
+    await assert.rejects(
+      () => getMainWindowData(),
+      error => error?.code === 'config.load_failed',
+    )
   })
 })
 

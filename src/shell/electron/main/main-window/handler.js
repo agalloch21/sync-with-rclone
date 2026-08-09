@@ -1,12 +1,16 @@
+import { createRequire } from 'node:module'
 import { isValidFormModalView } from '#electron/contracts/form-modal.js'
-import { deleteMapping, deleteServer, getMainWindowData, getServer, listOperationHistory, updateGlobalIgnorePatterns } from '#src/app/app-api.js'
+import { deleteMapping, deleteServer, getMainWindowData, getServer, listGlobalIgnorePatterns, listOperationHistory, updateGlobalIgnorePatterns } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { MAPPING_OPERATION } from '#src/app/contracts/mapping.js'
 import { SERVER_OPERATION } from '#src/app/contracts/server.js'
 import { toFailureResult, toSuccessfulResult } from '#src/app/operation-result.js'
+import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import { getActiveModalWindow } from '../app-state.js'
 import { createFormModalWindow } from '../form-modal/window.js'
 import { reportRequestError, runReportedOperation } from '../message-box/operation-presentation.js'
+
+const require = createRequire(import.meta.url)
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -51,6 +55,32 @@ export function createMainWindowHandlers() {
     try {
       const result = await getMainWindowData()
       return toSuccessfulResult(result)
+    }
+    catch (error) {
+      return await reportRequestError(error)
+    }
+  }
+
+  async function getGlobalIgnorePatternsHandler(_event) {
+    try {
+      return toSuccessfulResult(await listGlobalIgnorePatterns())
+    }
+    catch (error) {
+      return await reportRequestError(error)
+    }
+  }
+
+  async function openConfigFolderHandler() {
+    try {
+      const { shell } = require('electron')
+      const errorMessage = await shell.openPath(getRuntimePaths().configDirectory)
+      if (errorMessage) {
+        throwAppError(APP_ERROR_CODE.IPC_UNAVAILABLE, 'Failed to open the configuration folder.', {
+          detail: errorMessage,
+        })
+      }
+
+      return toSuccessfulResult()
     }
     catch (error) {
       return await reportRequestError(error)
@@ -122,6 +152,8 @@ export function createMainWindowHandlers() {
 
   return {
     getMainWindowDataHandler,
+    getGlobalIgnorePatternsHandler,
+    openConfigFolderHandler,
     openFormModalHandler,
     getServerHandler,
     getOperationHistoryHandler,

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { formatIgnorePatterns, parseIgnorePatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
-import { ref } from 'vue'
+import { unwrapResult } from '#src/app/operation-result.js'
+import { onMounted, ref } from 'vue'
 import Button from '../../shared/Button.vue'
 import ModalLayout from './ModalLayout.vue'
 
@@ -16,8 +17,14 @@ const emit = defineEmits(['onClickCancel', 'onClickConfirm'])
 const mappingOperations = useMappingOperations(window.formModal)
 
 const mappingPatternsText = ref(formatIgnorePatterns(props.context?.selectedMapping?.ignorePatterns))
-const globalPatternsText = formatIgnorePatterns(props.context?.globalIgnorePatterns)
+const globalPatternsText = ref('')
 const isSubmitting = ref(false)
+
+onMounted(async () => {
+  const result = await window.formModal?.getGlobalIgnorePatterns?.()
+  if (result?.success)
+    globalPatternsText.value = formatIgnorePatterns(unwrapResult(result))
+})
 
 async function submitPatterns() {
   if (isSubmitting.value)

@@ -1,9 +1,10 @@
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
-import { loadConfiguration, updateConfiguration } from './app-config.js'
+import { loadMappings, updateConfiguration } from './app-config.js'
 
 function requireConfig(config) {
-  if (!config)
+  if (!config) {
     throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Sync configuration does not exist.')
+  }
 
   return config
 }
@@ -18,8 +19,15 @@ function findMappingIndex(mappings, mapping) {
 }
 
 export async function listMappings() {
-  const config = await loadConfiguration()
-  return config?.mappings
+  const mappings = await loadMappings()
+  if (!mappings)
+    throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Sync configuration does not exist.')
+
+  return mappings
+}
+
+export async function listMappingsByServer(serverName) {
+  return (await listMappings()).filter(mapping => mapping.rcloneRemote === serverName)
 }
 
 export async function createMapping(mapping) {

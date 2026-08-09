@@ -15,6 +15,10 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  isLoading: {
+    type: Boolean,
+    default: false,
+  },
   configurationUnavailable: {
     type: Boolean,
     default: false,
@@ -26,7 +30,7 @@ const emit = defineEmits(['requestAction'])
 
 <template>
   <div class="action-bar-stage flex items-stretch gap-4">
-    <Button :primary="true" :wide="true" :disabled="configurationUnavailable" @click="emit('requestAction', ACTION_BAR_PRIMARY_ACTION.action)">
+    <Button :primary="true" :wide="true" :disabled="isLoading || configurationUnavailable" @click="emit('requestAction', ACTION_BAR_PRIMARY_ACTION.action)">
       <span class="icon-[lucide--circle-plus] w-4 aspect-square" />
       {{ $t(`mappingsPanel.actions.${ACTION_BAR_PRIMARY_ACTION.name}`) }}
     </Button>
@@ -34,7 +38,7 @@ const emit = defineEmits(['requestAction'])
     <div v-if="configurationUnavailable || isMappingSelected || isServerSelected" class="flex gap-4">
       <Button
         v-for="action in (isMappingSelected ? ACTION_BAR_MAPPING_ACTIONS : ACTION_BAR_SERVER_ACTIONS)" :key="action.action"
-        :primary="false" :wide="false" :disabled="configurationUnavailable" @click="emit('requestAction', action.action)"
+        :primary="false" :wide="false" :disabled="isLoading || configurationUnavailable" @click="emit('requestAction', action.action)"
       >
         {{ $t(`mappingsPanel.actions.${action.name}`) }}
       </Button>

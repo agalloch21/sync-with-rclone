@@ -25,6 +25,26 @@ function assertPayloadObject(payload) {
 }
 
 export function createMainWindowHandlers() {
+  const reportedLoadFailures = {
+    mainWindowData: false,
+    globalIgnorePatterns: false,
+  }
+
+  async function runLoadQuery(queryName, query) {
+    try {
+      const result = await query()
+      reportedLoadFailures[queryName] = false
+      return toSuccessfulResult(result)
+    }
+    catch (error) {
+      if (reportedLoadFailures[queryName])
+        return toFailureResult(error)
+
+      reportedLoadFailures[queryName] = true
+      return await reportRequestError(error)
+    }
+  }
+
   async function openFormModalHandler(_event, payload) {
     const view = payload?.view
     const context = payload?.context || {}
@@ -52,22 +72,11 @@ export function createMainWindowHandlers() {
   }
 
   async function getMainWindowDataHandler(_event) {
-    try {
-      const result = await getMainWindowData()
-      return toSuccessfulResult(result)
-    }
-    catch (error) {
-      return await reportRequestError(error)
-    }
+    return await runLoadQuery('mainWindowData', getMainWindowData)
   }
 
   async function getGlobalIgnorePatternsHandler(_event) {
-    try {
-      return toSuccessfulResult(await listGlobalIgnorePatterns())
-    }
-    catch (error) {
-      return await reportRequestError(error)
-    }
+    return await runLoadQuery('globalIgnorePatterns', listGlobalIgnorePatterns)
   }
 
   async function openConfigFolderHandler() {

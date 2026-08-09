@@ -22,6 +22,7 @@ const mappingOperations = useMappingOperations(window?.mainWindow)
 
 const servers = ref([])
 const mappings = ref([])
+const isLoading = ref(true)
 const loadError = shallowRef(null)
 const mappingsByServerName = computed(() => {
   const groupedMappings = new Map()
@@ -49,8 +50,14 @@ onUnmounted(() => {
 })
 
 async function loadMainWindowData() {
-  const result = await window.mainWindow?.getMainWindowData?.()
-  applyMainWindowData(result)
+  isLoading.value = true
+  try {
+    const result = await window.mainWindow?.getMainWindowData?.()
+    applyMainWindowData(result)
+  }
+  finally {
+    isLoading.value = false
+  }
 }
 
 function applyMainWindowData(result) {
@@ -109,6 +116,9 @@ function createSerializableMapping(mapping) {
 }
 
 async function handleAction(action) {
+  if (isLoading.value || loadError.value)
+    return
+
   if (action === MAIN_WINDOW_ACTION.DELETE_SERVER) {
     await serverOperations.deleteServer(selectedServer.value.name)
     return
@@ -136,6 +146,7 @@ async function handleAction(action) {
       <ActionBar
         :is-server-selected="selectedServer !== null && selectedServer.status !== 'missing'"
         :is-mapping-selected="selectedMapping !== null"
+        :is-loading="isLoading"
         :configuration-unavailable="loadError !== null"
         @request-action="handleAction"
       />

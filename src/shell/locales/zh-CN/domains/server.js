@@ -32,6 +32,7 @@ export default {
     [APP_ERROR_CODE.SERVER_VALIDATION_FAILED]: '服务器验证失败。',
     [APP_ERROR_CODE.SERVER_ALREADY_EXISTS]: '服务器已存在。',
     [APP_ERROR_CODE.SERVER_NOT_FOUND]: '服务器不存在。',
+    [APP_ERROR_CODE.SERVER_HAS_MAPPINGS]: '请先删除使用该服务器的映射，再删除服务器。',
     [APP_ERROR_CODE.SERVER_CONNECTION_FAILED]: '服务器连接失败。',
     [APP_ERROR_CODE.SERVER_OPERATION_FAILED]: '服务器操作失败。',
   }),

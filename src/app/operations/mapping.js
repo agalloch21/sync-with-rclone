@@ -65,6 +65,7 @@ function assertIgnorePatterns(ignorePatterns) {
 }
 
 export const listMappings = mappingService.listMappings
+export const listMappingsByServer = mappingService.listMappingsByServer
 
 export async function createMapping(mapping, onProgress) {
   const normalizedMapping = normalizeMapping(mapping)

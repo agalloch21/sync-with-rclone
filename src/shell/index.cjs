@@ -78,7 +78,12 @@ else {
 
     app.on('activate', () => {
       desktopReady
-        .then(desktop => desktop.ensureMainWindow())
+        .then((desktop) => {
+          if (desktop.activeSessionCount > 0)
+            return
+
+          return desktop.ensureMainWindow()
+        })
         .catch(showStartupError)
     })
 

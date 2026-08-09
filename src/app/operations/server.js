@@ -1,10 +1,11 @@
-import { getErrorCode } from '../app-errors.js'
+import { APP_ERROR_CODE, getErrorCode, throwAppError } from '../app-errors.js'
 import {
   SERVER_CREATE_PROGRESS_STEP,
   SERVER_DELETE_PROGRESS_STEP,
   SERVER_UPDATE_PROGRESS_STEP,
 } from '../contracts/server.js'
 import * as serverService from '../services/server.js'
+import * as mappingOperations from './mapping.js'
 
 export const buildEmptyServerObject = serverService.buildEmptyServer
 export const getFolderTree = serverService.getServerFolderTree
@@ -43,6 +44,14 @@ export async function updateServerConnection(name, protocolType, protocolFields,
 }
 
 export async function deleteServerConnection(name, onProgress) {
+  const activeMappings = await mappingOperations.listMappingsByServer(name)
+  if (activeMappings.length > 0) {
+    throwAppError(APP_ERROR_CODE.SERVER_HAS_MAPPINGS, 'Server has active mappings.', {
+      detail: 'Delete the mappings that use this server before deleting the server.',
+      meta: { name, mappingCount: activeMappings.length },
+    })
+  }
+
   onProgress?.(SERVER_DELETE_PROGRESS_STEP.DELETE)
   await serverService.deleteServer(name)
 }

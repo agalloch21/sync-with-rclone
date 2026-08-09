@@ -32,6 +32,7 @@ export default {
     [APP_ERROR_CODE.SERVER_VALIDATION_FAILED]: 'Server validation failed.',
     [APP_ERROR_CODE.SERVER_ALREADY_EXISTS]: 'Server already exists.',
     [APP_ERROR_CODE.SERVER_NOT_FOUND]: 'Server does not exist.',
+    [APP_ERROR_CODE.SERVER_HAS_MAPPINGS]: 'Delete this server’s mappings before deleting the server.',
     [APP_ERROR_CODE.SERVER_CONNECTION_FAILED]: 'Server connection failed.',
     [APP_ERROR_CODE.SERVER_OPERATION_FAILED]: 'Server operation failed.',
   }),

@@ -9,7 +9,7 @@ import ServerView from './components/ServerView.vue'
 
 const { t } = useI18n()
 
-const view = ref('')
+const view = ref(null)
 const context = ref({})
 // const wizardState = ref({
 //   selectedRemoteName: '',
@@ -23,7 +23,7 @@ const VIEW_COMPONENT = {
   [FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING]: FolderMappingView,
   [FORM_MODAL_VIEW.EDIT_PATTERNS]: IgnorePatternsView,
 }
-const modalComponent = computed(() => VIEW_COMPONENT[view.value] || ChooseServerView)
+const modalComponent = computed(() => VIEW_COMPONENT[view.value])
 
 function closeModal() {
   window.formModal?.close?.()
@@ -42,8 +42,13 @@ function onClickConfirm() {
 }
 
 onMounted(async () => {
-  const state = await window.formModal?.getState?.() || { view: '', context: {} }
-  view.value = state.view || ''
+  const state = await window.formModal?.getState?.()
+  if (!VIEW_COMPONENT[state?.view]) {
+    closeModal()
+    return
+  }
+
+  view.value = state.view
   context.value = state.context || { selectedServer: null, selectedMapping: null }
 
   await nextTick()
@@ -56,6 +61,7 @@ onMounted(async () => {
   <div class="form-modal-dock">
     <component
       :is="modalComponent"
+      v-if="modalComponent"
       :view="view"
       :context="context"
       @on-click-cancel="closeModal"

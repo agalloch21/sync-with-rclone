@@ -5,8 +5,8 @@ export default {
   errors: defineLocaleTree({
     [APP_ERROR_CODE.UNKNOWN]: 'An unknown error occurred.',
     [APP_ERROR_CODE.PATH_INVALID]: 'Invalid local directory path.',
-    [APP_ERROR_CODE.CONFIG_LOAD_FAILED]: 'Failed to load sync configuration: {configPath}',
-    [APP_ERROR_CODE.CONFIG_UPDATE_FAILED]: 'Failed to update sync configuration: {configPath}',
+    [APP_ERROR_CODE.CONFIG_LOAD_FAILED]: 'Failed to load configuration.',
+    [APP_ERROR_CODE.CONFIG_UPDATE_FAILED]: 'Failed to update configuration: {configPath}',
     [APP_ERROR_CODE.CONFIG_NO_MATCHING_MAPPING]: 'No mapping matches local path: {path}',
     [APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_MAPPING]: 'Remote path must stay within mapping "{mappingName}": {remotePath}',
     [APP_ERROR_CODE.SYNC_SESSION_OVERLAP]: 'Another sync session is already using an overlapping local or remote folder.',

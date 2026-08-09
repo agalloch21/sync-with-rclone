@@ -4,7 +4,7 @@ import { Arch, build, Platform } from 'electron-builder'
 
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))
 
-const targetArg = process.argv[2] || 'dmg,zip'
+const targetArg = process.argv[2] || 'pkg'
 const archArg = process.argv[3] || 'arm64'
 const outputArg = process.argv[4] || ''
 

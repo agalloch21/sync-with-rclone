@@ -5,7 +5,7 @@ export default {
   errors: defineLocaleTree({
     [APP_ERROR_CODE.UNKNOWN]: '发生未知错误。',
     [APP_ERROR_CODE.PATH_INVALID]: '本地文件夹路径无效。',
-    [APP_ERROR_CODE.CONFIG_LOAD_FAILED]: '读取同步配置失败：{configPath}',
+    [APP_ERROR_CODE.CONFIG_LOAD_FAILED]: '读取同步配置失败。',
     [APP_ERROR_CODE.CONFIG_UPDATE_FAILED]: '更新同步配置失败：{configPath}',
     [APP_ERROR_CODE.CONFIG_NO_MATCHING_MAPPING]: '没有与本地路径匹配的映射：{path}',
     [APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_MAPPING]: '远程路径必须位于映射“{mappingName}”内：{remotePath}',

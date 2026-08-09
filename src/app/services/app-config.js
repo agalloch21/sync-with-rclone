@@ -14,7 +14,7 @@ export async function loadAppConfiguration(configPath) {
     throw toAppError(
       error,
       APP_ERROR_CODE.CONFIG_LOAD_FAILED,
-      'Failed to load sync configuration.',
+      'Failed to load configuration.',
       { meta: { configPath } },
     )
   }
@@ -56,7 +56,7 @@ export async function updateConfiguration(mutator, runtimePaths) {
     throw toAppError(
       error,
       APP_ERROR_CODE.CONFIG_UPDATE_FAILED,
-      'Failed to update sync configuration.',
+      'Failed to update configuration.',
       { meta: { configPath: runtimePaths?.configPath } },
     )
   }

@@ -12,7 +12,7 @@ function openConfigFolder() {
 </script>
 
 <template>
-  <section role="alert" class="m-5 rounded-lg border-2 border-(--danger) bg-red-50 px-6 py-5 text-(--danger)">
+  <section role="alert" class="m-5 rounded-lg border-2 border-(--text-primary) px-6 py-5 text-(--text-primary)">
     <div class="flex items-start gap-4">
       <span class="icon-[lucide--triangle-alert] mt-0.5 size-6 shrink-0" />
       <div class="min-w-0 space-y-3">
@@ -24,7 +24,7 @@ function openConfigFolder() {
         </p>
         <p class="text-sm text-(--text-primary)">
           {{ $t('configurationError.instruction') }}
-          <button type="button" class="font-semibold text-(--danger) underline underline-offset-4" @click="openConfigFolder">
+          <button type="button" class="font-semibold text-blue-500 underline underline-offset-4" @click="openConfigFolder">
             {{ $t('configurationError.openFolder') }}
           </button>
         </p>

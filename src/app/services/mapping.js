@@ -3,7 +3,7 @@ import { loadMappings, updateConfiguration } from './app-config.js'
 
 function requireConfig(config) {
   if (!config) {
-    throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Sync configuration does not exist.')
+    throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Configuration file does not exist.')
   }
 
   return config
@@ -21,7 +21,7 @@ function findMappingIndex(mappings, mapping) {
 export async function listMappings() {
   const mappings = await loadMappings()
   if (!mappings)
-    throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Sync configuration does not exist.')
+    throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Configuration file does not exist.')
 
   return mappings
 }

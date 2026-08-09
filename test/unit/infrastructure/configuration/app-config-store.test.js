@@ -6,7 +6,7 @@ import test from 'node:test'
 import { ensureAppConfig, loadAppConfig, loadAppGlobalIgnorePatterns, loadAppMappings } from '#src/infrastructure/configuration/app-config-store.js'
 import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
 
-test('loadAppConfig reads and normalizes sync config', async () => {
+test('loadAppConfig reads and normalizes config', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-config-'))
   const configPath = path.join(tempDir, 'config.json')
 

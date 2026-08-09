@@ -96,6 +96,28 @@ export function createMainWindowHandlers() {
     }
   }
 
+  async function openLocalFolderHandler(_event, payload) {
+    try {
+      assertPayloadObject(payload)
+      if (typeof payload.localFolderPath !== 'string' || !payload.localFolderPath) {
+        throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, 'Invalid local folder path.')
+      }
+
+      const { shell } = require('electron')
+      const errorMessage = await shell.openPath(payload.localFolderPath)
+      if (errorMessage) {
+        throwAppError(APP_ERROR_CODE.IPC_UNAVAILABLE, 'Failed to open the local folder.', {
+          detail: errorMessage,
+        })
+      }
+
+      return toSuccessfulResult()
+    }
+    catch (error) {
+      return await reportRequestError(error)
+    }
+  }
+
   async function getServerHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
@@ -163,6 +185,7 @@ export function createMainWindowHandlers() {
     getMainWindowDataHandler,
     getGlobalIgnorePatternsHandler,
     openConfigFolderHandler,
+    openLocalFolderHandler,
     openFormModalHandler,
     getServerHandler,
     getOperationHistoryHandler,

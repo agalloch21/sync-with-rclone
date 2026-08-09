@@ -27,6 +27,12 @@ function formatLastSyncDate(value) {
   const pad = part => String(part).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
+
+function openLocalFolder() {
+  const localFolderPath = props.mapping?.localBasePath
+  if (localFolderPath)
+    return window.mainWindow?.openLocalFolder?.(localFolderPath)
+}
 </script>
 
 <template>
@@ -42,9 +48,13 @@ function formatLastSyncDate(value) {
         <label class="local-folder-name h-lh text-sm font-semibold text-(--text-primary) break-all line-clamp-1">
           {{ getMappingDisplayName(props.mapping) }}
         </label>
-        <div class="local-folder-path h-[2lh] text-[0.625rem] leading-3 underline text-blue-500 break-all line-clamp-2 cursor-pointer">
+        <button
+          class="local-folder-path h-[2lh] text-left text-[0.625rem] leading-3 underline text-blue-500 break-all line-clamp-2 cursor-pointer"
+          type="button"
+          @click.stop="openLocalFolder"
+        >
           {{ props.mapping?.localBasePath }}
-        </div>
+        </button>
       </div>
       <dl class="mapping-extra-info min-w-64 flex-1 pl-4 flex flex-col text-[0.6rem] text-(--text-subtle)">
         <div class="extra-info-row">

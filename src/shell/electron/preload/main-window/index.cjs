@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('mainWindow', {
   openConfigFolder() {
     return ipcRenderer.invoke('main-window:open-config-folder')
   },
+  openLocalFolder(localFolderPath) {
+    return ipcRenderer.invoke('main-window:open-local-folder', { localFolderPath })
+  },
   getOperationHistory(payload = {}) {
     return ipcRenderer.invoke('main-window:get-operation-history', payload)
   },

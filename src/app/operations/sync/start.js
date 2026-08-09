@@ -9,7 +9,9 @@ import {
   getErrorDetail,
   toAppError,
 } from '../../app-errors.js'
+import { notifyConfigUpdate } from '../../app-events.js'
 import { SYNC_CANCEL_REASON, SYNC_PHASE_EVENT, SYNC_RESULT, SYNC_SESSION_EVENT, SYNC_SESSION_OPERATION } from '../../contracts/sync.js'
+import { updateMapping } from '../../services/mapping.js'
 import {
   OPERATION_HISTORY_STATUS,
   runOperationWithHistory,
@@ -153,6 +155,19 @@ function resolveSyncHistoryResult(result) {
   }
 }
 
+async function recordCompletedSync(resolvedMapping, mode) {
+  if (!resolvedMapping)
+    return
+
+  const mapping = resolvedMapping.matchedMapping
+  await updateMapping(mapping, {
+    lastSyncMode: mode,
+    lastSyncFolder: resolvedMapping.relativePath,
+    lastSyncDate: new Date().toISOString(),
+  })
+  notifyConfigUpdate()
+}
+
 export async function startSync(options, runtime = {}, cancelSignal = null) {
   assertRuntimeContract(runtime)
 
@@ -232,6 +247,9 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
         sessionResult.error = toApplicationError(sessionResult.error)
         sessionResult.message = sessionResult.error?.message || sessionResult.message
         enrichFailedSessionResult(sessionResult, sessionResult.error, runtimePaths)
+      }
+      else if (sessionResult.result === SYNC_RESULT.COMPLETED) {
+        await recordCompletedSync(resolvedMapping, context.mode)
       }
 
       return emitSessionResult(sessionResult, emit)

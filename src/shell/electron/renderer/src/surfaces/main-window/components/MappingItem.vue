@@ -15,6 +15,18 @@ function getBaseName(filePath = '') {
 function getMappingDisplayName(mapping) {
   return mapping?.displayName || getBaseName(mapping?.localBasePath || '') || mapping?.localBasePath || ''
 }
+
+function formatLastSyncDate(value) {
+  if (!value)
+    return '-'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime()))
+    return value
+
+  const pad = part => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 </script>
 
 <template>
@@ -51,7 +63,7 @@ function getMappingDisplayName(mapping) {
           </dt>
           <dd class="flex flex-col">
             <p class="break-all line-clamp-1">
-              {{ props.mapping?.lastSyncMode || '-' }} | {{ props.mapping?.lastSyncDate || '-' }}
+              {{ props.mapping?.lastSyncMode || '-' }} | {{ formatLastSyncDate(props.mapping?.lastSyncDate) }}
             </p>
             <p class="">
               {{ props.mapping?.lastSyncFolder || '-' }}

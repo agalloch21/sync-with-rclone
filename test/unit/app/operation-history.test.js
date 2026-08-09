@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { startSync } from '#src/app/app-api.js'
+import { registerConfigUpdateListener, startSync, unregisterConfigUpdateListener } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, AppError } from '#src/app/app-errors.js'
 import {
   defineAppOperation,
@@ -14,6 +14,7 @@ import {
 } from '#src/app/operations/operation-history.js'
 import { acquireSyncAdmission, releaseSyncAdmission } from '#src/app/operations/sync/admission.js'
 import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
+import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 async function withHistoryRuntime(callback) {
   const appRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-history-'))
@@ -196,5 +197,52 @@ test('startSync keeps pre-execution aborts as cancelled results', async () => {
     assert.equal(result.result, 'cancelled')
     assert.equal(result.reason, 'abort-signal')
     assert.equal((await listOperationHistory())[0].status, OPERATION_HISTORY_STATUS.CANCELLED)
+  })
+})
+
+test('startSync records a completed mapped folder and publishes the configuration update', async () => {
+  await withFakeAppRuntime({
+    appConfig: {
+      globalIgnorePatterns: [],
+      mappings: [],
+    },
+  }, async ({ tempDir, configPath }) => {
+    const localBasePath = path.join(tempDir, 'project')
+    const localFolderPath = path.join(localBasePath, 'src')
+    await fs.mkdir(localFolderPath, { recursive: true })
+    await fs.writeFile(configPath, JSON.stringify({
+      globalIgnorePatterns: [],
+      mappings: [{
+        displayName: 'Project',
+        rcloneRemote: 'nas',
+        localBasePath,
+        remoteBasePath: 'remote/project',
+        ignorePatterns: [],
+        lastSyncMode: null,
+        lastSyncFolder: null,
+        lastSyncDate: null,
+      }],
+    }))
+
+    let configUpdates = 0
+    const onConfigUpdate = () => configUpdates++
+    registerConfigUpdateListener(onConfigUpdate)
+    try {
+      const startedAt = Date.now()
+      const result = await startSync({
+        mode: 'push',
+        localFolderPath,
+      })
+
+      assert.equal(result.result, 'completed')
+      const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
+      assert.equal(saved.mappings[0].lastSyncMode, 'push')
+      assert.equal(saved.mappings[0].lastSyncFolder, 'src')
+      assert.ok(Date.parse(saved.mappings[0].lastSyncDate) >= startedAt)
+      assert.equal(configUpdates, 1)
+    }
+    finally {
+      unregisterConfigUpdateListener(onConfigUpdate)
+    }
   })
 })

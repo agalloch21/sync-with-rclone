@@ -16,6 +16,7 @@ const stage = computed(() => state.value?.stage?.length > 0 ? state.value?.stage
 <template>
   <div
     class="content-stage h-full overflow-auto
+    [scrollbar-gutter:stable]
     [&::-webkit-scrollbar]:w-1
      [&::-webkit-scrollbar-track]:invisible
      [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--text-subtle)_20%,transparent)]

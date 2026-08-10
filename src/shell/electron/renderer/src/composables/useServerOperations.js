@@ -46,6 +46,18 @@ export function useServerOperations(windowPreload) {
     return await invokeRequest(() => windowPreload?.getServer?.(payload))
   }
 
+  async function testServerConnection(serverName) {
+    if (!serverName || typeof serverName !== 'string' || serverName.trim().length === 0)
+      return toFailureResult()
+
+    try {
+      return await windowPreload?.testServerConnection?.({ serverName }) || toFailureResult()
+    }
+    catch (error) {
+      return toFailureResult(error)
+    }
+  }
+
   async function createServer(expectedServerName, protocolType, protocolFields) {
     if (!expectedServerName || typeof expectedServerName !== 'string' || expectedServerName.trim().length === 0) {
       await messageBox.warning(APP_MESSAGE_CODE.SERVER_NAME_INVALID)
@@ -112,6 +124,7 @@ export function useServerOperations(windowPreload) {
   return {
     listServers,
     getServer,
+    testServerConnection,
     createServer,
     updateServer,
     deleteServer,

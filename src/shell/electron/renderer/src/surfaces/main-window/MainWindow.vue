@@ -41,11 +41,13 @@ function onSelectPanel(panel) {
       />
     </aside>
     <main class="main-dock h-full flex-3 min-w-0 px-(--main-stage-px) py-(--main-stage-py) justify-stretch items-stretch">
-      <component
-        :is="selectedPanel.component"
-        v-if="selectedPanel"
-        :key="selectedPanel.name"
-      />
+      <KeepAlive include="MappingsPanel,LogPanel">
+        <component
+          :is="selectedPanel.component"
+          v-if="selectedPanel"
+          :key="selectedPanel.name"
+        />
+      </KeepAlive>
     </main>
   </div>
 </template>

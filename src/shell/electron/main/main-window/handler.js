@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { isValidFormModalView } from '#electron/contracts/form-modal.js'
-import { deleteMapping, deleteServer, getMainWindowData, getServer, listGlobalIgnorePatterns, listOperationHistory, updateGlobalIgnorePatterns } from '#src/app/app-api.js'
+import { deleteMapping, deleteServer, getMainWindowData, getServer, listGlobalIgnorePatterns, listOperationHistory, testServerConnection, updateGlobalIgnorePatterns } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { MAPPING_OPERATION } from '#src/app/contracts/mapping.js'
 import { SERVER_OPERATION } from '#src/app/contracts/server.js'
@@ -130,6 +130,17 @@ export function createMainWindowHandlers() {
     }
   }
 
+  async function testServerConnectionHandler(_event, payload) {
+    try {
+      assertPayloadObject(payload)
+      await testServerConnection(payload.serverName)
+      return toSuccessfulResult()
+    }
+    catch (error) {
+      return toFailureResult(error)
+    }
+  }
+
   async function getOperationHistoryHandler(_event, payload = {}) {
     try {
       const result = await listOperationHistory({
@@ -188,6 +199,7 @@ export function createMainWindowHandlers() {
     openLocalFolderHandler,
     openFormModalHandler,
     getServerHandler,
+    testServerConnectionHandler,
     getOperationHistoryHandler,
     deleteServerHandler,
     deleteMappingHandler,

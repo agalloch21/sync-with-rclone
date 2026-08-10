@@ -1,7 +1,7 @@
 <script setup>
 import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { unwrapResult } from '#src/app/operation-result.js'
-import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, shallowRef, toRaw } from 'vue'
 import { useMappingOperations } from '../../../composables/useMappingOperations.js'
 import { useServerOperations } from '../../../composables/useServerOperations.js'
 import { MAIN_WINDOW_ACTION } from './ActionBar.presentation.js'
@@ -24,6 +24,7 @@ const servers = ref([])
 const mappings = ref([])
 const isLoading = ref(true)
 const loadError = shallowRef(null)
+const serverConnectionStatuses = reactive(new Map())
 const mappingsByServerName = computed(() => {
   const groupedMappings = new Map()
   for (const mapping of mappings.value) {
@@ -37,6 +38,7 @@ const mappingsByServerName = computed(() => {
 const selectedServer = shallowRef(null)
 const selectedMapping = shallowRef(null)
 let unsubscribeConfigUpdated = null
+let connectionCheckGeneration = 0
 
 onMounted(async () => {
   unsubscribeConfigUpdated = window.mainWindow?.onConfigUpdated?.(() => {
@@ -46,6 +48,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  connectionCheckGeneration += 1
   unsubscribeConfigUpdated?.()
 })
 
@@ -62,8 +65,10 @@ async function loadMainWindowData() {
 
 function applyMainWindowData(result) {
   if (!result?.success) {
+    connectionCheckGeneration += 1
     servers.value = []
     mappings.value = []
+    serverConnectionStatuses.clear()
     loadError.value = result?.error || null
     updateMappingsPanelSelection()
     return
@@ -75,6 +80,25 @@ function applyMainWindowData(result) {
   loadError.value = null
 
   updateMappingsPanelSelection()
+  void checkServerConnections()
+}
+
+async function checkServerConnections() {
+  const generation = ++connectionCheckGeneration
+  const configuredServers = servers.value.filter(server => server.status !== 'missing')
+  serverConnectionStatuses.clear()
+
+  await Promise.all(configuredServers.map(async (server) => {
+    const result = await serverOperations.testServerConnection(server.name)
+    if (generation !== connectionCheckGeneration)
+      return
+
+    serverConnectionStatuses.set(server.name, result?.success ? 'connected' : 'disconnected')
+  }))
+}
+
+function getServerConnectionStatus(serverName) {
+  return serverConnectionStatuses.get(serverName) || 'unknown'
 }
 
 function getMappingsByServer(serverName) {
@@ -154,6 +178,7 @@ async function handleAction(action) {
     <div class="mapping-list-dock min-h-0 flex-1 border-t border-(--surface-soft)">
       <div
         class="mapping-list-stage h-full overflow-x-auto overflow-y-auto divide-y divide-(--surface-soft)
+        [scrollbar-gutter:stable]
         [&::-webkit-scrollbar]:w-1
         [&::-webkit-scrollbar-track]:invisible
         [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--text-subtle)_20%,transparent)]
@@ -165,6 +190,7 @@ async function handleAction(action) {
         <ServerItem
           v-for="server in servers" :key="server.name" :server="server" :selected="server === selectedServer && selectedMapping === null"
           :has-mappings="getMappingsByServer(server.name).length > 0"
+          :connection-status="getServerConnectionStatus(server.name)"
           @click.prevent="onSelectServer(server)"
         >
           <MappingItem

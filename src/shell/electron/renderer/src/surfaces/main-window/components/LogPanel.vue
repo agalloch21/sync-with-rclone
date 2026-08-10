@@ -102,7 +102,16 @@ onUnmounted(() => {
       {{ $t('logPanel.empty') }}
     </div>
 
-    <ol v-else class="min-h-0 flex-1 overflow-y-auto py-3 space-y-2">
+    <ol
+      v-else class="min-h-0 flex-1 overflow-y-auto py-3 space-y-2
+      [scrollbar-gutter:stable]
+      [&::-webkit-scrollbar]:w-1
+      [&::-webkit-scrollbar-track]:invisible
+      [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--text-subtle)_20%,transparent)]
+      [&::-webkit-scrollbar-thumb]:rounded-full
+      [&::-webkit-scrollbar-thumb]:invisible
+      hover:[&::-webkit-scrollbar-thumb]:visible"
+    >
       <li
         v-for="record in records"
         :key="record.eventId"

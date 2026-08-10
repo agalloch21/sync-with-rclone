@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('mainWindow', {
   getServer(payload) {
     return ipcRenderer.invoke('main-window:get-server', payload)
   },
+  testServerConnection(payload) {
+    return ipcRenderer.invoke('main-window:test-server-connection', payload)
+  },
   deleteServer(payload) {
     return ipcRenderer.invoke('main-window:delete-server', payload)
   },

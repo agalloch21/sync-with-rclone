@@ -12,6 +12,10 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  connectionStatus: {
+    type: String,
+    default: 'unknown',
+  },
 })
 const isOpened = ref(true)
 function onClickArrow() {
@@ -45,6 +49,16 @@ function onClickArrow() {
               {{ server?.status === 'missing' ? 'missing' : server?.type }}
             </div>
           </div>
+        </div>
+        <div
+          v-if="connectionStatus !== 'unknown'"
+          :class="connectionStatus === 'connected' ? 'bg-(--success)' : 'bg-(--danger)'"
+          class="w-8 h-3 ml-auto rounded-2xl flex justify-center items-center"
+        >
+          <span
+            :class="connectionStatus === 'connected' ? 'icon-[lucide--link-2]' : 'icon-[lucide--link-2-off]'"
+            class="text-xs text-white text-center"
+          />
         </div>
       </div>
     </summary>

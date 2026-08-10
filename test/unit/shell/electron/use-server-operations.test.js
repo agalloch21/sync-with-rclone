@@ -40,6 +40,38 @@ test('createServer sends plain protocol fields through preload', async () => {
   })
 })
 
+test('testServerConnection sends the server name through preload', async () => {
+  let receivedPayload = null
+  const serverOperations = useServerOperations({
+    async testServerConnection(payload) {
+      receivedPayload = payload
+      return { success: true }
+    },
+  })
+
+  const result = await serverOperations.testServerConnection('synology')
+
+  assert.equal(result.success, true)
+  assert.deepEqual(receivedPayload, { serverName: 'synology' })
+})
+
+test('testServerConnection turns an IPC rejection into a silent failure', async () => {
+  let messageShown = false
+  const serverOperations = useServerOperations({
+    async testServerConnection() {
+      throw new Error('IPC unavailable')
+    },
+    async showMessageBox() {
+      messageShown = true
+    },
+  })
+
+  const result = await serverOperations.testServerConnection('synology')
+
+  assert.equal(result.success, false)
+  assert.equal(messageShown, false)
+})
+
 test('createServer does not present a failure already handled by the main process', async () => {
   let messageShown = false
   const serverOperations = useServerOperations({

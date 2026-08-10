@@ -8,10 +8,11 @@ import {
   validateProtocolForm,
 } from '#src/app/contracts/server-protocols.js'
 
-test('protocol registry exposes ftp and sftp definitions', () => {
-  assert.deepEqual(REMOTE_PROTOCOLS.map(protocol => protocol.type), ['sftp', 'ftp'])
+test('protocol registry exposes sftp, ftp, and alias definitions', () => {
+  assert.deepEqual(REMOTE_PROTOCOLS.map(protocol => protocol.type), ['sftp', 'ftp', 'alias'])
   assert.equal(getDefaultProtocolType(), 'sftp')
   assert.equal(getProtocolDefinition('ftp').label, 'FTP')
+  assert.equal(getProtocolDefinition('alias').label, 'Alias')
 })
 
 test('createDefaultProtocolForm uses protocol defaults', () => {
@@ -26,6 +27,9 @@ test('createDefaultProtocolForm uses protocol defaults', () => {
     port: 21,
     user: null,
     pass: null,
+  })
+  assert.deepEqual(createDefaultProtocolForm('alias'), {
+    remote: null,
   })
 })
 
@@ -56,4 +60,22 @@ test('validateProtocolForm accepts valid protocol fields', () => {
     user: 'xiaobo',
     pass: 'secret',
   }), { success: true })
+
+  assert.deepEqual(validateProtocolForm('alias', {
+    remote: '/Users/example/Projects',
+  }), { success: true })
+})
+
+test('validateProtocolForm requires an alias target', () => {
+  assert.deepEqual(validateProtocolForm('alias', {
+    remote: ' ',
+  }), {
+    success: false,
+    error: {
+      message: 'Validation failed.',
+      fields: {
+        remote: 'Target is required.',
+      },
+    },
+  })
 })

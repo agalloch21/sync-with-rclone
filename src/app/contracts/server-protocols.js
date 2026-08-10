@@ -19,6 +19,13 @@ export const REMOTE_PROTOCOLS = [
       { name: 'pass', label: 'Password', type: 'password', required: true },
     ],
   },
+  {
+    type: 'alias',
+    label: 'Alias',
+    fields: [
+      { name: 'remote', label: 'Target', type: 'text', required: true },
+    ],
+  },
 ]
 
 const PROTOCOL_BY_TYPE = new Map(REMOTE_PROTOCOLS.map(protocol => [protocol.type, protocol]))

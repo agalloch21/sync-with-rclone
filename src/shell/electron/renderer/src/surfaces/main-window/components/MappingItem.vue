@@ -36,34 +36,34 @@ function openLocalFolder() {
 </script>
 
 <template>
-  <div class="mapping-item-dock h-20 py-0.5 cursor-default">
+  <div class="mapping-item-dock py-0.5 cursor-default">
     <div
-      class="mapping-item-stage h-full px-(--server-row-px) py-(--server-row-py) rounded-lg flex items-center gap-(--server-row-gap)"
+      class="mapping-item-stage h-full px-(--server-row-px) py-(--server-row-py) rounded-lg flex gap-(--server-row-gap) items-start py-4"
       :class="{ 'mapping-item-selected': selected }"
     >
-      <div class="mapping-icon flex justify-center items-center">
-        <span class="icon-[lucide--folder-closed] size-(--server-icon-size) text-(--primary)" />
+      <div class="mapping-base-info min-w-44 flex-1 flex gap-(--server-row-gap)">
+        <span class="icon-[lucide--folder-closed] size-(--server-icon-size) shrink-0 mt-0.5 text-(--primary) self-start" />
+        <div class="mapping-local-info flex flex-col gap-0.5">
+          <label class="local-folder-name h-lh text-sm font-semibold text-(--text-primary) break-all line-clamp-1">
+            {{ getMappingDisplayName(props.mapping) }}
+          </label>
+          <button
+            class="local-folder-path text-left h-[2lh] text-[0.625rem] leading-3 underline text-blue-500 break-all line-clamp-2 cursor-pointer inline-flex items-start"
+            type="button"
+            @click.stop="openLocalFolder"
+          >
+            {{ props.mapping?.localBasePath }}
+          </button>
+        </div>
       </div>
-      <div class="mapping-base-info min-w-44 flex-1 flex flex-col gap-1">
-        <label class="local-folder-name h-lh text-sm font-semibold text-(--text-primary) break-all line-clamp-1">
-          {{ getMappingDisplayName(props.mapping) }}
-        </label>
-        <button
-          class="local-folder-path h-[2lh] text-left text-[0.625rem] leading-3 underline text-blue-500 break-all line-clamp-2 cursor-pointer"
-          type="button"
-          @click.stop="openLocalFolder"
-        >
-          {{ props.mapping?.localBasePath }}
-        </button>
-      </div>
-      <dl class="mapping-extra-info min-w-64 flex-1 pl-4 flex flex-col text-[0.6rem] text-(--text-subtle)">
+      <dl class="mapping-extra-info min-w-64 flex-1 pl-4 flex flex-col text-[0.6rem] text-(--text-subtle) gap-0.5">
         <div class="extra-info-row">
           <dt class="extra-info-property">
             <span class="extra-info-icon icon-[lucide--link] " />
             <span class="extra-info-label">{{ $t('mappingsPanel.mappingItem.mappedTo') }}:</span>
           </dt>
           <dd class="break-all line-clamp-2">
-            {{ props.mapping?.rcloneRemote }}:{{ props.mapping?.remoteBasePath }}
+            {{ props.mapping?.remoteBasePath }}
           </dd>
         </div>
         <div class="extra-info-row">
@@ -75,7 +75,7 @@ function openLocalFolder() {
             <p class="break-all line-clamp-1">
               {{ props.mapping?.lastSyncMode || '-' }} | {{ formatLastSyncDate(props.mapping?.lastSyncDate) }}
             </p>
-            <p class="">
+            <p class="break-all line-clamp-1">
               {{ props.mapping?.lastSyncFolder || '-' }}
             </p>
           </dd>
@@ -106,10 +106,10 @@ function openLocalFolder() {
     @apply flex items-center gap-1;
 }
 .extra-info-icon{
-    @apply w-3 h-3 shrink-0;
+    @apply w-3 h-3 shrink-0 content-center;
 }
 .extra-info-label{
-    @apply font-bold text-nowrap shrink-0;
+    @apply text-nowrap shrink-0 bg-(--surface-soft) rounded-xl px-1  content-center;
 }
 .mapping-item-selected{
     @apply bg-(--surface-soft);

@@ -152,7 +152,15 @@ async function handleAction(action) {
       />
     </div>
     <div class="mapping-list-dock min-h-0 flex-1 border-t border-(--surface-soft)">
-      <div class="mapping-list-stage h-full overflow-x-auto overflow-y-auto scrollbar-gutter-stable divide-y divide-(--surface-soft)">
+      <div
+        class="mapping-list-stage h-full overflow-x-auto overflow-y-auto divide-y divide-(--surface-soft)
+        [&::-webkit-scrollbar]:w-1
+        [&::-webkit-scrollbar-track]:invisible
+        [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--text-subtle)_20%,transparent)]
+        [&::-webkit-scrollbar-thumb]:rounded-full
+        [&::-webkit-scrollbar-thumb]:invisible
+        hover:[&::-webkit-scrollbar-thumb]:visible"
+      >
         <ConfigurationLoadError v-if="loadError" :error="loadError" />
         <ServerItem
           v-for="server in servers" :key="server.name" :server="server" :selected="server === selectedServer && selectedMapping === null"

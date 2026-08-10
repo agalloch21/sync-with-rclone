@@ -1,4 +1,5 @@
 <script setup>
+import FolderPath from '#frontend/surfaces/shared/FolderPath.vue'
 import InlineButton from './InlineButton.vue'
 
 defineProps({
@@ -26,9 +27,7 @@ defineEmits(['select'])
         <span class="opacity-10 text-3xl" :class="side === 'local' ? 'icon-[custom--local]' : 'icon-[custom--remote]'" />
       </div>
 
-      <label class="h-[3lh] line-clamp-3 text-xs text-(--text-subtle) break-all leading-4">
-        {{ path }}
-      </label>
+      <FolderPath :path="path" :max-lines="3" reserve-space class="text-xs text-(--text-subtle) leading-4" />
     </div>
 
     <InlineButton :text="$t('formModal.common.changeFolder')" @click="$emit('select')" />

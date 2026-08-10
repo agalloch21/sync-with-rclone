@@ -1,4 +1,6 @@
 <script setup>
+import FolderPath from '#frontend/surfaces/shared/FolderPath.vue'
+
 const props = defineProps({
   mapping: {
     type: Object,
@@ -43,16 +45,16 @@ function openLocalFolder() {
     >
       <div class="mapping-base-info min-w-44 flex-1 flex gap-(--server-row-gap)">
         <span class="icon-[lucide--folder-closed] size-(--server-icon-size) shrink-0 mt-0.5 text-(--primary) self-start" />
-        <div class="mapping-local-info flex flex-col gap-0.5">
+        <div class="mapping-local-info min-w-0 flex-1 flex flex-col gap-0.5">
           <label class="local-folder-name h-lh text-sm font-semibold text-(--text-primary) break-all line-clamp-1">
             {{ getMappingDisplayName(props.mapping) }}
           </label>
           <button
-            class="local-folder-path text-left h-[2lh] text-[0.625rem] leading-3 underline text-blue-500 break-all line-clamp-2 cursor-pointer inline-flex items-start"
+            class="local-folder-path w-full min-w-0 text-left text-[0.625rem] leading-3 underline text-blue-500 cursor-pointer"
             type="button"
             @click.stop="openLocalFolder"
           >
-            {{ props.mapping?.localBasePath }}
+            <FolderPath :path="props.mapping?.localBasePath" :max-lines="2" />
           </button>
         </div>
       </div>
@@ -62,8 +64,8 @@ function openLocalFolder() {
             <span class="extra-info-icon icon-[lucide--link] " />
             <span class="extra-info-label">{{ $t('mappingsPanel.mappingItem.mappedTo') }}:</span>
           </dt>
-          <dd class="break-all line-clamp-2">
-            {{ props.mapping?.remoteBasePath }}
+          <dd class="min-w-0 flex-1">
+            <FolderPath :path="props.mapping?.remoteBasePath" :max-lines="1" />
           </dd>
         </div>
         <div class="extra-info-row">
@@ -71,12 +73,13 @@ function openLocalFolder() {
             <span class="icon-[lucide--folder-clock] extra-info-icon" />
             <span class="extra-info-label">{{ $t('mappingsPanel.mappingItem.lastSync') }}:</span>
           </dt>
-          <dd class="flex flex-col">
+          <dd class="min-w-0 flex-1 flex flex-col">
             <p class="break-all line-clamp-1">
               {{ props.mapping?.lastSyncMode || '-' }} | {{ formatLastSyncDate(props.mapping?.lastSyncDate) }}
             </p>
-            <p class="break-all line-clamp-1">
-              {{ props.mapping?.lastSyncFolder || '-' }}
+            <FolderPath v-if="props.mapping?.lastSyncFolder" :path="props.mapping.lastSyncFolder" :max-lines="1" />
+            <p v-else>
+              -
             </p>
           </dd>
         </div>

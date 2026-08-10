@@ -1,17 +1,23 @@
 <script setup>
 import { unwrapResult } from '#src/app/operation-result.js'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { nextTick, onActivated, onMounted, onUnmounted, ref } from 'vue'
 
 const records = ref([])
 const isLoading = ref(false)
 const loadError = ref('')
+const historyList = ref(null)
 let unsubscribeHistoryUpdated = null
+let savedScrollTop = 0
 
 function applyRecord(record) {
   if (!record?.eventId || records.value.some(item => item.eventId === record.eventId))
     return
 
   records.value = [record, ...records.value].slice(0, 200)
+}
+
+function onHistoryScroll(event) {
+  savedScrollTop = event.currentTarget.scrollTop
 }
 
 async function loadHistory() {
@@ -72,6 +78,14 @@ onMounted(async () => {
 onUnmounted(() => {
   unsubscribeHistoryUpdated?.()
 })
+
+onActivated(async () => {
+  await nextTick()
+  requestAnimationFrame(() => {
+    if (historyList.value)
+      historyList.value.scrollTop = savedScrollTop
+  })
+})
 </script>
 
 <template>
@@ -103,7 +117,7 @@ onUnmounted(() => {
     </div>
 
     <ol
-      v-else class="min-h-0 flex-1 overflow-y-auto py-3 space-y-2
+      v-else ref="historyList" class="min-h-0 flex-1 overflow-y-auto py-3 space-y-2
       [scrollbar-gutter:stable]
       [&::-webkit-scrollbar]:w-1
       [&::-webkit-scrollbar-track]:invisible
@@ -111,6 +125,7 @@ onUnmounted(() => {
       [&::-webkit-scrollbar-thumb]:rounded-full
       [&::-webkit-scrollbar-thumb]:invisible
       hover:[&::-webkit-scrollbar-thumb]:visible"
+      @scroll.passive="onHistoryScroll"
     >
       <li
         v-for="record in records"

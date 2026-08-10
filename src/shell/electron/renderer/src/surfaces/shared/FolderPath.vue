@@ -77,16 +77,6 @@ function updateDisplayPath() {
   if (!element || !textElement)
     return
 
-  if (!props.path) {
-    displayPath.value = ''
-    return
-  }
-
-  if (element.clientWidth <= 0) {
-    displayPath.value = props.path
-    return
-  }
-
   const lineHeight = Number.parseFloat(window.getComputedStyle(textElement).lineHeight)
   if (!Number.isFinite(lineHeight)) {
     displayPath.value = props.path
@@ -99,6 +89,16 @@ function updateDisplayPath() {
   element.style.maxHeight = contentHeight
   element.style.height = props.reserveSpace ? contentHeight : ''
   element.style.minHeight = props.reserveSpace ? contentHeight : ''
+
+  if (!props.path) {
+    displayPath.value = ''
+    return
+  }
+
+  if (element.clientWidth <= 0) {
+    displayPath.value = props.path
+    return
+  }
 
   for (const candidate of getFolderPathFoldingCandidates(props.path, props.foldStrategy)) {
     textElement.textContent = candidate

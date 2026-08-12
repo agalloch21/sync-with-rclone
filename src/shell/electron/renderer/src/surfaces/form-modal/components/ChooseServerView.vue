@@ -24,20 +24,19 @@ const SERVER_PLAN = Object.freeze({
   CHOOSE_FROM_EXISTING: 'choose-from-existing',
 })
 
-const selectedPlan = ref(SERVER_PLAN.CHOOSE_FROM_EXISTING)
+const selectedPlan = ref(null)
 const selectedServerName = ref('')
 const servers = ref([])
 const availableServers = ref([])
-const canChooseExisting = ref(true)
-const isLoading = ref(false)
+const canChooseExisting = ref(false)
+const isLoading = ref(true)
 
 onMounted(loadServers)
 
 async function loadServers() {
-  isLoading.value = true
-
   const result = await serverOperations.listServers()
   if (!result?.success) {
+    selectedPlan.value = SERVER_PLAN.CREATE_NEW
     isLoading.value = false
     return
   }
@@ -50,8 +49,9 @@ async function loadServers() {
   selectedServerName.value = availableServers.value.some(server => server.name === contextServerName)
     ? contextServerName
     : availableServers.value[0]?.name || ''
-  if (availableServers.value.length === 0)
-    selectedPlan.value = SERVER_PLAN.CREATE_NEW
+  selectedPlan.value = canChooseExisting.value
+    ? SERVER_PLAN.CHOOSE_FROM_EXISTING
+    : SERVER_PLAN.CREATE_NEW
 
   isLoading.value = false
 }
@@ -78,7 +78,8 @@ function getServerLabel(server) {
 <template>
   <ModalLayout :view="FORM_MODAL_VIEW.CHOOSE_SERVER">
     <div class="content-stage h-full flex justify-center items-center">
-      <div class="flex flex-col justify-center gap-8">
+      <span v-if="isLoading" class="text-sm text-(--text-subtle)">Loading servers...</span>
+      <div v-else class="flex flex-col justify-center gap-8">
         <!-- Option 1 -->
         <label class="option-item no-select">
           <div class="option-radio-wrapper">
@@ -101,10 +102,7 @@ function getServerLabel(server) {
               py-2 pl-3 pr-10 text-xs font-medium text-(--text-subtle)
               focus:outline-none focus:ring-(--primary)"
             >
-              <option v-if="isLoading" value="">
-                Loading servers...
-              </option>
-              <option v-else-if="!canChooseExisting" value="">
+              <option v-if="!canChooseExisting" value="">
                 No configured servers
               </option>
               <template v-else>
@@ -133,7 +131,7 @@ function getServerLabel(server) {
       </div>
     </div>
     <template #footer>
-      <Button :primary="true" :wide="true" @click="onClickNext">
+      <Button :primary="true" :wide="true" :disabled="isLoading || !selectedPlan" @click="onClickNext">
         {{ $t('formModal.common.next') }}
       </Button>
       <Button @click="$emit('onClickCancel')">

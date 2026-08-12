@@ -24,6 +24,14 @@ export function parseIgnorePatterns(value) {
     .filter(Boolean)
 }
 
+function getFolderName(folderPath) {
+  return folderPath
+    .replaceAll('\\', '/')
+    .split('/')
+    .filter(Boolean)
+    .at(-1) || folderPath
+}
+
 export function useMappingOperations(windowPreload) {
   const messageBox = useMessageBox(windowPreload)
 
@@ -126,7 +134,7 @@ export function useMappingOperations(windowPreload) {
       return toFailureResult()
     }
 
-    const mappingLabel = mapping.displayName || mapping.localBasePath
+    const mappingLabel = getFolderName(mapping.localBasePath)
     let confirmation
     try {
       confirmation = await messageBox.confirm(APP_MESSAGE_CODE.MAPPING_DELETE_CONFIRMATION, {

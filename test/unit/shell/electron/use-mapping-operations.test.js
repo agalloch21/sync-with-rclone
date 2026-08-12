@@ -236,7 +236,7 @@ test('deleteMapping sends its stable reference after confirmation', async () => 
   const result = await operations.deleteMapping({
     displayName: 'Project',
     rcloneRemote: 'synology',
-    localBasePath: '/local',
+    localBasePath: '/Users/example/Documents/Projects/Project',
     remoteBasePath: 'Projects',
   })
 
@@ -244,7 +244,7 @@ test('deleteMapping sends its stable reference after confirmation', async () => 
   assert.deepEqual(receivedPayload, {
     mapping: {
       rcloneRemote: 'synology',
-      localBasePath: '/local',
+      localBasePath: '/Users/example/Documents/Projects/Project',
     },
   })
   assert.deepEqual(confirmationPayload, {
@@ -253,4 +253,21 @@ test('deleteMapping sends its stable reference after confirmation', async () => 
     params: { mappingLabel: 'Project' },
   })
   assert.equal(Object.hasOwn(confirmationPayload, 'level'), false)
+})
+
+test('deleteMapping confirmation shows only a Windows folder name', async () => {
+  let confirmationPayload = null
+  const operations = useMappingOperations(createPreload({
+    showMessageBox: async (payload) => {
+      confirmationPayload = payload
+      return { success: true, value: 'cancelled' }
+    },
+  }))
+
+  await operations.deleteMapping({
+    rcloneRemote: 'synology',
+    localBasePath: 'C:\\Users\\example\\Documents\\Projects\\Project\\',
+  })
+
+  assert.deepEqual(confirmationPayload.params, { mappingLabel: 'Project' })
 })

@@ -25,7 +25,7 @@ test('getRuntimePaths derives app config, rclone config and logs from the app di
   assert.equal(runtimePaths.configDirectory, '/tmp/sync-with-rclone-app/config')
   assert.equal(runtimePaths.configPath, '/tmp/sync-with-rclone-app/config/config.json')
   assert.equal(runtimePaths.rcloneConfigPath, '/tmp/sync-with-rclone-app/config/rclone.conf')
-  assert.equal(runtimePaths.syncAdmissionDirectory, '/tmp/sync-with-rclone-app/config/sync-admission')
+  assert.equal(runtimePaths.syncAdmissionDirectory, '/tmp/sync-with-rclone-app/runtime/sync-admission')
   assert.equal(runtimePaths.logDirectory, '/tmp/sync-with-rclone-app/logs')
 
   delete process.env.APP_ROOT_PATH
@@ -42,7 +42,7 @@ test('getRuntimePaths allows overriding the config directory independently', () 
   assert.equal(runtimePaths.configDirectory, '/tmp/sync-with-rclone-config')
   assert.equal(runtimePaths.configPath, '/tmp/sync-with-rclone-config/config.json')
   assert.equal(runtimePaths.rcloneConfigPath, '/tmp/sync-with-rclone-config/rclone.conf')
-  assert.equal(runtimePaths.syncAdmissionDirectory, '/tmp/sync-with-rclone-config/sync-admission')
+  assert.equal(runtimePaths.syncAdmissionDirectory, '/tmp/sync-with-rclone-app/runtime/sync-admission')
   assert.equal(runtimePaths.logDirectory, '/tmp/sync-with-rclone-app/logs')
 
   delete process.env.APP_ROOT_PATH

@@ -218,15 +218,35 @@ function Register-ContextMenu {
         }
     )
 
+    $menuEntries = @(
+        @{
+            KeyName = "push"
+            Label = "Push"
+            Mode = "push"
+        },
+        @{
+            KeyName = "pull"
+            Label = "Pull"
+            Mode = "pull"
+        }
+    )
+
     foreach ($target in $targets) {
-        foreach ($mode in @("push", "pull")) {
-            $menuKey = "$($target.RootKey)\shell\$mode"
+        $submenuShellKey = "$($target.RootKey)\shell"
+        if (Test-Path -LiteralPath $submenuShellKey) {
+            Remove-Item -LiteralPath $submenuShellKey -Recurse -Force
+        }
+
+        New-Item -Path $submenuShellKey -Force | Out-Null
+        Set-ItemProperty -Path $submenuShellKey -Name "(default)" -Value "push,pull" -Force
+
+        foreach ($menuEntry in $menuEntries) {
+            $menuKey = "$submenuShellKey\$($menuEntry.KeyName)"
             $commandKey = "$menuKey\command"
-            $label = (Get-Culture).TextInfo.ToTitleCase($mode)
-            $command = "`"$ExePath`" --session --mode=$mode --local `"$($target.ArgumentToken)`""
+            $command = "`"$ExePath`" --session --mode=$($menuEntry.Mode) --local `"$($target.ArgumentToken)`""
 
             New-Item -Path $menuKey -Force | Out-Null
-            New-ItemProperty -Path $menuKey -Name "MUIVerb" -Value $label -PropertyType String -Force | Out-Null
+            New-ItemProperty -Path $menuKey -Name "MUIVerb" -Value $menuEntry.Label -PropertyType String -Force | Out-Null
             New-ItemProperty -Path $menuKey -Name "Icon" -Value $iconValue -PropertyType String -Force | Out-Null
             New-Item -Path $commandKey -Force | Out-Null
             Set-ItemProperty -Path $commandKey -Name "(default)" -Value $command -Force

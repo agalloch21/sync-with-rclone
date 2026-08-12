@@ -13,6 +13,10 @@ const mainWindow = {
     openFolder: 'Open configuration folder',
   },
   mappingsPanel: {
+    empty: {
+      title: 'No servers or mappings yet',
+      description: 'Select Create to add a server and set up your first folder mapping.',
+    },
     mappingItem: {
       mappedTo: 'Mapped to',
       lastSync: 'Last Sync',

@@ -1,12 +1,13 @@
 <script setup>
 import Button from '#frontend/surfaces/shared/Button.vue'
+import { computed } from 'vue'
 import {
   ACTION_BAR_MAPPING_ACTIONS,
   ACTION_BAR_PRIMARY_ACTION,
   ACTION_BAR_SERVER_ACTIONS,
 } from './ActionBar.presentation.js'
 
-defineProps({
+const props = defineProps({
   isServerSelected: {
     type: Boolean,
     default: false,
@@ -26,6 +27,12 @@ defineProps({
 })
 
 const emit = defineEmits(['requestAction'])
+const contextualActions = computed(() => props.isMappingSelected
+  ? ACTION_BAR_MAPPING_ACTIONS
+  : ACTION_BAR_SERVER_ACTIONS)
+const contextualActionsDisabled = computed(() => props.isLoading
+  || props.configurationUnavailable
+  || (!props.isMappingSelected && !props.isServerSelected))
 </script>
 
 <template>
@@ -35,10 +42,10 @@ const emit = defineEmits(['requestAction'])
       {{ $t(`mappingsPanel.actions.${ACTION_BAR_PRIMARY_ACTION.name}`) }}
     </Button>
     <span class="shrink-0 bg-(--surface-soft) w-0.5" />
-    <div v-if="configurationUnavailable || isMappingSelected || isServerSelected" class="flex gap-4">
+    <div class="flex gap-4">
       <Button
-        v-for="action in (isMappingSelected ? ACTION_BAR_MAPPING_ACTIONS : ACTION_BAR_SERVER_ACTIONS)" :key="action.action"
-        :primary="false" :wide="false" :disabled="isLoading || configurationUnavailable" @click="emit('requestAction', action.action)"
+        v-for="action in contextualActions" :key="action.action"
+        :primary="false" :wide="false" :disabled="contextualActionsDisabled" @click="emit('requestAction', action.action)"
       >
         {{ $t(`mappingsPanel.actions.${action.name}`) }}
       </Button>

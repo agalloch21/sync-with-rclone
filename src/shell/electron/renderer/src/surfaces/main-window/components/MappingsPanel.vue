@@ -25,6 +25,10 @@ const mappings = ref([])
 const isLoading = ref(true)
 const loadError = shallowRef(null)
 const serverConnectionStatuses = reactive(new Map())
+const isConfigurationEmpty = computed(() => !isLoading.value
+  && !loadError.value
+  && servers.value.length === 0
+  && mappings.value.length === 0)
 const mappingsByServerName = computed(() => {
   const groupedMappings = new Map()
   for (const mapping of mappings.value) {
@@ -187,6 +191,18 @@ async function handleAction(action) {
         hover:[&::-webkit-scrollbar-thumb]:visible"
       >
         <ConfigurationLoadError v-if="loadError" :error="loadError" />
+        <div
+          v-else-if="isConfigurationEmpty"
+          class="h-full px-8 flex flex-col items-center justify-center gap-3 text-center text-(--text-subtle)"
+        >
+          <span class="icon-[lucide--folder-plus] size-10 text-(--primary)" />
+          <p class="text-sm font-semibold text-(--text-primary)">
+            {{ $t('mappingsPanel.empty.title') }}
+          </p>
+          <p class="max-w-md text-xs leading-5">
+            {{ $t('mappingsPanel.empty.description') }}
+          </p>
+        </div>
         <ServerItem
           v-for="server in servers" :key="server.name" :server="server" :selected="server === selectedServer && selectedMapping === null"
           :has-mappings="getMappingsByServer(server.name).length > 0"

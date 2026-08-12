@@ -13,6 +13,10 @@ const mainWindow = {
     openFolder: '打开配置文件夹',
   },
   mappingsPanel: {
+    empty: {
+      title: '还没有服务器或映射',
+      description: '请选择“创建”来添加服务器并设置第一个文件夹映射。',
+    },
     mappingItem: {
       mappedTo: '映射到',
       lastSync: '上次同步',

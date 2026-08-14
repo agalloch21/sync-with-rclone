@@ -69,7 +69,7 @@ Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv�
 
 ### Symbolic link 限制
 
-symbolic link 可以作为同步根路径；context resolution 会先解析它的 real path，后续扫描、执行和并发范围判断只使用真实目录。同步根目录内部的 symbolic link 当前不会作为本地文件上传，也不会扫描它指向的内容。内部目录 link 在 Pull 时应被视为本地挂载点还是由远端普通目录替换仍待确定；在该规则落实前，应避免 Pull 到包含同名内部目录 link 的本地路径。
+symbolic link 可以作为同步根路径；context resolution 会先解析它的 real path，后续扫描、执行和并发范围判断只使用真实目录。同步根目录内部的 symbolic link 是同步边界，不会作为本地文件上传，也不会扫描或写入它指向的内容。Pull 如果需要写入该 link 或其后代，会在 review 前失败，并在 apply 前再次检查。
 
 
 ### 4. 使用 Electron 运行
@@ -148,9 +148,10 @@ macOS Finder Quick Action 只负责异步提交同步请求。同步进度和结
 
 ```json
 {
-  "globalIgnorePatterns": [
+  "globalFilterPatterns": [
     ".DS_Store",
-    "Thumbs.db"
+    "Thumbs.db",
+    ".git"
   ],
   "mappings": [
     {
@@ -158,7 +159,7 @@ macOS Finder Quick Action 只负责异步提交同步请求。同步进度和结
       "rcloneRemote": "synology-sftp",
       "localBasePath": "D:/ProjectsSynced",
       "remoteBasePath": "ProjectsSynced",
-      "ignorePatterns": [],
+      "filterPatterns": [],
       "lastSyncMode": null,
       "lastSyncFolder": null,
       "lastSyncDate": null
@@ -167,13 +168,13 @@ macOS Finder Quick Action 只负责异步提交同步请求。同步进度和结
 }
 ```
 
-- `globalIgnorePatterns`: 全局忽略规则，作用于所有映射，规则语法按 `.gitignore` 风格理解。
+- `globalFilterPatterns`: 全局同步过滤规则，作用于所有映射。匹配路径在 Push 和 Pull 中均不比较、不复制、也不删除；不支持 `!` 否定规则。
 - `mappings`: 映射列表。每个映射持久定义一个本地根目录、一个远端根目录及其同步规则；映射本身不会自动执行同步。每次用户从某个本地目录手动发起同步时，程序会从这里找出匹配的映射。
 - `mappings[].name`: 映射名称，用于标识这组同步关系，当前主要用于可读性和后续扩展。
 - `mappings[].rcloneRemote`: `rclone.conf` 中定义的 remote 名称，例如 `synology-sftp`。
 - `mappings[].localBasePath`: 本地根目录。当前右键触发的目录必须落在这个目录下，程序才会认为它属于该映射。
 - `mappings[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology-sftp:ProjectsSynced` 这样的根路径；如果想直接同步到 remote 根目录，可以写成空字符串 `""`。
-- `mappings[].ignorePatterns`: 只对当前映射生效的额外忽略规则，会和 `globalIgnorePatterns` 合并。
+- `mappings[].filterPatterns`: 只对当前映射生效的同步过滤规则，会和 `globalFilterPatterns` 取并集。项目自己的本地上传选择仍由 `.gitignore` 管理。
 - `mappings[].lastSyncMode`: 上一次同步方向，当前可为空。
 - `mappings[].lastSyncFolder`: 上一次同步的相对文件夹，当前可为空。
 - `mappings[].lastSyncDate`: 上一次同步时间，建议使用 ISO 字符串，当前可为空。

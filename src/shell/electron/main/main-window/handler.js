@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { isValidFormModalView } from '#electron/contracts/form-modal.js'
-import { deleteMapping, deleteServer, getMainWindowData, getServer, listGlobalIgnorePatterns, listOperationHistory, testServerConnection, updateGlobalIgnorePatterns } from '#src/app/app-api.js'
+import { deleteMapping, deleteServer, getMainWindowData, getServer, listGlobalFilterPatterns, listOperationHistory, testServerConnection, updateGlobalFilterPatterns } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { MAPPING_OPERATION } from '#src/app/contracts/mapping.js'
 import { SERVER_OPERATION } from '#src/app/contracts/server.js'
@@ -27,7 +27,7 @@ function assertPayloadObject(payload) {
 export function createMainWindowHandlers() {
   const reportedLoadFailures = {
     mainWindowData: false,
-    globalIgnorePatterns: false,
+    globalFilterPatterns: false,
   }
 
   async function runLoadQuery(queryName, query) {
@@ -75,8 +75,8 @@ export function createMainWindowHandlers() {
     return await runLoadQuery('mainWindowData', getMainWindowData)
   }
 
-  async function getGlobalIgnorePatternsHandler(_event) {
-    return await runLoadQuery('globalIgnorePatterns', listGlobalIgnorePatterns)
+  async function getGlobalFilterPatternsHandler(_event) {
+    return await runLoadQuery('globalFilterPatterns', listGlobalFilterPatterns)
   }
 
   async function openConfigFolderHandler() {
@@ -182,10 +182,10 @@ export function createMainWindowHandlers() {
     )
   }
 
-  async function updateGlobalIgnorePatternsHandler(_event, payload) {
+  async function updateGlobalFilterPatternsHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
-      return toSuccessfulResult(await updateGlobalIgnorePatterns(payload.ignorePatterns))
+      return toSuccessfulResult(await updateGlobalFilterPatterns(payload.filterPatterns))
     }
     catch (error) {
       return await reportRequestError(error)
@@ -194,7 +194,7 @@ export function createMainWindowHandlers() {
 
   return {
     getMainWindowDataHandler,
-    getGlobalIgnorePatternsHandler,
+    getGlobalFilterPatternsHandler,
     openConfigFolderHandler,
     openLocalFolderHandler,
     openFormModalHandler,
@@ -203,6 +203,6 @@ export function createMainWindowHandlers() {
     getOperationHistoryHandler,
     deleteServerHandler,
     deleteMappingHandler,
-    updateGlobalIgnorePatternsHandler,
+    updateGlobalFilterPatternsHandler,
   }
 }

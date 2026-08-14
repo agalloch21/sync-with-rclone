@@ -69,8 +69,8 @@ export async function listMappings() {
   return await mappingOperations.listMappings()
 }
 
-export async function listGlobalIgnorePatterns() {
-  return await settingsOperations.listGlobalIgnorePatterns()
+export async function listGlobalFilterPatterns() {
+  return await settingsOperations.listGlobalFilterPatterns()
 }
 
 export async function listOperationHistory(options) {
@@ -110,14 +110,14 @@ async function updateMappingImpl(mapping, expectedMapping, onProgress) {
   return result
 }
 
-async function updateMappingIgnorePatternsImpl(mapping, ignorePatterns, onProgress) {
-  const result = await mappingOperations.updateMappingIgnorePatterns(mapping, ignorePatterns, onProgress)
+async function updateMappingFilterPatternsImpl(mapping, filterPatterns, onProgress) {
+  const result = await mappingOperations.updateMappingFilterPatterns(mapping, filterPatterns, onProgress)
   notifyConfigUpdate()
   return result
 }
 
-async function updateGlobalIgnorePatternsImpl(ignorePatterns) {
-  const result = await settingsOperations.updateGlobalIgnorePatterns(ignorePatterns)
+async function updateGlobalFilterPatternsImpl(filterPatterns) {
+  const result = await settingsOperations.updateGlobalFilterPatterns(filterPatterns)
   notifyConfigUpdate()
   return result
 }
@@ -172,15 +172,15 @@ export const updateMapping = defineAppOperation({
   }),
 }, updateMappingImpl)
 
-export const updateMappingIgnorePatterns = defineAppOperation({
-  operation: MAPPING_OPERATION.UPDATE_IGNORE_PATTERNS,
+export const updateMappingFilterPatterns = defineAppOperation({
+  operation: MAPPING_OPERATION.UPDATE_FILTER_PATTERNS,
   getSubject: ([mapping]) => mappingSubject(mapping),
-}, updateMappingIgnorePatternsImpl)
+}, updateMappingFilterPatternsImpl)
 
-export const updateGlobalIgnorePatterns = defineAppOperation({
-  operation: SETTINGS_OPERATION.UPDATE_GLOBAL_IGNORE_PATTERNS,
-  getSubject: () => ({ type: 'settings', name: 'globalIgnorePatterns' }),
-}, updateGlobalIgnorePatternsImpl)
+export const updateGlobalFilterPatterns = defineAppOperation({
+  operation: SETTINGS_OPERATION.UPDATE_GLOBAL_FILTER_PATTERNS,
+  getSubject: () => ({ type: 'settings', name: 'globalFilterPatterns' }),
+}, updateGlobalFilterPatternsImpl)
 
 export const deleteMapping = defineAppOperation({
   operation: MAPPING_OPERATION.DELETE,

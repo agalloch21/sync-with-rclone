@@ -10,10 +10,10 @@ const CLI_COMMAND = Object.freeze({
   LIST_MAPPINGS: 'list-mappings',
   CREATE_MAPPING: 'create-mapping',
   UPDATE_MAPPING: 'update-mapping',
-  UPDATE_MAPPING_IGNORE_PATTERNS: 'update-mapping-ignore-patterns',
+  UPDATE_MAPPING_FILTER_PATTERNS: 'update-mapping-filter-patterns',
   DELETE_MAPPING: 'delete-mapping',
-  LIST_GLOBAL_IGNORE_PATTERNS: 'list-global-ignore-patterns',
-  UPDATE_GLOBAL_IGNORE_PATTERNS: 'update-global-ignore-patterns',
+  LIST_GLOBAL_FILTER_PATTERNS: 'list-global-filter-patterns',
+  UPDATE_GLOBAL_FILTER_PATTERNS: 'update-global-filter-patterns',
 })
 
 const CLI_COMMAND_NAMES = Object.freeze(Object.values(CLI_COMMAND))

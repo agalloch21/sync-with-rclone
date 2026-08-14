@@ -5,7 +5,7 @@ import { toFailureResult } from '#src/app/operation-result.js'
 import { toRaw } from 'vue'
 import { useMessageBox } from './useMessageBox.js'
 
-export function formatIgnorePatterns(patterns) {
+export function formatFilterPatterns(patterns) {
   if (!Array.isArray(patterns))
     return ''
 
@@ -14,7 +14,7 @@ export function formatIgnorePatterns(patterns) {
     .join(',\n')
 }
 
-export function parseIgnorePatterns(value) {
+export function parseFilterPatterns(value) {
   if (typeof value !== 'string')
     return []
 
@@ -110,21 +110,21 @@ export function useMappingOperations(windowPreload) {
     }))
   }
 
-  async function updateMappingIgnorePatterns(mapping, ignorePatterns) {
+  async function updateMappingFilterPatterns(mapping, filterPatterns) {
     if (!mapping?.rcloneRemote || !mapping?.localBasePath) {
       await messageBox.warning(APP_MESSAGE_CODE.MAPPING_REQUIRED)
       return toFailureResult()
     }
 
-    return await invokeRequest(() => windowPreload?.updateMappingIgnorePatterns?.({
+    return await invokeRequest(() => windowPreload?.updateMappingFilterPatterns?.({
       mapping: toPlainObject(mapping),
-      ignorePatterns: structuredClone(toRaw(ignorePatterns)),
+      filterPatterns: structuredClone(toRaw(filterPatterns)),
     }))
   }
 
-  async function updateGlobalIgnorePatterns(ignorePatterns) {
-    return await invokeRequest(() => windowPreload?.updateGlobalIgnorePatterns?.({
-      ignorePatterns: structuredClone(toRaw(ignorePatterns)),
+  async function updateGlobalFilterPatterns(filterPatterns) {
+    return await invokeRequest(() => windowPreload?.updateGlobalFilterPatterns?.({
+      filterPatterns: structuredClone(toRaw(filterPatterns)),
     }))
   }
 
@@ -166,8 +166,8 @@ export function useMappingOperations(windowPreload) {
     selectRemoteFolder,
     createMapping,
     updateMapping,
-    updateMappingIgnorePatterns,
-    updateGlobalIgnorePatterns,
+    updateMappingFilterPatterns,
+    updateGlobalFilterPatterns,
     deleteMapping,
   }
 }

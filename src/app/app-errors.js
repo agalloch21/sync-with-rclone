@@ -13,6 +13,7 @@ export const APP_ERROR_CODE = Object.freeze({
   SYNC_SESSION_OVERLAP: 'sync_session.overlap',
   SYNC_EXECUTION_FAILED: 'sync.execution_failed',
   SYNC_REMOTE_SOURCE_NOT_FOUND: 'sync.remote_source_not_found',
+  SYNC_LOCAL_SYMBOLIC_LINK_CONFLICT: 'sync.local_symbolic_link_conflict',
 
   REMOTE_FOLDER_PATH_REQUIRED: 'remote.folder_path_required',
   REMOTE_FOLDER_PATH_INVALID: 'remote.folder_path_invalid',

@@ -26,16 +26,16 @@ test('form modal listServers handler returns an OperationResult', async () => {
   })
 })
 
-test('form modal global ignore patterns handler returns an OperationResult', async () => {
+test('form modal global filter patterns handler returns an OperationResult', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalIgnorePatterns: ['.DS_Store'],
+      globalFilterPatterns: ['.DS_Store'],
       syncTasks: [],
     },
   }, async () => {
     const handlers = createFormModalHandlers()
 
-    assert.deepEqual(await handlers.getGlobalIgnorePatternsHandler(), {
+    assert.deepEqual(await handlers.getGlobalFilterPatternsHandler(), {
       success: true,
       value: ['.DS_Store'],
     })

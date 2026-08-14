@@ -1,3 +1,4 @@
+import { createSyncFilter } from '#src/core/filters/sync-filter.js'
 import { resolveLocalDirectoryPath as resolveInfrastructureLocalDirectoryPath } from '#src/infrastructure/filesystem/local-path.js'
 import { normalizeRemoteBasePath as normalizeInfrastructureRemoteBasePath } from '#src/infrastructure/rclone/remote-path.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
@@ -59,9 +60,13 @@ function normalizeMapping(mapping) {
   }
 }
 
-function assertIgnorePatterns(ignorePatterns) {
-  if (!Array.isArray(ignorePatterns) || ignorePatterns.some(pattern => typeof pattern !== 'string'))
-    throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, 'Ignore patterns must be an array of strings.')
+function assertFilterPatterns(filterPatterns) {
+  try {
+    createSyncFilter(filterPatterns)
+  }
+  catch (error) {
+    throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, error.message, { cause: error })
+  }
 }
 
 export const listMappings = mappingService.listMappings
@@ -72,7 +77,7 @@ export async function createMapping(mapping, onProgress) {
   const nextMapping = {
     displayName: '',
     ...normalizedMapping,
-    ignorePatterns: [],
+    filterPatterns: [],
     lastSyncMode: null,
     lastSyncFolder: null,
     lastSyncDate: null,
@@ -89,11 +94,11 @@ export async function updateMapping(mapping, expectedMapping, onProgress) {
   return await mappingService.updateMapping(mapping, normalizedMapping)
 }
 
-export async function updateMappingIgnorePatterns(mapping, ignorePatterns, onProgress) {
+export async function updateMappingFilterPatterns(mapping, filterPatterns, onProgress) {
   assertMappingReference(mapping)
-  assertIgnorePatterns(ignorePatterns)
+  assertFilterPatterns(filterPatterns)
   onProgress?.(MAPPING_SAVE_PROGRESS_STEP.SAVE)
-  return await mappingService.updateMappingIgnorePatterns(mapping, ignorePatterns)
+  return await mappingService.updateMappingFilterPatterns(mapping, filterPatterns)
 }
 
 export async function deleteMapping(mapping, onProgress) {

@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { SYNC_CANCEL_REASON, SYNC_RESULT } from '#src/core/contract.js'
@@ -63,4 +65,58 @@ test('executeSync returns apply operations when the real command boundary fails'
     assert.match(result.error.cause.message, /exited with code 1/)
     assert.ok(result.operations.some(operation => operation.type === 'copy' && operation.synced))
   })
+})
+
+test('executeSync rejects a pull through an internal symbolic link before review', async (t) => {
+  const temporaryPath = await fs.mkdtemp(path.join(os.tmpdir(), 'pull-review-boundary-'))
+  const localRoot = path.join(temporaryPath, 'local')
+  const externalPath = path.join(temporaryPath, 'external')
+
+  try {
+    await fs.mkdir(localRoot)
+    await fs.mkdir(externalPath)
+    try {
+      await fs.symlink(externalPath, path.join(localRoot, 'assets'), 'dir')
+    }
+    catch (error) {
+      if (error?.code === 'EPERM') {
+        t.skip('Creating symbolic links requires additional privileges on this platform.')
+        return
+      }
+      throw error
+    }
+
+    await withFakeRcloneCommand({
+      lsjson: {
+        stdout: JSON.stringify([{
+          Path: 'assets/remote.txt',
+          Size: 6,
+          ModTime: '2026-08-15T00:00:00Z',
+          IsDir: false,
+        }]),
+      },
+    }, async ({ runtimePaths }) => {
+      let reviewCalled = false
+      const result = await executeSync({
+        mode: 'pull',
+        localFolderPath: localRoot,
+        remoteFolderPath: 'fake-remote:project',
+        runtimePaths,
+      }, {
+        interactions: {
+          reviewDiff() {
+            reviewCalled = true
+            return Promise.resolve({ action: 'confirm' })
+          },
+        },
+      })
+
+      assert.equal(result.result, SYNC_RESULT.FAILED)
+      assert.equal(result.error.code, INFRASTRUCTURE_ERROR_CODE.PATH_SYMBOLIC_LINK_CONFLICT)
+      assert.equal(reviewCalled, false)
+    })
+  }
+  finally {
+    await fs.rm(temporaryPath, { recursive: true, force: true })
+  }
 })

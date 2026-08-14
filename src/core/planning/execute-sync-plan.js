@@ -1,3 +1,4 @@
+import { assertLocalPathsDoNotCrossSymbolicLinks } from '#src/infrastructure/filesystem/local-files.js'
 import {
   cleanupEmptyDirectories,
   copyFiles,
@@ -105,6 +106,14 @@ export async function executeSyncPlan(syncPlan, context, onProgress = null, canc
 
   try {
     emitProgress(activities.START)
+
+    if (context.mode === 'pull') {
+      await assertLocalPathsDoNotCrossSymbolicLinks(
+        destinationRoot,
+        operations.map(operation => operation.path),
+        cancelSignal,
+      )
+    }
 
     if (copyOperations.length > 0) {
       cancelSignal?.throwIfAborted()

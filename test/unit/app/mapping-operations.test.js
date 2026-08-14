@@ -11,7 +11,7 @@ import {
   createMapping,
   deleteMapping,
   updateMapping,
-  updateMappingIgnorePatterns,
+  updateMappingFilterPatterns,
 } from '#src/app/operations/mapping.js'
 import {
   INFRASTRUCTURE_ERROR_CODE,
@@ -39,24 +39,24 @@ test('createMapping reports an invalid local directory and preserves its native 
   })
 })
 
-test('deleteMapping removes the selected mapping and preserves global ignore patterns', async () => {
+test('deleteMapping removes the selected mapping and preserves global filter patterns', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalIgnorePatterns: ['.DS_Store'],
+      globalFilterPatterns: ['.DS_Store'],
       mappings: [
         {
           displayName: 'A',
           rcloneRemote: 'synology',
           localBasePath: '/local/a',
           remoteBasePath: 'A',
-          ignorePatterns: [],
+          filterPatterns: [],
         },
         {
           displayName: 'B',
           rcloneRemote: 'synology',
           localBasePath: '/local/b',
           remoteBasePath: 'B',
-          ignorePatterns: ['node_modules/'],
+          filterPatterns: ['node_modules/'],
         },
       ],
     },
@@ -70,9 +70,9 @@ test('deleteMapping removes the selected mapping and preserves global ignore pat
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
     assert.equal(deletedMapping.displayName, 'A')
     assert.equal(deletedMapping.localBasePath, path.resolve('/local/a'))
-    assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
+    assert.deepEqual(saved.globalFilterPatterns, ['.DS_Store'])
     assert.deepEqual(saved.mappings.map(mapping => mapping.displayName), ['B'])
-    assert.deepEqual(saved.mappings[0].ignorePatterns, ['node_modules/'])
+    assert.deepEqual(saved.mappings[0].filterPatterns, ['node_modules/'])
     assert.deepEqual(progress, [MAPPING_DELETE_PROGRESS_STEP.DELETE])
   })
 })
@@ -85,7 +85,7 @@ test('deleteMapping returns an error when the mapping does not exist', async () 
         rcloneRemote: 'synology',
         localBasePath: '/local/a',
         remoteBasePath: 'A',
-        ignorePatterns: [],
+        filterPatterns: [],
       }],
     },
   }, async () => {
@@ -101,7 +101,7 @@ test('deleteMapping returns an error when the mapping does not exist', async () 
 
 test('createMapping saves a normalized mapping with default metadata', async () => {
   await withFakeAppRuntime({
-    appConfig: { globalIgnorePatterns: ['.DS_Store'], mappings: [] },
+    appConfig: { globalFilterPatterns: ['.DS_Store'], mappings: [] },
   }, async ({ tempDir, configPath }) => {
     const localPath = path.join(tempDir, 'local')
     await fs.mkdir(localPath)
@@ -115,11 +115,11 @@ test('createMapping saves a normalized mapping with default metadata', async () 
 
     assert.equal(result.rcloneRemote, 'synology')
     assert.equal(result.remoteBasePath, 'Projects/Current')
-    assert.deepEqual(result.ignorePatterns, [])
+    assert.deepEqual(result.filterPatterns, [])
     assert.equal(result.lastSyncDate, null)
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
-    assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
+    assert.deepEqual(saved.globalFilterPatterns, ['.DS_Store'])
     assert.equal(saved.mappings[0].localBasePath, await fs.realpath(localPath))
     assert.deepEqual(progress, [MAPPING_SAVE_PROGRESS_STEP.SAVE])
   })
@@ -127,7 +127,7 @@ test('createMapping saves a normalized mapping with default metadata', async () 
 
 test('createMapping stores the real directory behind a linked mapping root', async (t) => {
   await withFakeAppRuntime({
-    appConfig: { globalIgnorePatterns: [], mappings: [] },
+    appConfig: { globalFilterPatterns: [], mappings: [] },
   }, async ({ tempDir }) => {
     const realPath = path.join(tempDir, 'real-local')
     const linkPath = path.join(tempDir, 'linked-local')
@@ -156,13 +156,13 @@ test('createMapping stores the real directory behind a linked mapping root', asy
 test('updateMapping changes the mapping and preserves mapping metadata', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalIgnorePatterns: [],
+      globalFilterPatterns: [],
       mappings: [{
         displayName: 'Project',
         rcloneRemote: 'synology',
         localBasePath: '/local/current',
         remoteBasePath: 'Current',
-        ignorePatterns: ['node_modules/'],
+        filterPatterns: ['node_modules/'],
         lastSyncMode: 'push',
         lastSyncFolder: 'src',
         lastSyncDate: '2026-07-17',
@@ -182,62 +182,80 @@ test('updateMapping changes the mapping and preserves mapping metadata', async (
     })
 
     assert.equal(result.displayName, 'Project')
-    assert.deepEqual(result.ignorePatterns, ['node_modules/'])
+    assert.deepEqual(result.filterPatterns, ['node_modules/'])
     assert.equal(result.lastSyncMode, 'push')
     assert.equal(result.localBasePath, await fs.realpath(nextPath))
     assert.equal(result.remoteBasePath, 'Next')
   })
 })
 
-test('updateMappingIgnorePatterns changes patterns and preserves global patterns and mapping metadata', async () => {
+test('updateMappingFilterPatterns changes patterns and preserves global patterns and mapping metadata', async () => {
   const localPath = process.cwd()
   await withFakeAppRuntime({
     appConfig: {
-      globalIgnorePatterns: ['.DS_Store'],
+      globalFilterPatterns: ['.DS_Store'],
       mappings: [{
         displayName: 'Project',
         rcloneRemote: 'synology',
         localBasePath: localPath,
         remoteBasePath: 'Current',
-        ignorePatterns: ['old-pattern'],
+        filterPatterns: ['old-pattern'],
         lastSyncMode: 'pull',
         lastSyncFolder: 'src',
         lastSyncDate: '2026-07-20',
       }],
     },
   }, async ({ configPath }) => {
-    const result = await updateMappingIgnorePatterns({
+    const result = await updateMappingFilterPatterns({
       rcloneRemote: 'synology',
       localBasePath: localPath,
     }, ['node_modules/', '*.tmp', '*.tmp'])
 
-    assert.deepEqual(result.ignorePatterns, ['node_modules/', '*.tmp', '*.tmp'])
+    assert.deepEqual(result.filterPatterns, ['node_modules/', '*.tmp', '*.tmp'])
     assert.equal(result.displayName, 'Project')
     assert.equal(result.lastSyncMode, 'pull')
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
-    assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
-    assert.deepEqual(saved.mappings[0].ignorePatterns, ['node_modules/', '*.tmp', '*.tmp'])
+    assert.deepEqual(saved.globalFilterPatterns, ['.DS_Store'])
+    assert.deepEqual(saved.mappings[0].filterPatterns, ['node_modules/', '*.tmp', '*.tmp'])
     assert.equal(saved.mappings[0].lastSyncFolder, 'src')
     assert.equal(saved.mappings[0].lastSyncDate, '2026-07-20')
   })
 })
 
-test('updateMappingIgnorePatterns rejects non-string entries', async () => {
+test('updateMappingFilterPatterns rejects non-string entries', async () => {
   await withFakeAppRuntime({
     appConfig: {
       mappings: [{
         rcloneRemote: 'synology',
         localBasePath: '/local/current',
         remoteBasePath: 'Current',
-        ignorePatterns: [],
+        filterPatterns: [],
       }],
     },
   }, async () => {
-    await assert.rejects(() => updateMappingIgnorePatterns({
+    await assert.rejects(() => updateMappingFilterPatterns({
       rcloneRemote: 'synology',
       localBasePath: path.resolve('/local/current'),
     }, ['valid', 42]), error => error?.code === 'ipc.invalid_payload')
+  })
+})
+
+test('updateMappingFilterPatterns rejects negation rules', async () => {
+  await withFakeAppRuntime({
+    appConfig: {
+      mappings: [{
+        rcloneRemote: 'synology',
+        localBasePath: '/local/current',
+        remoteBasePath: 'Current',
+        filterPatterns: [],
+      }],
+    },
+  }, async () => {
+    await assert.rejects(() => updateMappingFilterPatterns({
+      rcloneRemote: 'synology',
+      localBasePath: path.resolve('/local/current'),
+    }, ['!keep.txt']), error => error?.code === 'ipc.invalid_payload' && /negation/.test(error.message))
   })
 })
 

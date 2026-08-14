@@ -31,15 +31,15 @@ const formModal = {
       message: '映射本地文件夹与远程文件夹',
     },
     [FORM_MODAL_VIEW.EDIT_PATTERNS]: {
-      title: '编辑忽略规则',
-      message: '为映射设置额外的忽略规则',
+      title: '编辑同步过滤规则',
+      message: '双向排除不参与同步的路径',
       mappingSpecificPatterns: {
-        title: '映射专用忽略规则',
-        description: '同步时，这些规则将与 .ignore 文件一起用于过滤文件。',
+        title: '映射同步过滤规则',
+        description: '匹配路径在推送和拉取中均不比较、不复制、也不删除；不支持否定规则。',
       },
       globalPatterns: {
-        title: '全局忽略规则',
-        description: '可以在设置面板中修改这些规则。',
+        title: '继承的全局过滤规则',
+        description: '这些规则作用于所有映射，可以在设置中修改。',
       },
     },
   },

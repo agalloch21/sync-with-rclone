@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { deleteMapping, getMainWindowData, listGlobalIgnorePatterns, listOperationHistory, testServerConnection, updateGlobalIgnorePatterns, updateServer } from '#src/app/app-api.js'
+import { deleteMapping, getMainWindowData, listGlobalFilterPatterns, listOperationHistory, testServerConnection, updateGlobalFilterPatterns, updateServer } from '#src/app/app-api.js'
 import { SERVER_UPDATE_PROGRESS_STEP } from '#src/app/contracts/server.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
@@ -18,7 +18,7 @@ test('getMainWindowData returns servers and mappings through the app API', async
           rcloneRemote: 'synology',
           localBasePath: '/local/projects',
           remoteBasePath: 'Projects',
-          ignorePatterns: [],
+          filterPatterns: [],
         },
       ],
     },
@@ -41,7 +41,7 @@ test('getMainWindowData returns servers and mappings through the app API', async
           rcloneRemote: 'synology',
           localBasePath: path.resolve('/local/projects'),
           remoteBasePath: 'Projects',
-          ignorePatterns: [],
+          filterPatterns: [],
           lastSyncMode: null,
           lastSyncFolder: null,
           lastSyncDate: null,
@@ -51,33 +51,33 @@ test('getMainWindowData returns servers and mappings through the app API', async
   })
 })
 
-test('listGlobalIgnorePatterns loads independently from mappings', async () => {
+test('listGlobalFilterPatterns loads independently from mappings', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {},
     appConfig: {
-      globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+      globalFilterPatterns: ['.DS_Store', 'Thumbs.db'],
       mappings: [],
     },
   }, async ({ configPath }) => {
     await fs.writeFile(configPath, JSON.stringify({
-      globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+      globalFilterPatterns: ['.DS_Store', 'Thumbs.db'],
       syncTasks: [],
     }))
 
-    assert.deepEqual(await listGlobalIgnorePatterns(), ['.DS_Store', 'Thumbs.db'])
+    assert.deepEqual(await listGlobalFilterPatterns(), ['.DS_Store', 'Thumbs.db'])
   })
 })
 
-test('getMainWindowData loads mappings independently from global ignore patterns', async () => {
+test('getMainWindowData loads mappings independently from global filter patterns', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {},
     appConfig: {
-      globalIgnorePatterns: [],
+      globalFilterPatterns: [],
       mappings: [],
     },
   }, async ({ configPath }) => {
     await fs.writeFile(configPath, JSON.stringify({
-      globalIgnorePatterns: {},
+      globalFilterPatterns: {},
       mappings: [],
     }))
 
@@ -134,18 +134,18 @@ test('testServerConnection is a query and does not create operation history', as
   })
 })
 
-test('updateGlobalIgnorePatterns persists through the app API', async () => {
+test('updateGlobalFilterPatterns persists through the app API', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {},
     appConfig: {
-      globalIgnorePatterns: ['old'],
+      globalFilterPatterns: ['old'],
       mappings: [],
     },
   }, async ({ configPath }) => {
-    assert.deepEqual(await updateGlobalIgnorePatterns(['.DS_Store']), ['.DS_Store'])
+    assert.deepEqual(await updateGlobalFilterPatterns(['.DS_Store']), ['.DS_Store'])
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
-    assert.deepEqual(saved.globalIgnorePatterns, ['.DS_Store'])
+    assert.deepEqual(saved.globalFilterPatterns, ['.DS_Store'])
   })
 })
 
@@ -159,7 +159,7 @@ test('getMainWindowData adds a missing server placeholder for mapping references
           rcloneRemote: 'missing-server',
           localBasePath: '/local/missing',
           remoteBasePath: 'Missing',
-          ignorePatterns: [],
+          filterPatterns: [],
         },
       ],
     },
@@ -184,21 +184,21 @@ test('updateServer changes protocol configuration without changing mapping refer
       synology: { type: 'sftp', host: 'old.local', port: '22', user: 'xiaobo', pass: 'secret' },
     },
     appConfig: {
-      globalIgnorePatterns: ['.DS_Store'],
+      globalFilterPatterns: ['.DS_Store'],
       mappings: [
         {
           displayName: 'Projects',
           rcloneRemote: 'synology',
           localBasePath: '/local/projects',
           remoteBasePath: 'Projects',
-          ignorePatterns: [],
+          filterPatterns: [],
         },
         {
           displayName: 'Other',
           rcloneRemote: 'backup',
           localBasePath: '/local/other',
           remoteBasePath: 'Other',
-          ignorePatterns: [],
+          filterPatterns: [],
         },
       ],
     },

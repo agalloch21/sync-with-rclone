@@ -59,6 +59,29 @@ test('buildLocalSnapshot applies nested ignore and negation patterns', async () 
   assert.ok(filePaths(snapshot).includes('.yarn/patches/patch-file'))
 })
 
+test('buildLocalSnapshot applies hard sync filters before .gitignore negation', async () => {
+  const rootPath = path.posix.resolve('test/fixtures/local/negate')
+  const snapshot = await buildLocalSnapshot(rootPath, ['.env.example'])
+
+  assert.equal(filePaths(snapshot).includes('.env.example'), false)
+})
+
+test('buildLocalSnapshot filters .git files and directories', async () => {
+  const rootPath = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-local-filter-git-'))
+
+  try {
+    await fs.mkdir(path.join(rootPath, '.git'))
+    await fs.writeFile(path.join(rootPath, '.git', 'config'), 'config')
+    await fs.writeFile(path.join(rootPath, 'visible.txt'), 'visible')
+
+    const snapshot = await buildLocalSnapshot(rootPath, ['.git'])
+    assert.deepEqual(filePaths(snapshot), ['visible.txt'])
+  }
+  finally {
+    await fs.rm(rootPath, { recursive: true, force: true })
+  }
+})
+
 test('buildLocalSnapshot skips symbolic links without following their targets', async (t) => {
   const rootPath = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-local-symlinks-'))
 

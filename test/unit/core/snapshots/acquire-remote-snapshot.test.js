@@ -16,3 +16,12 @@ test('buildRemoteSnapshot emits files only from recursive rclone listing', async
   assert.equal('dirEntries' in snapshot, false)
   assert.equal('fileEntries' in snapshot, false)
 })
+
+test('buildRemoteSnapshot applies sync filters to the rclone listing', async () => {
+  const rootPath = `${REMOTE_NAME}:basic`
+  const snapshot = await buildRemoteSnapshot(rootPath, ['node_modules/'])
+  const paths = snapshot.files.map(file => file.path)
+
+  assert.equal(paths.some(filePath => filePath.startsWith('node_modules/')), false)
+  assert.ok(paths.includes('.gitignore'))
+})

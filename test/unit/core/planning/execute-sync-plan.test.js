@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import test from 'node:test'
 import { executeSyncPlan } from '#src/core/planning/execute-sync-plan.js'
+import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
 import { withFakeRcloneCommand } from '../../../helpers/fake-rclone-command.js'
 
 function normalizeArgs(args) {
@@ -38,6 +42,44 @@ test('executeSyncPlan targets the local root for pull-mode delete cleanup', asyn
       ['rmdirs', '/local/root'],
     ])
   })
+})
+
+test('executeSyncPlan rechecks pull destinations and refuses to write through a symbolic link', async (t) => {
+  const temporaryPath = await fs.mkdtemp(path.join(os.tmpdir(), 'pull-plan-boundary-'))
+  const localRoot = path.join(temporaryPath, 'local')
+  const externalPath = path.join(temporaryPath, 'external')
+
+  try {
+    await fs.mkdir(localRoot)
+    await fs.mkdir(externalPath)
+    try {
+      await fs.symlink(externalPath, path.join(localRoot, 'assets'), 'dir')
+    }
+    catch (error) {
+      if (error?.code === 'EPERM') {
+        t.skip('Creating symbolic links requires additional privileges on this platform.')
+        return
+      }
+      throw error
+    }
+
+    await withFakeRcloneCommand({}, async ({ runtimePaths, readCalls }) => {
+      await assert.rejects(() => executeSyncPlan({
+        action: 'confirm',
+        operations: [{ type: 'copy', path: 'assets/remote.txt' }],
+      }, {
+        mode: 'pull',
+        localFolderPath: localRoot,
+        remoteFolderPath: 'synology:ProjectsSynced/app',
+        runtimePaths,
+      }), error => error.code === INFRASTRUCTURE_ERROR_CODE.PATH_SYMBOLIC_LINK_CONFLICT)
+
+      assert.deepEqual(await readCalls(), [])
+    })
+  }
+  finally {
+    await fs.rm(temporaryPath, { recursive: true, force: true })
+  }
 })
 
 test('executeSyncPlan batches copy and delete operations and reports their lifecycle', async () => {

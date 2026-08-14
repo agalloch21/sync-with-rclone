@@ -53,7 +53,7 @@ test('runCli prints list-mappings through the app API', async () => {
         rcloneRemote: 'synology',
         localBasePath: '/local/project',
         remoteBasePath: 'Projects',
-        ignorePatterns: [],
+        filterPatterns: [],
       }],
     },
   }, async () => {

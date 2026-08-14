@@ -56,14 +56,14 @@ export default {
         message: '映射已成功更新。',
       },
     },
-    [MAPPING_OPERATION.UPDATE_IGNORE_PATTERNS]: {
-      title: '正在更新忽略规则',
-      message: '正在保存映射的忽略规则…',
+    [MAPPING_OPERATION.UPDATE_FILTER_PATTERNS]: {
+      title: '正在更新同步过滤规则',
+      message: '正在保存映射的同步过滤规则…',
       steps: {
-        [MAPPING_SAVE_PROGRESS_STEP.SAVE]: '正在保存映射的忽略规则…',
+        [MAPPING_SAVE_PROGRESS_STEP.SAVE]: '正在保存映射的同步过滤规则…',
       },
       succeeded: {
-        message: '忽略规则已成功更新。',
+        message: '同步过滤规则已成功更新。',
       },
     },
     [MAPPING_OPERATION.DELETE]: {

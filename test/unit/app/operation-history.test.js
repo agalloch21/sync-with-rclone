@@ -183,13 +183,13 @@ test('startSync keeps pre-execution aborts as cancelled results', async () => {
     await fs.mkdir(localFolderPath)
     await fs.mkdir(configDirectory)
     await fs.writeFile(path.join(configDirectory, 'config.json'), JSON.stringify({
-      globalIgnorePatterns: [],
+      globalFilterPatterns: [],
       mappings: [{
         displayName: 'Project',
         rcloneRemote: 'nas',
         localBasePath: localFolderPath,
         remoteBasePath: 'remote/project',
-        ignorePatterns: [],
+        filterPatterns: [],
       }],
     }))
 
@@ -242,7 +242,7 @@ process.exit(3)
 test('startSync records a completed mapped folder and publishes the configuration update', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalIgnorePatterns: [],
+      globalFilterPatterns: [],
       mappings: [],
     },
   }, async ({ tempDir, configPath }) => {
@@ -250,13 +250,13 @@ test('startSync records a completed mapped folder and publishes the configuratio
     const localFolderPath = path.join(localBasePath, 'src')
     await fs.mkdir(localFolderPath, { recursive: true })
     await fs.writeFile(configPath, JSON.stringify({
-      globalIgnorePatterns: [],
+      globalFilterPatterns: [],
       mappings: [{
         displayName: 'Project',
         rcloneRemote: 'nas',
         localBasePath,
         remoteBasePath: 'remote/project',
-        ignorePatterns: [],
+        filterPatterns: [],
         lastSyncMode: null,
         lastSyncFolder: null,
         lastSyncDate: null,

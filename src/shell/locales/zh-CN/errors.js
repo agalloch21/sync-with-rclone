@@ -12,6 +12,7 @@ export default {
     [APP_ERROR_CODE.SYNC_SESSION_OVERLAP]: '另一个同步会话正在使用重叠的本地或远程文件夹。',
     [APP_ERROR_CODE.SYNC_EXECUTION_FAILED]: '同步失败。',
     [APP_ERROR_CODE.SYNC_REMOTE_SOURCE_NOT_FOUND]: '远程源文件夹不存在：{remoteFolderPath}',
+    [APP_ERROR_CODE.SYNC_LOCAL_SYMBOLIC_LINK_CONFLICT]: '拉取不能写入符号链接或其内部路径：{symbolicLinkPath}',
     [APP_ERROR_CODE.REMOTE_FOLDER_PATH_REQUIRED]: '必须指定远程文件夹路径。',
     [APP_ERROR_CODE.REMOTE_FOLDER_PATH_INVALID]: '远程文件夹路径无效。',
     [APP_ERROR_CODE.IPC_INVALID_PAYLOAD]: '应用收到了无效请求。',

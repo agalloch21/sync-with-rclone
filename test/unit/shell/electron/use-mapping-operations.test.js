@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { formatIgnorePatterns, parseIgnorePatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
+import { formatFilterPatterns, parseFilterPatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
 import { APP_MESSAGE_CODE } from '#src/app/app-messages.js'
 
 function createPreload(overrides = {}) {
@@ -10,8 +10,8 @@ function createPreload(overrides = {}) {
   }
 }
 
-test('parseIgnorePatterns accepts commas and line breaks as separators', () => {
-  assert.deepEqual(parseIgnorePatterns('node_modules/, .DS_Store\n*.tmp\r\n.git/'), [
+test('parseFilterPatterns accepts commas and line breaks as separators', () => {
+  assert.deepEqual(parseFilterPatterns('node_modules/, .DS_Store\n*.tmp\r\n.git/'), [
     'node_modules/',
     '.DS_Store',
     '*.tmp',
@@ -19,14 +19,14 @@ test('parseIgnorePatterns accepts commas and line breaks as separators', () => {
   ])
 })
 
-test('parseIgnorePatterns trims entries, removes blanks, and preserves duplicates', () => {
-  assert.deepEqual(parseIgnorePatterns('  *.tmp  ,,\n*.tmp, \r\n'), ['*.tmp', '*.tmp'])
-  assert.deepEqual(parseIgnorePatterns(''), [])
+test('parseFilterPatterns trims entries, removes blanks, and preserves duplicates', () => {
+  assert.deepEqual(parseFilterPatterns('  *.tmp  ,,\n*.tmp, \r\n'), ['*.tmp', '*.tmp'])
+  assert.deepEqual(parseFilterPatterns(''), [])
 })
 
-test('formatIgnorePatterns displays patterns as comma-separated lines', () => {
-  assert.equal(formatIgnorePatterns(['.DS_Store', 'node_modules/']), '.DS_Store,\nnode_modules/')
-  assert.equal(formatIgnorePatterns([]), '')
+test('formatFilterPatterns displays patterns as comma-separated lines', () => {
+  assert.equal(formatFilterPatterns(['.DS_Store', 'node_modules/']), '.DS_Store,\nnode_modules/')
+  assert.equal(formatFilterPatterns([]), '')
 })
 
 test('selectLocalFolder sends the current path through the mapping operations composable', async () => {
@@ -105,10 +105,10 @@ test('mapping mutations do not present failures already handled by the main proc
   assert.equal(messageShown, false)
 })
 
-test('updateMappingIgnorePatterns sends a dedicated plain payload', async () => {
+test('updateMappingFilterPatterns sends a dedicated plain payload', async () => {
   let receivedPayload = null
   const operations = useMappingOperations(createPreload({
-    updateMappingIgnorePatterns: async (payload) => {
+    updateMappingFilterPatterns: async (payload) => {
       receivedPayload = payload
       structuredClone(payload)
       return { success: true }
@@ -118,33 +118,33 @@ test('updateMappingIgnorePatterns sends a dedicated plain payload', async () => 
     rcloneRemote: 'synology',
     localBasePath: '/local',
     remoteBasePath: 'Projects',
-    ignorePatterns: ['old'],
+    filterPatterns: ['old'],
   }
 
-  const result = await operations.updateMappingIgnorePatterns(mapping, ['node_modules/', '*.tmp'])
+  const result = await operations.updateMappingFilterPatterns(mapping, ['node_modules/', '*.tmp'])
 
   assert.equal(result.success, true)
   assert.deepEqual(receivedPayload, {
     mapping,
-    ignorePatterns: ['node_modules/', '*.tmp'],
+    filterPatterns: ['node_modules/', '*.tmp'],
   })
 })
 
-test('updateGlobalIgnorePatterns sends a dedicated plain payload', async () => {
+test('updateGlobalFilterPatterns sends a dedicated plain payload', async () => {
   let receivedPayload = null
   const operations = useMappingOperations(createPreload({
-    updateGlobalIgnorePatterns: async (payload) => {
+    updateGlobalFilterPatterns: async (payload) => {
       receivedPayload = payload
       structuredClone(payload)
-      return { success: true, value: payload.ignorePatterns }
+      return { success: true, value: payload.filterPatterns }
     },
   }))
 
-  const result = await operations.updateGlobalIgnorePatterns(['.DS_Store', '*.tmp'])
+  const result = await operations.updateGlobalFilterPatterns(['.DS_Store', '*.tmp'])
 
   assert.deepEqual(result, { success: true, value: ['.DS_Store', '*.tmp'] })
   assert.deepEqual(receivedPayload, {
-    ignorePatterns: ['.DS_Store', '*.tmp'],
+    filterPatterns: ['.DS_Store', '*.tmp'],
   })
 })
 

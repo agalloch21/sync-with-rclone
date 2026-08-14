@@ -115,7 +115,7 @@ async function ensureMacAppSupport(version) {
   const configCreated = await ensureFile(
     path.join(CONFIG_DIRECTORY, 'config.json'),
     `${JSON.stringify({
-      globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+      globalFilterPatterns: ['.DS_Store', 'Thumbs.db', '.git'],
       mappings: [],
     }, null, 2)}\n`,
   )

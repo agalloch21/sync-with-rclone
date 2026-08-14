@@ -34,7 +34,7 @@ test('updateConfiguration wraps storage failure and preserves its native cause',
   const configPath = path.join(configDirectory, 'config.json')
 
   await assert.rejects(() => updateConfiguration(() => ({
-    globalIgnorePatterns: [],
+    globalFilterPatterns: [],
     mappings: [],
   }), { configDirectory, configPath }), (error) => {
     assert.ok(error instanceof AppError)

@@ -12,13 +12,15 @@ import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 
 //* ================================ App Config Helpers ==============================*/
 
+const DEFAULT_GLOBAL_FILTER_PATTERNS = ['.DS_Store', 'Thumbs.db', '.git']
+
 function getDefaultAppConfigPath() {
   return getRuntimePaths().configPath
 }
 
 function createDefaultAppConfigContent() {
   return `${JSON.stringify({
-    globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+    globalFilterPatterns: DEFAULT_GLOBAL_FILTER_PATTERNS,
     mappings: [],
   }, null, 2)}\n`
 }
@@ -30,15 +32,15 @@ function requireAppConfigObject(rawConfig) {
   return rawConfig
 }
 
-function normalizeGlobalIgnorePatterns(rawConfig) {
+function normalizeGlobalFilterPatterns(rawConfig) {
   const config = requireAppConfigObject(rawConfig)
-  if (config.globalIgnorePatterns === undefined)
-    return []
+  if (config.globalFilterPatterns === undefined)
+    return [...DEFAULT_GLOBAL_FILTER_PATTERNS]
 
-  if (!Array.isArray(config.globalIgnorePatterns) || config.globalIgnorePatterns.some(pattern => typeof pattern !== 'string'))
-    throw new Error('globalIgnorePatterns must be an array of strings')
+  if (!Array.isArray(config.globalFilterPatterns) || config.globalFilterPatterns.some(pattern => typeof pattern !== 'string'))
+    throw new Error('globalFilterPatterns must be an array of strings')
 
-  return [...config.globalIgnorePatterns]
+  return [...config.globalFilterPatterns]
 }
 
 function normalizeMappings(rawConfig) {
@@ -60,7 +62,7 @@ function normalizeMappings(rawConfig) {
       rcloneRemote: mapping.rcloneRemote,
       localBasePath: normalizeLocalPath(path.resolve(mapping.localBasePath)),
       remoteBasePath: normalizeRemoteBasePath(mapping.remoteBasePath),
-      ignorePatterns: Array.isArray(mapping.ignorePatterns) ? mapping.ignorePatterns : [],
+      filterPatterns: Array.isArray(mapping.filterPatterns) ? mapping.filterPatterns : [],
       lastSyncMode: mapping.lastSyncMode || null,
       lastSyncFolder: mapping.lastSyncFolder || null,
       lastSyncDate: mapping.lastSyncDate || null,
@@ -70,14 +72,14 @@ function normalizeMappings(rawConfig) {
 
 function normalizeAppConfig(rawConfig) {
   return {
-    globalIgnorePatterns: normalizeGlobalIgnorePatterns(rawConfig),
+    globalFilterPatterns: normalizeGlobalFilterPatterns(rawConfig),
     mappings: normalizeMappings(rawConfig),
   }
 }
 
 function serializeAppConfig(config) {
   return `${JSON.stringify({
-    globalIgnorePatterns: Array.isArray(config?.globalIgnorePatterns) ? config.globalIgnorePatterns : [],
+    globalFilterPatterns: Array.isArray(config?.globalFilterPatterns) ? config.globalFilterPatterns : [],
     mappings: Array.isArray(config?.mappings) ? config.mappings : [],
   }, null, 2)}\n`
 }
@@ -169,10 +171,10 @@ export async function loadAppMappings(configPath = getDefaultAppConfigPath()) {
   }
 }
 
-export async function loadAppGlobalIgnorePatterns(configPath = getDefaultAppConfigPath()) {
+export async function loadAppGlobalFilterPatterns(configPath = getDefaultAppConfigPath()) {
   try {
     const rawConfig = await loadRawAppConfig(configPath)
-    return rawConfig ? normalizeGlobalIgnorePatterns(rawConfig) : null
+    return rawConfig ? normalizeGlobalFilterPatterns(rawConfig) : null
   }
   catch (error) {
     if (error?.code === INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED)
@@ -180,7 +182,7 @@ export async function loadAppGlobalIgnorePatterns(configPath = getDefaultAppConf
 
     throwInfrastructureError(
       INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED,
-      `Failed to load global ignore patterns from ${configPath}: ${error.message}`,
+      `Failed to load global filter patterns from ${configPath}: ${error.message}`,
       { cause: error, meta: { configPath } },
     )
   }

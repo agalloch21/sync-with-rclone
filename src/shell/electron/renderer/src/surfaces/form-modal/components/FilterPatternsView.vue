@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
-import { formatIgnorePatterns, parseIgnorePatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
+import { formatFilterPatterns, parseFilterPatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { onMounted, ref } from 'vue'
 import Button from '../../shared/Button.vue'
@@ -16,14 +16,14 @@ const props = defineProps({
 const emit = defineEmits(['onClickCancel', 'onClickConfirm'])
 const mappingOperations = useMappingOperations(window.formModal)
 
-const mappingPatternsText = ref(formatIgnorePatterns(props.context?.selectedMapping?.ignorePatterns))
+const mappingPatternsText = ref(formatFilterPatterns(props.context?.selectedMapping?.filterPatterns))
 const globalPatternsText = ref('')
 const isSubmitting = ref(false)
 
 onMounted(async () => {
-  const result = await window.formModal?.getGlobalIgnorePatterns?.()
+  const result = await window.formModal?.getGlobalFilterPatterns?.()
   if (result?.success)
-    globalPatternsText.value = formatIgnorePatterns(unwrapResult(result))
+    globalPatternsText.value = formatFilterPatterns(unwrapResult(result))
 })
 
 async function submitPatterns() {
@@ -31,11 +31,11 @@ async function submitPatterns() {
     return
 
   const selectedMapping = props.context?.selectedMapping
-  const ignorePatterns = parseIgnorePatterns(mappingPatternsText.value)
+  const filterPatterns = parseFilterPatterns(mappingPatternsText.value)
 
   isSubmitting.value = true
   try {
-    const result = await mappingOperations.updateMappingIgnorePatterns(selectedMapping, ignorePatterns)
+    const result = await mappingOperations.updateMappingFilterPatterns(selectedMapping, filterPatterns)
     if (result?.success)
       emit('onClickConfirm')
   }
@@ -48,11 +48,11 @@ async function submitPatterns() {
 <template>
   <ModalLayout :view="FORM_MODAL_VIEW.EDIT_PATTERNS">
     <div class="content-stage h-full w-full px-10 py-4 grid grid-rows-[max-content_1fr_max-content] grid-cols-[2fr_1fr] gap-x-8 gap-y-2 content-stretch">
-      <label for="mapping-ignore-patterns" class="col-start-1 title text-(--text-primary)">
+      <label for="mapping-filter-patterns" class="col-start-1 title text-(--text-primary)">
         {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.mappingSpecificPatterns.title`) }}
       </label>
       <textarea
-        id="mapping-ignore-patterns"
+        id="mapping-filter-patterns"
         v-model="mappingPatternsText"
         class="pattern-area enabled-area "
         placeholder="Type patterns here..."
@@ -61,11 +61,11 @@ async function submitPatterns() {
       <p class="description text-(--text-subtle)">
         {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.mappingSpecificPatterns.description`) }}
       </p>
-      <label for="global-ignore-patterns" class="col-start-2 title text-gray-400">
+      <label for="global-filter-patterns" class="col-start-2 title text-gray-400">
         {{ $t(`formModal.${FORM_MODAL_VIEW.EDIT_PATTERNS}.globalPatterns.title`) }}
       </label>
       <textarea
-        id="global-ignore-patterns"
+        id="global-filter-patterns"
         class="pattern-area readonly-area"
         :value="globalPatternsText"
         readonly

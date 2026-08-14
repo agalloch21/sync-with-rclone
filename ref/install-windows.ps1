@@ -235,9 +235,8 @@ if (-not (Test-Path $ConfigFile)) {
     } else {
         # Create a basic config if template doesn't exist
         $BasicConfig = @{
-            globalIgnorePatterns = @(".DS_Store", "Thumbs.db", "*.swp", "*.swo", "~`$*", "*.tmp", ".vscode/", ".idea/", ".git/", "node_modules/")
-            excludeFromFiles = @(".gitignore", ".rcloneignore")
-            syncJobs = @()
+            globalFilterPatterns = @(".DS_Store", "Thumbs.db", ".git")
+            mappings = @()
         } | ConvertTo-Json -Depth 10
         $BasicConfig | Out-File -FilePath $ConfigFile -Encoding utf8
         Write-Success "Created basic config file: $ConfigFile"

@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import os from 'node:os'
-import { createMapping, createServer, getServer, listGlobalIgnorePatterns, listServers, updateMapping, updateMappingIgnorePatterns, updateServer } from '#src/app/app-api.js'
+import { createMapping, createServer, getServer, listGlobalFilterPatterns, listServers, updateMapping, updateMappingFilterPatterns, updateServer } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { MAPPING_OPERATION } from '#src/app/contracts/mapping.js'
 import { SERVER_OPERATION } from '#src/app/contracts/server.js'
@@ -53,9 +53,9 @@ export function createFormModalHandlers() {
     }
   }
 
-  async function getGlobalIgnorePatternsHandler(_event) {
+  async function getGlobalFilterPatternsHandler(_event) {
     try {
-      return toSuccessfulResult(await listGlobalIgnorePatterns())
+      return toSuccessfulResult(await listGlobalFilterPatterns())
     }
     catch (error) {
       return await reportRequestError(error)
@@ -120,7 +120,7 @@ export function createFormModalHandlers() {
     )
   }
 
-  async function updateMappingIgnorePatternsHandler(_event, payload) {
+  async function updateMappingFilterPatternsHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
     }
@@ -129,8 +129,8 @@ export function createFormModalHandlers() {
     }
 
     return await runReportedOperation(
-      MAPPING_OPERATION.UPDATE_IGNORE_PATTERNS,
-      onProgress => updateMappingIgnorePatterns(payload.mapping, payload.ignorePatterns, onProgress),
+      MAPPING_OPERATION.UPDATE_FILTER_PATTERNS,
+      onProgress => updateMappingFilterPatterns(payload.mapping, payload.filterPatterns, onProgress),
     )
   }
 
@@ -162,12 +162,12 @@ export function createFormModalHandlers() {
   return {
     listServersHandler,
     getServerHandler,
-    getGlobalIgnorePatternsHandler,
+    getGlobalFilterPatternsHandler,
     createServerHandler,
     updateServerHandler,
     createMappingHandler,
     updateMappingHandler,
-    updateMappingIgnorePatternsHandler,
+    updateMappingFilterPatternsHandler,
     selectLocalFolderHandler,
     selectRemoteFolderHandler,
 

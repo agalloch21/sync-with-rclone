@@ -87,7 +87,7 @@ export async function updateMapping(mapping, expectedMapping) {
   return savedConfig.mappings[mappingIndex]
 }
 
-export async function updateMappingIgnorePatterns(mapping, ignorePatterns) {
+export async function updateMappingFilterPatterns(mapping, filterPatterns) {
   let mappingIndex
   const savedConfig = await updateConfiguration((loadedConfig) => {
     const config = requireConfig(loadedConfig)
@@ -101,7 +101,7 @@ export async function updateMappingIgnorePatterns(mapping, ignorePatterns) {
     const nextMappings = [...config.mappings]
     nextMappings[mappingIndex] = {
       ...config.mappings[mappingIndex],
-      ignorePatterns: [...ignorePatterns],
+      filterPatterns: [...filterPatterns],
     }
 
     return {

@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { assertLocalPathsDoNotCrossSymbolicLinks } from '#src/infrastructure/filesystem/local-files.js'
 import { expandHomeDir, resolveLocalDirectoryPath } from '#src/infrastructure/filesystem/local-path.js'
 import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
 
@@ -10,6 +11,42 @@ test('expandHomeDir expands ~ to the user home directory', () => {
   const homeDir = os.homedir().replaceAll(path.sep, path.posix.sep)
   assert.equal(expandHomeDir('~').replaceAll(path.sep, path.posix.sep), homeDir)
   assert.equal(expandHomeDir('~/docs').replaceAll(path.sep, path.posix.sep), `${homeDir}/docs`)
+})
+
+test('local path boundary validation rejects a path that crosses an internal symbolic link', async (t) => {
+  const temporaryPath = await fs.mkdtemp(path.join(os.tmpdir(), 'local-path-boundary-'))
+  const externalPath = path.join(temporaryPath, 'external')
+  const localRoot = path.join(temporaryPath, 'local')
+
+  try {
+    await fs.mkdir(externalPath)
+    await fs.mkdir(localRoot)
+    try {
+      await fs.symlink(externalPath, path.join(localRoot, 'assets'), 'dir')
+    }
+    catch (error) {
+      if (error?.code === 'EPERM') {
+        t.skip('Creating symbolic links requires additional privileges on this platform.')
+        return
+      }
+      throw error
+    }
+
+    await assert.rejects(
+      () => assertLocalPathsDoNotCrossSymbolicLinks(localRoot, ['assets/remote.txt']),
+      {
+        code: INFRASTRUCTURE_ERROR_CODE.PATH_SYMBOLIC_LINK_CONFLICT,
+        meta: {
+          localFolderPath: localRoot,
+          relativePath: 'assets/remote.txt',
+          symbolicLinkPath: 'assets',
+        },
+      },
+    )
+  }
+  finally {
+    await fs.rm(temporaryPath, { recursive: true, force: true })
+  }
 })
 
 test('resolveLocalDirectoryPath validates and resolves local directory input', () => {

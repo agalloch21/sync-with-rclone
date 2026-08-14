@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatIgnorePatterns, parseIgnorePatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
+import { formatFilterPatterns, parseFilterPatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import Button from '../../shared/Button.vue'
@@ -15,18 +15,18 @@ let unsubscribeConfigUpdated = null
 
 onMounted(async () => {
   unsubscribeConfigUpdated = window.mainWindow?.onConfigUpdated?.(() => {
-    void loadGlobalIgnorePatterns()
+    void loadGlobalFilterPatterns()
   })
-  await loadGlobalIgnorePatterns()
+  await loadGlobalFilterPatterns()
 })
 
 onUnmounted(() => {
   unsubscribeConfigUpdated?.()
 })
 
-async function loadGlobalIgnorePatterns() {
+async function loadGlobalFilterPatterns() {
   isLoading.value = true
-  const result = await window.mainWindow?.getGlobalIgnorePatterns?.()
+  const result = await window.mainWindow?.getGlobalFilterPatterns?.()
   isLoading.value = false
 
   if (!result?.success) {
@@ -35,7 +35,7 @@ async function loadGlobalIgnorePatterns() {
     return
   }
 
-  globalPatternsText.value = formatIgnorePatterns(unwrapResult(result))
+  globalPatternsText.value = formatFilterPatterns(unwrapResult(result))
   loadError.value = null
 }
 
@@ -43,12 +43,12 @@ async function applyGlobalPatterns() {
   if (isSubmitting.value)
     return
 
-  const ignorePatterns = parseIgnorePatterns(globalPatternsText.value)
+  const filterPatterns = parseFilterPatterns(globalPatternsText.value)
   isSubmitting.value = true
   try {
-    const result = await mappingOperations.updateGlobalIgnorePatterns(ignorePatterns)
+    const result = await mappingOperations.updateGlobalFilterPatterns(filterPatterns)
     if (result?.success)
-      globalPatternsText.value = formatIgnorePatterns(unwrapResult(result))
+      globalPatternsText.value = formatFilterPatterns(unwrapResult(result))
   }
   finally {
     isSubmitting.value = false

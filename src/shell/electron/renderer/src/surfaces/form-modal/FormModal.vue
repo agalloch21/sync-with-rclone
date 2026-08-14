@@ -3,8 +3,8 @@ import { FORM_MODAL_VIEW } from '#electron/contracts/form-modal.js'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ChooseServerView from './components/ChooseServerView.vue'
+import FilterPatternsView from './components/FilterPatternsView.vue'
 import FolderMappingView from './components/FolderMappingView.vue'
-import IgnorePatternsView from './components/IgnorePatternsView.vue'
 import ServerView from './components/ServerView.vue'
 
 const { t } = useI18n()
@@ -21,7 +21,7 @@ const VIEW_COMPONENT = {
   [FORM_MODAL_VIEW.CREATE_FOLDER_MAPPING]: FolderMappingView,
   [FORM_MODAL_VIEW.EDIT_SERVER]: ServerView,
   [FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING]: FolderMappingView,
-  [FORM_MODAL_VIEW.EDIT_PATTERNS]: IgnorePatternsView,
+  [FORM_MODAL_VIEW.EDIT_PATTERNS]: FilterPatternsView,
 }
 const modalComponent = computed(() => VIEW_COMPONENT[view.value])
 

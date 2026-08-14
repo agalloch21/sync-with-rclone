@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { ensureAppConfig, loadAppConfig, loadAppGlobalIgnorePatterns, loadAppMappings } from '#src/infrastructure/configuration/app-config-store.js'
+import { ensureAppConfig, loadAppConfig, loadAppGlobalFilterPatterns, loadAppMappings } from '#src/infrastructure/configuration/app-config-store.js'
 import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
 
 test('loadAppConfig reads and normalizes config', async () => {
@@ -11,14 +11,14 @@ test('loadAppConfig reads and normalizes config', async () => {
   const configPath = path.join(tempDir, 'config.json')
 
   await fs.writeFile(configPath, JSON.stringify({
-    globalIgnorePatterns: ['.DS_Store'],
+    globalFilterPatterns: ['.DS_Store'],
     mappings: [
       {
         displayName: 'Projects',
         rcloneRemote: 'synology',
         localBasePath: './test/fixtures/local',
         remoteBasePath: 'Projects',
-        ignorePatterns: ['node_modules/'],
+        filterPatterns: ['node_modules/'],
         lastSyncMode: 'push',
         lastSyncFolder: 'compare-push',
         lastSyncDate: '2026-06-13T00:00:00.000Z',
@@ -28,10 +28,10 @@ test('loadAppConfig reads and normalizes config', async () => {
 
   const config = await loadAppConfig(configPath)
   assert.equal(config.path, configPath)
-  assert.deepEqual(config.globalIgnorePatterns, ['.DS_Store'])
+  assert.deepEqual(config.globalFilterPatterns, ['.DS_Store'])
   assert.equal(config.mappings[0].displayName, 'Projects')
   assert.equal(config.mappings[0].rcloneRemote, 'synology')
-  assert.deepEqual(config.mappings[0].ignorePatterns, ['node_modules/'])
+  assert.deepEqual(config.mappings[0].filterPatterns, ['node_modules/'])
   assert.equal(config.mappings[0].lastSyncMode, 'push')
   assert.equal(config.mappings[0].lastSyncFolder, 'compare-push')
   assert.equal(config.mappings[0].lastSyncDate, '2026-06-13T00:00:00.000Z')
@@ -49,13 +49,14 @@ test('loadAppConfig allows an empty remoteBasePath for syncing to the remote roo
         rcloneRemote: 'synology',
         localBasePath: './test/fixtures/local',
         remoteBasePath: '',
-        ignorePatterns: [],
+        filterPatterns: [],
       },
     ],
   }, null, 2))
 
   const config = await loadAppConfig(configPath)
   assert.equal(config.mappings[0].remoteBasePath, '')
+  assert.deepEqual(config.globalFilterPatterns, ['.DS_Store', 'Thumbs.db', '.git'])
 })
 
 test('loadAppConfig normalizes remote base paths with remote path rules', async () => {
@@ -85,7 +86,7 @@ test('loadAppConfig defaults last sync fields to null', async () => {
         rcloneRemote: 'synology',
         localBasePath: './test/fixtures/local',
         remoteBasePath: 'Projects',
-        ignorePatterns: [],
+        filterPatterns: [],
       },
     ],
   }, null, 2))
@@ -116,44 +117,44 @@ test('loadAppConfig wraps invalid config errors with a stable error code', async
   )
 })
 
-test('loadAppGlobalIgnorePatterns does not validate mappings', async () => {
+test('loadAppGlobalFilterPatterns does not validate mappings', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-global-patterns-'))
   const configPath = path.join(tempDir, 'config.json')
 
   await fs.writeFile(configPath, JSON.stringify({
-    globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+    globalFilterPatterns: ['.DS_Store', 'Thumbs.db'],
     syncTasks: [],
   }))
 
   assert.deepEqual(
-    await loadAppGlobalIgnorePatterns(configPath),
+    await loadAppGlobalFilterPatterns(configPath),
     ['.DS_Store', 'Thumbs.db'],
   )
 })
 
-test('loadAppMappings does not validate global ignore patterns', async () => {
+test('loadAppMappings does not validate global filter patterns', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-mappings-'))
   const configPath = path.join(tempDir, 'config.json')
 
   await fs.writeFile(configPath, JSON.stringify({
-    globalIgnorePatterns: {},
+    globalFilterPatterns: {},
     mappings: [],
   }))
 
   assert.deepEqual(await loadAppMappings(configPath), [])
 })
 
-test('loadAppGlobalIgnorePatterns validates its own projection', async () => {
+test('loadAppGlobalFilterPatterns validates its own projection', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-with-rclone-global-patterns-invalid-'))
   const configPath = path.join(tempDir, 'config.json')
 
   await fs.writeFile(configPath, JSON.stringify({
-    globalIgnorePatterns: ['valid', null],
+    globalFilterPatterns: ['valid', null],
     mappings: [],
   }))
 
   await assert.rejects(
-    () => loadAppGlobalIgnorePatterns(configPath),
+    () => loadAppGlobalFilterPatterns(configPath),
     {
       name: 'InfrastructureError',
       code: INFRASTRUCTURE_ERROR_CODE.CONFIG_LOAD_FAILED,
@@ -189,7 +190,7 @@ test('ensureAppConfig creates a default config when config is missing', async ()
 
   assert.deepEqual(result, { configCreated: true, configPath })
   assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
-    globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+    globalFilterPatterns: ['.DS_Store', 'Thumbs.db', '.git'],
     mappings: [],
   })
 })
@@ -200,13 +201,13 @@ test('ensureAppConfig does not overwrite an existing config', async () => {
   const configPath = path.join(configDirectory, 'config.json')
 
   await fs.mkdir(configDirectory, { recursive: true })
-  await fs.writeFile(configPath, JSON.stringify({ globalIgnorePatterns: ['keep'], mappings: [] }))
+  await fs.writeFile(configPath, JSON.stringify({ globalFilterPatterns: ['keep'], mappings: [] }))
 
   const result = await ensureAppConfig({ configDirectory, configPath })
 
   assert.deepEqual(result, { configCreated: false, configPath })
   assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
-    globalIgnorePatterns: ['keep'],
+    globalFilterPatterns: ['keep'],
     mappings: [],
   })
 })
@@ -224,7 +225,7 @@ test('ensureAppConfig atomically creates a missing config once', async () => {
 
   assert.equal(results.filter(result => result.configCreated).length, 1)
   assert.deepEqual(JSON.parse(await fs.readFile(configPath, 'utf8')), {
-    globalIgnorePatterns: ['.DS_Store', 'Thumbs.db'],
+    globalFilterPatterns: ['.DS_Store', 'Thumbs.db', '.git'],
     mappings: [],
   })
 })

@@ -31,6 +31,14 @@ function assertRuntimeContract(runtime) {
 }
 
 function toApplicationError(error, context = null) {
+  if (error?.code === INFRASTRUCTURE_ERROR_CODE.PATH_SYMBOLIC_LINK_CONFLICT) {
+    return toAppError(
+      error,
+      APP_ERROR_CODE.SYNC_LOCAL_SYMBOLIC_LINK_CONFLICT,
+      'Pull cannot write through an internal symbolic link.',
+    )
+  }
+
   if (context?.mode === 'pull' && error?.code === INFRASTRUCTURE_ERROR_CODE.REMOTE_FOLDER_NOT_FOUND) {
     return toAppError(
       error,
@@ -169,7 +177,7 @@ async function runSync(options, runtime, cancelSignal, runtimePaths, diagnostics
     mode: options.mode,
     localFolderPath: options.localFolderPath,
     remoteFolderPath: options.remoteFolderPath,
-    extraIgnorePatterns: [],
+    syncFilterPatterns: [],
   }
 
   let resolution

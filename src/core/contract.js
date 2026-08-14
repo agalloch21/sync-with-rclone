@@ -3,6 +3,7 @@ export const SYNC_PHASES = {
   BUILD_LOCAL_SNAPSHOT: 'build-local-snapshot',
   BUILD_REMOTE_SNAPSHOT: 'build-remote-snapshot',
   COMPARE_SNAPSHOT: 'compare-snapshot',
+  VALIDATE_LOCAL_BOUNDARIES: 'validate-local-boundaries',
   REVIEW_DIFFERENCES: 'review-differences',
   GENERATE_PLAN: 'generate-plan',
   APPLY_PLAN: 'apply-plan',
@@ -37,7 +38,7 @@ export const SYNC_RESULT = {
  * @property {'push' | 'pull'} mode
  * @property {string} localFolderPath
  * @property {string} remoteFolderPath
- * @property {string[]} extraIgnorePatterns
+ * @property {string[]} syncFilterPatterns
  */
 
 /**

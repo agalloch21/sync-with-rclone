@@ -213,23 +213,12 @@ if [ ! -f "$CONFIG_FILE" ]; then
         # Create a basic config if template doesn't exist
         cat > "$CONFIG_FILE" <<'EOF'
 {
-  "globalIgnorePatterns": [
+  "globalFilterPatterns": [
     ".DS_Store",
     "Thumbs.db",
-    "*.swp",
-    "*.swo",
-    "~$*",
-    "*.tmp",
-    ".vscode/",
-    ".idea/",
-    ".git/",
-    "node_modules/"
+    ".git"
   ],
-  "excludeFromFiles": [
-    ".gitignore",
-    ".rcloneignore"
-  ],
-  "syncJobs": []
+  "mappings": []
 }
 EOF
         success "Created basic config file: $CONFIG_FILE"

@@ -102,7 +102,8 @@ sequenceDiagram
 
 - 当前本地目录是源
 - 默认对应的远端目录是目标
-- `.gitignore`、global ignore 和 mapping ignore 只过滤 local Snapshot；远端存在但过滤后本地不存在的内容属于目标端多余内容，会进入删除差异
+- global 与 mapping sync filters 同时过滤 local 与 remote Snapshot；这些路径不进入 review，也不会被复制或删除
+- `.gitignore` 仍只过滤 local Snapshot；远端存在但被本地 `.gitignore` 省略的内容属于目标端多余内容，会进入删除差异
 
 ## 5. `Pull` 流程
 
@@ -132,7 +133,9 @@ sequenceDiagram
 
 - 默认对应的远端目录是源
 - 当前本地目录是目标
-- remote Snapshot 不应用本地 ignore policy；远端作为 truth，能够恢复本地当前被 ignore 规则省略的同名内容
+- global 与 mapping sync filters 同时过滤 remote 与 local Snapshot；这些路径不进入 review，也不会被复制或删除
+- remote Snapshot 不应用本地 `.gitignore` policy；远端作为 truth，能够恢复本地当前被 `.gitignore` 省略的同名内容
+- compare 完成后、review 展示前检查待写入路径是否穿过本地内部 symbolic link；apply 前对最终选择再次检查
 
 ## 6. `Push To...` 流程
 

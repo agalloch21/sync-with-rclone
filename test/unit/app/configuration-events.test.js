@@ -3,14 +3,14 @@ import test from 'node:test'
 import {
   registerConfigUpdateListener,
   unregisterConfigUpdateListener,
-  updateGlobalIgnorePatterns,
+  updateGlobalFilterPatterns,
 } from '#src/app/app-api.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('configuration commands publish updates through configuration events', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalIgnorePatterns: [],
+      globalFilterPatterns: [],
       mappings: [],
     },
   }, async () => {
@@ -19,7 +19,7 @@ test('configuration commands publish updates through configuration events', asyn
     registerConfigUpdateListener(listener)
 
     try {
-      await updateGlobalIgnorePatterns(['.DS_Store'])
+      await updateGlobalFilterPatterns(['.DS_Store'])
     }
     finally {
       unregisterConfigUpdateListener(listener)

@@ -56,14 +56,14 @@ export default {
         message: 'The mapping was updated successfully.',
       },
     },
-    [MAPPING_OPERATION.UPDATE_IGNORE_PATTERNS]: {
-      title: 'Updating Ignore Patterns',
-      message: 'Saving the mapping ignore patterns...',
+    [MAPPING_OPERATION.UPDATE_FILTER_PATTERNS]: {
+      title: 'Updating Sync Filters',
+      message: 'Saving the mapping sync filters...',
       steps: {
-        [MAPPING_SAVE_PROGRESS_STEP.SAVE]: 'Saving the mapping ignore patterns...',
+        [MAPPING_SAVE_PROGRESS_STEP.SAVE]: 'Saving the mapping sync filters...',
       },
       succeeded: {
-        message: 'The ignore patterns were updated successfully.',
+        message: 'The sync filters were updated successfully.',
       },
     },
     [MAPPING_OPERATION.DELETE]: {

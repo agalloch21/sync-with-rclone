@@ -249,16 +249,16 @@ async function runUpdateMapping(args, output) {
   )
 }
 
-async function runUpdateMappingIgnorePatterns(args, output) {
+async function runUpdateMappingFilterPatterns(args, output) {
   requireArguments(
     args,
     2,
-    'update-mapping-ignore-patterns <server> <local-folder> [pattern ...]',
+    'update-mapping-filter-patterns <server> <local-folder> [pattern ...]',
   )
   const mapping = createMappingReference(args[0], args[1])
   return await runReportedOperation(
-    MAPPING_OPERATION.UPDATE_IGNORE_PATTERNS,
-    onProgress => appApi.updateMappingIgnorePatterns(mapping, args.slice(2), onProgress),
+    MAPPING_OPERATION.UPDATE_FILTER_PATTERNS,
+    onProgress => appApi.updateMappingFilterPatterns(mapping, args.slice(2), onProgress),
     output,
   )
 }
@@ -273,20 +273,20 @@ async function runDeleteMapping(args, output) {
   )
 }
 
-async function runListGlobalIgnorePatterns(json, output) {
-  const globalIgnorePatterns = await appApi.listGlobalIgnorePatterns()
+async function runListGlobalFilterPatterns(json, output) {
+  const globalFilterPatterns = await appApi.listGlobalFilterPatterns()
 
   if (json)
-    printJson(output, { globalIgnorePatterns })
+    printJson(output, { globalFilterPatterns })
   else
-    output.log(globalIgnorePatterns.join('\n'))
+    output.log(globalFilterPatterns.join('\n'))
 
   return 0
 }
 
-async function runUpdateGlobalIgnorePatterns(args, output) {
-  await appApi.updateGlobalIgnorePatterns(args)
-  output.log('Global ignore patterns updated.')
+async function runUpdateGlobalFilterPatterns(args, output) {
+  await appApi.updateGlobalFilterPatterns(args)
+  output.log('Global sync filters updated.')
   return 0
 }
 
@@ -302,10 +302,10 @@ const COMMAND_HANDLERS = new Map([
   [CLI_COMMAND.LIST_MAPPINGS, ({ json, output }) => runListMappings(json, output)],
   [CLI_COMMAND.CREATE_MAPPING, ({ args, output }) => runCreateMapping(args, output)],
   [CLI_COMMAND.UPDATE_MAPPING, ({ args, output }) => runUpdateMapping(args, output)],
-  [CLI_COMMAND.UPDATE_MAPPING_IGNORE_PATTERNS, ({ args, output }) => runUpdateMappingIgnorePatterns(args, output)],
+  [CLI_COMMAND.UPDATE_MAPPING_FILTER_PATTERNS, ({ args, output }) => runUpdateMappingFilterPatterns(args, output)],
   [CLI_COMMAND.DELETE_MAPPING, ({ args, output }) => runDeleteMapping(args, output)],
-  [CLI_COMMAND.LIST_GLOBAL_IGNORE_PATTERNS, ({ json, output }) => runListGlobalIgnorePatterns(json, output)],
-  [CLI_COMMAND.UPDATE_GLOBAL_IGNORE_PATTERNS, ({ args, output }) => runUpdateGlobalIgnorePatterns(args, output)],
+  [CLI_COMMAND.LIST_GLOBAL_FILTER_PATTERNS, ({ json, output }) => runListGlobalFilterPatterns(json, output)],
+  [CLI_COMMAND.UPDATE_GLOBAL_FILTER_PATTERNS, ({ args, output }) => runUpdateGlobalFilterPatterns(args, output)],
 ])
 
 if (COMMAND_HANDLERS.size !== CLI_COMMAND_NAMES.length)

@@ -62,7 +62,7 @@ export function createMainWindow() {
   }
 
   ipcMain.handle('main-window:get-data', handlers.getMainWindowDataHandler)
-  ipcMain.handle('main-window:get-global-ignore-patterns', handlers.getGlobalIgnorePatternsHandler)
+  ipcMain.handle('main-window:get-global-filter-patterns', handlers.getGlobalFilterPatternsHandler)
   ipcMain.handle('main-window:open-config-folder', handlers.openConfigFolderHandler)
   ipcMain.handle('main-window:open-local-folder', handlers.openLocalFolderHandler)
   ipcMain.handle('main-window:get-operation-history', handlers.getOperationHistoryHandler)
@@ -71,7 +71,7 @@ export function createMainWindow() {
   ipcMain.handle('main-window:test-server-connection', handlers.testServerConnectionHandler)
   ipcMain.handle('main-window:delete-server', handlers.deleteServerHandler)
   ipcMain.handle('main-window:delete-mapping', handlers.deleteMappingHandler)
-  ipcMain.handle('main-window:update-global-ignore-patterns', handlers.updateGlobalIgnorePatternsHandler)
+  ipcMain.handle('main-window:update-global-filter-patterns', handlers.updateGlobalFilterPatternsHandler)
   ipcMain.handle('main-window:show-message-box', messageBoxHandlers.showMessageBoxHandler)
   ipcMain.handle('main-window:close-message-box', messageBoxHandlers.closeMessageBoxHandler)
 
@@ -86,7 +86,7 @@ export function createMainWindow() {
     unregisterOperationHistoryListener(publishOperationHistoryUpdate)
 
     ipcMain.removeHandler('main-window:get-data')
-    ipcMain.removeHandler('main-window:get-global-ignore-patterns')
+    ipcMain.removeHandler('main-window:get-global-filter-patterns')
     ipcMain.removeHandler('main-window:open-config-folder')
     ipcMain.removeHandler('main-window:open-local-folder')
     ipcMain.removeHandler('main-window:get-operation-history')
@@ -95,7 +95,7 @@ export function createMainWindow() {
     ipcMain.removeHandler('main-window:test-server-connection')
     ipcMain.removeHandler('main-window:delete-server')
     ipcMain.removeHandler('main-window:delete-mapping')
-    ipcMain.removeHandler('main-window:update-global-ignore-patterns')
+    ipcMain.removeHandler('main-window:update-global-filter-patterns')
     ipcMain.removeHandler('main-window:show-message-box')
     ipcMain.removeHandler('main-window:close-message-box')
   })

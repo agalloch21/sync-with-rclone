@@ -295,6 +295,7 @@ sequenceDiagram
 - review 阶段取消可以直接收尾；进入执行阶段后的取消可按策略展示 final acknowledgement
 - cancelled final acknowledgement 会展示已执行操作的汇总，并允许展开查看每个 operation 的执行状态
 - failed final acknowledgement 根据 `sessionResult.error.code` 展示多语言错误信息，并始终提供打开日志文件夹的入口
+- 每次 `startSync` 调用都写入 app-owned `sync-session.log`；终态失败记录 application error、cause chain 和底层命令输出，不改变返回给 shell 的 result
 
 ## 10.1 多入口启动与同步 admission
 
@@ -334,6 +335,7 @@ sequenceDiagram
 - Registry 位于 config directory，通过短时 mutex 和每个同步独立的 lease 在进程间共享状态；owner 进程消失后，其 lease 会在下次读取时清理。
 - 只有 canonical 本地范围和 normalized 远端范围都不重叠时才允许并行；任一侧相同或互为祖先/后代都会拒绝后来请求。远端显式路径必须在 normalization 后仍位于 mapping remote root 内。
 - 每个 session 的 progress channel 独立，history 不持久化 progress sample。
+- operation history 保存主 UI 使用的操作摘要；`sync-session.log` 独立保存所有入口共用的排障信息。
 - 关闭主窗口不会终止 session；没有窗口且没有活跃 session 时应用退出。
 - session window 使用平行的 `sessionState` 和 `sessionResult`：执行进度只更新前者，终态 acknowledgement 只读取后者。
 - session 失败页始终提供日志文件夹入口；用户点击后由 Electron Main 解析并打开 runtime log directory，不创建或导航主窗口。

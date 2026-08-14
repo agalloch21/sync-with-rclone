@@ -194,49 +194,26 @@ EOF
 # Set up PATH to include common locations for rclone
 export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:\$PATH"
 
-# Set up environment for rclone
 # Ensure HOME is set (Automator might not have it)
-# Use getent or whoami to get the actual home directory if HOME is not set
 if [ -z "\${HOME:-}" ]; then
     export HOME=\$(getent passwd "\$(whoami)" | cut -d: -f6 2>/dev/null || echo ~)
 fi
-# Let rclone find its config file automatically
-# Don't set RCLONE_CONFIG - rclone will automatically look in ~/.config/rclone/rclone.conf
-# This works better with Full Disk Access permissions
-if [ -z "\${RCLONE_CONFIG:-}" ]; then
-    # Only set it if we can verify the file exists (for debugging)
-    # But rclone will find it automatically anyway
-    if [ -f "\$HOME/.config/rclone/rclone.conf" ]; then
-        export RCLONE_CONFIG="\$HOME/.config/rclone/rclone.conf"
-    fi
+if [ -z "\${RCLONE_CONFIG:-}" ] &amp;&amp; [ -f "\$HOME/.config/rclone/rclone.conf" ]; then
+    export RCLONE_CONFIG="\$HOME/.config/rclone/rclone.conf"
 fi
 
-# Log file for debugging
+# Only launcher failures belong in quick-actions.log.
 LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
-mkdir -p "\$(dirname "\$LOG_FILE")"
+log_launcher_error() {
+    mkdir -p "\$(dirname "\$LOG_FILE")"
+    echo "\$(date '+%Y-%m-%d %H:%M:%S') - ERROR: \$*" >> "\$LOG_FILE"
+}
 
-# Debug: log environment
-echo "\$(date '+%Y-%m-%d %H:%M:%S') - Environment check" >> "\$LOG_FILE"
-echo "  HOME: \$HOME" >> "\$LOG_FILE"
-echo "  RCLONE_CONFIG: \$RCLONE_CONFIG" >> "\$LOG_FILE"
-echo "  User: \$(whoami)" >> "\$LOG_FILE"
-echo "  rclone location: \$(which rclone)" >> "\$LOG_FILE"
-# Test if we can access the config file
-if [ -f "\$RCLONE_CONFIG" ]; then
-    echo "  RCLONE_CONFIG exists: yes" >> "\$LOG_FILE"
-    echo "  RCLONE_CONFIG permissions: \$(ls -l \"\$RCLONE_CONFIG\" 2&gt;&amp;1 | awk '{print \$1}')" >> "\$LOG_FILE"
-else
-    echo "  RCLONE_CONFIG exists: no" >> "\$LOG_FILE"
-    echo "  RCLONE_CONFIG path tested: \$RCLONE_CONFIG" >> "\$LOG_FILE"
-    # Try to find where rclone actually looks for config
-    echo "  rclone config file location: \$(rclone config file 2&gt;&amp;1 | tail -1)" >> "\$LOG_FILE"
+if [ ! -x "$EXECUTABLE" ]; then
+    log_launcher_error "Executable is missing or not executable: $EXECUTABLE"
+    osascript -e "display dialog \"Error: Sync application is unavailable. Check log at: \$LOG_FILE\" buttons {\"OK\"} default button \"OK\" with icon stop"
+    exit 1
 fi
-
-# Log the execution
-echo "\$(date '+%Y-%m-%d %H:%M:%S') - Starting sync workflow (with remote path)" >> "\$LOG_FILE"
-echo "  Mode: $mode" >> "\$LOG_FILE"
-echo "  Arguments received: \$@" >> "\$LOG_FILE"
-echo "  First argument: \$1" >> "\$LOG_FILE"
 
 # Handle folder path - Automator may pass it in different ways
 FOLDER_PATH="\$1"
@@ -248,9 +225,8 @@ fi
 # Convert to absolute path if it's a relative path
 if [ -n "\$FOLDER_PATH" ] &amp;&amp; [ -d "\$FOLDER_PATH" ]; then
     FOLDER_PATH=\$(cd "\$FOLDER_PATH" &amp;&amp; pwd)
-    echo "  Resolved folder path: \$FOLDER_PATH" >> "\$LOG_FILE"
 else
-    echo "  ERROR: Folder path is empty or doesn't exist: \$FOLDER_PATH" >> "\$LOG_FILE"
+    log_launcher_error "Folder path is empty or does not exist: \$FOLDER_PATH"
     osascript -e "display dialog \"Error: Could not determine folder path. Check log at: \$LOG_FILE\" buttons {\"OK\"} default button \"OK\" with icon stop"
     exit 1
 fi
@@ -258,16 +234,19 @@ fi
 # Prompt for remote path
 REMOTE_PATH=\$(osascript -e 'text returned of (display dialog "Enter remote path:" default answer "" with title "Sync to Remote")')
 if [ -z "\$REMOTE_PATH" ]; then
-    echo "  ERROR: Remote path was cancelled or empty" >> "\$LOG_FILE"
+    log_launcher_error "Remote path was cancelled or empty"
     osascript -e 'display dialog "Remote path is required." buttons {"OK"} default button "OK" with icon stop'
     exit 1
 fi
 
-echo "  Remote path: \$REMOTE_PATH" >> "\$LOG_FILE"
-
 # Submit the sync request without waiting for the session to finish
-nohup "$EXECUTABLE" --session --mode=$mode --folder="\$FOLDER_PATH" --remote-path="\$REMOTE_PATH" &lt; /dev/null >> "\$LOG_FILE" 2&gt;&amp;1 &amp;
-echo "\$(date '+%Y-%m-%d %H:%M:%S') - Sync request submitted" >> "\$LOG_FILE"
+nohup "$EXECUTABLE" --session --mode=$mode --folder="\$FOLDER_PATH" --remote-path="\$REMOTE_PATH" &lt; /dev/null &gt; /dev/null 2&gt;&amp;1 &amp;
+LAUNCH_PID=\$!
+if ! kill -0 "\$LAUNCH_PID" 2&gt;/dev/null; then
+    log_launcher_error "Application process failed to start: $EXECUTABLE"
+    osascript -e "display dialog \"Error: Sync application failed to start. Check log at: \$LOG_FILE\" buttons {\"OK\"} default button \"OK\" with icon stop"
+    exit 1
+fi
 
 exit 0</string>
 					<key>CheckedForUserDefaultShell</key>
@@ -434,13 +413,23 @@ if [ -z "\${HOME:-}" ]; then
     export HOME=\$(getent passwd "\$(whoami)" | cut -d: -f6 2>/dev/null || echo ~)
 fi
 
-# Log file for errors
+# Only launcher failures belong in quick-actions.log.
 LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
-mkdir -p "\$(dirname "\$LOG_FILE")"
+log_launcher_error() {
+    mkdir -p "\$(dirname "\$LOG_FILE")"
+    echo "\$(date '+%Y-%m-%d %H:%M:%S') - ERROR: \$*" >> "\$LOG_FILE"
+}
+
+if [ ! -x "$EXECUTABLE" ]; then
+    log_launcher_error "Executable is missing or not executable: $EXECUTABLE"
+    osascript -e "display dialog \"Error: Sync application is unavailable. Check log at: \$LOG_FILE\" buttons {\"OK\"} default button \"OK\" with icon stop"
+    exit 1
+fi
 
 # Handle folder path
 FOLDER_PATH="\$1"
 if [ -z "\$FOLDER_PATH" ] || [ ! -d "\$FOLDER_PATH" ]; then
+    log_launcher_error "Invalid folder path: \$FOLDER_PATH"
     osascript -e "display dialog \"Error: Invalid folder path.\" buttons {\"OK\"} default button \"OK\" with icon stop"
     exit 1
 fi
@@ -449,8 +438,13 @@ fi
 FOLDER_PATH=\$(cd "\$FOLDER_PATH" &amp;&amp; pwd)
 
 # Execute the sync executable
-nohup "$EXECUTABLE" --session --mode=$mode --folder="\$FOLDER_PATH" &lt; /dev/null >> "\$LOG_FILE" 2&gt;&amp;1 &amp;
-echo "\$(date '+%Y-%m-%d %H:%M:%S') - Sync request submitted" >> "\$LOG_FILE"
+nohup "$EXECUTABLE" --session --mode=$mode --folder="\$FOLDER_PATH" &lt; /dev/null &gt; /dev/null 2&gt;&amp;1 &amp;
+LAUNCH_PID=\$!
+if ! kill -0 "\$LAUNCH_PID" 2&gt;/dev/null; then
+    log_launcher_error "Application process failed to start: $EXECUTABLE"
+    osascript -e "display dialog \"Error: Sync application failed to start. Check log at: \$LOG_FILE\" buttons {\"OK\"} default button \"OK\" with icon stop"
+    exit 1
+fi
 
 exit 0</string>
 					<key>CheckedForUserDefaultShell</key>
@@ -549,8 +543,8 @@ EOF
         info "  Created workflow: $workflow_name"
     }
     
-    # NOTE: create_workflow function above is kept for reference but no longer used
-    # All sync workflows now use create_workflow_terminal for live Terminal output
+    # The installed Finder entries use create_workflow for silent Electron launch.
+    # create_workflow_terminal below is retained for manual launcher diagnostics.
     
     # Create workflow for opening config file
     create_config_workflow() {
@@ -821,7 +815,7 @@ EOF
 </plist>
 EOF
 
-        # document.wflow with Terminal output
+        # document.wflow with Terminal launcher status
         # Build command string with proper escaping for XML plist
         # We need: shell $vars escaped as \$, and & escaped as &amp; for XML
         local cmd_script
@@ -834,7 +828,16 @@ if [ -z "${HOME:-}" ]; then
 fi
 
 LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
-mkdir -p "$(dirname "$LOG_FILE")"
+log_launcher_error() {
+    mkdir -p "$(dirname "$LOG_FILE")"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ERROR: $*" >> "$LOG_FILE"
+}
+
+if [ ! -x "%%EXECUTABLE%%" ]; then
+    log_launcher_error "Executable is missing or not executable: %%EXECUTABLE%%"
+    osascript -e "display dialog \"Error: Sync application is unavailable. Check log at: $LOG_FILE\" buttons {\"OK\"} default button \"OK\" with icon stop"
+    exit 1
+fi
 
 FOLDER_PATH="$1"
 if [ -z "$FOLDER_PATH" ]; then
@@ -843,12 +846,14 @@ fi
 if [ -n "$FOLDER_PATH" ] &amp;&amp; [ -d "$FOLDER_PATH" ]; then
     FOLDER_PATH=$(cd "$FOLDER_PATH" &amp;&amp; pwd)
 else
+    log_launcher_error "Folder path is empty or does not exist: $FOLDER_PATH"
     osascript -e "display dialog \"Error: Could not determine folder path.\" buttons {\"OK\"} default button \"OK\" with icon stop"
     exit 1
 fi
 
 REMOTE_PATH=$(osascript -e '"'"'text returned of (display dialog "Enter remote path:" default answer "" with title "Sync to Remote (Terminal)")'"'"')
 if [ -z "$REMOTE_PATH" ]; then
+    log_launcher_error "Remote path was cancelled or empty"
     osascript -e '"'"'display dialog "Remote path is required." buttons {"OK"} default button "OK" with icon stop'"'"'
     exit 1
 fi
@@ -865,10 +870,18 @@ echo "  Mode: %%MODE%%"
 echo "  Folder: $FOLDER"
 echo "  Remote: $REMOTE"
 echo
-nohup "%%EXECUTABLE%%" --session --mode=%%MODE%% --folder="$FOLDER" --remote-path="$REMOTE" &lt; /dev/null &gt;&gt; "$LOGFILE" 2&gt;&amp;1 &amp;
+nohup "%%EXECUTABLE%%" --session --mode=%%MODE%% --folder="$FOLDER" --remote-path="$REMOTE" &lt; /dev/null &gt; /dev/null 2&gt;&amp;1 &amp;
+LAUNCH_PID=$!
+if ! kill -0 "$LAUNCH_PID" 2&gt;/dev/null; then
+    mkdir -p "$(dirname "$LOGFILE")"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ERROR: Application process failed to start: %%EXECUTABLE%%" &gt;&gt; "$LOGFILE"
+    echo "Sync application failed to start."
+    read -n 1 -s -p "Press any key to close..."
+    exit 1
+fi
 echo
 echo "Sync request submitted."
-echo "Launcher log: $LOGFILE"
+echo "Session diagnostic log: ${LOGFILE%/*}/sync-session.log"
 echo
 read -n 1 -s -p "Press any key to close..."
 exit 0
@@ -888,10 +901,20 @@ if [ -z "${HOME:-}" ]; then
 fi
 
 LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
-mkdir -p "$(dirname "$LOG_FILE")"
+log_launcher_error() {
+    mkdir -p "$(dirname "$LOG_FILE")"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ERROR: $*" >> "$LOG_FILE"
+}
+
+if [ ! -x "%%EXECUTABLE%%" ]; then
+    log_launcher_error "Executable is missing or not executable: %%EXECUTABLE%%"
+    osascript -e "display dialog \"Error: Sync application is unavailable. Check log at: $LOG_FILE\" buttons {\"OK\"} default button \"OK\" with icon stop"
+    exit 1
+fi
 
 FOLDER_PATH="$1"
 if [ -z "$FOLDER_PATH" ] || [ ! -d "$FOLDER_PATH" ]; then
+    log_launcher_error "Invalid folder path: $FOLDER_PATH"
     osascript -e "display dialog \"Error: Invalid folder path.\" buttons {\"OK\"} default button \"OK\" with icon stop"
     exit 1
 fi
@@ -907,10 +930,18 @@ echo "Submitting sync request..."
 echo "  Mode: %%MODE%%"
 echo "  Folder: $FOLDER"
 echo
-nohup "%%EXECUTABLE%%" --session --mode=%%MODE%% --folder="$FOLDER" &lt; /dev/null &gt;&gt; "$LOGFILE" 2&gt;&amp;1 &amp;
+nohup "%%EXECUTABLE%%" --session --mode=%%MODE%% --folder="$FOLDER" &lt; /dev/null &gt; /dev/null 2&gt;&amp;1 &amp;
+LAUNCH_PID=$!
+if ! kill -0 "$LAUNCH_PID" 2&gt;/dev/null; then
+    mkdir -p "$(dirname "$LOGFILE")"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ERROR: Application process failed to start: %%EXECUTABLE%%" &gt;&gt; "$LOGFILE"
+    echo "Sync application failed to start."
+    read -n 1 -s -p "Press any key to close..."
+    exit 1
+fi
 echo
 echo "Sync request submitted."
-echo "Launcher log: $LOGFILE"
+echo "Session diagnostic log: ${LOGFILE%/*}/sync-session.log"
 echo
 read -n 1 -s -p "Press any key to close..."
 exit 0

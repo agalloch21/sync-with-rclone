@@ -32,6 +32,11 @@ async function withHistoryRuntime(callback) {
   }
 }
 
+async function readSyncSessionLog(logDirectory) {
+  const content = await fs.readFile(path.join(logDirectory, 'sync-session.log'), 'utf8')
+  return content.trim().split('\n').map(line => JSON.parse(line))
+}
+
 test('defineAppOperation records started and succeeded without changing the result', async () => {
   await withHistoryRuntime(async () => {
     const operation = defineAppOperation({
@@ -142,6 +147,12 @@ test('startSync records its failed result without shell presentation data', asyn
     assert.equal(records[0].operation, 'syncPush')
     assert.equal(records[0].status, OPERATION_HISTORY_STATUS.FAILED)
     assert.equal(records[1].status, OPERATION_HISTORY_STATUS.STARTED)
+
+    const sessionRecords = await readSyncSessionLog(path.join(appRoot, 'logs'))
+    assert.deepEqual(sessionRecords.map(record => record.event), [
+      'session.started',
+      'session.failed',
+    ])
   })
 })
 
@@ -163,6 +174,13 @@ test('startSync rejects an overlapping session before writing operation history'
       assert.equal(result.result, 'failed')
       assert.equal(result.error.code, APP_ERROR_CODE.SYNC_SESSION_OVERLAP)
       assert.deepEqual(await listOperationHistory(), [])
+
+      const sessionRecords = await readSyncSessionLog(path.join(appRoot, 'logs'))
+      assert.deepEqual(sessionRecords.map(record => record.event), [
+        'session.started',
+        'session.context-resolved',
+        'session.failed',
+      ])
     }
     finally {
       await releaseSyncAdmission(activeAdmission, runtimePaths)
@@ -224,6 +242,14 @@ process.exit(3)
     assert.equal(result.error.message, 'The remote source folder does not exist.')
     assert.equal(result.error.meta.remoteFolderPath, 'nas:remote/missing')
     assert.equal(result.error.cause.code, 'remote.folder_not_found')
+
+    const sessionRecords = await readSyncSessionLog(runtimePaths.logDirectory)
+    assert.equal(sessionRecords[0].event, 'session.started')
+    assert.equal(sessionRecords[1].event, 'session.context-resolved')
+    assert.equal(sessionRecords.at(-1).event, 'session.failed')
+    assert.equal(sessionRecords.at(-1).error.chain[0].code, APP_ERROR_CODE.SYNC_REMOTE_SOURCE_NOT_FOUND)
+    assert.equal(sessionRecords.at(-1).error.chain[1].code, 'remote.folder_not_found')
+    assert.equal(sessionRecords.at(-1).error.chain[2].stderr.content, 'directory not found')
   })
 })
 

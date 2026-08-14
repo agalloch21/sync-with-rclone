@@ -1,4 +1,4 @@
-import { createSyncFilter } from '#src/core/filters/sync-filter.js'
+import { normalizeExclusionPatterns } from '#src/core/exclusions.js'
 import { resolveLocalDirectoryPath as resolveInfrastructureLocalDirectoryPath } from '#src/infrastructure/filesystem/local-path.js'
 import { normalizeRemoteBasePath as normalizeInfrastructureRemoteBasePath } from '#src/infrastructure/rclone/remote-path.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
@@ -60,9 +60,9 @@ function normalizeMapping(mapping) {
   }
 }
 
-function assertFilterPatterns(filterPatterns) {
+function normalizeExclusionInput(exclusionPatterns) {
   try {
-    createSyncFilter(filterPatterns)
+    return normalizeExclusionPatterns(exclusionPatterns)
   }
   catch (error) {
     throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, error.message, { cause: error })
@@ -77,7 +77,7 @@ export async function createMapping(mapping, onProgress) {
   const nextMapping = {
     displayName: '',
     ...normalizedMapping,
-    filterPatterns: [],
+    exclusionPatterns: [],
     lastSyncMode: null,
     lastSyncFolder: null,
     lastSyncDate: null,
@@ -94,11 +94,11 @@ export async function updateMapping(mapping, expectedMapping, onProgress) {
   return await mappingService.updateMapping(mapping, normalizedMapping)
 }
 
-export async function updateMappingFilterPatterns(mapping, filterPatterns, onProgress) {
+export async function updateMappingExclusionPatterns(mapping, exclusionPatterns, onProgress) {
   assertMappingReference(mapping)
-  assertFilterPatterns(filterPatterns)
+  const normalizedPatterns = normalizeExclusionInput(exclusionPatterns)
   onProgress?.(MAPPING_SAVE_PROGRESS_STEP.SAVE)
-  return await mappingService.updateMappingFilterPatterns(mapping, filterPatterns)
+  return await mappingService.updateMappingExclusionPatterns(mapping, normalizedPatterns)
 }
 
 export async function deleteMapping(mapping, onProgress) {

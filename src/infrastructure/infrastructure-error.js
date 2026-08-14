@@ -2,7 +2,6 @@ export const INFRASTRUCTURE_ERROR_CODE = Object.freeze({
   PATH_EMPTY: 'path.empty',
   PATH_NOT_FOUND: 'path.not_found',
   PATH_NOT_DIRECTORY: 'path.not_directory',
-  PATH_SYMBOLIC_LINK_CONFLICT: 'path.symbolic_link_conflict',
   CONFIG_LOAD_FAILED: 'config.load_failed',
   CONFIG_UPDATE_FAILED: 'config.update_failed',
   CONFIG_UPDATE_IN_PROGRESS: 'config.update_in_progress',

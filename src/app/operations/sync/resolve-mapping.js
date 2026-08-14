@@ -131,9 +131,9 @@ export function resolveMapping(config, localFolderPath, explicitRemoteFolderPath
     localFolderPath: resolvedLocalPath,
     relativePath,
     remoteFolderPath: normalizedExplicitRemotePath || defaultRemoteFolderPath,
-    syncFilterPatterns: [
-      ...config.globalFilterPatterns,
-      ...mapping.filterPatterns,
+    exclusionPatterns: [
+      ...config.globalExclusionPatterns,
+      ...mapping.exclusionPatterns,
     ],
   }
 }

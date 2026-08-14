@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { isValidFormModalView } from '#electron/contracts/form-modal.js'
-import { deleteMapping, deleteServer, getMainWindowData, getServer, listGlobalFilterPatterns, listOperationHistory, testServerConnection, updateGlobalFilterPatterns } from '#src/app/app-api.js'
+import { deleteMapping, deleteServer, getMainWindowData, getServer, listGlobalExclusionPatterns, listOperationHistory, testServerConnection, updateGlobalExclusionPatterns } from '#src/app/app-api.js'
 import { APP_ERROR_CODE, throwAppError } from '#src/app/app-errors.js'
 import { MAPPING_OPERATION } from '#src/app/contracts/mapping.js'
 import { SERVER_OPERATION } from '#src/app/contracts/server.js'
@@ -27,7 +27,7 @@ function assertPayloadObject(payload) {
 export function createMainWindowHandlers() {
   const reportedLoadFailures = {
     mainWindowData: false,
-    globalFilterPatterns: false,
+    globalExclusionPatterns: false,
   }
 
   async function runLoadQuery(queryName, query) {
@@ -75,8 +75,8 @@ export function createMainWindowHandlers() {
     return await runLoadQuery('mainWindowData', getMainWindowData)
   }
 
-  async function getGlobalFilterPatternsHandler(_event) {
-    return await runLoadQuery('globalFilterPatterns', listGlobalFilterPatterns)
+  async function getGlobalExclusionPatternsHandler(_event) {
+    return await runLoadQuery('globalExclusionPatterns', listGlobalExclusionPatterns)
   }
 
   async function openConfigFolderHandler() {
@@ -182,10 +182,10 @@ export function createMainWindowHandlers() {
     )
   }
 
-  async function updateGlobalFilterPatternsHandler(_event, payload) {
+  async function updateGlobalExclusionPatternsHandler(_event, payload) {
     try {
       assertPayloadObject(payload)
-      return toSuccessfulResult(await updateGlobalFilterPatterns(payload.filterPatterns))
+      return toSuccessfulResult(await updateGlobalExclusionPatterns(payload.exclusionPatterns))
     }
     catch (error) {
       return await reportRequestError(error)
@@ -194,7 +194,7 @@ export function createMainWindowHandlers() {
 
   return {
     getMainWindowDataHandler,
-    getGlobalFilterPatternsHandler,
+    getGlobalExclusionPatternsHandler,
     openConfigFolderHandler,
     openLocalFolderHandler,
     openFormModalHandler,
@@ -203,6 +203,6 @@ export function createMainWindowHandlers() {
     getOperationHistoryHandler,
     deleteServerHandler,
     deleteMappingHandler,
-    updateGlobalFilterPatternsHandler,
+    updateGlobalExclusionPatternsHandler,
   }
 }

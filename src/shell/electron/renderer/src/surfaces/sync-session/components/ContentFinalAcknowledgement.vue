@@ -1,5 +1,5 @@
 <script setup>
-import { SYNC_RESULT } from '#src/core/contract.js'
+import { SYNC_OPERATION_STATUS, SYNC_RESULT } from '#src/core/contract.js'
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ResultIcon from '../../shared/ResultIcon.vue'
@@ -43,11 +43,43 @@ onBeforeUnmount(() => {
   stopCountdown()
 })
 
-// cancelled
-const operations = computed(() => result.value === SYNC_RESULT.CANCELLED ? state.value?.sessionResult?.operations || [] : [])
-const operationSummary = computed(() => t(`result.${result.value}.message`, { syncedCount: `${operations.value.filter(op => op.synced).length}`, total: `${operations.value.length}` }))
+const operations = computed(() => (
+  result.value === SYNC_RESULT.CANCELLED || result.value === SYNC_RESULT.FAILED
+    ? state.value?.sessionResult?.operations || []
+    : []
+))
+const operationCounts = computed(() => ({
+  syncedCount: operations.value.filter(operation => operation.status === SYNC_OPERATION_STATUS.SYNCED).length,
+  failedCount: operations.value.filter(operation => operation.status === SYNC_OPERATION_STATUS.FAILED).length,
+  pendingCount: operations.value.filter(operation => operation.status === SYNC_OPERATION_STATUS.PENDING).length,
+  total: operations.value.length,
+}))
+const operationSummary = computed(() => {
+  const key = result.value === SYNC_RESULT.FAILED
+    ? 'result.failed.operationSummary'
+    : 'result.cancelled.message'
+  return t(key, operationCounts.value)
+})
 
 const showOperationDetail = ref(false)
+
+function getOperationResultType(operation) {
+  if (operation.status === SYNC_OPERATION_STATUS.SYNCED)
+    return 'success'
+  if (operation.status === SYNC_OPERATION_STATUS.FAILED)
+    return 'error'
+  return 'warning'
+}
+
+function getOperationResultMessage(operation) {
+  if (operation.failure?.code) {
+    const key = `operationFailures.${operation.failure.code}`
+    if (te(key))
+      return t(key, operation.failure.meta || {})
+  }
+
+  return t(`operationStatuses.${operation.status}`)
+}
 
 // failed
 const errorMessages = computed(() => {
@@ -93,24 +125,6 @@ function openLogFolder() {
           <span>{{ operationSummary }}</span>
           <span class="underline cursor-pointer" @click="showOperationDetail = !showOperationDetail">[{{ $t(`result.${result}.detailButton`) }}]</span>
         </p>
-        <div v-if="showOperationDetail" class="overflow-y-auto [scrollbar-gutter:stable] px-4">
-          <table class="text-[0.6rem] text-(--text-subtle)">
-            <tr v-for="(op, index) in operations" :key="index" class="py-0.5 flex items-center gap-1 whitespace-nowrap">
-              <td class="flex-1">
-                {{ op.path }}
-              </td>
-              <td class="flex-0 basis-auto">
-                ......
-              </td>
-              <td class="flex-0 basis-auto">
-                {{ op.type }}
-              </td>
-              <td class="flex-0 basis-auto">
-                <ResultIcon :type="op.synced ? 'success' : 'error'" class="size-3" />
-              </td>
-            </tr>
-          </table>
-        </div>
       </div>
       <div v-if="result === SYNC_RESULT.FAILED" class="h-full flex flex-col gap-2 items-center">
         <div class="overflow-y-auto [scrollbar-gutter:stable] flex flex-col gap-1 break-all ">
@@ -118,12 +132,34 @@ function openLogFolder() {
             {{ msg }}
           </p>
         </div>
+        <p v-if="operations.length > 0">
+          <span>{{ operationSummary }}</span>
+          <span class="underline cursor-pointer" @click="showOperationDetail = !showOperationDetail">[{{ $t('result.failed.detailButton') }}]</span>
+        </p>
         <p>
           {{ $t('result.failed.logFolderHint') }}
           <button class="underline cursor-pointer ml-0.5" type="button" @click="openLogFolder">
             {{ $t('result.failed.openLogFolder') }}
           </button>
         </p>
+      </div>
+      <div v-if="showOperationDetail && operations.length > 0" class="overflow-y-auto [scrollbar-gutter:stable] px-4">
+        <table class="text-[0.6rem] text-(--text-subtle)">
+          <tr v-for="(op, index) in operations" :key="index" class="py-0.5 flex items-center gap-1 whitespace-nowrap">
+            <td class="flex-1">
+              {{ op.path }}
+            </td>
+            <td class="flex-0 basis-auto">
+              {{ op.type }}
+            </td>
+            <td class="max-w-60 truncate" :title="getOperationResultMessage(op)">
+              {{ getOperationResultMessage(op) }}
+            </td>
+            <td class="flex-0 basis-auto">
+              <ResultIcon :type="getOperationResultType(op)" class="size-3" />
+            </td>
+          </tr>
+        </table>
       </div>
     </div>
   </div>

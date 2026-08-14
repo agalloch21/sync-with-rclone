@@ -1,9 +1,12 @@
-import { assertLocalPathsDoNotCrossSymbolicLinks } from '#src/infrastructure/filesystem/local-files.js'
 import {
   cleanupEmptyDirectories,
   copyFiles,
   deleteFiles,
 } from '#src/infrastructure/rclone/remote-files.js'
+import {
+  SYNC_OPERATION_STATUS,
+} from '../contract.js'
+import { markPullSymbolicLinkFailures } from './pull-symbolic-link-failures.js'
 import {
   createSyncOperations,
   markOperationsSynced,
@@ -44,6 +47,10 @@ function splitDeleteOperationsByCopyBoundary(operations) {
       .slice(firstCopyIndex)
       .filter(operation => operation.type === 'delete'),
   }
+}
+
+function isOperationPending(operation) {
+  return operation.status === SYNC_OPERATION_STATUS.PENDING
 }
 
 function attachExecutionSummary(error, operations, message = 'Apply failed') {
@@ -107,30 +114,34 @@ export async function executeSyncPlan(syncPlan, context, onProgress = null, canc
   try {
     emitProgress(activities.START)
 
-    if (context.mode === 'pull') {
-      await assertLocalPathsDoNotCrossSymbolicLinks(
-        destinationRoot,
-        operations.map(operation => operation.path),
-        cancelSignal,
-      )
-    }
+    await markPullSymbolicLinkFailures(
+      context,
+      operations,
+      preCopyDeleteOperations,
+      copyOperations,
+      cancelSignal,
+    )
 
-    if (copyOperations.length > 0) {
+    const executableCopyOperations = copyOperations.filter(isOperationPending)
+    const executablePreCopyDeleteOperations = preCopyDeleteOperations.filter(isOperationPending)
+    const executablePostCopyDeleteOperations = postCopyDeleteOperations.filter(isOperationPending)
+
+    if (executableCopyOperations.length > 0) {
       cancelSignal?.throwIfAborted()
       emitProgress(activities.RESOLVE_CONFLICTS)
 
-      if (preCopyDeleteOperations.length > 0) {
+      if (executablePreCopyDeleteOperations.length > 0) {
         try {
           const confirmedFiles = await deleteFiles(
             destinationRoot,
-            preCopyDeleteOperations.map(operation => operation.path),
+            executablePreCopyDeleteOperations.map(operation => operation.path),
             context.runtimePaths,
             cancelSignal,
           )
-          markOperationsSynced(preCopyDeleteOperations, confirmedFiles)
+          markOperationsSynced(executablePreCopyDeleteOperations, confirmedFiles)
         }
         catch (error) {
-          markOperationsSynced(preCopyDeleteOperations, error?.confirmedFiles || [])
+          markOperationsSynced(executablePreCopyDeleteOperations, error?.confirmedFiles || [])
           throw error
         }
       }
@@ -144,7 +155,7 @@ export async function executeSyncPlan(syncPlan, context, onProgress = null, canc
         const confirmedFiles = await copyFiles(
           sourceRoot,
           destinationRoot,
-          copyOperations.map(operation => operation.path),
+          executableCopyOperations.map(operation => operation.path),
           context.runtimePaths,
           {
             cancelSignal,
@@ -156,29 +167,29 @@ export async function executeSyncPlan(syncPlan, context, onProgress = null, canc
             },
           },
         )
-        markOperationsSynced(copyOperations, confirmedFiles)
+        markOperationsSynced(executableCopyOperations, confirmedFiles)
       }
       catch (error) {
-        markOperationsSynced(copyOperations, error?.confirmedFiles || [])
+        markOperationsSynced(executableCopyOperations, error?.confirmedFiles || [])
         throw error
       }
     }
 
-    if (postCopyDeleteOperations.length > 0) {
+    if (executablePostCopyDeleteOperations.length > 0) {
       cancelSignal?.throwIfAborted()
       emitProgress(activities.DELETE)
 
       try {
         const confirmedFiles = await deleteFiles(
           destinationRoot,
-          postCopyDeleteOperations.map(operation => operation.path),
+          executablePostCopyDeleteOperations.map(operation => operation.path),
           context.runtimePaths,
           cancelSignal,
         )
-        markOperationsSynced(postCopyDeleteOperations, confirmedFiles)
+        markOperationsSynced(executablePostCopyDeleteOperations, confirmedFiles)
       }
       catch (error) {
-        markOperationsSynced(postCopyDeleteOperations, error?.confirmedFiles || [])
+        markOperationsSynced(executablePostCopyDeleteOperations, error?.confirmedFiles || [])
         throw error
       }
 
@@ -186,6 +197,9 @@ export async function executeSyncPlan(syncPlan, context, onProgress = null, canc
       emitProgress(activities.CLEANUP)
       await cleanupEmptyDirectories(destinationRoot, context.runtimePaths, cancelSignal)
     }
+
+    if (operations.some(operation => operation.status === SYNC_OPERATION_STATUS.FAILED))
+      throw new Error('Some operations could not be applied.')
   }
   catch (error) {
     throw attachExecutionSummary(

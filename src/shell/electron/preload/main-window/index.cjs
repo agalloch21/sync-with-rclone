@@ -7,8 +7,8 @@ contextBridge.exposeInMainWorld('mainWindow', {
   getMainWindowData() {
     return ipcRenderer.invoke('main-window:get-data')
   },
-  getGlobalFilterPatterns() {
-    return ipcRenderer.invoke('main-window:get-global-filter-patterns')
+  getGlobalExclusionPatterns() {
+    return ipcRenderer.invoke('main-window:get-global-exclusion-patterns')
   },
   openConfigFolder() {
     return ipcRenderer.invoke('main-window:open-config-folder')
@@ -31,8 +31,8 @@ contextBridge.exposeInMainWorld('mainWindow', {
   deleteMapping(payload) {
     return ipcRenderer.invoke('main-window:delete-mapping', payload)
   },
-  updateGlobalFilterPatterns(payload) {
-    return ipcRenderer.invoke('main-window:update-global-filter-patterns', payload)
+  updateGlobalExclusionPatterns(payload) {
+    return ipcRenderer.invoke('main-window:update-global-exclusion-patterns', payload)
   },
   showMessageBox(payload = {}) {
     return ipcRenderer.invoke('main-window:show-message-box', payload)

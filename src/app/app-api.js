@@ -69,8 +69,8 @@ export async function listMappings() {
   return await mappingOperations.listMappings()
 }
 
-export async function listGlobalFilterPatterns() {
-  return await settingsOperations.listGlobalFilterPatterns()
+export async function listGlobalExclusionPatterns() {
+  return await settingsOperations.listGlobalExclusionPatterns()
 }
 
 export async function listOperationHistory(options) {
@@ -110,14 +110,14 @@ async function updateMappingImpl(mapping, expectedMapping, onProgress) {
   return result
 }
 
-async function updateMappingFilterPatternsImpl(mapping, filterPatterns, onProgress) {
-  const result = await mappingOperations.updateMappingFilterPatterns(mapping, filterPatterns, onProgress)
+async function updateMappingExclusionPatternsImpl(mapping, exclusionPatterns, onProgress) {
+  const result = await mappingOperations.updateMappingExclusionPatterns(mapping, exclusionPatterns, onProgress)
   notifyConfigUpdate()
   return result
 }
 
-async function updateGlobalFilterPatternsImpl(filterPatterns) {
-  const result = await settingsOperations.updateGlobalFilterPatterns(filterPatterns)
+async function updateGlobalExclusionPatternsImpl(exclusionPatterns) {
+  const result = await settingsOperations.updateGlobalExclusionPatterns(exclusionPatterns)
   notifyConfigUpdate()
   return result
 }
@@ -172,15 +172,15 @@ export const updateMapping = defineAppOperation({
   }),
 }, updateMappingImpl)
 
-export const updateMappingFilterPatterns = defineAppOperation({
-  operation: MAPPING_OPERATION.UPDATE_FILTER_PATTERNS,
+export const updateMappingExclusionPatterns = defineAppOperation({
+  operation: MAPPING_OPERATION.UPDATE_EXCLUSION_PATTERNS,
   getSubject: ([mapping]) => mappingSubject(mapping),
-}, updateMappingFilterPatternsImpl)
+}, updateMappingExclusionPatternsImpl)
 
-export const updateGlobalFilterPatterns = defineAppOperation({
-  operation: SETTINGS_OPERATION.UPDATE_GLOBAL_FILTER_PATTERNS,
-  getSubject: () => ({ type: 'settings', name: 'globalFilterPatterns' }),
-}, updateGlobalFilterPatternsImpl)
+export const updateGlobalExclusionPatterns = defineAppOperation({
+  operation: SETTINGS_OPERATION.UPDATE_GLOBAL_EXCLUSION_PATTERNS,
+  getSubject: () => ({ type: 'settings', name: 'globalExclusionPatterns' }),
+}, updateGlobalExclusionPatternsImpl)
 
 export const deleteMapping = defineAppOperation({
   operation: MAPPING_OPERATION.DELETE,

@@ -48,8 +48,21 @@ const syncSession = {
     [SYNC_RESULT.FAILED]: {
       title: 'Error',
       message: 'Synchronization failed.',
+      operationSummary: '{syncedCount} synced, {failedCount} failed, and {pendingCount} pending.',
+      detailButton: 'details',
       logFolderHint: 'For more information,',
       openLogFolder: 'open the log folder',
+    },
+  },
+  operationStatuses: {
+    pending: 'Not applied',
+    synced: 'Applied',
+    failed: 'Failed',
+  },
+  operationFailures: {
+    operation: {
+      local_symbolic_link_boundary: 'Blocked by symbolic link: {symbolicLinkPath}',
+      structural_dependency_failed: 'Blocked by related operation: {dependencyPath}',
     },
   },
 }

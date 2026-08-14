@@ -101,11 +101,11 @@ function parseRemoteFileEntries(stdout, remotePath) {
 
 export async function listRemoteFiles(
   remotePath,
-  syncFilter = null,
+  exclusions = null,
   runtimePaths = getRuntimePaths(),
   cancelSignal = null,
 ) {
-  const excludeArgs = (syncFilter?.rcloneExcludePatterns || [])
+  const excludeArgs = (exclusions?.rcloneExcludePatterns || [])
     .flatMap(pattern => ['--exclude', pattern])
   const command = createRcloneCommand(runtimePaths, [
     'lsjson',
@@ -140,7 +140,7 @@ export async function listRemoteFiles(
   }
 
   return parseRemoteFileEntries(result.stdout, remotePath)
-    .filter(entry => !syncFilter?.ignores(entry.path, false))
+    .filter(entry => !exclusions?.excludes(entry.path, false))
 }
 
 function getCommandErrorDetail(error) {

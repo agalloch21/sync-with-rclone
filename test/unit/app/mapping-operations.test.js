@@ -11,7 +11,7 @@ import {
   createMapping,
   deleteMapping,
   updateMapping,
-  updateMappingFilterPatterns,
+  updateMappingExclusionPatterns,
 } from '#src/app/operations/mapping.js'
 import {
   INFRASTRUCTURE_ERROR_CODE,
@@ -39,24 +39,24 @@ test('createMapping reports an invalid local directory and preserves its native 
   })
 })
 
-test('deleteMapping removes the selected mapping and preserves global filter patterns', async () => {
+test('deleteMapping removes the selected mapping and preserves global exclusion patterns', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalFilterPatterns: ['.DS_Store'],
+      globalExclusionPatterns: ['.DS_Store'],
       mappings: [
         {
           displayName: 'A',
           rcloneRemote: 'synology',
           localBasePath: '/local/a',
           remoteBasePath: 'A',
-          filterPatterns: [],
+          exclusionPatterns: [],
         },
         {
           displayName: 'B',
           rcloneRemote: 'synology',
           localBasePath: '/local/b',
           remoteBasePath: 'B',
-          filterPatterns: ['node_modules/'],
+          exclusionPatterns: ['node_modules/'],
         },
       ],
     },
@@ -70,9 +70,9 @@ test('deleteMapping removes the selected mapping and preserves global filter pat
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
     assert.equal(deletedMapping.displayName, 'A')
     assert.equal(deletedMapping.localBasePath, path.resolve('/local/a'))
-    assert.deepEqual(saved.globalFilterPatterns, ['.DS_Store'])
+    assert.deepEqual(saved.globalExclusionPatterns, ['.DS_Store'])
     assert.deepEqual(saved.mappings.map(mapping => mapping.displayName), ['B'])
-    assert.deepEqual(saved.mappings[0].filterPatterns, ['node_modules/'])
+    assert.deepEqual(saved.mappings[0].exclusionPatterns, ['node_modules/'])
     assert.deepEqual(progress, [MAPPING_DELETE_PROGRESS_STEP.DELETE])
   })
 })
@@ -85,7 +85,7 @@ test('deleteMapping returns an error when the mapping does not exist', async () 
         rcloneRemote: 'synology',
         localBasePath: '/local/a',
         remoteBasePath: 'A',
-        filterPatterns: [],
+        exclusionPatterns: [],
       }],
     },
   }, async () => {
@@ -101,7 +101,7 @@ test('deleteMapping returns an error when the mapping does not exist', async () 
 
 test('createMapping saves a normalized mapping with default metadata', async () => {
   await withFakeAppRuntime({
-    appConfig: { globalFilterPatterns: ['.DS_Store'], mappings: [] },
+    appConfig: { globalExclusionPatterns: ['.DS_Store'], mappings: [] },
   }, async ({ tempDir, configPath }) => {
     const localPath = path.join(tempDir, 'local')
     await fs.mkdir(localPath)
@@ -115,11 +115,11 @@ test('createMapping saves a normalized mapping with default metadata', async () 
 
     assert.equal(result.rcloneRemote, 'synology')
     assert.equal(result.remoteBasePath, 'Projects/Current')
-    assert.deepEqual(result.filterPatterns, [])
+    assert.deepEqual(result.exclusionPatterns, [])
     assert.equal(result.lastSyncDate, null)
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
-    assert.deepEqual(saved.globalFilterPatterns, ['.DS_Store'])
+    assert.deepEqual(saved.globalExclusionPatterns, ['.DS_Store'])
     assert.equal(saved.mappings[0].localBasePath, await fs.realpath(localPath))
     assert.deepEqual(progress, [MAPPING_SAVE_PROGRESS_STEP.SAVE])
   })
@@ -127,7 +127,7 @@ test('createMapping saves a normalized mapping with default metadata', async () 
 
 test('createMapping stores the real directory behind a linked mapping root', async (t) => {
   await withFakeAppRuntime({
-    appConfig: { globalFilterPatterns: [], mappings: [] },
+    appConfig: { globalExclusionPatterns: [], mappings: [] },
   }, async ({ tempDir }) => {
     const realPath = path.join(tempDir, 'real-local')
     const linkPath = path.join(tempDir, 'linked-local')
@@ -156,13 +156,13 @@ test('createMapping stores the real directory behind a linked mapping root', asy
 test('updateMapping changes the mapping and preserves mapping metadata', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalFilterPatterns: [],
+      globalExclusionPatterns: [],
       mappings: [{
         displayName: 'Project',
         rcloneRemote: 'synology',
         localBasePath: '/local/current',
         remoteBasePath: 'Current',
-        filterPatterns: ['node_modules/'],
+        exclusionPatterns: ['node_modules/'],
         lastSyncMode: 'push',
         lastSyncFolder: 'src',
         lastSyncDate: '2026-07-17',
@@ -182,77 +182,77 @@ test('updateMapping changes the mapping and preserves mapping metadata', async (
     })
 
     assert.equal(result.displayName, 'Project')
-    assert.deepEqual(result.filterPatterns, ['node_modules/'])
+    assert.deepEqual(result.exclusionPatterns, ['node_modules/'])
     assert.equal(result.lastSyncMode, 'push')
     assert.equal(result.localBasePath, await fs.realpath(nextPath))
     assert.equal(result.remoteBasePath, 'Next')
   })
 })
 
-test('updateMappingFilterPatterns changes patterns and preserves global patterns and mapping metadata', async () => {
+test('updateMappingExclusionPatterns changes patterns and preserves global patterns and mapping metadata', async () => {
   const localPath = process.cwd()
   await withFakeAppRuntime({
     appConfig: {
-      globalFilterPatterns: ['.DS_Store'],
+      globalExclusionPatterns: ['.DS_Store'],
       mappings: [{
         displayName: 'Project',
         rcloneRemote: 'synology',
         localBasePath: localPath,
         remoteBasePath: 'Current',
-        filterPatterns: ['old-pattern'],
+        exclusionPatterns: ['old-pattern'],
         lastSyncMode: 'pull',
         lastSyncFolder: 'src',
         lastSyncDate: '2026-07-20',
       }],
     },
   }, async ({ configPath }) => {
-    const result = await updateMappingFilterPatterns({
+    const result = await updateMappingExclusionPatterns({
       rcloneRemote: 'synology',
       localBasePath: localPath,
     }, ['node_modules/', '*.tmp', '*.tmp'])
 
-    assert.deepEqual(result.filterPatterns, ['node_modules/', '*.tmp', '*.tmp'])
+    assert.deepEqual(result.exclusionPatterns, ['node_modules/', '*.tmp', '*.tmp'])
     assert.equal(result.displayName, 'Project')
     assert.equal(result.lastSyncMode, 'pull')
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
-    assert.deepEqual(saved.globalFilterPatterns, ['.DS_Store'])
-    assert.deepEqual(saved.mappings[0].filterPatterns, ['node_modules/', '*.tmp', '*.tmp'])
+    assert.deepEqual(saved.globalExclusionPatterns, ['.DS_Store'])
+    assert.deepEqual(saved.mappings[0].exclusionPatterns, ['node_modules/', '*.tmp', '*.tmp'])
     assert.equal(saved.mappings[0].lastSyncFolder, 'src')
     assert.equal(saved.mappings[0].lastSyncDate, '2026-07-20')
   })
 })
 
-test('updateMappingFilterPatterns rejects non-string entries', async () => {
+test('updateMappingExclusionPatterns rejects non-string entries', async () => {
   await withFakeAppRuntime({
     appConfig: {
       mappings: [{
         rcloneRemote: 'synology',
         localBasePath: '/local/current',
         remoteBasePath: 'Current',
-        filterPatterns: [],
+        exclusionPatterns: [],
       }],
     },
   }, async () => {
-    await assert.rejects(() => updateMappingFilterPatterns({
+    await assert.rejects(() => updateMappingExclusionPatterns({
       rcloneRemote: 'synology',
       localBasePath: path.resolve('/local/current'),
     }, ['valid', 42]), error => error?.code === 'ipc.invalid_payload')
   })
 })
 
-test('updateMappingFilterPatterns rejects negation rules', async () => {
+test('updateMappingExclusionPatterns rejects negation rules', async () => {
   await withFakeAppRuntime({
     appConfig: {
       mappings: [{
         rcloneRemote: 'synology',
         localBasePath: '/local/current',
         remoteBasePath: 'Current',
-        filterPatterns: [],
+        exclusionPatterns: [],
       }],
     },
   }, async () => {
-    await assert.rejects(() => updateMappingFilterPatterns({
+    await assert.rejects(() => updateMappingExclusionPatterns({
       rcloneRemote: 'synology',
       localBasePath: path.resolve('/local/current'),
     }, ['!keep.txt']), error => error?.code === 'ipc.invalid_payload' && /negation/.test(error.message))

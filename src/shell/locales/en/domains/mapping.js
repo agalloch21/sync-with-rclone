@@ -56,14 +56,14 @@ export default {
         message: 'The mapping was updated successfully.',
       },
     },
-    [MAPPING_OPERATION.UPDATE_FILTER_PATTERNS]: {
-      title: 'Updating Sync Filters',
-      message: 'Saving the mapping sync filters...',
+    [MAPPING_OPERATION.UPDATE_EXCLUSION_PATTERNS]: {
+      title: 'Updating Exclusions',
+      message: 'Saving the mapping exclusions...',
       steps: {
-        [MAPPING_SAVE_PROGRESS_STEP.SAVE]: 'Saving the mapping sync filters...',
+        [MAPPING_SAVE_PROGRESS_STEP.SAVE]: 'Saving the mapping exclusions...',
       },
       succeeded: {
-        message: 'The sync filters were updated successfully.',
+        message: 'The exclusions were updated successfully.',
       },
     },
     [MAPPING_OPERATION.DELETE]: {

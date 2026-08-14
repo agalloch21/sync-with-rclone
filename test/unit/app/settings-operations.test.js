@@ -2,41 +2,41 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { listGlobalFilterPatterns, updateGlobalFilterPatterns } from '#src/app/operations/settings.js'
+import { listGlobalExclusionPatterns, updateGlobalExclusionPatterns } from '#src/app/operations/settings.js'
 import { updateConfiguration } from '#src/app/services/app-config.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
-test('listGlobalFilterPatterns reads global patterns through settings operations', async () => {
+test('listGlobalExclusionPatterns reads global patterns through settings operations', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalFilterPatterns: ['.DS_Store', 'Thumbs.db'],
+      globalExclusionPatterns: ['.DS_Store', 'Thumbs.db'],
       mappings: [],
     },
   }, async () => {
-    assert.deepEqual(await listGlobalFilterPatterns(), ['.DS_Store', 'Thumbs.db'])
+    assert.deepEqual(await listGlobalExclusionPatterns(), ['.DS_Store', 'Thumbs.db'])
   })
 })
 
-test('updateGlobalFilterPatterns changes global patterns and preserves mappings', async () => {
+test('updateGlobalExclusionPatterns changes global patterns and preserves mappings', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalFilterPatterns: ['old'],
+      globalExclusionPatterns: ['old'],
       mappings: [{
         displayName: 'Project',
         rcloneRemote: 'synology',
         localBasePath: '/local/project',
         remoteBasePath: 'Project',
-        filterPatterns: ['mapping-only'],
+        exclusionPatterns: ['mapping-only'],
       }],
     },
   }, async ({ configPath }) => {
-    const result = await updateGlobalFilterPatterns(['.DS_Store', '*.tmp', '*.tmp'])
+    const result = await updateGlobalExclusionPatterns([' .DS_Store ', '*.tmp', '*.tmp'])
 
     assert.deepEqual(result, ['.DS_Store', '*.tmp', '*.tmp'])
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
-    assert.deepEqual(saved.globalFilterPatterns, ['.DS_Store', '*.tmp', '*.tmp'])
+    assert.deepEqual(saved.globalExclusionPatterns, ['.DS_Store', '*.tmp', '*.tmp'])
     assert.equal(saved.mappings[0].displayName, 'Project')
-    assert.deepEqual(saved.mappings[0].filterPatterns, ['mapping-only'])
+    assert.deepEqual(saved.mappings[0].exclusionPatterns, ['mapping-only'])
     assert.deepEqual(await fs.readdir(path.dirname(configPath)), ['config.json'])
   })
 })
@@ -44,7 +44,7 @@ test('updateGlobalFilterPatterns changes global patterns and preserves mappings'
 test('configuration updates serialize concurrent read-modify-write sections', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalFilterPatterns: [],
+      globalExclusionPatterns: [],
       mappings: [],
     },
   }, async () => {
@@ -52,42 +52,42 @@ test('configuration updates serialize concurrent read-modify-write sections', as
       await new Promise(resolve => setTimeout(resolve, 10))
       return {
         ...config,
-        globalFilterPatterns: [...config.globalFilterPatterns, pattern],
+        globalExclusionPatterns: [...config.globalExclusionPatterns, pattern],
       }
     })
 
     await Promise.all([appendPattern('first'), appendPattern('second')])
 
     assert.deepEqual(
-      [...await listGlobalFilterPatterns()].sort(),
+      [...await listGlobalExclusionPatterns()].sort(),
       ['first', 'second'],
     )
   })
 })
 
-test('updateGlobalFilterPatterns rejects non-string entries', async () => {
+test('updateGlobalExclusionPatterns rejects non-string entries', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalFilterPatterns: [],
+      globalExclusionPatterns: [],
       mappings: [],
     },
   }, async () => {
     await assert.rejects(
-      () => updateGlobalFilterPatterns(['valid', null]),
+      () => updateGlobalExclusionPatterns(['valid', null]),
       error => error?.code === 'ipc.invalid_payload',
     )
   })
 })
 
-test('updateGlobalFilterPatterns rejects negation rules', async () => {
+test('updateGlobalExclusionPatterns rejects negation rules', async () => {
   await withFakeAppRuntime({
     appConfig: {
-      globalFilterPatterns: [],
+      globalExclusionPatterns: [],
       mappings: [],
     },
   }, async () => {
     await assert.rejects(
-      () => updateGlobalFilterPatterns(['!keep.txt']),
+      () => updateGlobalExclusionPatterns(['!keep.txt']),
       error => error?.code === 'ipc.invalid_payload' && /negation/.test(error.message),
     )
   })

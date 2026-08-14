@@ -3,7 +3,7 @@ import * as appApi from '#src/app/app-api.js'
 import { MAPPING_OPERATION } from '#src/app/contracts/mapping.js'
 import { SERVER_OPERATION } from '#src/app/contracts/server.js'
 import { createOperationReporter } from '#src/app/operations/operation-reporter.js'
-import { SYNC_RESULT } from '#src/core/contract.js'
+import { SYNC_OPERATION_STATUS, SYNC_RESULT } from '#src/core/contract.js'
 import commandContract from './command-contract.cjs'
 import { createCliOperationReportDisplay } from './operation-report-display.js'
 import { reviewDiffInCli } from './sync-review.js'
@@ -132,6 +132,12 @@ async function runSync(argv, output) {
 
   if (result.result === SYNC_RESULT.FAILED) {
     output.error(`Error: ${result.error?.message || 'Synchronization failed.'}`)
+    for (const operation of result.operations || []) {
+      if (operation.status === SYNC_OPERATION_STATUS.FAILED) {
+        const reason = operation.failure?.code ? ` (${operation.failure.code})` : ''
+        output.error(`Failed: ${operation.path}${reason}`)
+      }
+    }
     if (result.error?.stack && process.env.DEBUG)
       output.error(result.error.stack)
     return 1
@@ -249,16 +255,16 @@ async function runUpdateMapping(args, output) {
   )
 }
 
-async function runUpdateMappingFilterPatterns(args, output) {
+async function runUpdateMappingExclusionPatterns(args, output) {
   requireArguments(
     args,
     2,
-    'update-mapping-filter-patterns <server> <local-folder> [pattern ...]',
+    'update-mapping-exclusion-patterns <server> <local-folder> [pattern ...]',
   )
   const mapping = createMappingReference(args[0], args[1])
   return await runReportedOperation(
-    MAPPING_OPERATION.UPDATE_FILTER_PATTERNS,
-    onProgress => appApi.updateMappingFilterPatterns(mapping, args.slice(2), onProgress),
+    MAPPING_OPERATION.UPDATE_EXCLUSION_PATTERNS,
+    onProgress => appApi.updateMappingExclusionPatterns(mapping, args.slice(2), onProgress),
     output,
   )
 }
@@ -273,20 +279,20 @@ async function runDeleteMapping(args, output) {
   )
 }
 
-async function runListGlobalFilterPatterns(json, output) {
-  const globalFilterPatterns = await appApi.listGlobalFilterPatterns()
+async function runListGlobalExclusionPatterns(json, output) {
+  const globalExclusionPatterns = await appApi.listGlobalExclusionPatterns()
 
   if (json)
-    printJson(output, { globalFilterPatterns })
+    printJson(output, { globalExclusionPatterns })
   else
-    output.log(globalFilterPatterns.join('\n'))
+    output.log(globalExclusionPatterns.join('\n'))
 
   return 0
 }
 
-async function runUpdateGlobalFilterPatterns(args, output) {
-  await appApi.updateGlobalFilterPatterns(args)
-  output.log('Global sync filters updated.')
+async function runUpdateGlobalExclusionPatterns(args, output) {
+  await appApi.updateGlobalExclusionPatterns(args)
+  output.log('Global exclusions updated.')
   return 0
 }
 
@@ -302,10 +308,10 @@ const COMMAND_HANDLERS = new Map([
   [CLI_COMMAND.LIST_MAPPINGS, ({ json, output }) => runListMappings(json, output)],
   [CLI_COMMAND.CREATE_MAPPING, ({ args, output }) => runCreateMapping(args, output)],
   [CLI_COMMAND.UPDATE_MAPPING, ({ args, output }) => runUpdateMapping(args, output)],
-  [CLI_COMMAND.UPDATE_MAPPING_FILTER_PATTERNS, ({ args, output }) => runUpdateMappingFilterPatterns(args, output)],
+  [CLI_COMMAND.UPDATE_MAPPING_EXCLUSION_PATTERNS, ({ args, output }) => runUpdateMappingExclusionPatterns(args, output)],
   [CLI_COMMAND.DELETE_MAPPING, ({ args, output }) => runDeleteMapping(args, output)],
-  [CLI_COMMAND.LIST_GLOBAL_FILTER_PATTERNS, ({ json, output }) => runListGlobalFilterPatterns(json, output)],
-  [CLI_COMMAND.UPDATE_GLOBAL_FILTER_PATTERNS, ({ args, output }) => runUpdateGlobalFilterPatterns(args, output)],
+  [CLI_COMMAND.LIST_GLOBAL_EXCLUSION_PATTERNS, ({ json, output }) => runListGlobalExclusionPatterns(json, output)],
+  [CLI_COMMAND.UPDATE_GLOBAL_EXCLUSION_PATTERNS, ({ args, output }) => runUpdateGlobalExclusionPatterns(args, output)],
 ])
 
 if (COMMAND_HANDLERS.size !== CLI_COMMAND_NAMES.length)

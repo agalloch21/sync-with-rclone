@@ -31,15 +31,15 @@ const formModal = {
       message: 'Map the local folder with the remote',
     },
     [FORM_MODAL_VIEW.EDIT_PATTERNS]: {
-      title: 'Edit Sync Filters',
+      title: 'Edit Exclusions',
       message: 'Exclude paths from synchronization in both directions',
       mappingSpecificPatterns: {
-        title: 'Mapping Sync Filters',
+        title: 'Mapping Exclusions',
         description: 'Matched paths are not compared, copied, or deleted in Push or Pull. Negation is not supported.',
       },
       globalPatterns: {
-        title: 'Inherited Global Filters',
-        description: 'These filters apply to every mapping and can be changed in Settings.',
+        title: 'Inherited Global Exclusions',
+        description: 'These exclusions apply to every mapping and can be changed in Settings.',
       },
     },
   },

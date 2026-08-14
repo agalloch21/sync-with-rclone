@@ -4,7 +4,10 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
+import { createExclusions } from '#src/core/exclusions.js'
 import { buildLocalSnapshot } from '#src/core/snapshots/acquire-snapshots.js'
+
+const NO_EXCLUSIONS = createExclusions()
 
 function filePaths(snapshot) {
   return snapshot.files.map(file => file.path)
@@ -12,7 +15,7 @@ function filePaths(snapshot) {
 
 test('buildLocalSnapshot emits a serializable file-only snapshot', async () => {
   const rootPath = path.posix.resolve('test/fixtures/local/nested')
-  const snapshot = await buildLocalSnapshot(rootPath)
+  const snapshot = await buildLocalSnapshot(rootPath, NO_EXCLUSIONS)
 
   assert.ok(path.posix.isAbsolute(snapshot.root))
   assert.ok(Array.isArray(snapshot.files))
@@ -25,33 +28,33 @@ test('buildLocalSnapshot emits a serializable file-only snapshot', async () => {
 
 test('buildLocalSnapshot omits empty directories', async () => {
   const rootPath = path.posix.resolve('test/fixtures/local/empty')
-  const snapshot = await buildLocalSnapshot(rootPath)
+  const snapshot = await buildLocalSnapshot(rootPath, NO_EXCLUSIONS)
 
   assert.deepEqual(snapshot.files, [])
 })
 
 test('buildLocalSnapshot preserves ignored-directory pruning', async () => {
   let rootPath = path.posix.resolve('test/fixtures/local/basic')
-  let snapshot = await buildLocalSnapshot(rootPath)
+  let snapshot = await buildLocalSnapshot(rootPath, NO_EXCLUSIONS)
 
   assert.equal(filePaths(snapshot).some(filePath => filePath.startsWith('node_modules/')), false)
 
   rootPath = path.posix.resolve('test/fixtures/local/noignore')
-  snapshot = await buildLocalSnapshot(rootPath)
+  snapshot = await buildLocalSnapshot(rootPath, NO_EXCLUSIONS)
 
   assert.ok(filePaths(snapshot).includes('node_modules/index.txt'))
 })
 
 test('buildLocalSnapshot applies nested ignore and negation patterns', async () => {
   let rootPath = path.posix.resolve('test/fixtures/local/nested')
-  let snapshot = await buildLocalSnapshot(rootPath)
+  let snapshot = await buildLocalSnapshot(rootPath, NO_EXCLUSIONS)
 
   assert.equal(filePaths(snapshot).some(filePath => filePath.startsWith('deeper-nested/folder-a/')), false)
   assert.equal(filePaths(snapshot).some(filePath => filePath.startsWith('deeper-nested/folder-b/')), false)
   assert.ok(filePaths(snapshot).includes('folder-a/a.txt'))
 
   rootPath = path.posix.resolve('test/fixtures/local/negate')
-  snapshot = await buildLocalSnapshot(rootPath)
+  snapshot = await buildLocalSnapshot(rootPath, NO_EXCLUSIONS)
 
   assert.equal(filePaths(snapshot).includes('.env.simple'), false)
   assert.ok(filePaths(snapshot).includes('.env.example'))
@@ -59,14 +62,14 @@ test('buildLocalSnapshot applies nested ignore and negation patterns', async () 
   assert.ok(filePaths(snapshot).includes('.yarn/patches/patch-file'))
 })
 
-test('buildLocalSnapshot applies hard sync filters before .gitignore negation', async () => {
+test('buildLocalSnapshot applies exclusions before .gitignore negation', async () => {
   const rootPath = path.posix.resolve('test/fixtures/local/negate')
-  const snapshot = await buildLocalSnapshot(rootPath, ['.env.example'])
+  const snapshot = await buildLocalSnapshot(rootPath, createExclusions(['.env.example']))
 
   assert.equal(filePaths(snapshot).includes('.env.example'), false)
 })
 
-test('buildLocalSnapshot filters .git files and directories', async () => {
+test('buildLocalSnapshot excludes .git files and directories', async () => {
   const rootPath = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-local-filter-git-'))
 
   try {
@@ -74,7 +77,7 @@ test('buildLocalSnapshot filters .git files and directories', async () => {
     await fs.writeFile(path.join(rootPath, '.git', 'config'), 'config')
     await fs.writeFile(path.join(rootPath, 'visible.txt'), 'visible')
 
-    const snapshot = await buildLocalSnapshot(rootPath, ['.git'])
+    const snapshot = await buildLocalSnapshot(rootPath, createExclusions(['.git']))
     assert.deepEqual(filePaths(snapshot), ['visible.txt'])
   }
   finally {
@@ -102,7 +105,7 @@ test('buildLocalSnapshot skips symbolic links without following their targets', 
       throw error
     }
 
-    const snapshot = await buildLocalSnapshot(rootPath)
+    const snapshot = await buildLocalSnapshot(rootPath, NO_EXCLUSIONS)
 
     assert.deepEqual(filePaths(snapshot), [
       'real-directory/nested.txt',
@@ -133,7 +136,7 @@ test('buildLocalSnapshot follows a symbolic link used as its sync root', async (
     }
 
     await fs.writeFile(path.join(directoryPath, 'file.txt'), 'file')
-    const snapshot = await buildLocalSnapshot(linkPath)
+    const snapshot = await buildLocalSnapshot(linkPath, NO_EXCLUSIONS)
     assert.deepEqual(filePaths(snapshot), ['file.txt'])
   }
   finally {
@@ -147,7 +150,7 @@ test('buildLocalSnapshot stops when its cancellation signal is aborted', async (
   controller.abort(reason)
 
   await assert.rejects(
-    () => buildLocalSnapshot(path.resolve('test/fixtures/local/nested'), [], controller.signal),
+    () => buildLocalSnapshot(path.resolve('test/fixtures/local/nested'), NO_EXCLUSIONS, controller.signal),
     error => error === reason,
   )
 })

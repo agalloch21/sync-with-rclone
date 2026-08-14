@@ -5,7 +5,7 @@ import { toFailureResult } from '#src/app/operation-result.js'
 import { toRaw } from 'vue'
 import { useMessageBox } from './useMessageBox.js'
 
-export function formatFilterPatterns(patterns) {
+export function formatExclusionPatterns(patterns) {
   if (!Array.isArray(patterns))
     return ''
 
@@ -14,7 +14,7 @@ export function formatFilterPatterns(patterns) {
     .join(',\n')
 }
 
-export function parseFilterPatterns(value) {
+export function parseExclusionPatterns(value) {
   if (typeof value !== 'string')
     return []
 
@@ -110,21 +110,21 @@ export function useMappingOperations(windowPreload) {
     }))
   }
 
-  async function updateMappingFilterPatterns(mapping, filterPatterns) {
+  async function updateMappingExclusionPatterns(mapping, exclusionPatterns) {
     if (!mapping?.rcloneRemote || !mapping?.localBasePath) {
       await messageBox.warning(APP_MESSAGE_CODE.MAPPING_REQUIRED)
       return toFailureResult()
     }
 
-    return await invokeRequest(() => windowPreload?.updateMappingFilterPatterns?.({
+    return await invokeRequest(() => windowPreload?.updateMappingExclusionPatterns?.({
       mapping: toPlainObject(mapping),
-      filterPatterns: structuredClone(toRaw(filterPatterns)),
+      exclusionPatterns: structuredClone(toRaw(exclusionPatterns)),
     }))
   }
 
-  async function updateGlobalFilterPatterns(filterPatterns) {
-    return await invokeRequest(() => windowPreload?.updateGlobalFilterPatterns?.({
-      filterPatterns: structuredClone(toRaw(filterPatterns)),
+  async function updateGlobalExclusionPatterns(exclusionPatterns) {
+    return await invokeRequest(() => windowPreload?.updateGlobalExclusionPatterns?.({
+      exclusionPatterns: structuredClone(toRaw(exclusionPatterns)),
     }))
   }
 
@@ -166,8 +166,8 @@ export function useMappingOperations(windowPreload) {
     selectRemoteFolder,
     createMapping,
     updateMapping,
-    updateMappingFilterPatterns,
-    updateGlobalFilterPatterns,
+    updateMappingExclusionPatterns,
+    updateGlobalExclusionPatterns,
     deleteMapping,
   }
 }

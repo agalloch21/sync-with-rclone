@@ -1,19 +1,19 @@
-import { createSyncFilter } from '#src/core/filters/sync-filter.js'
+import { normalizeExclusionPatterns } from '#src/core/exclusions.js'
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
 import * as settingsService from '../services/global-settings.js'
 
-function assertFilterPatterns(filterPatterns) {
+function normalizeExclusionInput(exclusionPatterns) {
   try {
-    createSyncFilter(filterPatterns)
+    return normalizeExclusionPatterns(exclusionPatterns)
   }
   catch (error) {
     throwAppError(APP_ERROR_CODE.IPC_INVALID_PAYLOAD, error.message, { cause: error })
   }
 }
 
-export const listGlobalFilterPatterns = settingsService.listGlobalFilterPatterns
+export const listGlobalExclusionPatterns = settingsService.listGlobalExclusionPatterns
 
-export async function updateGlobalFilterPatterns(filterPatterns) {
-  assertFilterPatterns(filterPatterns)
-  return await settingsService.saveGlobalFilterPatterns(filterPatterns)
+export async function updateGlobalExclusionPatterns(exclusionPatterns) {
+  const normalizedPatterns = normalizeExclusionInput(exclusionPatterns)
+  return await settingsService.saveGlobalExclusionPatterns(normalizedPatterns)
 }

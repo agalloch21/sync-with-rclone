@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatFilterPatterns, parseFilterPatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
+import { formatExclusionPatterns, parseExclusionPatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import Button from '../../shared/Button.vue'
@@ -15,18 +15,18 @@ let unsubscribeConfigUpdated = null
 
 onMounted(async () => {
   unsubscribeConfigUpdated = window.mainWindow?.onConfigUpdated?.(() => {
-    void loadGlobalFilterPatterns()
+    void loadGlobalExclusionPatterns()
   })
-  await loadGlobalFilterPatterns()
+  await loadGlobalExclusionPatterns()
 })
 
 onUnmounted(() => {
   unsubscribeConfigUpdated?.()
 })
 
-async function loadGlobalFilterPatterns() {
+async function loadGlobalExclusionPatterns() {
   isLoading.value = true
-  const result = await window.mainWindow?.getGlobalFilterPatterns?.()
+  const result = await window.mainWindow?.getGlobalExclusionPatterns?.()
   isLoading.value = false
 
   if (!result?.success) {
@@ -35,7 +35,7 @@ async function loadGlobalFilterPatterns() {
     return
   }
 
-  globalPatternsText.value = formatFilterPatterns(unwrapResult(result))
+  globalPatternsText.value = formatExclusionPatterns(unwrapResult(result))
   loadError.value = null
 }
 
@@ -43,12 +43,12 @@ async function applyGlobalPatterns() {
   if (isSubmitting.value)
     return
 
-  const filterPatterns = parseFilterPatterns(globalPatternsText.value)
+  const exclusionPatterns = parseExclusionPatterns(globalPatternsText.value)
   isSubmitting.value = true
   try {
-    const result = await mappingOperations.updateGlobalFilterPatterns(filterPatterns)
+    const result = await mappingOperations.updateGlobalExclusionPatterns(exclusionPatterns)
     if (result?.success)
-      globalPatternsText.value = formatFilterPatterns(unwrapResult(result))
+      globalPatternsText.value = formatExclusionPatterns(unwrapResult(result))
   }
   finally {
     isSubmitting.value = false

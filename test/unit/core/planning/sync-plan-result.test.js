@@ -17,7 +17,7 @@ test('sync plan result tracks only executable operations and marks confirmed pat
   markOperationsSynced(operations, ['copied.txt'])
 
   assert.deepEqual(operations, [
-    { type: 'copy', path: 'copied.txt', synced: true },
-    { type: 'delete', path: 'deleted.txt', synced: false },
+    { type: 'copy', path: 'copied.txt', status: 'synced' },
+    { type: 'delete', path: 'deleted.txt', status: 'pending' },
   ])
 })

@@ -48,8 +48,21 @@ const syncSession = {
     [SYNC_RESULT.FAILED]: {
       title: '错误',
       message: '同步失败。',
+      operationSummary: '已完成 {syncedCount} 项，失败 {failedCount} 项，未执行 {pendingCount} 项。',
+      detailButton: '详情',
       logFolderHint: '如需更多信息，请',
       openLogFolder: '打开日志文件夹',
+    },
+  },
+  operationStatuses: {
+    pending: '未执行',
+    synced: '已完成',
+    failed: '失败',
+  },
+  operationFailures: {
+    operation: {
+      local_symbolic_link_boundary: '被符号链接阻挡：{symbolicLinkPath}',
+      structural_dependency_failed: '关联操作无法执行：{dependencyPath}',
     },
   },
 }

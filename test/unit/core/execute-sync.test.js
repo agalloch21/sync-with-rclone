@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { SYNC_CANCEL_REASON, SYNC_RESULT } from '#src/core/contract.js'
+import { SYNC_CANCEL_REASON, SYNC_OPERATION_FAILURE_CODE, SYNC_OPERATION_STATUS, SYNC_RESULT } from '#src/core/contract.js'
 import { executeSync } from '#src/core/execute-sync.js'
 import {
   INFRASTRUCTURE_ERROR_CODE,
@@ -42,7 +42,7 @@ test('executeSync converts apply cancellation into a cancelled result with apply
     assert.equal(result.result, SYNC_RESULT.CANCELLED)
     assert.equal(result.reason, SYNC_CANCEL_REASON.ABORT_SIGNAL)
     assert.ok(result.operations.length > 0)
-    assert.ok(result.operations.some(operation => operation.type === 'copy' && operation.synced))
+    assert.ok(result.operations.some(operation => operation.type === 'copy' && operation.status === 'synced'))
   })
 })
 
@@ -63,11 +63,11 @@ test('executeSync returns apply operations when the real command boundary fails'
     assert.equal(result.error.message, 'Failed to copy files.')
     assert.equal(result.error.code, INFRASTRUCTURE_ERROR_CODE.RCLONE_COMMAND_FAILED)
     assert.match(result.error.cause.message, /exited with code 1/)
-    assert.ok(result.operations.some(operation => operation.type === 'copy' && operation.synced))
+    assert.ok(result.operations.some(operation => operation.type === 'copy' && operation.status === 'synced'))
   })
 })
 
-test('executeSync rejects a pull through an internal symbolic link before review', async (t) => {
+test('executeSync reports a symbolic-link operation failure after applying safe pull files', async (t) => {
   const temporaryPath = await fs.mkdtemp(path.join(os.tmpdir(), 'pull-review-boundary-'))
   const localRoot = path.join(temporaryPath, 'local')
   const externalPath = path.join(temporaryPath, 'external')
@@ -93,6 +93,11 @@ test('executeSync rejects a pull through an internal symbolic link before review
           Size: 6,
           ModTime: '2026-08-15T00:00:00Z',
           IsDir: false,
+        }, {
+          Path: 'safe.txt',
+          Size: 4,
+          ModTime: '2026-08-15T00:00:00Z',
+          IsDir: false,
         }]),
       },
     }, async ({ runtimePaths }) => {
@@ -112,8 +117,23 @@ test('executeSync rejects a pull through an internal symbolic link before review
       })
 
       assert.equal(result.result, SYNC_RESULT.FAILED)
-      assert.equal(result.error.code, INFRASTRUCTURE_ERROR_CODE.PATH_SYMBOLIC_LINK_CONFLICT)
-      assert.equal(reviewCalled, false)
+      assert.equal(reviewCalled, true)
+      assert.deepEqual(result.operations, [
+        {
+          type: 'copy',
+          path: 'assets/remote.txt',
+          status: SYNC_OPERATION_STATUS.FAILED,
+          failure: {
+            code: SYNC_OPERATION_FAILURE_CODE.LOCAL_SYMBOLIC_LINK_BOUNDARY,
+            meta: { symbolicLinkPath: 'assets' },
+          },
+        },
+        {
+          type: 'copy',
+          path: 'safe.txt',
+          status: SYNC_OPERATION_STATUS.SYNCED,
+        },
+      ])
     })
   }
   finally {

@@ -1,6 +1,6 @@
 import {
   loadAppConfig,
-  loadAppGlobalFilterPatterns,
+  loadAppGlobalExclusionPatterns,
   loadAppMappings,
   updateAppConfig,
 } from '#src/infrastructure/configuration/app-config-store.js'
@@ -34,15 +34,15 @@ export async function loadMappings(configPath) {
   }
 }
 
-export async function loadGlobalFilterPatterns(configPath) {
+export async function loadGlobalExclusionPatterns(configPath) {
   try {
-    return await loadAppGlobalFilterPatterns(configPath)
+    return await loadAppGlobalExclusionPatterns(configPath)
   }
   catch (error) {
     throw toAppError(
       error,
       APP_ERROR_CODE.CONFIG_LOAD_FAILED,
-      'Failed to load global filter patterns.',
+      'Failed to load global exclusion patterns.',
       { meta: { configPath } },
     )
   }

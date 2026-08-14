@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createSyncFilter } from '#src/core/filters/sync-filter.js'
+import { createExclusions } from '#src/core/exclusions.js'
 import { INFRASTRUCTURE_ERROR_CODE } from '#src/infrastructure/infrastructure-error.js'
 import {
   listRemoteFiles,
@@ -68,7 +68,7 @@ test('listRemoteFiles identifies a missing remote folder', async () => {
   })
 })
 
-test('listRemoteFiles sends sync filters to rclone and defensively filters its output', async () => {
+test('listRemoteFiles sends exclusions to rclone and defensively filters its output', async () => {
   await withFakeRcloneCommand({
     lsjson: {
       stdout: JSON.stringify([
@@ -79,7 +79,7 @@ test('listRemoteFiles sends sync filters to rclone and defensively filters its o
   }, async ({ runtimePaths, readCalls }) => {
     const entries = await listRemoteFiles(
       'synology:Projects/App',
-      createSyncFilter(['node_modules/']),
+      createExclusions(['node_modules/']),
       runtimePaths,
     )
 

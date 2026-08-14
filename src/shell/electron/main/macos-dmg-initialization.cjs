@@ -17,19 +17,6 @@ async function ensureDirectory(directoryPath) {
   await fs.mkdir(directoryPath, { recursive: true })
 }
 
-async function ensureFile(targetPath, fallbackContent) {
-  try {
-    await fs.access(targetPath)
-    return false
-  }
-  catch {}
-
-  await ensureDirectory(path.dirname(targetPath))
-  await fs.writeFile(targetPath, fallbackContent, 'utf8')
-
-  return true
-}
-
 function installContextMenu() {
   const menuScriptPath = path.join(process.resourcesPath, 'scripts', 'macos-menu.sh')
 
@@ -112,13 +99,11 @@ async function ensureMacAppSupport(version) {
   await ensureDirectory(CONFIG_DIRECTORY)
   await ensureDirectory(LOG_DIRECTORY)
 
-  const configCreated = await ensureFile(
-    path.join(CONFIG_DIRECTORY, 'config.json'),
-    `${JSON.stringify({
-      globalFilterPatterns: ['.DS_Store', 'Thumbs.db', '.git'],
-      mappings: [],
-    }, null, 2)}\n`,
-  )
+  const { ensureAppConfig } = await import('../../../infrastructure/configuration/app-config-store.js')
+  const { configCreated } = await ensureAppConfig({
+    configDirectory: CONFIG_DIRECTORY,
+    configPath: path.join(CONFIG_DIRECTORY, 'config.json'),
+  })
 
   let contextMenuInstalled = false
   const shouldRefreshContextMenu = await shouldInstallContextMenu(version)

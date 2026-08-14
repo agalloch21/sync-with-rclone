@@ -1,24 +1,24 @@
 import { APP_ERROR_CODE, throwAppError } from '../app-errors.js'
-import { loadGlobalFilterPatterns, updateConfiguration } from './app-config.js'
+import { loadGlobalExclusionPatterns, updateConfiguration } from './app-config.js'
 
-export async function listGlobalFilterPatterns() {
-  const filterPatterns = await loadGlobalFilterPatterns()
-  if (!filterPatterns)
+export async function listGlobalExclusionPatterns() {
+  const exclusionPatterns = await loadGlobalExclusionPatterns()
+  if (!exclusionPatterns)
     throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Configuration file does not exist.')
 
-  return filterPatterns
+  return exclusionPatterns
 }
 
-export async function saveGlobalFilterPatterns(filterPatterns) {
+export async function saveGlobalExclusionPatterns(exclusionPatterns) {
   const savedConfig = await updateConfiguration((loadedConfig) => {
     if (!loadedConfig)
       throwAppError(APP_ERROR_CODE.CONFIG_LOAD_FAILED, 'Configuration file does not exist.')
 
     return {
       ...loadedConfig,
-      globalFilterPatterns: [...filterPatterns],
+      globalExclusionPatterns: [...exclusionPatterns],
     }
   })
 
-  return savedConfig.globalFilterPatterns
+  return savedConfig.globalExclusionPatterns
 }

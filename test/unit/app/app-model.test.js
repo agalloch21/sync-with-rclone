@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { deleteMapping, getMainWindowData, listGlobalFilterPatterns, listOperationHistory, testServerConnection, updateGlobalFilterPatterns, updateServer } from '#src/app/app-api.js'
+import { deleteMapping, getMainWindowData, listGlobalExclusionPatterns, listOperationHistory, testServerConnection, updateGlobalExclusionPatterns, updateServer } from '#src/app/app-api.js'
 import { SERVER_UPDATE_PROGRESS_STEP } from '#src/app/contracts/server.js'
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
@@ -18,7 +18,7 @@ test('getMainWindowData returns servers and mappings through the app API', async
           rcloneRemote: 'synology',
           localBasePath: '/local/projects',
           remoteBasePath: 'Projects',
-          filterPatterns: [],
+          exclusionPatterns: [],
         },
       ],
     },
@@ -41,7 +41,7 @@ test('getMainWindowData returns servers and mappings through the app API', async
           rcloneRemote: 'synology',
           localBasePath: path.resolve('/local/projects'),
           remoteBasePath: 'Projects',
-          filterPatterns: [],
+          exclusionPatterns: [],
           lastSyncMode: null,
           lastSyncFolder: null,
           lastSyncDate: null,
@@ -51,33 +51,33 @@ test('getMainWindowData returns servers and mappings through the app API', async
   })
 })
 
-test('listGlobalFilterPatterns loads independently from mappings', async () => {
+test('listGlobalExclusionPatterns loads independently from mappings', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {},
     appConfig: {
-      globalFilterPatterns: ['.DS_Store', 'Thumbs.db'],
+      globalExclusionPatterns: ['.DS_Store', 'Thumbs.db'],
       mappings: [],
     },
   }, async ({ configPath }) => {
     await fs.writeFile(configPath, JSON.stringify({
-      globalFilterPatterns: ['.DS_Store', 'Thumbs.db'],
+      globalExclusionPatterns: ['.DS_Store', 'Thumbs.db'],
       syncTasks: [],
     }))
 
-    assert.deepEqual(await listGlobalFilterPatterns(), ['.DS_Store', 'Thumbs.db'])
+    assert.deepEqual(await listGlobalExclusionPatterns(), ['.DS_Store', 'Thumbs.db'])
   })
 })
 
-test('getMainWindowData loads mappings independently from global filter patterns', async () => {
+test('getMainWindowData loads mappings independently from global exclusion patterns', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {},
     appConfig: {
-      globalFilterPatterns: [],
+      globalExclusionPatterns: [],
       mappings: [],
     },
   }, async ({ configPath }) => {
     await fs.writeFile(configPath, JSON.stringify({
-      globalFilterPatterns: {},
+      globalExclusionPatterns: {},
       mappings: [],
     }))
 
@@ -134,18 +134,18 @@ test('testServerConnection is a query and does not create operation history', as
   })
 })
 
-test('updateGlobalFilterPatterns persists through the app API', async () => {
+test('updateGlobalExclusionPatterns persists through the app API', async () => {
   await withFakeAppRuntime({
     rcloneConfig: {},
     appConfig: {
-      globalFilterPatterns: ['old'],
+      globalExclusionPatterns: ['old'],
       mappings: [],
     },
   }, async ({ configPath }) => {
-    assert.deepEqual(await updateGlobalFilterPatterns(['.DS_Store']), ['.DS_Store'])
+    assert.deepEqual(await updateGlobalExclusionPatterns(['.DS_Store']), ['.DS_Store'])
 
     const saved = JSON.parse(await fs.readFile(configPath, 'utf8'))
-    assert.deepEqual(saved.globalFilterPatterns, ['.DS_Store'])
+    assert.deepEqual(saved.globalExclusionPatterns, ['.DS_Store'])
   })
 })
 
@@ -159,7 +159,7 @@ test('getMainWindowData adds a missing server placeholder for mapping references
           rcloneRemote: 'missing-server',
           localBasePath: '/local/missing',
           remoteBasePath: 'Missing',
-          filterPatterns: [],
+          exclusionPatterns: [],
         },
       ],
     },
@@ -184,21 +184,21 @@ test('updateServer changes protocol configuration without changing mapping refer
       synology: { type: 'sftp', host: 'old.local', port: '22', user: 'xiaobo', pass: 'secret' },
     },
     appConfig: {
-      globalFilterPatterns: ['.DS_Store'],
+      globalExclusionPatterns: ['.DS_Store'],
       mappings: [
         {
           displayName: 'Projects',
           rcloneRemote: 'synology',
           localBasePath: '/local/projects',
           remoteBasePath: 'Projects',
-          filterPatterns: [],
+          exclusionPatterns: [],
         },
         {
           displayName: 'Other',
           rcloneRemote: 'backup',
           localBasePath: '/local/other',
           remoteBasePath: 'Other',
-          filterPatterns: [],
+          exclusionPatterns: [],
         },
       ],
     },

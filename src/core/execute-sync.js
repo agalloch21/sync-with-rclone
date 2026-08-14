@@ -2,8 +2,8 @@
 /** @typedef {import('./contract.js').SyncExecutionResult} SyncExecutionResult */
 /** @typedef {import('./contract.js').SyncExecutionRuntime} SyncExecutionRuntime */
 
-import { assertLocalPathsDoNotCrossSymbolicLinks } from '#src/infrastructure/filesystem/local-files.js'
 import { SYNC_CANCEL_REASON, SYNC_PHASE_EVENT, SYNC_PHASES, SYNC_RESULT, SYNC_REVIEW_ACTION } from './contract.js'
+import { createExclusions } from './exclusions.js'
 import { buildSyncPlan } from './planning/build-sync-plan.js'
 import { executeSyncPlan } from './planning/execute-sync-plan.js'
 import {
@@ -11,7 +11,6 @@ import {
   buildRemoteSnapshot,
 } from './snapshots/acquire-snapshots.js'
 import { compareSnapshots } from './snapshots/compare-snapshots.js'
-import { DiffState } from './snapshots/snapshot.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
@@ -87,7 +86,7 @@ function normalizeOptions(options) {
     mode: options.mode,
     localFolderPath: options.localFolderPath,
     remoteFolderPath: options.remoteFolderPath,
-    syncFilterPatterns: Array.isArray(options.syncFilterPatterns) ? options.syncFilterPatterns : [],
+    exclusionPatterns: Array.isArray(options.exclusionPatterns) ? options.exclusionPatterns : [],
     runtimePaths: options.runtimePaths || undefined,
   }
 }
@@ -131,12 +130,13 @@ export async function executeSync(
       () => normalizeOptions(options),
       'normalize the options',
     )
+    const exclusions = createExclusions(normalizedOptions.exclusionPatterns)
 
     const localSnapshot = await runPhase(
       SYNC_PHASES.BUILD_LOCAL_SNAPSHOT,
       () => buildLocalSnapshot(
         normalizedOptions.localFolderPath,
-        normalizedOptions.syncFilterPatterns,
+        exclusions,
         cancelSignal,
       ),
       'Building local snapshot',
@@ -146,14 +146,14 @@ export async function executeSync(
       SYNC_PHASES.BUILD_REMOTE_SNAPSHOT,
       () => buildRemoteSnapshot(
         normalizedOptions.remoteFolderPath,
-        normalizedOptions.syncFilterPatterns,
+        exclusions,
         normalizedOptions.runtimePaths,
         cancelSignal,
       ),
       'Building remote snapshot',
     )
 
-    // Sync filters define a direction-independent unmanaged namespace and are
+    // Exclusions define a direction-independent unmanaged namespace and are
     // applied to both snapshots. Local .gitignore rules remain local-only: Push
     // omits those paths, while Pull can still restore them from remote truth.
     const srcSnapshot = normalizedOptions.mode === 'push' ? localSnapshot : remoteSnapshot
@@ -163,20 +163,6 @@ export async function executeSync(
       () => compareSnapshots(srcSnapshot, dstSnapshot),
       'Comparing snapshots',
     )
-
-    if (normalizedOptions.mode === 'pull') {
-      await runPhase(
-        SYNC_PHASES.VALIDATE_LOCAL_BOUNDARIES,
-        () => assertLocalPathsDoNotCrossSymbolicLinks(
-          normalizedOptions.localFolderPath,
-          diffSnapshot.files
-            .filter(file => file.state === DiffState.added || file.state === DiffState.modified)
-            .map(file => file.path),
-          cancelSignal,
-        ),
-        'Validating local path boundaries',
-      )
-    }
 
     const reviewResult = runtime.interactions?.reviewDiff
       ? (await runPhase(

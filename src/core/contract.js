@@ -3,7 +3,6 @@ export const SYNC_PHASES = {
   BUILD_LOCAL_SNAPSHOT: 'build-local-snapshot',
   BUILD_REMOTE_SNAPSHOT: 'build-remote-snapshot',
   COMPARE_SNAPSHOT: 'compare-snapshot',
-  VALIDATE_LOCAL_BOUNDARIES: 'validate-local-boundaries',
   REVIEW_DIFFERENCES: 'review-differences',
   GENERATE_PLAN: 'generate-plan',
   APPLY_PLAN: 'apply-plan',
@@ -33,12 +32,23 @@ export const SYNC_RESULT = {
   FAILED: 'failed',
 }
 
+export const SYNC_OPERATION_STATUS = {
+  PENDING: 'pending',
+  SYNCED: 'synced',
+  FAILED: 'failed',
+}
+
+export const SYNC_OPERATION_FAILURE_CODE = {
+  LOCAL_SYMBOLIC_LINK_BOUNDARY: 'operation.local_symbolic_link_boundary',
+  STRUCTURAL_DEPENDENCY_FAILED: 'operation.structural_dependency_failed',
+}
+
 /**
  * @typedef {object} SyncSessionContext
  * @property {'push' | 'pull'} mode
  * @property {string} localFolderPath
  * @property {string} remoteFolderPath
- * @property {string[]} syncFilterPatterns
+ * @property {string[]} exclusionPatterns
  */
 
 /**

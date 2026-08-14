@@ -155,7 +155,7 @@ process.exit(0)
 
 async function writeAppConfig(runtime, mappings = []) {
   await fs.writeFile(runtime.configPath, JSON.stringify({
-    globalFilterPatterns: [],
+    globalExclusionPatterns: [],
     mappings,
   }, null, 2), 'utf8')
 }
@@ -413,7 +413,7 @@ test('deleteServerConnection rejects servers with active mappings', async () => 
     rcloneRemote: 'synology',
     localBasePath: runtime.configPath,
     remoteBasePath: 'Projects',
-    filterPatterns: [],
+    exclusionPatterns: [],
     lastSyncMode: null,
     lastSyncFolder: null,
     lastSyncDate: null,

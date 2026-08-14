@@ -10,14 +10,14 @@ const projectRoot = path.resolve('test/fixtures/local').replaceAll(path.sep, pat
 
 function createConfig(mappingOverrides = {}) {
   return {
-    globalFilterPatterns: ['.DS_Store'],
+    globalExclusionPatterns: ['.DS_Store'],
     mappings: [
       {
         displayName: 'ProjectsSynced',
         rcloneRemote: 'synology',
         localBasePath: projectRoot,
         remoteBasePath: 'ProjectsSynced',
-        filterPatterns: ['node_modules/'],
+        exclusionPatterns: ['node_modules/'],
         ...mappingOverrides,
       },
     ],
@@ -32,7 +32,7 @@ test('resolveMapping matches the correct mapping and computes the default remote
   assert.equal(result.localFolderPath, path.resolve('test/fixtures/local/compare-push').replaceAll(path.sep, path.posix.sep))
   assert.equal(result.relativePath, 'compare-push')
   assert.equal(result.remoteFolderPath, 'synology:ProjectsSynced/compare-push')
-  assert.deepEqual(result.syncFilterPatterns, ['.DS_Store', 'node_modules/'])
+  assert.deepEqual(result.exclusionPatterns, ['.DS_Store', 'node_modules/'])
 })
 
 test('resolveMapping allows explicit remote paths inside the same mapping', () => {
@@ -70,14 +70,14 @@ test('resolveMapping throws when no mapping matches the local path', () => {
 
 test('resolveMapping allows syncing to the remote root when remoteBasePath is empty', () => {
   const config = {
-    globalFilterPatterns: [],
+    globalExclusionPatterns: [],
     mappings: [
       {
         displayName: 'ProjectsSynced',
         rcloneRemote: 'synology',
         localBasePath: path.resolve('test/fixtures/local/compare-push').replaceAll(path.sep, path.posix.sep),
         remoteBasePath: '',
-        filterPatterns: [],
+        exclusionPatterns: [],
       },
     ],
   }

@@ -13,8 +13,8 @@ contextBridge.exposeInMainWorld('formModal', {
   getServer(payload) {
     return ipcRenderer.invoke('form-modal:get-server', payload)
   },
-  getGlobalFilterPatterns() {
-    return ipcRenderer.invoke('form-modal:get-global-filter-patterns')
+  getGlobalExclusionPatterns() {
+    return ipcRenderer.invoke('form-modal:get-global-exclusion-patterns')
   },
   createServer(payload) {
     return ipcRenderer.invoke('form-modal:create-server', payload)
@@ -28,8 +28,8 @@ contextBridge.exposeInMainWorld('formModal', {
   updateMapping(payload) {
     return ipcRenderer.invoke('form-modal:update-mapping', payload)
   },
-  updateMappingFilterPatterns(payload) {
-    return ipcRenderer.invoke('form-modal:update-mapping-filter-patterns', payload)
+  updateMappingExclusionPatterns(payload) {
+    return ipcRenderer.invoke('form-modal:update-mapping-exclusion-patterns', payload)
   },
   selectLocalFolder(payload = {}) {
     return ipcRenderer.invoke('form-modal:select-local-folder', payload)

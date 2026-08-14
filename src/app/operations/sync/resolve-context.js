@@ -40,7 +40,7 @@ export async function resolveSyncContext(options, runtimePaths = getRuntimePaths
       remoteFolderPath: resolvedMapping
         ? resolvedMapping.remoteFolderPath
         : explicitRemoteFolderPath,
-      syncFilterPatterns: resolvedMapping ? resolvedMapping.syncFilterPatterns : [],
+      exclusionPatterns: resolvedMapping ? resolvedMapping.exclusionPatterns : [],
     },
     resolvedMapping,
     runtimePaths,

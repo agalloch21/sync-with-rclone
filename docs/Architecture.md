@@ -59,7 +59,7 @@ src/           // 运行时代码
     snapshots/ // Snapshot 模型、构建、采集和比较
     planning/  // SyncPlan 构建、执行和结果追踪
   infrastructure/
-    configuration/ // config.json 的读取、规范化和原子写入
+    configuration/ // config.json 的默认值、读取、规范化和原子写入
     filesystem/ // 本地路径解析、目录校验和 neutral file-entry 扫描
     rclone/      // raw rclone config、远端目录/文件访问和 file actions
     runtime/     // 运行时路径解析，以及跨进程 sync admission lease 的原子存取
@@ -208,9 +208,9 @@ sequenceDiagram
 - `files` 只记录文件，不记录目录
 - 目录不是同步内容，只在 review UI 中由文件路径派生出来
 - 空目录不会作为 snapshot 内容保存
-- 本地扫描会在进入目录前依次应用 sync filter 和 `.gitignore`，被任一规则排除的目录不会继续读取子内容
-- sync filter 同时改变 local 与 remote Snapshot；匹配路径属于双向 unmanaged namespace
-- `.gitignore` 只由本地 scanner 解析，因此仍只改变 local Snapshot；Push 省略这些本地路径，Pull 可以从未被 sync filter 排除的完整远端 truth 恢复同名内容
+- 本地扫描会在进入目录前依次应用 exclusion 和 `.gitignore`，被任一规则排除的目录不会继续读取子内容
+- exclusion 同时改变 local 与 remote Snapshot；匹配路径属于双向 unmanaged namespace
+- `.gitignore` 只由本地 scanner 解析，因此仍只改变 local Snapshot；Push 省略这些本地路径，Pull 可以从未被 exclusion 排除的完整远端 truth 恢复同名内容
 - `Snapshot` 只表达扫描到的文件事实，不携带扫描省略原因、远端协议能力、hash 能力或 backend 精度等基础设施属性
 
 示例：
@@ -554,24 +554,25 @@ sequenceDiagram
 
 ### 4.8.3 App config store、services 与 operation policy
 
-- `infrastructure/configuration/app-config-store.js` 负责 default config、读取、schema normalization、序列化和原子写入；完整 load → mutate → save 临界区复用 `runtime/file-mutex.js`，因此同一 config path 的 GUI/CLI 写入会跨进程串行
+- `infrastructure/configuration/app-config-store.js` 统一拥有运行时默认配置、读取、schema normalization、序列化和原子写入；CJS Electron 初始化如需确保配置存在，也通过动态 import 复用 `ensureAppConfig()`。完整 load → mutate → save 临界区复用 `runtime/file-mutex.js`，因此同一 config path 的 GUI/CLI 写入会跨进程串行
 - `operations/mapping.js` 负责 mapping input/reference validation、path normalization 和 progress lifecycle
 - `services/mapping.js` 负责 mapping conflict、create/update/delete/retarget policy，并把完整 JSON transaction 隐藏在 service boundary 后
-- `operations/settings.js` 负责 global sync filter input validation；`services/global-settings.js` 负责读取和更新 capability
+- `operations/settings.js` 负责 global exclusion input validation；`services/global-settings.js` 负责读取和更新 capability
 - `services/app-config.js` 为 sync context resolution 提供完整 configuration read capability
 - store 的 `updateAppConfig(mutator)` 只通过 `services/app-config.js` 暴露给 application services，不暴露给 operations、core 或 shells
 
 ### 4.8.4 File services、Snapshot 与 plan application
 
-- `core/filters/sync-filter.js` 规范化全局与 mapping filter，拒绝空规则、注释和 `!`，建立应用 matcher，并编译 rclone exclude patterns
-- `infrastructure/filesystem/local-files.js` 扫描本地普通文件并返回 neutral file entries；sync filter、`.gitignore`、内部 symbolic links 和特殊对象只影响扫描结果，扫描循环响应 AbortSignal，但不创建 Snapshot
+- `core/exclusions.js` 通过 `normalizeExclusionPatterns()` 统一验证并规范化全局与 mapping patterns；application operations 保存规范化结果，`createExclusions()` 复用它建立 matcher 和 rclone exclude patterns。`executeSync()` 每次只创建一个 Exclusions 对象，local 与 remote Snapshot builder 共同使用
+- `infrastructure/filesystem/local-files.js` 扫描本地普通文件并返回 neutral file entries；exclusion、`.gitignore`、内部 symbolic links 和特殊对象只影响扫描结果，扫描循环响应 AbortSignal，但不创建 Snapshot
 - `infrastructure/rclone/remote-files.js` 把编译后的 exclude patterns 传给 recursive `lsjson` 以提前剪枝，并在解析结果后用同一 matcher 复核；它还提供 raw copy/delete/cleanup/ensure actions
 - `core/snapshots/build-snapshot.js` 从 neutral entries 构建并排序 Snapshot，不知道 entries 来自本地文件系统还是 rclone
-- `core/snapshots/compare-snapshots.js` 只比较两侧文件事实；sync-filtered 路径不会进入任一 Snapshot，`.gitignore` 省略路径在 Push 中表现为远端删除，在 Pull 中表现为从远端 truth 恢复
-- `core/snapshots/acquire-snapshots.js` 使用 local/rclone scanners 获取 neutral entries，再建立 Snapshot
-- `core/planning/sync-plan-result.js` 创建 execution-result operations 并根据 confirmed paths 标记 `synced`
-- Pull 在 compare 后、review 前检查所有待写入路径的既有本地祖先，遇到内部 symbolic link 即失败；`core/planning/execute-sync-plan.js` 在 apply 前对用户最终选择的本地路径复检，避免 review 期间发生的文件系统变化
-- `core/planning/execute-sync-plan.js` 使用 infrastructure file actions 按结构冲突 delete、copy、普通 delete 的顺序执行 SyncPlan；core 不经过 app services
+- `core/snapshots/compare-snapshots.js` 只比较两侧文件事实；excluded 路径不会进入任一 Snapshot，`.gitignore` 省略路径在 Push 中表现为远端删除，在 Pull 中表现为从远端 truth 恢复
+- `core/snapshots/acquire-snapshots.js` 只使用调用者提供的 Exclusions 调用 local/rclone scanners，再把 neutral entries 建立为 Snapshot；它不创建或默认补齐同步策略
+- `core/planning/sync-plan-result.js` 创建带 `pending | synced | failed` 状态的 execution-result operations，并根据 confirmed paths 或逐项 failure 更新结果
+- `infrastructure/filesystem/local-symbolic-links.js` 独立实现本地 symbolic-link 边界发现；它用 Set 缓存已确认安全、缺失、非目录和 symbolic-link 路径，每个唯一既有路径组件至多执行一次 `lstat()`
+- `core/planning/pull-symbolic-link-failures.js` 独立拥有 Pull symlink policy：把直接冲突标为 operation-level failure，并联动阻挡结构冲突 delete 与依赖 copy。专用注释和单一入口使这项边缘策略可以独立修改或移除
+- `core/planning/execute-sync-plan.js` 调用 symlink policy 后批量执行其余安全路径；批次错误仍按结构冲突 delete、copy、普通 delete 的 failure-safe 顺序停止
 - `app/operations/sync/start.js` 只处理 application lifecycle，不拥有 Snapshot 或 SyncPlan 流程
 
 ### 4.9 `FormModalState`
@@ -842,10 +843,10 @@ sequenceDiagram
   CORE->>RCLONE: listRemoteFiles(...)
   RCLONE-->>CORE: neutral file entries
   CORE->>CORE: build remote Snapshot / compare
-  CORE->>FS: validate Pull paths do not cross internal symbolic links
   CORE-->>SHELL: interaction.reviewDiff(DiffSnapshot)
   SHELL-->>CORE: ReviewResult
   CORE->>CORE: buildSyncPlan(...)
+  CORE->>FS: classify selected Pull paths crossing symbolic links
   CORE->>RCLONE: copyFiles / deleteFiles / cleanupEmptyDirectories
   RCLONE-->>CORE: confirmed paths / errors
   CORE->>CORE: markOperationsSynced(...)

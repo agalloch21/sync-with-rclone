@@ -12,6 +12,7 @@ export const APP_ERROR_CODE = Object.freeze({
   MAPPING_NOT_FOUND: 'mapping.not_found',
   SYNC_SESSION_OVERLAP: 'sync_session.overlap',
   SYNC_EXECUTION_FAILED: 'sync.execution_failed',
+  SYNC_REMOTE_SOURCE_NOT_FOUND: 'sync.remote_source_not_found',
 
   REMOTE_FOLDER_PATH_REQUIRED: 'remote.folder_path_required',
   REMOTE_FOLDER_PATH_INVALID: 'remote.folder_path_invalid',

@@ -131,7 +131,7 @@ async function runSync(argv, output) {
   })
 
   if (result.result === SYNC_RESULT.FAILED) {
-    output.error(`Error: ${result.message}`)
+    output.error(`Error: ${result.error?.message || 'Synchronization failed.'}`)
     if (result.error?.stack && process.env.DEBUG)
       output.error(result.error.stack)
     return 1

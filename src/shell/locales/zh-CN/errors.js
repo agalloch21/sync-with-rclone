@@ -11,6 +11,7 @@ export default {
     [APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_MAPPING]: '远程路径必须位于映射“{mappingName}”内：{remotePath}',
     [APP_ERROR_CODE.SYNC_SESSION_OVERLAP]: '另一个同步会话正在使用重叠的本地或远程文件夹。',
     [APP_ERROR_CODE.SYNC_EXECUTION_FAILED]: '同步失败。',
+    [APP_ERROR_CODE.SYNC_REMOTE_SOURCE_NOT_FOUND]: '远程源文件夹不存在：{remoteFolderPath}',
     [APP_ERROR_CODE.REMOTE_FOLDER_PATH_REQUIRED]: '必须指定远程文件夹路径。',
     [APP_ERROR_CODE.REMOTE_FOLDER_PATH_INVALID]: '远程文件夹路径无效。',
     [APP_ERROR_CODE.IPC_INVALID_PAYLOAD]: '应用收到了无效请求。',

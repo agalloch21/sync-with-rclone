@@ -10,7 +10,7 @@ function parseSessionOptions(argv = []) {
 
 export function startSyncSession(request) {
   const options = request?.options || parseSessionOptions(request?.argv || [])
-  const sessionWindowHooks = createSessionWindow()
+  const sessionWindowHooks = createSessionWindow(options)
 
   const completion = (async () => {
     let runError = null
@@ -22,9 +22,10 @@ export function startSyncSession(request) {
         interactions: { reviewDiff: sessionWindowHooks.reviewDiffInWindow },
       }, sessionWindowHooks.cancelSignal)
 
+      const currentPhase = sessionWindowHooks.getCurrentPhase()
       if (syncResult.result === SYNC_RESULT.COMPLETED
         || syncResult.result === SYNC_RESULT.FAILED
-        || (syncResult.result === SYNC_RESULT.CANCELLED && (syncResult.phase === SYNC_PHASES.APPLY_PLAN || syncResult.phase === SYNC_PHASES.GENERATE_PLAN))) {
+        || (syncResult.result === SYNC_RESULT.CANCELLED && (currentPhase === SYNC_PHASES.APPLY_PLAN || currentPhase === SYNC_PHASES.GENERATE_PLAN))) {
         await sessionWindowHooks.showFinalAcknowledgement(syncResult)
       }
     }

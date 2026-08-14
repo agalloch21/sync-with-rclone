@@ -107,7 +107,7 @@ function setNodeSelection(node, checked) {
   }
 }
 
-watch(() => state.value?.review, (newValue, _) => {
+watch(() => state.value?.sessionState?.review, (newValue, _) => {
   if (newValue?.tree)
     initializeSelection(newValue.tree)
 }, { immediate: true })
@@ -115,18 +115,18 @@ watch(() => state.value?.review, (newValue, _) => {
 
 <template>
   <div class="tree-stage px-4 py-4">
-    <div v-if="!(state?.review?.tree?.children)">
+    <div v-if="!(state?.sessionState?.review?.tree?.children)">
       Initializing trees
     </div>
-    <div v-else-if="state?.review?.tree?.children.length === 0">
+    <div v-else-if="state?.sessionState?.review?.tree?.children.length === 0">
       No differences found.
     </div>
 
     <!-- tree-list root -->
     <ul v-else>
       <TreeNode
-        :key="state.review.tree.path"
-        :node="state.review.tree"
+        :key="state.sessionState.review.tree.path"
+        :node="state.sessionState.review.tree"
         :get-selection-state="getSelectionState"
         :set-node-selection="setNodeSelection"
         :is-open="true"

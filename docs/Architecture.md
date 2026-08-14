@@ -437,7 +437,8 @@ copy 之外的示例：
 - `startSync` 把 sync phase event 转换成 `SYNC_SESSION_EVENT.PROGRESS`
 - `startSync` 返回 `SyncSessionResult`
 - `startSync` 会 emit `SYNC_SESSION_EVENT.RESULT`（值为 `sync.session.result`）作为观察事件，但 Electron final 流程由返回值驱动
-- failed result 在 `quick-actions.log` 已存在时携带其路径；会话窗口通过 Electron shell 在文件管理器中定位该文件，不负责创建或导航主窗口
+- sync-session window state 由平行的 `sessionState` 与 `sessionResult` 组成：前者保存 context、stage、phase、message、progress 和 review，后者只保存终态结果
+- 失败页始终提供日志文件夹入口；Electron Main 在用户点击后解析 runtime log directory 并打开，不通过 app result 传递路径
 
 ### 4.8 `MainWindowData`
 
@@ -606,8 +607,6 @@ sequenceDiagram
 - Electron Main 保存 `modalState`，preload 暴露 `window.formModal.getState()`，renderer 启动后异步读取
 
 ### 4.10 `OperationReportState`
-
-完整错误契约见 [ErrorHandling.md](./ErrorHandling.md)。
 
 ```js
 {
@@ -904,7 +903,8 @@ Windows 当前安装后的目录结构可按下面理解：
 
 - 程序本体安装在安装目录
 - 程序运行时读取的配置默认位于当前用户的 `%APPDATA%/sync-with-rclone/config/`
-- 日志默认位于当前用户的 `%APPDATA%/sync-with-rclone/logs/`
+- operation history 默认位于当前用户的 `%APPDATA%/sync-with-rclone/logs/`
+- Windows 右键菜单直接启动应用，不重定向应用或外部命令的 stdout/stderr；当前 runtime log directory 不提供完整的原始错误诊断记录
 - 升级旧版本时，安装目录下已有的 `config/` 会通过安装器备份恢复到新的用户级配置目录
 - `rclone` 二进制来自安装目录下的 bundled resources
 - Windows 右键菜单调用时使用显式 `--session` 加命名参数 `--mode` 和 `--local`，避免打包后的额外 argv 干扰参数定位

@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('syncSession', {
   closeWindow() {
     return ipcRenderer.invoke(channels.closeWindow)
   },
-  showLogInFolder() {
-    ipcRenderer.send(channels.showLogInFolder)
+  openLogFolder() {
+    return ipcRenderer.invoke(channels.openLogFolder)
   },
 })

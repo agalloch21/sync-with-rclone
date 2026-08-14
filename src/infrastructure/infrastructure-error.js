@@ -10,6 +10,7 @@ export const INFRASTRUCTURE_ERROR_CODE = Object.freeze({
   RCLONE_PARSE_FAILED: 'rclone.parse_failed',
 
   REMOTE_FOLDER_PATH_REQUIRED: 'remote.folder_path_required',
+  REMOTE_FOLDER_NOT_FOUND: 'remote.folder_not_found',
   REMOTE_FOLDER_PROBE_FAILED: 'remote.folder_probe_failed',
   REMOTE_FOLDER_CREATE_FAILED: 'remote.folder_create_failed',
 })

@@ -122,7 +122,7 @@ test('operation history reader skips malformed lines and applies its limit newes
   })
 })
 
-test('startSync records its failed result and exposes an existing launcher log', async () => {
+test('startSync records its failed result without shell presentation data', async () => {
   await withHistoryRuntime(async (appRoot) => {
     const logPath = path.join(appRoot, 'logs', 'quick-actions.log')
     await fs.mkdir(path.dirname(logPath), { recursive: true })
@@ -135,8 +135,8 @@ test('startSync records its failed result and exposes an existing launcher log',
     })
 
     assert.equal(result.result, 'failed')
-    assert.equal(result.message, 'remoteFolderPath is required when bypassConfig is enabled')
-    assert.equal(result.logPath, logPath)
+    assert.equal(result.error.message, 'remoteFolderPath is required when bypassConfig is enabled')
+    assert.equal(result.logPath, undefined)
 
     const records = await listOperationHistory()
     assert.equal(records[0].operation, 'syncPush')
@@ -161,7 +161,7 @@ test('startSync rejects an overlapping session before writing operation history'
     try {
       const result = await startSync(options)
       assert.equal(result.result, 'failed')
-      assert.equal(result.errorCode, APP_ERROR_CODE.SYNC_SESSION_OVERLAP)
+      assert.equal(result.error.code, APP_ERROR_CODE.SYNC_SESSION_OVERLAP)
       assert.deepEqual(await listOperationHistory(), [])
     }
     finally {
@@ -197,6 +197,33 @@ test('startSync keeps pre-execution aborts as cancelled results', async () => {
     assert.equal(result.result, 'cancelled')
     assert.equal(result.reason, 'abort-signal')
     assert.equal((await listOperationHistory())[0].status, OPERATION_HISTORY_STATUS.CANCELLED)
+  })
+})
+
+test('startSync maps a missing pull source to an application error', async () => {
+  await withFakeAppRuntime({}, async ({ tempDir }) => {
+    const localFolderPath = path.join(tempDir, 'project')
+    await fs.mkdir(localFolderPath)
+
+    const runtimePaths = getRuntimePaths()
+    await fs.writeFile(runtimePaths.bundledRclonePath, `#!/usr/bin/env node
+process.stderr.write('directory not found')
+process.exit(3)
+`, 'utf8')
+    await fs.chmod(runtimePaths.bundledRclonePath, 0o755)
+
+    const result = await startSync({
+      mode: 'pull',
+      localFolderPath,
+      remoteFolderPath: 'nas:remote/missing',
+      bypassConfig: true,
+    })
+
+    assert.equal(result.result, 'failed')
+    assert.equal(result.error.code, APP_ERROR_CODE.SYNC_REMOTE_SOURCE_NOT_FOUND)
+    assert.equal(result.error.message, 'The remote source folder does not exist.')
+    assert.equal(result.error.meta.remoteFolderPath, 'nas:remote/missing')
+    assert.equal(result.error.cause.code, 'remote.folder_not_found')
   })
 })
 

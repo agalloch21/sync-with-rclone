@@ -11,6 +11,7 @@ export default {
     [APP_ERROR_CODE.CONFIG_REMOTE_PATH_OUTSIDE_MAPPING]: 'Remote path must stay within mapping "{mappingName}": {remotePath}',
     [APP_ERROR_CODE.SYNC_SESSION_OVERLAP]: 'Another sync session is already using an overlapping local or remote folder.',
     [APP_ERROR_CODE.SYNC_EXECUTION_FAILED]: 'Synchronization failed.',
+    [APP_ERROR_CODE.SYNC_REMOTE_SOURCE_NOT_FOUND]: 'The remote source folder does not exist: {remoteFolderPath}',
     [APP_ERROR_CODE.REMOTE_FOLDER_PATH_REQUIRED]: 'Remote folder path is required.',
     [APP_ERROR_CODE.REMOTE_FOLDER_PATH_INVALID]: 'The remote folder path is invalid.',
     [APP_ERROR_CODE.IPC_INVALID_PAYLOAD]: 'The application received an invalid request.',

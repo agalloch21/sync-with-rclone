@@ -7,7 +7,7 @@ const state = inject('state')
 const analyzePhases = SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.ANALYZE]?.phases || []
 
 const currentPhaseIndex = computed(() => {
-  return analyzePhases.findIndex(phase => phase === state.value?.phase)
+  return analyzePhases.findIndex(phase => phase === state.value?.sessionState?.phase)
 })
 </script>
 

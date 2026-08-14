@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
-import { SYNC_CANCEL_REASON, SYNC_PHASES, SYNC_RESULT } from '#src/core/contract.js'
+import { SYNC_CANCEL_REASON, SYNC_RESULT } from '#src/core/contract.js'
 import { executeSync } from '#src/core/execute-sync.js'
 import {
   INFRASTRUCTURE_ERROR_CODE,
@@ -39,7 +39,6 @@ test('executeSync converts apply cancellation into a cancelled result with apply
 
     assert.equal(result.result, SYNC_RESULT.CANCELLED)
     assert.equal(result.reason, SYNC_CANCEL_REASON.ABORT_SIGNAL)
-    assert.equal(result.phase, SYNC_PHASES.APPLY_PLAN)
     assert.ok(result.operations.length > 0)
     assert.ok(result.operations.some(operation => operation.type === 'copy' && operation.synced))
   })
@@ -58,9 +57,8 @@ test('executeSync returns apply operations when the real command boundary fails'
     })
 
     assert.equal(result.result, SYNC_RESULT.FAILED)
-    assert.equal(result.phase, SYNC_PHASES.APPLY_PLAN)
-    assert.equal(result.message, 'Failed to copy files.')
     assert.ok(result.error instanceof InfrastructureError)
+    assert.equal(result.error.message, 'Failed to copy files.')
     assert.equal(result.error.code, INFRASTRUCTURE_ERROR_CODE.RCLONE_COMMAND_FAILED)
     assert.match(result.error.cause.message, /exited with code 1/)
     assert.ok(result.operations.some(operation => operation.type === 'copy' && operation.synced))

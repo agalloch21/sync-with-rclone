@@ -47,8 +47,9 @@ const syncSession = {
     },
     [SYNC_RESULT.FAILED]: {
       title: '错误',
-      message: '',
-      logPath: '如需更多信息，请查看',
+      message: '同步失败。',
+      logFolderHint: '如需更多信息，请',
+      openLogFolder: '打开日志文件夹',
     },
   },
 }

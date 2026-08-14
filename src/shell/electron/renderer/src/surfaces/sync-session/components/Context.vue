@@ -6,9 +6,9 @@ import FolderCard from './FolderCard.vue'
 const props = defineProps({
   state: Object,
 })
-const mode = computed(() => props.state?.context?.mode || props.state?.final?.context?.mode || '')
-const localPath = computed(() => props.state?.context?.localFolderPath || props.state?.final?.context?.localFolderPath || '')
-const remotePath = computed(() => props.state?.context?.remoteFolderPath || props.state?.final?.context?.remoteFolderPath || '')
+const mode = computed(() => props.state?.context?.mode || '')
+const localPath = computed(() => props.state?.context?.localFolderPath || '')
+const remotePath = computed(() => props.state?.context?.remoteFolderPath || '')
 </script>
 
 <template>

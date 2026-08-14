@@ -17,6 +17,10 @@ function normalizeFolderPath(inputPath = '') {
   return trimTrailingSlash(normalizeLocalPath(String(inputPath)).replace(/^\/+/, ''))
 }
 
+function isDirectoryNotFoundError(error) {
+  return error?.code === 3 || error?.exitCode === 3 || error?.status === 3
+}
+
 export function parseRemoteFolderEntries(stdout, serverName) {
   let entries
   try {
@@ -112,6 +116,18 @@ export async function listRemoteFiles(
     result = await defaultRunCommand(command.command, command.args, { cancelSignal })
   }
   catch (error) {
+    if (isDirectoryNotFoundError(error)) {
+      throwInfrastructureError(
+        INFRASTRUCTURE_ERROR_CODE.REMOTE_FOLDER_NOT_FOUND,
+        'Remote folder was not found.',
+        {
+          detail: error?.stderr?.trim() || error?.stdout?.trim() || error?.message,
+          cause: error,
+          meta: { remotePath },
+        },
+      )
+    }
+
     throwInfrastructureError(INFRASTRUCTURE_ERROR_CODE.RCLONE_COMMAND_FAILED, 'Failed to list remote files.', {
       detail: error?.stderr?.trim() || error?.stdout?.trim() || error?.message,
       cause: error,
@@ -248,10 +264,6 @@ export async function cleanupEmptyDirectories(
       },
     )
   }
-}
-
-function isDirectoryNotFoundError(error) {
-  return error?.code === 3 || error?.exitCode === 3 || error?.status === 3
 }
 
 export async function ensureRemoteFolder(

@@ -206,15 +206,12 @@ export async function executeSync(
       return {
         result: SYNC_RESULT.CANCELLED,
         reason: SYNC_CANCEL_REASON.ABORT_SIGNAL,
-        phase: currentPhase,
         operations: error?.operations || [],
       }
     }
 
     return {
       result: SYNC_RESULT.FAILED,
-      phase: currentPhase,
-      message: error?.message || String(error),
       error,
       operations: error?.operations,
     }

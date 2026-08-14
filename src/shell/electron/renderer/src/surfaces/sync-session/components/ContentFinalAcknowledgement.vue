@@ -6,11 +6,11 @@ import ResultIcon from '../../shared/ResultIcon.vue'
 
 const emit = defineEmits(['autoClose'])
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const state = inject('state')
 
-const result = computed(() => state.value?.final?.result)
+const result = computed(() => state.value?.sessionResult?.result)
 
 // completed
 const waitSecond = ref(5)
@@ -44,25 +44,21 @@ onBeforeUnmount(() => {
 })
 
 // cancelled
-const operations = computed(() => result.value === SYNC_RESULT.CANCELLED ? state.value?.final?.operations || [] : [])
+const operations = computed(() => result.value === SYNC_RESULT.CANCELLED ? state.value?.sessionResult?.operations || [] : [])
 const operationSummary = computed(() => t(`result.${result.value}.message`, { syncedCount: `${operations.value.filter(op => op.synced).length}`, total: `${operations.value.length}` }))
 
 const showOperationDetail = ref(false)
 
 // failed
-const logFileName = computed(() => state.value?.final?.logPath?.split(/[\\/]/).pop() || '')
-
 const errorMessages = computed(() => {
   if (result.value === SYNC_RESULT.FAILED) {
-    const final = state.value?.final
+    const sessionResult = state.value?.sessionResult
 
-    let errorString = final?.message || ''
-    if (final?.errorCode) {
-      const key = `errors['${final.errorCode}']`
-      const translated = t(key, final?.errorDetails || {})
-      if (translated !== key)
-        errorString = translated
-    }
+    const error = sessionResult?.error || {}
+    const key = `errors.${error.code}`
+    const errorString = error.code && te(key)
+      ? t(key, error.meta || {})
+      : error.message || t('result.failed.message')
 
     const lines = errorString.split(/\r?\n/)
       .filter(line => line.trim() !== '')
@@ -72,9 +68,8 @@ const errorMessages = computed(() => {
   return []
 })
 
-function showLogInFolder() {
-  if (state.value?.final?.logPath)
-    window.syncSession.showLogInFolder()
+function openLogFolder() {
+  window.syncSession.openLogFolder()
 }
 </script>
 
@@ -123,10 +118,10 @@ function showLogInFolder() {
             {{ msg }}
           </p>
         </div>
-        <p v-if="state.final?.logPath">
-          {{ $t('result.failed.logPath') }}
-          <button class="underline cursor-pointer ml-0.5 break-all" type="button" @click="showLogInFolder">
-            {{ logFileName }}
+        <p>
+          {{ $t('result.failed.logFolderHint') }}
+          <button class="underline cursor-pointer ml-0.5" type="button" @click="openLogFolder">
+            {{ $t('result.failed.openLogFolder') }}
           </button>
         </p>
       </div>

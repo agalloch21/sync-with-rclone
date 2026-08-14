@@ -1,20 +1,20 @@
 <script setup>
+import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { computed, onBeforeUnmount, onMounted, provide, reactive, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import Content from './components/Content.vue'
 import Context from './components/Context.vue'
 import Footer from './components/Footer.vue'
 import Header from './components/Header.vue'
 
-const { locale } = useI18n()
-locale.value = 'en'
-
-const state = ref({})
+const state = ref({
+  sessionState: {},
+  sessionResult: null,
+})
 const selection = reactive({})
 
 const showFinalAcknowledgement = computed(() => {
-  return Boolean(state.value?.final)
+  return Boolean(state.value?.sessionResult)
 })
 
 provide('state', state)
@@ -29,14 +29,18 @@ onMounted(() => {
     })
     .catch((error) => {
       // normally, UI will only react based on the state passed from the Main process,
-      // unless UI encounters an errro itself
+      // unless UI encounters an error itself
       cancelSync()
       disposeProgressListener?.()
       disposeProgressListener = null
 
-      state.value.final = {
+      state.value.sessionResult = {
         result: 'failed',
-        message: error?.message || String(error),
+        error: {
+          code: APP_ERROR_CODE.IPC_UNAVAILABLE,
+          message: 'Failed to load the sync session state.',
+          detail: error?.message || String(error),
+        },
         requiresAcknowledgement: true,
       }
     })
@@ -90,7 +94,7 @@ function acknowledgeAndClose() {
   </div> -->
   <div class="flex flex-col h-dvh min-h-0 overflow-hidden bg-(--surface) border-2 border-white cursor-default no-select no-callout">
     <header class="header-dock w-full h-14 bg-(--surface-soft) content-center">
-      <Header :state="state" />
+      <Header :state="state.sessionState" />
     </header>
     <main class="main-dock min-h-0 flex-1 overflow-hidden">
       <div
@@ -99,7 +103,7 @@ function acknowledgeAndClose() {
         flex flex-col"
       >
         <div class="context-dock h-30 shrink-0 bg-(--surface-muted) flex flex-col justify-center items-center">
-          <Context :state="state" />
+          <Context :state="state.sessionState" />
         </div>
         <div class="separator w-full h-px shrink-0 bg-linear-to-r from-[color-mix(in_srgb,var(--border-accent)_50%,transparent)] via-(--border-accent) to-[color-mix(in_srgb,var(--border-accent)_50%,transparent)] opacity-30" />
         <div class="content-dock min-h-0 flex-1">

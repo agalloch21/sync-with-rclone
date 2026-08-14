@@ -47,8 +47,9 @@ const syncSession = {
     },
     [SYNC_RESULT.FAILED]: {
       title: 'Error',
-      message: '',
-      logPath: 'For more information, please check',
+      message: 'Synchronization failed.',
+      logFolderHint: 'For more information,',
+      openLogFolder: 'open the log folder',
     },
   },
 }

@@ -117,7 +117,6 @@ export const SYNC_RESULT = {
  * @typedef {object} SyncExecutionCancelledResult
  * @property {'cancelled'} result
  * @property {'review-cancelled' | 'abort-signal'} reason
- * @property {string | null} [phase]
  * @property {{ added: number, modified: number, deleted: number }} [summary]
  * @property {Array<object>} [operations]
  */
@@ -125,8 +124,6 @@ export const SYNC_RESULT = {
 /**
  * @typedef {object} SyncExecutionFailedResult
  * @property {'failed'} result
- * @property {string} message
- * @property {string | null} phase
  * @property {unknown} error
  * @property {Array<object>} [operations]
  */

@@ -4,13 +4,25 @@ import { fileURLToPath } from 'node:url'
 import { RENDERER_SURFACE } from '#electron/contracts/renderer-surface.js'
 import { getSyncSessionStageForPhase, SYNC_SESSION_STAGE } from '#electron/contracts/sync-session-stage.js'
 import { SYNC_SESSION_EVENT } from '#src/app/contracts/sync.js'
+import { toFailureResult } from '#src/app/operation-result.js'
 import { serializeDiffSnapshot } from '#src/app/operations/sync/review.js'
+import { getRuntimePaths } from '#src/infrastructure/runtime/runtime-paths.js'
 import { loadRendererSurface } from '../load-renderer-surface.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 
-export function createSessionWindow() {
+function serializeSessionResult(sessionResult) {
+  if (!sessionResult.error)
+    return sessionResult
+
+  return {
+    ...sessionResult,
+    error: toFailureResult(sessionResult.error).error,
+  }
+}
+
+export function createSessionWindow(initialContext = {}) {
   const { BrowserWindow, ipcMain, shell } = require('electron')
   const channelPrefix = `sync-session:${Date.now()}:${Math.random().toString(16).slice(2)}`
   const channels = {
@@ -23,34 +35,36 @@ export function createSessionWindow() {
     cancelSync: `${channelPrefix}:cancel-sync`,
     closeWindow: `${channelPrefix}:close-window`,
     // command
-    showLogInFolder: `${channelPrefix}:show-log-in-folder`,
+    openLogFolder: `${channelPrefix}:open-log-folder`,
   }
 
   let uiState = {
-    context: {
-      mode: '',
-      localFolderPath: '',
-      remoteFolderPath: '',
-      bypassConfig: false,
-    },
-    stage: '',
-    final: null,
-    phase: '',
-    message: '',
-    progress: {
-      activity: '',
-      index: 0,
-      total: 0,
-      measurement: null,
-    },
-    review: {
-      summary: {
-        added: 0,
-        modified: 0,
-        deleted: 0,
+    sessionState: {
+      context: {
+        mode: initialContext.mode || '',
+        localFolderPath: initialContext.localFolderPath || '',
+        remoteFolderPath: initialContext.remoteFolderPath || '',
+        bypassConfig: Boolean(initialContext.bypassConfig),
       },
-      tree: [],
+      stage: '',
+      phase: '',
+      message: '',
+      progress: {
+        activity: '',
+        index: 0,
+        total: 0,
+        measurement: null,
+      },
+      review: {
+        summary: {
+          added: 0,
+          modified: 0,
+          deleted: 0,
+        },
+        tree: [],
+      },
     },
+    sessionResult: null,
   }
 
   let isClosing = false
@@ -88,6 +102,15 @@ export function createSessionWindow() {
 
     if (notify && !sessionWindow.isDestroyed())
       sessionWindow.webContents.send(channels.progressEvent, patch)
+  }
+
+  function patchSessionState(patch) {
+    patchUiState({
+      sessionState: {
+        ...uiState.sessionState,
+        ...patch,
+      },
+    })
   }
 
   function createReviewResult(action, selectedPaths = []) {
@@ -154,14 +177,14 @@ export function createSessionWindow() {
     }
 
     if (nextState)
-      patchUiState(nextState)
+      patchSessionState(nextState)
   }
 
   async function reviewDiffInWindow(diffSnapshot) {
     if (isSessionSealed)
       return createReviewResult('cancel')
 
-    patchUiState({
+    patchSessionState({
       stage: SYNC_SESSION_STAGE.REVIEW,
       review: serializeDiffSnapshot(diffSnapshot),
     })
@@ -171,12 +194,12 @@ export function createSessionWindow() {
     })
   }
 
-  async function showFinalAcknowledgement(finalResult) {
+  async function showFinalAcknowledgement(sessionResult) {
     if (isSessionSealed)
       return
 
     patchUiState({
-      final: finalResult,
+      sessionResult: serializeSessionResult(sessionResult),
     })
 
     return new Promise((resolve, reject) => {
@@ -208,23 +231,25 @@ export function createSessionWindow() {
     return { success: true, action: 'final-acknowledged' }
   }
 
-  function showLogInFolder() {
-    if (uiState.final?.logPath)
-      shell.showItemInFolder(uiState.final.logPath)
+  async function openLogFolder() {
+    const errorMessage = await shell.openPath(getRuntimePaths().logDirectory)
+    if (errorMessage)
+      return toFailureResult(new Error(errorMessage))
+    return { success: true }
   }
 
   ipcMain.handle(channels.getState, () => uiState)
   ipcMain.handle(channels.cancelSync, handleCancel)
   ipcMain.handle(channels.confirmSync, handleConfirm)
   ipcMain.handle(channels.closeWindow, handleClose)
-  ipcMain.on(channels.showLogInFolder, showLogInFolder)
+  ipcMain.handle(channels.openLogFolder, openLogFolder)
 
   const cleanup = () => {
     ipcMain.removeHandler(channels.getState)
     ipcMain.removeHandler(channels.cancelSync, handleCancel)
     ipcMain.removeHandler(channels.confirmSync, handleConfirm)
     ipcMain.removeHandler(channels.closeWindow, handleClose)
-    ipcMain.removeListener(channels.showLogInFolder, showLogInFolder)
+    ipcMain.removeHandler(channels.openLogFolder)
   }
 
   function closeWindow() {
@@ -275,6 +300,7 @@ export function createSessionWindow() {
     onEventFromMain,
     reviewDiffInWindow,
     showFinalAcknowledgement,
+    getCurrentPhase: () => uiState.sessionState.phase,
 
     closeWindow,
     cancelSignal: cancelController.signal,

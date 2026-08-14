@@ -4,14 +4,14 @@ import { computed, inject } from 'vue'
 
 const state = inject('state')
 
-const phase = computed(() => state.value?.stage === SYNC_SESSION_STAGE.SYNC ? (state.value?.phase || '') : '')
+const phase = computed(() => state.value?.sessionState?.stage === SYNC_SESSION_STAGE.SYNC ? (state.value?.sessionState?.phase || '') : '')
 
 const isApplyingSync = computed(() => phase.value === SYNC_SESSION_STAGE_META[SYNC_SESSION_STAGE.SYNC].phases[1])
-const currentActivity = computed(() => state.value?.progress?.activity || '')
-const currentActivityIndex = computed(() => state.value?.progress?.index || 0)
-const totalActivityCount = computed(() => state.value?.progress?.total || 0)
-const currentMeasurement = computed(() => state.value?.progress?.measurement?.current || 0)
-const totalMeasurement = computed(() => state.value?.progress?.measurement?.total || 0)
+const currentActivity = computed(() => state.value?.sessionState?.progress?.activity || '')
+const currentActivityIndex = computed(() => state.value?.sessionState?.progress?.index || 0)
+const totalActivityCount = computed(() => state.value?.sessionState?.progress?.total || 0)
+const currentMeasurement = computed(() => state.value?.sessionState?.progress?.measurement?.current || 0)
+const totalMeasurement = computed(() => state.value?.sessionState?.progress?.measurement?.total || 0)
 const percent = computed(() => {
   if (totalActivityCount.value === 0) {
     return 0

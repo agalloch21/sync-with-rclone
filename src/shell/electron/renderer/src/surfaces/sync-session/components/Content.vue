@@ -10,7 +10,7 @@ defineEmits(['autoClose'])
 const state = inject('state')
 const showFinalAcknowledgement = inject('showFinalAcknowledgement')
 
-const stage = computed(() => state.value?.stage || SYNC_SESSION_STAGE.ANALYZE)
+const stage = computed(() => state.value?.sessionState?.stage || SYNC_SESSION_STAGE.ANALYZE)
 </script>
 
 <template>

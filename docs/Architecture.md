@@ -437,7 +437,7 @@ copy 之外的示例：
 - `startSync` 把 sync phase event 转换成 `SYNC_SESSION_EVENT.PROGRESS`
 - `startSync` 返回 `SyncSessionResult`
 - `startSync` 会 emit `SYNC_SESSION_EVENT.RESULT`（值为 `sync.session.result`）作为观察事件，但 Electron final 流程由返回值驱动
-- `startSync` 为每次调用写入跨平台 `sync-session.log`，因此 Electron、CLI 与未来自动化入口共用同一套 session 诊断机制
+- `startSync` 遇到技术故障时写入跨平台 `diagnostics.log`，Electron、CLI 与未来自动化入口共用同一排障文件
 - sync-session window state 由平行的 `sessionState` 与 `sessionResult` 组成：前者保存 context、stage、phase、message、progress 和 review，后者只保存终态结果
 - 失败页始终提供日志文件夹入口；Electron Main 在用户点击后解析 runtime log directory 并打开，不通过 app result 传递路径
 
@@ -859,7 +859,7 @@ Progress 与 operation history 保持分离：
 
 - `SYNC_SESSION_EVENT.PROGRESS`（值为 `sync.session.progress`）只进入对应 session window，不写入 history。
 - operation history 每个 session 只保存一条 started 和一条 succeeded / failed / cancelled。
-- `sync-session.log` 保存 session 生命周期和失败诊断；它不替代 operation history，也不进入主窗口的 Logs panel。
+- `operation-history.jsonl` 保存面向用户的操作概况；`diagnostics.log` 保存技术故障细节，不进入主窗口的 Logs panel。
 - GUI sessions 与主窗口位于同一进程，因此 history emitter 可以实时通知 Logs panel。
 - 独立 CLI 写入的 history 仍通过刷新或重新打开 Logs panel 读取。
 
@@ -905,7 +905,7 @@ Windows 当前安装后的目录结构可按下面理解：
 
 - 程序本体安装在安装目录
 - 程序运行时读取的配置默认位于当前用户的 `%APPDATA%/sync-with-rclone/config/`
-- operation history 与跨平台 sync-session diagnostics 默认位于当前用户的 `%APPDATA%/sync-with-rclone/logs/`
+- operation history 与跨平台 `diagnostics.log` 默认位于当前用户的 `%APPDATA%/sync-with-rclone/logs/`
 - Windows 右键菜单直接启动应用，不依赖 stdout/stderr 重定向；session 原始错误由应用自身写入诊断日志
 - 升级旧版本时，安装目录下已有的 `config/` 会通过安装器备份恢复到新的用户级配置目录
 - `rclone` 二进制来自安装目录下的 bundled resources
@@ -926,7 +926,7 @@ Windows 当前安装后的目录结构可按下面理解：
 - 安装器负责注册右键菜单
 - 安装产物包含 bundled `rclone`
 - mac 当前主要安装链路是 `pkg`，配置目录和 Finder Quick Actions 初始化由安装阶段承担
-- Finder Quick Actions 的 `quick-actions.log` 只记录应用启动前可检测的 launcher failure；应用启动后的信息由 `sync-session.log` 记录
+- Finder Quick Actions 把应用启动前可检测的 launcher failure 写入共用的 `diagnostics.log`；成功启动后的 stdout/stderr 不再由启动器重定向
 - `dmg` / `zip` 产物当前只作为开发验证和手动安装产物，不作为主要安装初始化链路
 
 当前尚未视为稳定事实的部分是：

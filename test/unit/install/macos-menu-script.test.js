@@ -4,7 +4,7 @@ import test from 'node:test'
 
 const scriptPath = 'scripts/install/macos-menu.sh'
 
-test('macOS Quick Actions leave app diagnostics to sync-session.log', async () => {
+test('macOS Quick Actions write launcher failures to diagnostics.log', async () => {
   const script = await fs.readFile(scriptPath, 'utf8')
   const launchLines = script
     .split('\n')
@@ -16,10 +16,11 @@ test('macOS Quick Actions leave app diagnostics to sync-session.log', async () =
     assert.doesNotMatch(line, /LOG_FILE|LOGFILE|quick-actions/)
   }
 
-  assert.match(script, /quick-actions\.log/)
+  assert.match(script, /diagnostics\.log/)
   assert.match(script, /log_launcher_error/)
   assert.match(script, /Executable is missing or not executable/)
   assert.match(script, /Application process failed to start/)
   assert.doesNotMatch(script, /Environment check/)
   assert.doesNotMatch(script, /Launcher log:/)
+  assert.doesNotMatch(script, /quick-actions\.log|sync-session\.log/)
 })

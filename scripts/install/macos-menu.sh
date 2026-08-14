@@ -202,8 +202,8 @@ if [ -z "\${RCLONE_CONFIG:-}" ] &amp;&amp; [ -f "\$HOME/.config/rclone/rclone.co
     export RCLONE_CONFIG="\$HOME/.config/rclone/rclone.conf"
 fi
 
-# Only launcher failures belong in quick-actions.log.
-LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
+# Launcher failures share the application diagnostics file.
+LOG_FILE="$LOG_DIRECTORY/diagnostics.log"
 log_launcher_error() {
     mkdir -p "\$(dirname "\$LOG_FILE")"
     echo "\$(date '+%Y-%m-%d %H:%M:%S') - ERROR: \$*" >> "\$LOG_FILE"
@@ -413,8 +413,8 @@ if [ -z "\${HOME:-}" ]; then
     export HOME=\$(getent passwd "\$(whoami)" | cut -d: -f6 2>/dev/null || echo ~)
 fi
 
-# Only launcher failures belong in quick-actions.log.
-LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
+# Launcher failures share the application diagnostics file.
+LOG_FILE="$LOG_DIRECTORY/diagnostics.log"
 log_launcher_error() {
     mkdir -p "\$(dirname "\$LOG_FILE")"
     echo "\$(date '+%Y-%m-%d %H:%M:%S') - ERROR: \$*" >> "\$LOG_FILE"
@@ -827,7 +827,7 @@ if [ -z "${HOME:-}" ]; then
     export HOME=~
 fi
 
-LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
+LOG_FILE="$LOG_DIRECTORY/diagnostics.log"
 log_launcher_error() {
     mkdir -p "$(dirname "$LOG_FILE")"
     echo "$(date '+%Y-%m-%d %H:%M:%S') - ERROR: $*" >> "$LOG_FILE"
@@ -881,7 +881,7 @@ if ! kill -0 "$LAUNCH_PID" 2&gt;/dev/null; then
 fi
 echo
 echo "Sync request submitted."
-echo "Session diagnostic log: ${LOGFILE%/*}/sync-session.log"
+echo "Diagnostics log: $LOGFILE"
 echo
 read -n 1 -s -p "Press any key to close..."
 exit 0
@@ -900,7 +900,7 @@ if [ -z "${HOME:-}" ]; then
     export HOME=~
 fi
 
-LOG_FILE="$LOG_DIRECTORY/quick-actions.log"
+LOG_FILE="$LOG_DIRECTORY/diagnostics.log"
 log_launcher_error() {
     mkdir -p "$(dirname "$LOG_FILE")"
     echo "$(date '+%Y-%m-%d %H:%M:%S') - ERROR: $*" >> "$LOG_FILE"
@@ -941,7 +941,7 @@ if ! kill -0 "$LAUNCH_PID" 2&gt;/dev/null; then
 fi
 echo
 echo "Sync request submitted."
-echo "Session diagnostic log: ${LOGFILE%/*}/sync-session.log"
+echo "Diagnostics log: $LOGFILE"
 echo
 read -n 1 -s -p "Press any key to close..."
 exit 0

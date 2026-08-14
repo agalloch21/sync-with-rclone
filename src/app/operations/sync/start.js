@@ -14,8 +14,8 @@ import {
   runOperationWithHistory,
 } from '../operation-history.js'
 import { acquireSyncAdmission, releaseSyncAdmission } from './admission.js'
+import { createSyncDiagnostics } from './diagnostics.js'
 import { resolveSyncContext } from './resolve-context.js'
-import { createSyncSessionLogger } from './session-log.js'
 
 function assertRuntimeContract(runtime) {
   if (!runtime || typeof runtime !== 'object')
@@ -57,10 +57,8 @@ function createFailedSessionResult(error, context) {
   }
 }
 
-function createPhaseEventListener(emit, sessionLog) {
+function createPhaseEventListener(emit) {
   return function phaseEventToSessionEvent(event) {
-    void sessionLog.phase(event)
-
     if (event.type === SYNC_PHASE_EVENT.FAILED || event.type === SYNC_PHASE_EVENT.CANCELLED || event.type === SYNC_PHASE_EVENT.DONE)
       return
 
@@ -95,13 +93,13 @@ function emitErrorSessionResult(error, context, emit, cancelSignal) {
   return emitSessionResult(sessionResult, emit)
 }
 
-async function releaseAdmissionWithoutChangingResult(admission, runtimePaths, sessionLog) {
+async function releaseAdmissionWithoutChangingResult(admission, runtimePaths, diagnostics) {
   try {
     await releaseSyncAdmission(admission, runtimePaths)
   }
   catch (error) {
     console.warn(`Failed to release sync admission: ${error?.message || String(error)}`)
-    await sessionLog.warning('sync.admission.release-failed', error)
+    await diagnostics.warning('sync-admission', error)
   }
 }
 
@@ -163,7 +161,7 @@ async function recordCompletedSync(resolvedMapping, mode) {
   notifyConfigUpdate()
 }
 
-async function runSync(options, runtime, cancelSignal, runtimePaths, sessionLog) {
+async function runSync(options, runtime, cancelSignal, runtimePaths, diagnostics) {
   const emit = runtime.events?.eventListener || (() => {})
   const completeError = (error, context) =>
     emitErrorSessionResult(error, context, emit, cancelSignal)
@@ -192,7 +190,6 @@ async function runSync(options, runtime, cancelSignal, runtimePaths, sessionLog)
   }
 
   const { context, resolvedMapping } = resolution
-  void sessionLog.contextResolved(context)
   const historyDefinition = {
     operation: getSyncOperation(options?.mode),
     subject: getSyncSubject(options, context),
@@ -228,7 +225,7 @@ async function runSync(options, runtime, cancelSignal, runtimePaths, sessionLog)
         ...context,
         runtimePaths,
       }, {
-        events: { eventListener: createPhaseEventListener(emit, sessionLog) },
+        events: { eventListener: createPhaseEventListener(emit) },
         interactions: { reviewDiff: runtime.interactions?.reviewDiff },
       }, cancelSignal)
 
@@ -245,7 +242,7 @@ async function runSync(options, runtime, cancelSignal, runtimePaths, sessionLog)
       return completeError(error, context)
     }
     finally {
-      await releaseAdmissionWithoutChangingResult(admission, runtimePaths, sessionLog)
+      await releaseAdmissionWithoutChangingResult(admission, runtimePaths, diagnostics)
     }
   })
 }
@@ -254,16 +251,15 @@ export async function startSync(options, runtime = {}, cancelSignal = null) {
   assertRuntimeContract(runtime)
 
   const runtimePaths = getRuntimePaths()
-  const sessionLog = createSyncSessionLogger(options, runtimePaths)
-  await sessionLog.started()
+  const diagnostics = createSyncDiagnostics(runtimePaths)
 
   try {
-    const sessionResult = await runSync(options, runtime, cancelSignal, runtimePaths, sessionLog)
-    await sessionLog.result(sessionResult)
+    const sessionResult = await runSync(options, runtime, cancelSignal, runtimePaths, diagnostics)
+    await diagnostics.result(sessionResult)
     return sessionResult
   }
   catch (error) {
-    await sessionLog.unexpected(error)
+    await diagnostics.unexpected(error)
     throw error
   }
 }

@@ -206,6 +206,36 @@ function Remove-LegacyContextMenuCommandStoreEntries {
     }
 }
 
+function Update-ShellAssociationCache {
+    try {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class SyncWithRcloneShellNotification
+{
+    [DllImport("shell32.dll")]
+    public static extern void SHChangeNotify(
+        int eventId,
+        uint flags,
+        IntPtr item1,
+        IntPtr item2);
+}
+'@
+
+        $shcneAssocChanged = 0x08000000
+        $shcnfIdListWithFlush = 0x1000
+        [SyncWithRcloneShellNotification]::SHChangeNotify(
+            $shcneAssocChanged,
+            $shcnfIdListWithFlush,
+            [IntPtr]::Zero,
+            [IntPtr]::Zero)
+    }
+    catch {
+        Write-Warning "Unable to refresh the Windows Shell icon cache; changes will appear after Explorer or Windows restarts. $($_.Exception.Message)"
+    }
+}
+
 function Register-ContextMenu {
     param(
         [Parameter(Mandatory = $true)][string]$ExePath,
@@ -214,7 +244,7 @@ function Register-ContextMenu {
 
     $directoryKey = "HKCU:\Software\Classes\Directory\shell\sync-with-rclone"
     $backgroundKey = "HKCU:\Software\Classes\Directory\Background\shell\sync-with-rclone"
-    $rootIconPath = $ExePath
+    $rootIconPath = "$ExePath,0"
 
     foreach ($rootKey in @($directoryKey, $backgroundKey)) {
         New-Item -Path $rootKey -Force | Out-Null
@@ -279,6 +309,8 @@ function Register-ContextMenu {
             Set-ItemProperty -Path $commandKey -Name "(default)" -Value $command -Force
         }
     }
+
+    Update-ShellAssociationCache
 }
 
 function Unregister-ContextMenu {
@@ -292,6 +324,7 @@ function Unregister-ContextMenu {
     }
 
     Remove-LegacyContextMenuCommandStoreEntries
+    Update-ShellAssociationCache
 }
 
 function Remove-InstallFiles {

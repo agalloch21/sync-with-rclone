@@ -2,6 +2,7 @@
 import { SYNC_OPERATION_STATUS, SYNC_RESULT } from '#src/core/contract.js'
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import HoverTooltip from '../../shared/HoverTooltip.vue'
 import ResultIcon from '../../shared/ResultIcon.vue'
 
 const emit = defineEmits(['autoClose'])
@@ -71,14 +72,19 @@ function getOperationResultType(operation) {
   return 'warning'
 }
 
-function getOperationResultMessage(operation) {
+function getOperationFailureReason(operation) {
   if (operation.failure?.code) {
     const key = `operationFailures.${operation.failure.code}`
     if (te(key))
       return t(key, operation.failure.meta || {})
   }
 
-  return t(`operationStatuses.${operation.status}`)
+  if (operation.failure?.message)
+    return operation.failure.message
+
+  return operation.status === SYNC_OPERATION_STATUS.FAILED
+    ? t('operationStatuses.failed')
+    : ''
 }
 
 // failed
@@ -106,7 +112,10 @@ function openLogFolder() {
 </script>
 
 <template>
-  <div class="final-ackownledgement-stage">
+  <div
+    class="final-ackownledgement-stage"
+    :class="{ 'details-expanded': showOperationDetail && operations.length > 0 }"
+  >
     <div class="icon-dock">
       <ResultIcon
         class="size-13"
@@ -120,46 +129,70 @@ function openLogFolder() {
       <div v-if="result === SYNC_RESULT.COMPLETED" class="flex justify-center">
         {{ $t(`result.${result}.message`, { count: `${waitSecond}` }) }}
       </div>
-      <div v-if="result === SYNC_RESULT.CANCELLED" class="h-full flex flex-col items-center gap-3">
-        <p>
-          <span>{{ operationSummary }}</span>
-          <span class="underline cursor-pointer" @click="showOperationDetail = !showOperationDetail">[{{ $t(`result.${result}.detailButton`) }}]</span>
-        </p>
-      </div>
-      <div v-if="result === SYNC_RESULT.FAILED" class="h-full flex flex-col gap-2 items-center">
-        <div class="overflow-y-auto [scrollbar-gutter:stable] flex flex-col gap-1 break-all ">
+      <div
+        v-if="result === SYNC_RESULT.CANCELLED || result === SYNC_RESULT.FAILED"
+        class="h-full min-h-0 flex flex-col gap-2 items-center"
+      >
+        <div
+          v-if="result === SYNC_RESULT.FAILED"
+          class="shrink-0 flex flex-col gap-1 break-all"
+        >
           <p v-for="(msg, index) in errorMessages" :key="index">
             {{ msg }}
           </p>
         </div>
-        <p v-if="operations.length > 0">
+        <p v-if="result === SYNC_RESULT.CANCELLED || operations.length > 0">
           <span>{{ operationSummary }}</span>
-          <span class="underline cursor-pointer" @click="showOperationDetail = !showOperationDetail">[{{ $t('result.failed.detailButton') }}]</span>
+          <button class="underline cursor-pointer" type="button" @click="showOperationDetail = !showOperationDetail">
+            [{{ $t(`result.${result}.detailButton`) }}]
+          </button>
         </p>
-        <p>
+
+        <Transition name="operation-list-reveal">
+          <div
+            v-if="showOperationDetail && operations.length > 0"
+            class="operation-list w-full min-h-0 flex-1 overflow-y-auto
+            [scrollbar-gutter:stable]
+            [&::-webkit-scrollbar]:w-1
+            [&::-webkit-scrollbar-track]:invisible
+            [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--text-subtle)_20%,transparent)]
+            [&::-webkit-scrollbar-thumb]:rounded-full
+            [&::-webkit-scrollbar-thumb]:invisible
+            hover:[&::-webkit-scrollbar-thumb]:visible
+            rounded-md border border-(--border-accent-fade) bg-[color-mix(in_srgb,var(--surface-elevated)_55%,transparent)]"
+          >
+            <HoverTooltip
+              v-for="(op, index) in operations"
+              :key="index"
+              class="grid min-w-0 grid-cols-[minmax(0,1fr)_3.5rem_4.5rem_0.75rem] items-center gap-2 rounded px-2 py-0.5 text-[0.6rem] leading-4 text-(--text-subtle) hover:bg-[color-mix(in_srgb,var(--primary-soft)_55%,transparent)]"
+              :text="getOperationFailureReason(op)"
+              :max-width="320"
+            >
+              <template #tooltip>
+                <span class="block text-(--text-primary)">{{ op.path }}</span>
+                <span class="mt-1 block text-(--danger)">{{ getOperationFailureReason(op) }}</span>
+              </template>
+              <HoverTooltip
+                class="allow-select min-w-0 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                :text="getOperationFailureReason(op) ? '' : op.path"
+                :only-when-overflow="true"
+                :max-width="320"
+              >
+                {{ op.path }}
+              </HoverTooltip>
+              <span class="text-right">{{ op.type }}</span>
+              <span class="text-right">{{ $t(`operationStatuses.${op.status}`) }}</span>
+              <ResultIcon :type="getOperationResultType(op)" class="size-3" />
+            </HoverTooltip>
+          </div>
+        </Transition>
+
+        <p v-if="result === SYNC_RESULT.FAILED" class="shrink-0">
           {{ $t('result.failed.logFolderHint') }}
           <button class="underline cursor-pointer ml-0.5" type="button" @click="openLogFolder">
             {{ $t('result.failed.openLogFolder') }}
           </button>
         </p>
-      </div>
-      <div v-if="showOperationDetail && operations.length > 0" class="overflow-y-auto [scrollbar-gutter:stable] px-4">
-        <table class="text-[0.6rem] text-(--text-subtle)">
-          <tr v-for="(op, index) in operations" :key="index" class="py-0.5 flex items-center gap-1 whitespace-nowrap">
-            <td class="flex-1">
-              {{ op.path }}
-            </td>
-            <td class="flex-0 basis-auto">
-              {{ op.type }}
-            </td>
-            <td class="max-w-60 truncate" :title="getOperationResultMessage(op)">
-              {{ getOperationResultMessage(op) }}
-            </td>
-            <td class="flex-0 basis-auto">
-              <ResultIcon :type="getOperationResultType(op)" class="size-3" />
-            </td>
-          </tr>
-        </table>
       </div>
     </div>
   </div>
@@ -169,11 +202,13 @@ function openLogFolder() {
 @reference "tailwindcss";
 
 .final-ackownledgement-stage{
-  @apply h-full grid grid-rows-6 px-12 py-4;
+  @apply h-full grid px-12 py-4;
+  grid-template-rows: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 3fr);
+  transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .icon-dock{
-  @apply row-span-2 self-end flex justify-center items-center;
+  @apply self-end flex justify-center items-center;
 }
 .icon-stage{
   @apply w-13 h-auto aspect-square m-auto rounded-full flex justify-center items-center;
@@ -185,6 +220,29 @@ function openLogFolder() {
   @apply m-auto text-3xl text-(--text-primary);
 }
 .message-dock{
-  @apply row-span-3 py-2 whitespace-pre-line text-xs text-(--text-subtle);
+  @apply min-h-0 py-2 whitespace-pre-line text-xs text-(--text-subtle);
+}
+
+.final-ackownledgement-stage.details-expanded{
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 4fr);
+}
+
+.operation-list-reveal-enter-active,
+.operation-list-reveal-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.operation-list-reveal-enter-from,
+.operation-list-reveal-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .final-ackownledgement-stage,
+  .operation-list-reveal-enter-active,
+  .operation-list-reveal-leave-active {
+    transition: none;
+  }
 }
 </style>

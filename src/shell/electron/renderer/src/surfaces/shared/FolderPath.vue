@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getFolderPathFoldingCandidates } from './FolderPath.folding.js'
+import HoverTooltip from './HoverTooltip.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -32,11 +33,7 @@ const props = defineProps({
 
 const contentRef = ref(null)
 const textRef = ref(null)
-const tooltipRef = ref(null)
 const displayPath = ref('')
-const isTooltipVisible = ref(false)
-const tooltipX = ref(0)
-const tooltipY = ref(0)
 const contentHeightPx = ref(null)
 
 const contentStyle = computed(() => {
@@ -61,14 +58,8 @@ const shouldShowTooltip = computed(() => {
 })
 
 let resizeObserver
-let tooltipTimer
-let pointerX = 0
-let pointerY = 0
 
 const TOOLTIP_DELAY_MS = 2000
-const TOOLTIP_MARGIN_PX = 12
-const TOOLTIP_MAX_WIDTH_PX = 224
-const TOOLTIP_POINTER_OFFSET_PX = 12
 const LINE_HEIGHT_ROUNDING_TOLERANCE_PX = 1
 
 function updateDisplayPath() {
@@ -111,69 +102,6 @@ function updateDisplayPath() {
   displayPath.value = '...'
 }
 
-function clearTooltipTimer() {
-  clearTimeout(tooltipTimer)
-  tooltipTimer = null
-}
-
-function updatePointerPosition(event) {
-  pointerX = event.clientX
-  pointerY = event.clientY
-}
-
-async function updateTooltipPosition() {
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-  const fallbackWidth = Math.min(TOOLTIP_MAX_WIDTH_PX, viewportWidth - TOOLTIP_MARGIN_PX * 2)
-
-  tooltipX.value = Math.min(
-    pointerX + TOOLTIP_POINTER_OFFSET_PX,
-    viewportWidth - TOOLTIP_MARGIN_PX - fallbackWidth,
-  )
-  tooltipY.value = pointerY + TOOLTIP_POINTER_OFFSET_PX
-
-  await nextTick()
-  const tooltipRect = tooltipRef.value?.getBoundingClientRect()
-  if (!tooltipRect)
-    return
-
-  tooltipX.value = Math.max(
-    TOOLTIP_MARGIN_PX,
-    Math.min(tooltipX.value, viewportWidth - TOOLTIP_MARGIN_PX - tooltipRect.width),
-  )
-
-  if (tooltipY.value + tooltipRect.height > viewportHeight - TOOLTIP_MARGIN_PX) {
-    tooltipY.value = Math.max(
-      TOOLTIP_MARGIN_PX,
-      pointerY - TOOLTIP_POINTER_OFFSET_PX - tooltipRect.height,
-    )
-  }
-}
-
-function showTooltipAfterDelay(event) {
-  if (!shouldShowTooltip.value)
-    return
-
-  updatePointerPosition(event)
-  clearTooltipTimer()
-  tooltipTimer = setTimeout(() => {
-    isTooltipVisible.value = true
-    tooltipTimer = null
-    void updateTooltipPosition()
-  }, TOOLTIP_DELAY_MS)
-}
-
-function handleMouseMove(event) {
-  updatePointerPosition(event)
-  if (isTooltipVisible.value)
-    void updateTooltipPosition()
-}
-
-function hideTooltip() {
-  clearTooltipTimer()
-  isTooltipVisible.value = false
-}
-
 onMounted(async () => {
   await nextTick()
   updateDisplayPath()
@@ -185,53 +113,24 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
-  clearTooltipTimer()
 })
 
 watch(() => [props.path, props.maxLines, props.reserveSpace, props.verticalAlign, props.foldStrategy], async () => {
   await nextTick()
   updateDisplayPath()
-  if (!shouldShowTooltip.value)
-    hideTooltip()
 })
 </script>
 
 <template>
-  <span
+  <HoverTooltip
     v-bind="$attrs"
-    ref="contentRef"
     class="folder-path block w-full min-w-0 overflow-hidden break-all"
-    :style="contentStyle"
     :aria-label="props.path"
-    @mouseenter="showTooltipAfterDelay"
-    @mousemove="handleMouseMove"
-    @mouseleave="hideTooltip"
+    :text="shouldShowTooltip ? props.path : ''"
+    :delay-ms="TOOLTIP_DELAY_MS"
   >
-    <span ref="textRef" class="block w-full min-w-0 break-all">{{ displayPath }}</span>
-  </span>
-
-  <Teleport to="body">
-    <Transition name="folder-path-tooltip-fade">
-      <span
-        v-if="isTooltipVisible && shouldShowTooltip"
-        ref="tooltipRef"
-        class="pointer-events-none fixed z-50 max-h-[calc(100vh-1.5rem)] overflow-hidden rounded-md border border-(--border-accent-fade) bg-(--surface-elevated) px-3 py-2 text-[0.625rem] leading-3 text-(--text-primary) shadow-lg break-all"
-        :style="{ left: `${tooltipX}px`, top: `${tooltipY}px`, maxWidth: `${TOOLTIP_MAX_WIDTH_PX}px` }"
-        role="tooltip"
-      >{{ props.path }}</span>
-    </Transition>
-  </Teleport>
+    <span ref="contentRef" class="block w-full min-w-0 overflow-hidden break-all" :style="contentStyle">
+      <span ref="textRef" class="block w-full min-w-0 break-all">{{ displayPath }}</span>
+    </span>
+  </HoverTooltip>
 </template>
-
-<style scoped>
-.folder-path-tooltip-fade-enter-active,
-.folder-path-tooltip-fade-leave-active {
-  transition: opacity 120ms ease, transform 120ms ease;
-}
-
-.folder-path-tooltip-fade-enter-from,
-.folder-path-tooltip-fade-leave-to {
-  opacity: 0;
-  transform: translateY(4px);
-}
-</style>

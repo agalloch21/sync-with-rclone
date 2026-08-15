@@ -20,7 +20,6 @@
     "dev:session": "node scripts/dev/dev-electron.js --session",
     "prestart": "npm run build:renderer",
     "start": "electron src/shell/index.cjs",
-    "build:icons": "node scripts/build/generate-icons.js",
     "verify:assets": "node scripts/build/verify-assets.js",
     "verify:build": "node scripts/build/verify-build.js",
     "predist:win": "npm run verify:assets -- win && npm run build:renderer && npm run verify:build",
@@ -56,10 +55,6 @@
         "to": "scripts/windows-installer.ps1"
       },
       {
-        "from": "scripts/install/menu-item.ico",
-        "to": "icons/menu-item.ico"
-      },
-      {
         "from": "scripts/install/menu-item-push.ico",
         "to": "icons/menu-item-push.ico"
       },
@@ -75,17 +70,17 @@
       ],
       "category": "public.app-category.productivity",
       "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
-      "icon": "icon.png"
+      "icon": "icon-mac.png"
     },
     "dmg": {
-      "icon": "icon.png"
+      "icon": "icon-mac.png"
     },
     "win": {
       "target": [
         "nsis"
       ],
       "executableName": "sync-with-rclone",
-      "icon": "icon.ico",
+      "icon": "icon-win.png",
       "extraResources": [
         {
           "from": "resources/binaries",

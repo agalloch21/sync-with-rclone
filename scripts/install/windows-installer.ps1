@@ -214,11 +214,7 @@ function Register-ContextMenu {
 
     $directoryKey = "HKCU:\Software\Classes\Directory\shell\sync-with-rclone"
     $backgroundKey = "HKCU:\Software\Classes\Directory\Background\shell\sync-with-rclone"
-    $rootIconPath = (Join-Path $ResourcesPath "icons\menu-item.ico")
-
-    if (-not (Test-Path -LiteralPath $rootIconPath)) {
-        throw "Missing root context menu icon: $rootIconPath"
-    }
+    $rootIconPath = $ExePath
 
     foreach ($rootKey in @($directoryKey, $backgroundKey)) {
         New-Item -Path $rootKey -Force | Out-Null

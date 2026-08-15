@@ -8,20 +8,19 @@ const REQUIRED_FILES = {
   'win': [
     'resources/binaries/rclone-windows-amd64.exe',
     'scripts/install/windows-installer.ps1',
-    'scripts/install/icon.ico',
-    'scripts/install/menu-item.ico',
+    'scripts/install/icon-win.png',
     'scripts/install/menu-item-push.ico',
     'scripts/install/menu-item-pull.ico',
   ],
   'mac': [
     'resources/binaries/rclone-osx-arm64',
     'scripts/install/macos-menu.sh',
-    'scripts/install/icon.png',
+    'scripts/install/icon-mac.png',
   ],
   'mac-x64': [
     'resources/binaries/rclone-osx-amd64',
     'scripts/install/macos-menu.sh',
-    'scripts/install/icon.png',
+    'scripts/install/icon-mac.png',
   ],
   'linux': [
     'resources/binaries/rclone-linux-amd64',

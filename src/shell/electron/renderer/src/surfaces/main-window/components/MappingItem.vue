@@ -50,7 +50,7 @@ function openLocalFolder() {
             {{ getMappingDisplayName(props.mapping) }}
           </label>
           <button
-            class="local-folder-path w-full min-w-0 text-left text-[0.625rem] leading-3 underline text-blue-500 cursor-pointer"
+            class="local-folder-path w-fit max-w-full min-w-0 self-start text-left text-[0.625rem] leading-3 underline text-blue-500 cursor-pointer"
             type="button"
             @click.stop="openLocalFolder"
           >

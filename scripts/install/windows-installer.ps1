@@ -193,7 +193,8 @@ function Restore-ConfigDirectory {
 
 function Register-ContextMenu {
     param(
-        [Parameter(Mandatory = $true)][string]$ExePath
+        [Parameter(Mandatory = $true)][string]$ExePath,
+        [Parameter(Mandatory = $true)][string]$ResourcesPath
     )
 
     $directoryKey = "HKCU:\Software\Classes\Directory\shell\sync-with-rclone"
@@ -223,13 +224,21 @@ function Register-ContextMenu {
             KeyName = "push"
             Label = "Push"
             Mode = "push"
+            IconPath = (Join-Path $ResourcesPath "icons\menu-item-push.ico")
         },
         @{
             KeyName = "pull"
             Label = "Pull"
             Mode = "pull"
+            IconPath = (Join-Path $ResourcesPath "icons\menu-item-pull.ico")
         }
     )
+
+    foreach ($menuEntry in $menuEntries) {
+        if (-not (Test-Path -LiteralPath $menuEntry.IconPath)) {
+            throw "Missing context menu icon: $($menuEntry.IconPath)"
+        }
+    }
 
     foreach ($target in $targets) {
         $submenuShellKey = "$($target.RootKey)\shell"
@@ -247,7 +256,7 @@ function Register-ContextMenu {
 
             New-Item -Path $menuKey -Force | Out-Null
             New-ItemProperty -Path $menuKey -Name "MUIVerb" -Value $menuEntry.Label -PropertyType String -Force | Out-Null
-            New-ItemProperty -Path $menuKey -Name "Icon" -Value $iconValue -PropertyType String -Force | Out-Null
+            New-ItemProperty -Path $menuKey -Name "Icon" -Value $menuEntry.IconPath -PropertyType String -Force | Out-Null
             New-Item -Path $commandKey -Force | Out-Null
             Set-ItemProperty -Path $commandKey -Name "(default)" -Value $command -Force
         }
@@ -317,7 +326,7 @@ try {
                 Write-InstallerLog "ps1 install: skipped context menu registration"
             }
             elseif (Test-IsAdministrator) {
-                Register-ContextMenu -ExePath $ExecutablePath
+                Register-ContextMenu -ExePath $ExecutablePath -ResourcesPath $ResourcesDir
                 Write-InstallerLog "ps1 install: registered context menu"
             }
             else {
@@ -335,7 +344,7 @@ try {
                 throw "Administrator privileges are required for register-menu."
             }
 
-            Register-ContextMenu -ExePath $ExecutablePath
+            Register-ContextMenu -ExePath $ExecutablePath -ResourcesPath $ResourcesDir
             Write-InstallerLog "ps1 register-menu: completed"
         }
 

@@ -9,6 +9,8 @@ const REQUIRED_FILES = {
     'resources/binaries/rclone-windows-amd64.exe',
     'scripts/install/windows-installer.ps1',
     'scripts/install/icon.ico',
+    'scripts/install/menu-item-push.ico',
+    'scripts/install/menu-item-pull.ico',
   ],
   'mac': [
     'resources/binaries/rclone-osx-arm64',

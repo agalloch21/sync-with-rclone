@@ -200,12 +200,16 @@ function Register-ContextMenu {
     $directoryKey = "HKCU:\Software\Classes\Directory\shell\sync-with-rclone"
     $backgroundKey = "HKCU:\Software\Classes\Directory\Background\shell\sync-with-rclone"
     $commandStoreRoot = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell"
-    $iconValue = $ExePath
+    $rootIconPath = (Join-Path $ResourcesPath "icons\menu-item.ico")
+
+    if (-not (Test-Path -LiteralPath $rootIconPath)) {
+        throw "Missing root context menu icon: $rootIconPath"
+    }
 
     foreach ($rootKey in @($directoryKey, $backgroundKey)) {
         New-Item -Path $rootKey -Force | Out-Null
         New-ItemProperty -Path $rootKey -Name "MUIVerb" -Value "sync-with-rclone" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $rootKey -Name "Icon" -Value $iconValue -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $rootKey -Name "Icon" -Value $rootIconPath -PropertyType String -Force | Out-Null
     }
 
     $targets = @(

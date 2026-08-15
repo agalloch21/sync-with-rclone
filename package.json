@@ -56,6 +56,10 @@
         "to": "scripts/windows-installer.ps1"
       },
       {
+        "from": "scripts/install/menu-item.ico",
+        "to": "icons/menu-item.ico"
+      },
+      {
         "from": "scripts/install/menu-item-push.ico",
         "to": "icons/menu-item-push.ico"
       },

@@ -38,7 +38,7 @@ const formModal = {
         description: 'Matched paths are not compared, copied, or deleted in Push or Pull. Negation is not supported.',
       },
       globalPatterns: {
-        title: 'Inherited Global Exclusions',
+        title: 'Global Exclusions',
         description: 'These exclusions apply to every mapping and can be changed in Settings.',
       },
     },

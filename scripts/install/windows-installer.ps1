@@ -199,12 +199,12 @@ function Register-ContextMenu {
 
     $directoryKey = "HKCU:\Software\Classes\Directory\shell\sync-with-rclone"
     $backgroundKey = "HKCU:\Software\Classes\Directory\Background\shell\sync-with-rclone"
+    $commandStoreRoot = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell"
     $iconValue = $ExePath
 
     foreach ($rootKey in @($directoryKey, $backgroundKey)) {
         New-Item -Path $rootKey -Force | Out-Null
         New-ItemProperty -Path $rootKey -Name "MUIVerb" -Value "sync-with-rclone" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $rootKey -Name "SubCommands" -Value ([string]::Empty) -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $rootKey -Name "Icon" -Value $iconValue -PropertyType String -Force | Out-Null
     }
 
@@ -212,10 +212,12 @@ function Register-ContextMenu {
         @{
             RootKey = $directoryKey
             ArgumentToken = "%1"
+            VerbScope = "directory"
         },
         @{
             RootKey = $backgroundKey
             ArgumentToken = "%V"
+            VerbScope = "background"
         }
     )
 
@@ -241,25 +243,30 @@ function Register-ContextMenu {
     }
 
     foreach ($target in $targets) {
+        $verbNames = @()
         $submenuShellKey = "$($target.RootKey)\shell"
+
+        # Remove submenu keys created by older installers. SubCommands controls
+        # the menu now, so keeping these keys would create duplicate entries.
         if (Test-Path -LiteralPath $submenuShellKey) {
             Remove-Item -LiteralPath $submenuShellKey -Recurse -Force
         }
 
-        New-Item -Path $submenuShellKey -Force | Out-Null
-        Set-ItemProperty -Path $submenuShellKey -Name "(default)" -Value "push,pull" -Force
-
         foreach ($menuEntry in $menuEntries) {
-            $menuKey = "$submenuShellKey\$($menuEntry.KeyName)"
-            $commandKey = "$menuKey\command"
+            $verbName = "sync-with-rclone.$($target.VerbScope).$($menuEntry.KeyName)"
+            $verbKey = "$commandStoreRoot\$verbName"
+            $commandKey = "$verbKey\command"
             $command = "`"$ExePath`" --session --mode=$($menuEntry.Mode) --local `"$($target.ArgumentToken)`""
+            $verbNames += $verbName
 
-            New-Item -Path $menuKey -Force | Out-Null
-            New-ItemProperty -Path $menuKey -Name "MUIVerb" -Value $menuEntry.Label -PropertyType String -Force | Out-Null
-            New-ItemProperty -Path $menuKey -Name "Icon" -Value $menuEntry.IconPath -PropertyType String -Force | Out-Null
+            New-Item -Path $verbKey -Force | Out-Null
+            New-ItemProperty -Path $verbKey -Name "MUIVerb" -Value $menuEntry.Label -PropertyType String -Force | Out-Null
+            New-ItemProperty -Path $verbKey -Name "Icon" -Value $menuEntry.IconPath -PropertyType String -Force | Out-Null
             New-Item -Path $commandKey -Force | Out-Null
             Set-ItemProperty -Path $commandKey -Name "(default)" -Value $command -Force
         }
+
+        New-ItemProperty -Path $target.RootKey -Name "SubCommands" -Value ($verbNames -join ";") -PropertyType String -Force | Out-Null
     }
 }
 
@@ -270,6 +277,19 @@ function Unregister-ContextMenu {
     )) {
         if (Test-Path -LiteralPath $key) {
             Remove-Item -LiteralPath $key -Recurse -Force
+        }
+    }
+
+    $commandStoreRoot = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell"
+    foreach ($verbName in @(
+        "sync-with-rclone.directory.push",
+        "sync-with-rclone.directory.pull",
+        "sync-with-rclone.background.push",
+        "sync-with-rclone.background.pull"
+    )) {
+        $verbKey = "$commandStoreRoot\$verbName"
+        if (Test-Path -LiteralPath $verbKey) {
+            Remove-Item -LiteralPath $verbKey -Recurse -Force
         }
     }
 }

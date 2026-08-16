@@ -6,12 +6,13 @@
 
 ### 1.1 打包步骤
 
-1. macOS 打包统一由 `scripts/build/build-mac.js` 校验目标架构的 assets
-2. Vite 构建 renderer 页面，并校验 Electron 加载所需的构建产物
-3. electron-builder 收集 Electron main、preload、renderer 构建产物
-4. 打包时附带目标架构需要运行的 resources/ 内容
-5. Windows 下由 NSIS 生成安装器
-6. 安装器负责注册右键菜单
+1. `npm run download:rclone` 下载并校验项目固定使用的 rclone 版本；二进制保存在 ignored 的 `resources/binaries/`，不进入源码仓库
+2. macOS 打包统一由 `scripts/build/build-mac.js` 校验目标架构的 assets
+3. Vite 构建 renderer 页面，并校验 Electron 加载所需的构建产物
+4. electron-builder 收集 Electron main、preload、renderer 构建产物
+5. 打包时只附带目标平台和架构需要的 rclone binary
+6. Windows 下由 NSIS 生成安装器
+7. 安装器负责注册右键菜单
 
 ### 1.2 安装步骤
 

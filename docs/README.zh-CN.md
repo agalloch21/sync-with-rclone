@@ -115,6 +115,12 @@ CLI 可以查看和管理 server 与 mapping，也可以执行 Push 和 Pull。�
 npm install
 ```
 
+下载构建安装程序所需的 bundled rclone binaries：
+
+```bash
+npm run download:rclone
+```
+
 以开发模式启动主 GUI：
 
 ```bash

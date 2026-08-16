@@ -5,13 +5,13 @@ import { parseSyncArgs } from '#shell/parse-sync-args.js'
 test('parseSyncArgs supports named arguments with equals syntax', () => {
   const result = parseSyncArgs([
     '--mode=push',
-    '--local=test/fixtures/local/compare-push',
+    '--local=/Users/me/Documents/project',
     '--remote=fake-remote:compare-push',
   ])
 
   assert.deepEqual(result, {
     mode: 'push',
-    localFolderPath: 'test/fixtures/local/compare-push',
+    localFolderPath: '/Users/me/Documents/project',
     remoteFolderPath: 'fake-remote:compare-push',
     bypassConfig: false,
   })
@@ -22,12 +22,12 @@ test('parseSyncArgs supports named arguments with separate values', () => {
     '--mode',
     'pull',
     '--local',
-    'test/fixtures/local/compare-push',
+    '/Users/me/Documents/project',
   ])
 
   assert.deepEqual(result, {
     mode: 'pull',
-    localFolderPath: 'test/fixtures/local/compare-push',
+    localFolderPath: '/Users/me/Documents/project',
     remoteFolderPath: '',
     bypassConfig: false,
   })
@@ -36,13 +36,13 @@ test('parseSyncArgs supports named arguments with separate values', () => {
 test('parseSyncArgs falls back to positional arguments for backward compatibility', () => {
   const result = parseSyncArgs([
     'push',
-    'test/fixtures/local/compare-push',
+    '/Users/me/Documents/project',
     'fake-remote:compare-push',
   ])
 
   assert.deepEqual(result, {
     mode: 'push',
-    localFolderPath: 'test/fixtures/local/compare-push',
+    localFolderPath: '/Users/me/Documents/project',
     remoteFolderPath: 'fake-remote:compare-push',
     bypassConfig: false,
   })
@@ -54,13 +54,13 @@ test('parseSyncArgs ignores packaged runtime argv noise before the sync command'
     '--original-process-start-time=123456',
     '.',
     'push',
-    'D:/ProjectsSynced/2025.11.2_sync-with-remote/code/sync-with-rclone/test/fixtures/local/compare-push',
+    'D:/Projects/example-project',
     'fake-remote:compare-push',
   ])
 
   assert.deepEqual(result, {
     mode: 'push',
-    localFolderPath: 'D:/ProjectsSynced/2025.11.2_sync-with-remote/code/sync-with-rclone/test/fixtures/local/compare-push',
+    localFolderPath: 'D:/Projects/example-project',
     remoteFolderPath: 'fake-remote:compare-push',
     bypassConfig: false,
   })
@@ -72,14 +72,14 @@ test('parseSyncArgs prefers named arguments over positional noise', () => {
     'push',
     '--mode=pull',
     '--local',
-    'test/fixtures/local/compare-push',
+    '/Users/me/Documents/project',
     '--remote',
     'fake-remote:compare-pull',
   ])
 
   assert.deepEqual(result, {
     mode: 'pull',
-    localFolderPath: 'test/fixtures/local/compare-push',
+    localFolderPath: '/Users/me/Documents/project',
     remoteFolderPath: 'fake-remote:compare-pull',
     bypassConfig: false,
   })
@@ -89,13 +89,13 @@ test('parseSyncArgs accepts legacy named aliases used by helper scripts', () => 
   const result = parseSyncArgs([
     '--mode=push',
     '--folder',
-    'test/fixtures/local/compare-push',
+    '/Users/me/Documents/project',
     '--remote-path=fake-remote:compare-push',
   ])
 
   assert.deepEqual(result, {
     mode: 'push',
-    localFolderPath: 'test/fixtures/local/compare-push',
+    localFolderPath: '/Users/me/Documents/project',
     remoteFolderPath: 'fake-remote:compare-push',
     bypassConfig: false,
   })
@@ -105,13 +105,13 @@ test('parseSyncArgs supports bypassConfig as a CLI flag', () => {
   const result = parseSyncArgs([
     '--bypass-config',
     '--mode=push',
-    '--local=test/fixtures/local/compare-push',
+    '--local=/Users/me/Documents/project',
     '--remote=fake-remote:compare-push',
   ])
 
   assert.deepEqual(result, {
     mode: 'push',
-    localFolderPath: 'test/fixtures/local/compare-push',
+    localFolderPath: '/Users/me/Documents/project',
     remoteFolderPath: 'fake-remote:compare-push',
     bypassConfig: true,
   })
@@ -121,13 +121,13 @@ test('parseSyncArgs supports disabling bypassConfig explicitly', () => {
   const result = parseSyncArgs([
     '--bypass-config=false',
     '--mode=push',
-    '--local=test/fixtures/local/compare-push',
+    '--local=/Users/me/Documents/project',
     '--remote=fake-remote:compare-push',
   ])
 
   assert.deepEqual(result, {
     mode: 'push',
-    localFolderPath: 'test/fixtures/local/compare-push',
+    localFolderPath: '/Users/me/Documents/project',
     remoteFolderPath: 'fake-remote:compare-push',
     bypassConfig: false,
   })

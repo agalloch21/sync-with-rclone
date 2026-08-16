@@ -2,11 +2,28 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import test from 'node:test'
+import test, { after, before } from 'node:test'
 import { APP_ERROR_CODE } from '#src/app/app-errors.js'
 import { resolveMapping } from '#src/app/operations/sync/resolve-mapping.js'
 
-const projectRoot = path.resolve('test/fixtures/local').replaceAll(path.sep, path.posix.sep)
+let temporaryPath
+let projectRoot
+let projectPath
+let outsidePath
+
+before(async () => {
+  temporaryPath = await fs.mkdtemp(path.join(os.tmpdir(), 'resolve-mapping-'))
+  const nativeProjectRoot = path.join(temporaryPath, 'local')
+  const nativeProjectPath = path.join(nativeProjectRoot, 'compare-push')
+  const nativeOutsidePath = path.join(temporaryPath, 'outside')
+  await fs.mkdir(nativeProjectPath, { recursive: true })
+  await fs.mkdir(nativeOutsidePath)
+  projectRoot = (await fs.realpath(nativeProjectRoot)).replaceAll(path.sep, path.posix.sep)
+  projectPath = (await fs.realpath(nativeProjectPath)).replaceAll(path.sep, path.posix.sep)
+  outsidePath = (await fs.realpath(nativeOutsidePath)).replaceAll(path.sep, path.posix.sep)
+})
+
+after(() => fs.rm(temporaryPath, { recursive: true, force: true }))
 
 function createConfig(mappingOverrides = {}) {
   return {
@@ -26,10 +43,10 @@ function createConfig(mappingOverrides = {}) {
 
 test('resolveMapping matches the correct mapping and computes the default remote path', () => {
   const config = createConfig()
-  const result = resolveMapping(config, 'test/fixtures/local/compare-push')
+  const result = resolveMapping(config, projectPath)
 
   assert.equal(result.matchedMapping.displayName, 'ProjectsSynced')
-  assert.equal(result.localFolderPath, path.resolve('test/fixtures/local/compare-push').replaceAll(path.sep, path.posix.sep))
+  assert.equal(result.localFolderPath, projectPath)
   assert.equal(result.relativePath, 'compare-push')
   assert.equal(result.remoteFolderPath, 'synology:ProjectsSynced/compare-push')
   assert.deepEqual(result.exclusionPatterns, ['.DS_Store', 'node_modules/'])
@@ -39,7 +56,7 @@ test('resolveMapping allows explicit remote paths inside the same mapping', () =
   const config = createConfig()
   const result = resolveMapping(
     config,
-    'test/fixtures/local/compare-push',
+    projectPath,
     'synology:ProjectsSynced/custom-target',
   )
 
@@ -51,7 +68,7 @@ test('resolveMapping rejects explicit remote paths outside the current mapping',
 
   assert.throws(() => resolveMapping(
     config,
-    'test/fixtures/local/compare-push',
+    projectPath,
     'synology:AnotherRoot/custom-target',
   ), {
     name: 'AppError',
@@ -62,7 +79,7 @@ test('resolveMapping rejects explicit remote paths outside the current mapping',
 test('resolveMapping throws when no mapping matches the local path', () => {
   const config = createConfig()
 
-  assert.throws(() => resolveMapping(config, 'test/fixtures/scan/nested'), {
+  assert.throws(() => resolveMapping(config, outsidePath), {
     name: 'AppError',
     code: APP_ERROR_CODE.CONFIG_NO_MATCHING_MAPPING,
   })
@@ -75,14 +92,14 @@ test('resolveMapping allows syncing to the remote root when remoteBasePath is em
       {
         displayName: 'ProjectsSynced',
         rcloneRemote: 'synology',
-        localBasePath: path.resolve('test/fixtures/local/compare-push').replaceAll(path.sep, path.posix.sep),
+        localBasePath: projectPath,
         remoteBasePath: '',
         exclusionPatterns: [],
       },
     ],
   }
 
-  const result = resolveMapping(config, 'test/fixtures/local/compare-push')
+  const result = resolveMapping(config, projectPath)
 
   assert.equal(result.relativePath, '.')
   assert.equal(result.remoteFolderPath, 'synology:')

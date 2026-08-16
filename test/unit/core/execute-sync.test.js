@@ -10,8 +10,12 @@ import {
   InfrastructureError,
 } from '#src/infrastructure/infrastructure-error.js'
 import { withFakeRcloneCommand } from '../../helpers/fake-rclone-command.js'
+import { createTemporaryDirectory } from '../../helpers/temporary-files.js'
 
-test('executeSync converts apply cancellation into a cancelled result with apply metadata', async () => {
+test('executeSync converts apply cancellation into a cancelled result with apply metadata', async (t) => {
+  const localFolderPath = await createTemporaryDirectory(t, 'execute-sync-cancel-')
+  await fs.writeFile(path.join(localFolderPath, 'local.txt'), 'local')
+
   await withFakeRcloneCommand({
     lsjson: { stdout: '[]' },
     copy: {
@@ -25,7 +29,7 @@ test('executeSync converts apply cancellation into a cancelled result with apply
 
     const result = await executeSync({
       mode: 'push',
-      localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
+      localFolderPath,
       remoteFolderPath: 'fake-remote:compare-push',
       runtimePaths,
     }, {
@@ -46,14 +50,17 @@ test('executeSync converts apply cancellation into a cancelled result with apply
   })
 })
 
-test('executeSync returns apply operations when the real command boundary fails', async () => {
+test('executeSync returns apply operations when the real command boundary fails', async (t) => {
+  const localFolderPath = await createTemporaryDirectory(t, 'execute-sync-failure-')
+  await fs.writeFile(path.join(localFolderPath, 'local.txt'), 'local')
+
   await withFakeRcloneCommand({
     lsjson: { stdout: '[]' },
     copy: { confirmFirstPath: true, exitCode: 1 },
   }, async ({ runtimePaths }) => {
     const result = await executeSync({
       mode: 'push',
-      localFolderPath: path.posix.resolve('test/fixtures/local/compare-push'),
+      localFolderPath,
       remoteFolderPath: 'fake-remote:compare-push',
       runtimePaths,
     })

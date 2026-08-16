@@ -16,6 +16,7 @@
   "main": "src/shell/index.cjs",
   "scripts": {
     "build:renderer": "vite build",
+    "download:rclone": "bash scripts/build/download-rclone-binaries.sh",
     "dev": "node scripts/dev/dev-electron.js",
     "dev:session": "node scripts/dev/dev-electron.js --session",
     "prestart": "npm run build:renderer",

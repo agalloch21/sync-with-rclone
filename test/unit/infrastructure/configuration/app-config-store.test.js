@@ -16,7 +16,7 @@ test('loadAppConfig reads and normalizes config', async () => {
       {
         displayName: 'Projects',
         rcloneRemote: 'synology',
-        localBasePath: './test/fixtures/local',
+        localBasePath: './test/example-local',
         remoteBasePath: 'Projects',
         exclusionPatterns: ['node_modules/'],
         lastSyncMode: 'push',
@@ -47,7 +47,7 @@ test('loadAppConfig allows an empty remoteBasePath for syncing to the remote roo
       {
         displayName: 'Projects',
         rcloneRemote: 'synology',
-        localBasePath: './test/fixtures/local',
+        localBasePath: './test/example-local',
         remoteBasePath: '',
         exclusionPatterns: [],
       },
@@ -66,7 +66,7 @@ test('loadAppConfig normalizes remote base paths with remote path rules', async 
   await fs.writeFile(configPath, JSON.stringify({
     mappings: [{
       rcloneRemote: 'synology',
-      localBasePath: './test/fixtures/local',
+      localBasePath: './test/example-local',
       remoteBasePath: 'Projects\\Current/../Archive/',
     }],
   }))
@@ -84,7 +84,7 @@ test('loadAppConfig defaults last sync fields to null', async () => {
       {
         displayName: 'Projects',
         rcloneRemote: 'synology',
-        localBasePath: './test/fixtures/local',
+        localBasePath: './test/example-local',
         remoteBasePath: 'Projects',
         exclusionPatterns: [],
       },

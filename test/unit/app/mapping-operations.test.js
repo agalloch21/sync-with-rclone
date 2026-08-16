@@ -20,7 +20,7 @@ import {
 import { withFakeAppRuntime } from '#test/helpers/fake-runtime.js'
 
 test('createMapping reports an invalid local directory and preserves its native cause', async () => {
-  const missingPath = path.resolve('test/fixtures/path-does-not-exist')
+  const missingPath = path.resolve('test/path-does-not-exist')
 
   await assert.rejects(() => createMapping({
     rcloneRemote: 'synology',

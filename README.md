@@ -113,6 +113,12 @@ Install dependencies:
 npm install
 ```
 
+Download the bundled rclone binaries required to build installers:
+
+```bash
+npm run download:rclone
+```
+
 Start the main GUI in development mode:
 
 ```bash

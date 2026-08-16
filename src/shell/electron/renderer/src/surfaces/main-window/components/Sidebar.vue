@@ -24,7 +24,7 @@ defineEmits(['onSelectPanel'])
     </div>
     <div class="about-dock border-t border-t-(--surface-soft)">
       <div class="about-stage py-1.5 flex justify-center items-center gap-1.5 text-xs text-(--text-subtle)">
-        <p>{{ $t('appShell.version') }} 0.0.1</p>
+        <p>{{ $t('appShell.version') }} 0.1.0</p>
         <span class="icon-[lucide--circle-question-mark] w-3 h-3" />
       </div>
     </div>

@@ -1,7 +1,7 @@
 {
   "name": "sync-with-rclone",
   "type": "module",
-  "version": "1.0.4",
+  "version": "0.1.0",
   "description": "Project-folder sync tool with rclone, diff review, and selective apply.",
   "author": "",
   "license": "ISC",

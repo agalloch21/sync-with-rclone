@@ -1,0 +1,130 @@
+{
+  "name": "sync-with-rclone",
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Project-folder sync tool with rclone, diff review, and selective apply.",
+  "author": "",
+  "license": "ISC",
+  "imports": {
+    "#cli/*": "./src/shell/cli/*",
+    "#electron/*": "./src/shell/electron/*",
+    "#frontend/*": "./src/shell/electron/renderer/src/*",
+    "#shell/*": "./src/shell/*",
+    "#src/*": "./src/*",
+    "#test/*": "./test/*"
+  },
+  "main": "src/shell/index.cjs",
+  "scripts": {
+    "build:renderer": "vite build",
+    "download:rclone": "bash scripts/build/download-rclone-binaries.sh",
+    "dev": "node scripts/dev/dev-electron.js",
+    "dev:session": "node scripts/dev/dev-electron.js --session",
+    "prestart": "npm run build:renderer",
+    "start": "electron src/shell/index.cjs",
+    "verify:assets": "node scripts/build/verify-assets.js",
+    "verify:build": "node scripts/build/verify-build.js",
+    "predist:win": "npm run verify:assets -- win && npm run build:renderer && npm run verify:build",
+    "prepack:win": "npm run verify:assets -- win && npm run build:renderer && npm run verify:build",
+    "dist:win": "electron-builder --win nsis --x64",
+    "pack:win": "electron-builder --win dir --x64",
+    "dist:mac": "node scripts/build/build-mac.js pkg arm64",
+    "dist:mac:all": "node scripts/build/build-mac.js pkg,dmg,zip arm64",
+    "pack:mac": "node scripts/build/build-mac.js dir arm64",
+    "pack:mac:x64": "node scripts/build/build-mac.js dir x64",
+    "test": "node --test"
+  },
+  "build": {
+    "appId": "com.xiaobo.sync-with-rclone",
+    "productName": "sync-with-rclone",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "buildResources": "scripts/install",
+      "output": "dist"
+    },
+    "electronDist": "node_modules/electron/dist",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "scripts/install/macos-menu.sh",
+        "to": "scripts/macos-menu.sh"
+      },
+      {
+        "from": "scripts/install/windows-installer.ps1",
+        "to": "scripts/windows-installer.ps1"
+      },
+      {
+        "from": "scripts/install/menu-item-push.ico",
+        "to": "icons/menu-item-push.ico"
+      },
+      {
+        "from": "scripts/install/menu-item-pull.ico",
+        "to": "icons/menu-item-pull.ico"
+      }
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "icon": "icon-mac.png"
+    },
+    "dmg": {
+      "icon": "icon-mac.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "executableName": "sync-with-rclone",
+      "icon": "icon-win.png",
+      "extraResources": [
+        {
+          "from": "resources/binaries",
+          "to": "binaries",
+          "filter": [
+            "rclone-windows-amd64.exe"
+          ]
+        }
+      ]
+    },
+    "pkg": {
+      "scripts": "pkg-scripts",
+      "installLocation": "/Applications",
+      "allowAnywhere": false,
+      "allowCurrentUserHome": false,
+      "allowRootDirectory": true,
+      "isRelocatable": false,
+      "isVersionChecked": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "include": "installer.nsh",
+      "runAfterFinish": false
+    }
+  },
+  "dependencies": {
+    "ignore": "^7.0.5",
+    "vue": "^3.5.22",
+    "vue-i18n": "^11.3.2"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^7.7.3",
+    "@iconify-json/lucide": "^1.2.111",
+    "@iconify/tailwind4": "^1.2.3",
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/vite": "^4.2.2",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "electron": "^41.1.0",
+    "electron-builder": "^26.0.12",
+    "eslint": "^10.1.0",
+    "tailwindcss": "^4.2.2",
+    "vite": "^7.1.7"
+  }
+}

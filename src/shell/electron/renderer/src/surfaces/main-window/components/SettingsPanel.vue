@@ -1,0 +1,159 @@
+<script setup lang="ts">
+import { formatExclusionPatterns, parseExclusionPatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
+import { setLocale, SUPPORTED_LOCALES } from '#frontend/i18n/index.js'
+import { unwrapResult } from '#src/app/operation-result.js'
+import { onMounted, onUnmounted, ref, shallowRef } from 'vue'
+import { useI18n } from 'vue-i18n'
+import Button from '../../shared/Button.vue'
+import ConfigurationLoadError from './ConfigurationLoadError.vue'
+
+const mappingOperations = useMappingOperations(window?.mainWindow)
+const { locale } = useI18n()
+
+const globalPatternsText = ref('')
+const isLoading = ref(false)
+const isSubmitting = ref(false)
+const loadError = shallowRef(null)
+let unsubscribeConfigUpdated = null
+
+onMounted(async () => {
+  unsubscribeConfigUpdated = window.mainWindow?.onConfigUpdated?.(() => {
+    void loadGlobalExclusionPatterns()
+  })
+  await loadGlobalExclusionPatterns()
+})
+
+onUnmounted(() => {
+  unsubscribeConfigUpdated?.()
+})
+
+async function loadGlobalExclusionPatterns() {
+  isLoading.value = true
+  const result = await window.mainWindow?.getGlobalExclusionPatterns?.()
+  isLoading.value = false
+
+  if (!result?.success) {
+    globalPatternsText.value = ''
+    loadError.value = result?.error || null
+    return
+  }
+
+  globalPatternsText.value = formatExclusionPatterns(unwrapResult(result))
+  loadError.value = null
+}
+
+async function applyGlobalPatterns() {
+  if (isSubmitting.value)
+    return
+
+  const exclusionPatterns = parseExclusionPatterns(globalPatternsText.value)
+  isSubmitting.value = true
+  try {
+    const result = await mappingOperations.updateGlobalExclusionPatterns(exclusionPatterns)
+    if (result?.success)
+      globalPatternsText.value = formatExclusionPatterns(unwrapResult(result))
+  }
+  finally {
+    isSubmitting.value = false
+  }
+}
+
+function openConfigFolder() {
+  return window.mainWindow?.openConfigFolder?.()
+}
+
+function changeLocale(event) {
+  setLocale(event.target.value)
+}
+</script>
+
+<template>
+  <div class="settings-panel-stage w-full h-full pr-4 pb-4 flex flex-col items-stretch gap-2 text-(--text-primary)">
+    <!-- <header class="header-dock w-full flex items-center border-b border-(--surface-soft)">
+      <div class="tab-patterns h-10 text-base text-(--text-primary) font-bold content-center">
+        {{ $t('settingsPanel.globalPatterns.title') }}
+      </div>
+    </header> -->
+
+    <header class="h-10 shrink-0 flex items-center justify-between border-b border-(--surface-soft)">
+      <h1 class="text-base font-bold">
+        {{ $t('settingsPanel.title') }}
+      </h1>
+      <button
+        class="clickable focusable rounded px-3 py-1 text-xs text-(--primary)"
+        type="button"
+        @click="openConfigFolder"
+      >
+        {{ $t('settingsPanel.openConfigFolder') }}
+      </button>
+    </header>
+
+    <main class="content-dock min-h-0 flex-1 flex flex-col gap-5">
+      <section class="flex items-center justify-between gap-6">
+        <div class="flex flex-col gap-1">
+          <label class="text-sm font-semibold" for="settings-language">
+            {{ $t('settingsPanel.language.title') }}
+          </label>
+          <p class="description">
+            {{ $t('settingsPanel.language.description') }}
+          </p>
+        </div>
+        <select
+          id="settings-language"
+          class="language-select focusable"
+          :value="locale"
+          @change="changeLocale"
+        >
+          <option v-for="supportedLocale in SUPPORTED_LOCALES" :key="supportedLocale" :value="supportedLocale">
+            {{ $t(`settingsPanel.language.options.${supportedLocale}`) }}
+          </option>
+        </select>
+      </section>
+
+      <section class="min-h-0 flex-1 flex flex-col gap-2 border-t border-(--surface-soft) pt-4">
+        <h2 class="text-sm font-semibold">
+          {{ $t('settingsPanel.globalPatterns.title') }}
+        </h2>
+        <ConfigurationLoadError v-if="loadError" :error="loadError" />
+        <template v-else>
+          <textarea
+            v-model="globalPatternsText"
+            class="pattern-area w-full h-full"
+            :placeholder="$t('common.exclusionPatternsPlaceholder')"
+            :disabled="isLoading || isSubmitting"
+            autofocus
+          />
+          <p class="description">
+            {{ $t('settingsPanel.globalPatterns.description') }}
+          </p>
+        </template>
+      </section>
+    </main>
+    <footer class="footer-dock h-16 flex justify-end items-center">
+      <Button
+        :primary="true" :wide="true" :disabled="isLoading || isSubmitting || loadError !== null" @click="applyGlobalPatterns"
+      >
+        {{ $t('settingsPanel.common.apply') }}
+      </Button>
+    </footer>
+  </div>
+</template>
+
+<style scoped>
+@reference "tailwindcss";
+.pattern-area{
+  @apply row-start-2 text-xs text-(--text-subtle) resize-none box-border
+  rounded-lg border border-gray-300 bg-white px-4 py-2 placeholder-gray-400
+  block shadow-sm transition duration-200 ease-in-out
+
+  hover:border-gray-400 focus:border-(--primary) focus:outline-none focus:ring-2 focus:ring-blue-500/20
+  disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400
+}
+.language-select{
+  @apply min-w-40 rounded-md border border-gray-300 bg-white py-2 pl-3 pr-9 text-xs font-medium text-(--text-subtle)
+  shadow-sm focus:border-(--primary) focus:ring-(--primary);
+}
+.description{
+  @apply text-xs text-(--text-subtle);
+}
+</style>

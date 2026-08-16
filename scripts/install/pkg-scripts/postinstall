@@ -1,0 +1,125 @@
+#!/bin/bash
+
+set -Eeuo pipefail
+
+APP_NAME="sync-with-rclone.app"
+APP_SUPPORT_SUBPATH="Library/Application Support/sync-with-rclone"
+CONFIG_SUBDIR="config"
+LOG_SUBDIR="logs"
+
+PACKAGE_PATH="${1:-}"
+TARGET_LOCATION="${2:-}"
+TARGET_VOLUME="${3:-/}"
+RESOLVED_APP_PATH=""
+CURRENT_USER=""
+USER_HOME=""
+FAILURE_LOG=""
+
+log_failure() {
+  local message="$1"
+
+  if [[ -z "$FAILURE_LOG" ]]; then
+    if [[ -n "$USER_HOME" ]]; then
+      FAILURE_LOG="$USER_HOME/$APP_SUPPORT_SUBPATH/$LOG_SUBDIR/pkg-postinstall.log"
+    else
+      FAILURE_LOG="$HOME/$APP_SUPPORT_SUBPATH/$LOG_SUBDIR/pkg-postinstall.log"
+    fi
+  fi
+
+  mkdir -p "$(dirname "$FAILURE_LOG")"
+  {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message"
+    echo "  packagePath: ${PACKAGE_PATH:-<none>}"
+    echo "  targetLocation: ${TARGET_LOCATION:-<none>}"
+    echo "  targetVolume: ${TARGET_VOLUME:-<none>}"
+    echo "  currentUser: ${CURRENT_USER:-<none>}"
+    echo "  userHome: ${USER_HOME:-<none>}"
+    echo "  resolvedAppPath: ${RESOLVED_APP_PATH:-<none>}"
+  } >> "$FAILURE_LOG"
+}
+
+trap 'log_failure "pkg postinstall failed unexpectedly."' ERR
+
+find_app_path() {
+  local candidates=()
+  local project_like_root=""
+
+  if [[ -n "$PACKAGE_PATH" ]]; then
+    project_like_root="$(dirname "$PACKAGE_PATH")"
+    candidates+=("/Applications/$APP_NAME")
+    candidates+=("${TARGET_VOLUME%/}/Applications/$APP_NAME")
+    candidates+=("$TARGET_LOCATION")
+    candidates+=("$TARGET_LOCATION/$APP_NAME")
+    candidates+=("${TARGET_VOLUME%/}/$TARGET_LOCATION")
+    candidates+=("${TARGET_VOLUME%/}/$TARGET_LOCATION/$APP_NAME")
+  fi
+
+  for candidate in "${candidates[@]}"; do
+    if [[ -z "$candidate" ]]; then
+      continue
+    fi
+
+    if [[ -n "$project_like_root" && "$candidate" == "$project_like_root"* ]]; then
+      continue
+    fi
+
+    if [[ -d "$candidate/Contents" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+CURRENT_USER="$(stat -f '%Su' /dev/console)"
+if [[ -z "$CURRENT_USER" || "$CURRENT_USER" == "root" ]]; then
+  exit 0
+fi
+
+USER_HOME="$(dscl . -read "/Users/$CURRENT_USER" NFSHomeDirectory | awk '{print $2}')"
+if [[ -z "$USER_HOME" ]]; then
+  exit 0
+fi
+
+APP_SUPPORT_DIRECTORY="$USER_HOME/$APP_SUPPORT_SUBPATH"
+CONFIG_DIRECTORY="$APP_SUPPORT_DIRECTORY/$CONFIG_SUBDIR"
+LOG_DIRECTORY="$APP_SUPPORT_DIRECTORY/$LOG_SUBDIR"
+CONTEXT_MENU_STATE_PATH="$APP_SUPPORT_DIRECTORY/context-menu-state.json"
+FAILURE_LOG="$LOG_DIRECTORY/pkg-postinstall.log"
+
+mkdir -p "$CONFIG_DIRECTORY" "$LOG_DIRECTORY"
+
+RESOLVED_APP_PATH="$(find_app_path || true)"
+if [[ -z "$RESOLVED_APP_PATH" || ! -d "$RESOLVED_APP_PATH" ]]; then
+  log_failure "Unable to resolve the installed app bundle path during pkg postinstall."
+  exit 0
+fi
+
+RESOURCES_PATH="$RESOLVED_APP_PATH/Contents/Resources"
+MENU_SCRIPT_PATH="$RESOURCES_PATH/scripts/macos-menu.sh"
+APP_EXECUTABLE_PATH="$RESOLVED_APP_PATH/Contents/MacOS/sync-with-rclone"
+APP_VERSION="$(defaults read "$RESOLVED_APP_PATH/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || true)"
+
+chown -R "$CURRENT_USER":staff "$APP_SUPPORT_DIRECTORY"
+
+if [[ -x "$MENU_SCRIPT_PATH" ]]; then
+  if ! su - "$CURRENT_USER" -c "SYNC_WITH_RCLONE_EXECUTABLE='$APP_EXECUTABLE_PATH' \
+SYNC_WITH_RCLONE_CONFIG_DIR='$CONFIG_DIRECTORY' \
+SYNC_WITH_RCLONE_CONFIG_PATH='$CONFIG_DIRECTORY/config.json' \
+SYNC_WITH_RCLONE_LOG_DIR='$LOG_DIRECTORY' \
+bash '$MENU_SCRIPT_PATH' install '$APP_SUPPORT_DIRECTORY'"; then
+    log_failure "Failed to register Finder Quick Actions during pkg postinstall."
+    exit 0
+  fi
+
+  cat > "$CONTEXT_MENU_STATE_PATH" <<EOF
+{
+  "executablePath": "$APP_EXECUTABLE_PATH",
+  "version": "$APP_VERSION"
+}
+EOF
+  chown "$CURRENT_USER":staff "$CONTEXT_MENU_STATE_PATH"
+fi
+
+exit 0

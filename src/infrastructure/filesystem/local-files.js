@@ -1,0 +1,131 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import ignore from 'ignore'
+
+const PATTERN_FILE = '.gitignore'
+const FORBIDDEN_CHARS = /[<>:"/\\|?*\x00-\x1F]/
+
+function isValidFilename(name) {
+  if (!name || name.length > 255)
+    return false
+
+  return !FORBIDDEN_CHARS.test(name)
+}
+
+async function readPatterns(absFilePath) {
+  try {
+    const stat = await fs.lstat(absFilePath)
+    if (stat.isSymbolicLink() || !stat.isFile())
+      return
+  }
+  catch {
+    return
+  }
+
+  try {
+    const content = await fs.readFile(absFilePath, 'utf-8')
+    return [...new Set(content
+      .split(/\r?\n/)
+      .map(pattern => pattern.trim())
+      .filter(pattern => !pattern.startsWith('#') && pattern.length > 0))]
+  }
+  catch (error) {
+    throw new Error(`Error reading file ${absFilePath}. ${error}`)
+  }
+}
+
+function checkIgnore(filters, entryPath, isDir) {
+  let ignored = false
+
+  for (const filter of filters) {
+    const pathToFilter = path.posix.relative(filter.dirPath, entryPath) + (isDir ? '/' : '')
+    const result = filter.ig.ignores(pathToFilter)
+    if (!ignored) {
+      ignored = result
+    }
+    else if (filter.ig.checkIgnore(pathToFilter).unignored === true) {
+      ignored = false
+    }
+  }
+
+  return ignored
+}
+
+function resolveFilesystemPath(rootPath, relativePath = '.') {
+  if (!relativePath || relativePath === '.')
+    return rootPath
+
+  return path.join(rootPath, ...relativePath.split('/'))
+}
+
+async function walkDirectory(rootPath, dirPath, gitIgnoreStack, exclusions, fileEntries, cancelSignal) {
+  cancelSignal?.throwIfAborted()
+  const directoryPath = resolveFilesystemPath(rootPath, dirPath)
+  const entryNames = await fs.readdir(directoryPath)
+  let filters = gitIgnoreStack
+
+  if (entryNames.includes(PATTERN_FILE)) {
+    const patterns = await readPatterns(path.join(directoryPath, PATTERN_FILE))
+    if (patterns) {
+      filters = gitIgnoreStack.concat({
+        dirPath,
+        patterns,
+        ig: ignore().add(patterns),
+      })
+    }
+  }
+
+  for (const entryName of entryNames) {
+    cancelSignal?.throwIfAborted()
+    const entryPath = path.posix.join(dirPath, entryName)
+    const stat = await fs.lstat(path.join(directoryPath, entryName))
+    if (stat.isSymbolicLink())
+      continue
+
+    const isFile = stat.isFile()
+    const isDirectory = stat.isDirectory()
+
+    if ((!isFile && !isDirectory) || !isValidFilename(entryName))
+      continue
+    if (exclusions?.excludes(entryPath, isDirectory) || checkIgnore(filters, entryPath, isDirectory))
+      continue
+
+    if (isDirectory) {
+      await walkDirectory(rootPath, entryPath, filters, exclusions, fileEntries, cancelSignal)
+    }
+    else {
+      fileEntries.push({
+        path: entryPath,
+        size: stat.size,
+        mtimeMs: stat.mtimeMs,
+      })
+    }
+  }
+}
+
+export async function listLocalFiles(rootAbsPath, exclusions = null, cancelSignal = null) {
+  if (!path.isAbsolute(rootAbsPath))
+    throw new Error(`Input must be an absolute path. ${rootAbsPath}`)
+
+  const rootPath = path.resolve(rootAbsPath)
+  const fileEntries = []
+  const gitIgnoreStack = []
+
+  const rootStat = await fs.stat(rootPath)
+
+  if (rootStat.isDirectory()) {
+    await walkDirectory(rootPath, '.', gitIgnoreStack, exclusions, fileEntries, cancelSignal)
+  }
+  else if (rootStat.isFile()) {
+    const fileName = path.basename(rootPath)
+    if (isValidFilename(fileName) && !exclusions?.excludes(fileName, false)) {
+      fileEntries.push({
+        path: fileName,
+        size: rootStat.size,
+        mtimeMs: rootStat.mtimeMs,
+      })
+    }
+  }
+
+  return fileEntries
+}

@@ -10,25 +10,34 @@ const formModal = {
       remote: 'Remote',
       changeFolder: 'Select Folder',
     },
+    serverForm: {
+      name: 'Name',
+      protocol: 'Protocol',
+      selectProtocol: 'Select the protocol type',
+    },
     [FORM_MODAL_VIEW.CHOOSE_SERVER]: {
-      title: 'Create Mapping',
-      message: 'Choose a remote server',
+      title: 'Choose Server',
+      message: 'Use an existing server or create a new one',
+      loading: 'Loading servers...',
+      chooseExisting: 'Choose from the existing servers',
+      noneConfigured: 'No configured servers',
+      createNew: 'Connect to a new server',
     },
     [FORM_MODAL_VIEW.CREATE_SERVER]: {
-      title: 'Create Mapping',
-      message: 'Connect to a new server',
+      title: 'Create Server',
+      message: 'Enter the server details',
     },
     [FORM_MODAL_VIEW.CREATE_FOLDER_MAPPING]: {
       title: 'Create Mapping',
-      message: 'Map the local folder with the remote',
+      message: 'Map a local folder to a remote folder',
     },
     [FORM_MODAL_VIEW.EDIT_SERVER]: {
       title: 'Edit Server',
-      message: 'Edit the connection',
+      message: 'Edit the server connection',
     },
     [FORM_MODAL_VIEW.EDIT_FOLDER_MAPPING]: {
       title: 'Edit Folder Mapping',
-      message: 'Map the local folder with the remote',
+      message: 'Map the local folder to the remote folder',
     },
     [FORM_MODAL_VIEW.EDIT_PATTERNS]: {
       title: 'Edit Exclusions',

@@ -3,6 +3,9 @@ import Button from '#frontend/surfaces/shared/Button.vue'
 import TreeNode from '#frontend/surfaces/shared/TreeNode.vue'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { nextTick, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const state = ref({ serverName: '', currentPath: '' })
 const tree = ref(null)
@@ -16,7 +19,7 @@ function getSelectionState(node) {
 }
 
 function getLoadError(result) {
-  return result?.error?.detail || result?.error?.message || 'Failed to load server folders.'
+  return result?.error?.detail || result?.error?.message || t('folderDialog.loadFailed')
 }
 
 function prepareChildNode(node) {
@@ -155,21 +158,21 @@ onMounted(async () => {
   <div class="h-dvh min-h-0 flex flex-col bg-(--surface) text-(--text-primary) cursor-default no-select no-callout">
     <header class="h-20 shrink-0 px-10 flex flex-col gap-1 justify-center bg-(--surface-soft)">
       <h1 class="mt-4 text-base font-bold content-center">
-        Select Remote Folder
+        {{ $t('folderDialog.title') }}
       </h1>
       <span class="text-xs text-(--text-subtle)">{{ state.serverName }}:{{ selectedPath }}</span>
     </header>
 
     <main class="min-h-0 flex-1 overflow-auto px-4 py-4">
       <p v-if="isLoading" class="text-sm text-(--text-subtle)">
-        Loading server folders...
+        {{ $t('folderDialog.loading') }}
       </p>
       <div v-else-if="loadError" class="flex flex-col items-start gap-3">
         <p class="m-0 text-sm text-(--danger) break-all">
           {{ loadError }}
         </p>
         <Button @click="loadTree">
-          Retry
+          {{ $t('folderDialog.retry') }}
         </Button>
       </div>
       <ul v-else-if="tree" class="m-0 p-0">
@@ -185,10 +188,10 @@ onMounted(async () => {
 
     <footer class="h-16 shrink-0 px-5 flex justify-end items-center gap-5 bg-(--surface-footer)">
       <Button :primary="true" :wide="true" :disabled="isLoading || Boolean(loadError) || isClosing" @click="confirmSelection">
-        Select
+        {{ $t('folderDialog.select') }}
       </Button>
       <Button :disabled="isClosing" @click="cancelSelection">
-        Cancel
+        {{ $t('folderDialog.cancel') }}
       </Button>
     </footer>
   </div>

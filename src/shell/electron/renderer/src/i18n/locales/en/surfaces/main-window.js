@@ -29,8 +29,17 @@ const mainWindow = {
     },
   },
   settingsPanel: {
+    title: 'Settings',
     common: {
       apply: 'Apply',
+    },
+    language: {
+      title: 'Language',
+      description: 'Choose the language used throughout the application.',
+      options: {
+        'en': 'English',
+        'zh-CN': '简体中文',
+      },
     },
     globalPatterns: {
       title: 'Global Exclusions',

@@ -10,13 +10,22 @@ const formModal = {
       remote: '远程',
       changeFolder: '选择文件夹',
     },
+    serverForm: {
+      name: '名称',
+      protocol: '协议',
+      selectProtocol: '选择协议类型',
+    },
     [FORM_MODAL_VIEW.CHOOSE_SERVER]: {
-      title: '创建映射',
-      message: '选择远程服务器',
+      title: '选择服务器',
+      message: '使用现有服务器或创建新服务器',
+      loading: '正在加载服务器……',
+      chooseExisting: '从现有服务器中选择',
+      noneConfigured: '没有已配置的服务器',
+      createNew: '连接到新服务器',
     },
     [FORM_MODAL_VIEW.CREATE_SERVER]: {
-      title: '创建映射',
-      message: '连接到新服务器',
+      title: '创建服务器',
+      message: '填写服务器信息',
     },
     [FORM_MODAL_VIEW.CREATE_FOLDER_MAPPING]: {
       title: '创建映射',
@@ -32,7 +41,7 @@ const formModal = {
     },
     [FORM_MODAL_VIEW.EDIT_PATTERNS]: {
       title: '编辑排除规则',
-      message: '双向排除不参与同步的路径',
+      message: '设置推送和拉取均不参与同步的路径',
       mappingSpecificPatterns: {
         title: '映射排除规则',
         description: '匹配路径在推送和拉取中均不比较、不复制、也不删除；不支持否定规则。',

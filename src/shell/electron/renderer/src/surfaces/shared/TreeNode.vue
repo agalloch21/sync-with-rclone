@@ -128,16 +128,16 @@ onBeforeUnmount(clearDoubleClickWindow)
           :selection-mode="selectionMode"
         />
         <li v-if="node.loadState === 'loading'" class="tree-status">
-          Loading folders...
+          {{ $t('treeNode.loading') }}
         </li>
         <li v-else-if="node.loadState === 'error'" class="tree-status text-(--danger)">
-          {{ node.loadError || 'Failed to load folders. Select the folder to retry.' }}
+          {{ node.loadError || $t('treeNode.loadFailed') }}
         </li>
         <li v-else-if="node.loadState === 'idle'" class="tree-status">
-          Select this folder to load its contents.
+          {{ $t('treeNode.loadPrompt') }}
         </li>
         <li v-else-if="node.loadState === 'loaded' && node.children?.length === 0" class="tree-status">
-          No subfolders.
+          {{ $t('treeNode.empty') }}
         </li>
       </ul>
     </details>

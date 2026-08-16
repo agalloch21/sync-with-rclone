@@ -106,7 +106,7 @@ async function submitServer() {
     <div class="content-stage flex justify-center items-center">
       <div class="protocol-form-grid">
         <!-- Name -->
-        <label class="field-label" for="server-name">Name</label>
+        <label class="field-label" for="server-name">{{ $t('formModal.serverForm.name') }}</label>
         <input
           id="server-name"
           class="field-control"
@@ -115,7 +115,7 @@ async function submitServer() {
           @input="serverName = $event.target.value"
         >
         <!-- Protocol Type Selection -->
-        <label class="field-label" for="protocol">Protocol</label>
+        <label class="field-label" for="protocol">{{ $t('formModal.serverForm.protocol') }}</label>
         <div class="field-control-dock">
           <select
             id="protocol"
@@ -124,7 +124,7 @@ async function submitServer() {
             @change="updateProtocolType($event.target.value)"
           >
             <option disabled value="">
-              Select the type of the protocol
+              {{ $t('formModal.serverForm.selectProtocol') }}
             </option>
             <option v-for="item in REMOTE_PROTOCOLS" :key="item.type" :value="item.type">
               {{ item.label }}

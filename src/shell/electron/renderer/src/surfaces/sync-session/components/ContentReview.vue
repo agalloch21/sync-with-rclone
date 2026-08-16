@@ -116,10 +116,10 @@ watch(() => state.value?.sessionState?.review, (newValue, _) => {
 <template>
   <div class="tree-stage px-4 py-4">
     <div v-if="!(state?.sessionState?.review?.tree?.children)">
-      Initializing trees
+      {{ $t('review.initializing') }}
     </div>
     <div v-else-if="state?.sessionState?.review?.tree?.children.length === 0">
-      No differences found.
+      {{ $t('review.empty') }}
     </div>
 
     <!-- tree-list root -->

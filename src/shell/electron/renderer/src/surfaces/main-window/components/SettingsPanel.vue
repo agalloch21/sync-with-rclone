@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { formatExclusionPatterns, parseExclusionPatterns, useMappingOperations } from '#frontend/composables/useMappingOperations.js'
+import { setLocale, SUPPORTED_LOCALES } from '#frontend/i18n/index.js'
 import { unwrapResult } from '#src/app/operation-result.js'
 import { onMounted, onUnmounted, ref, shallowRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Button from '../../shared/Button.vue'
 import ConfigurationLoadError from './ConfigurationLoadError.vue'
 
 const mappingOperations = useMappingOperations(window?.mainWindow)
+const { locale } = useI18n()
 
 const globalPatternsText = ref('')
 const isLoading = ref(false)
@@ -58,6 +61,10 @@ async function applyGlobalPatterns() {
 function openConfigFolder() {
   return window.mainWindow?.openConfigFolder?.()
 }
+
+function changeLocale(event) {
+  setLocale(event.target.value)
+}
 </script>
 
 <template>
@@ -70,7 +77,7 @@ function openConfigFolder() {
 
     <header class="h-10 shrink-0 flex items-center justify-between border-b border-(--surface-soft)">
       <h1 class="text-base font-bold">
-        {{ $t('settingsPanel.globalPatterns.title') }}
+        {{ $t('settingsPanel.title') }}
       </h1>
       <button
         class="clickable focusable rounded px-3 py-1 text-xs text-(--primary)"
@@ -81,20 +88,46 @@ function openConfigFolder() {
       </button>
     </header>
 
-    <main class="content-dock flex-1 flex flex-col gap-2">
-      <ConfigurationLoadError v-if="loadError" :error="loadError" />
-      <template v-else>
-        <textarea
-          v-model="globalPatternsText"
-          class="pattern-area w-full h-full"
-          placeholder="Type patterns here..."
-          :disabled="isLoading || isSubmitting"
-          autofocus
-        />
-        <p class="description">
-          {{ $t('settingsPanel.globalPatterns.description') }}
-        </p>
-      </template>
+    <main class="content-dock min-h-0 flex-1 flex flex-col gap-5">
+      <section class="flex items-center justify-between gap-6">
+        <div class="flex flex-col gap-1">
+          <label class="text-sm font-semibold" for="settings-language">
+            {{ $t('settingsPanel.language.title') }}
+          </label>
+          <p class="description">
+            {{ $t('settingsPanel.language.description') }}
+          </p>
+        </div>
+        <select
+          id="settings-language"
+          class="language-select focusable"
+          :value="locale"
+          @change="changeLocale"
+        >
+          <option v-for="supportedLocale in SUPPORTED_LOCALES" :key="supportedLocale" :value="supportedLocale">
+            {{ $t(`settingsPanel.language.options.${supportedLocale}`) }}
+          </option>
+        </select>
+      </section>
+
+      <section class="min-h-0 flex-1 flex flex-col gap-2 border-t border-(--surface-soft) pt-4">
+        <h2 class="text-sm font-semibold">
+          {{ $t('settingsPanel.globalPatterns.title') }}
+        </h2>
+        <ConfigurationLoadError v-if="loadError" :error="loadError" />
+        <template v-else>
+          <textarea
+            v-model="globalPatternsText"
+            class="pattern-area w-full h-full"
+            :placeholder="$t('common.exclusionPatternsPlaceholder')"
+            :disabled="isLoading || isSubmitting"
+            autofocus
+          />
+          <p class="description">
+            {{ $t('settingsPanel.globalPatterns.description') }}
+          </p>
+        </template>
+      </section>
     </main>
     <footer class="footer-dock h-16 flex justify-end items-center">
       <Button
@@ -115,6 +148,10 @@ function openConfigFolder() {
 
   hover:border-gray-400 focus:border-(--primary) focus:outline-none focus:ring-2 focus:ring-blue-500/20
   disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400
+}
+.language-select{
+  @apply min-w-40 rounded-md border border-gray-300 bg-white py-2 pl-3 pr-9 text-xs font-medium text-(--text-subtle)
+  shadow-sm focus:border-(--primary) focus:ring-(--primary);
 }
 .description{
   @apply text-xs text-(--text-subtle);

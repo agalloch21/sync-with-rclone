@@ -55,7 +55,7 @@ async function submitPatterns() {
         id="mapping-exclusion-patterns"
         v-model="mappingPatternsText"
         class="pattern-area enabled-area "
-        placeholder="Type patterns here..."
+        :placeholder="$t('common.exclusionPatternsPlaceholder')"
         autofocus
       />
       <p class="description text-(--text-subtle)">

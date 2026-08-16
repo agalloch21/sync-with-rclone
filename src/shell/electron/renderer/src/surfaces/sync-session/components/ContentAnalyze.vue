@@ -14,7 +14,7 @@ const currentPhaseIndex = computed(() => {
 <template>
   <div class="analyze-stage w-full h-full grid grid-rows-6 justify-center place-items-center">
     <div class="row-start-2 font-medium text-3xl text-(--text-primary)">
-      Preparing Sync
+      {{ $t('analyze.preparing') }}
     </div>
     <div class="row-start-3 row-span-3 flex flex-col justify-center items-left gap-4 text-xs text-(--text-subtle)">
       <div v-for="(phase, index) in analyzePhases" :key="phase" class="flex items-center gap-2">

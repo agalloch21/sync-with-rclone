@@ -18,19 +18,28 @@ const mainWindow = {
       description: '请选择“创建”来添加服务器并设置第一个文件夹映射。',
     },
     mappingItem: {
-      mappedTo: '映射到',
-      lastSync: '上次同步',
+      mappedTo: '映射目录',
+      lastSync: '上次操作',
     },
     actions: {
       create: '创建',
       edit: '编辑',
-      editPatterns: '排除',
+      editPatterns: '排除规则',
       delete: '删除',
     },
   },
   settingsPanel: {
+    title: '设置',
     common: {
       apply: '应用',
+    },
+    language: {
+      title: '语言',
+      description: '选择语言。',
+      options: {
+        'en': 'English',
+        'zh-CN': '简体中文',
+      },
     },
     globalPatterns: {
       title: '全局排除规则',

@@ -2,8 +2,15 @@ import { SYNC_SESSION_STAGE } from '#electron/contracts/sync-session-stage.js'
 import { SYNC_PHASES, SYNC_RESULT } from '#src/core/contract.js'
 
 const syncSession = {
-  [SYNC_SESSION_STAGE.ANALYZE]: { title: '分析' },
-  [SYNC_SESSION_STAGE.REVIEW]: { title: '检查' },
+  [SYNC_SESSION_STAGE.ANALYZE]: {
+    title: '分析',
+    preparing: '正在准备同步',
+  },
+  [SYNC_SESSION_STAGE.REVIEW]: {
+    title: '检查',
+    initializing: '正在初始化文件树',
+    empty: '没有发现差异。',
+  },
   [SYNC_SESSION_STAGE.SYNC]: { title: '同步' },
   [SYNC_PHASES.PREPARATION]: '正在规范化选项',
   [SYNC_PHASES.BUILD_LOCAL_SNAPSHOT]: '正在生成本地快照',

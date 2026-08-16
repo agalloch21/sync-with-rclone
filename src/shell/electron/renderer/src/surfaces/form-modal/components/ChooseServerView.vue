@@ -78,7 +78,9 @@ function getServerLabel(server) {
 <template>
   <ModalLayout :view="FORM_MODAL_VIEW.CHOOSE_SERVER">
     <div class="content-stage h-full flex justify-center items-center">
-      <span v-if="isLoading" class="text-sm text-(--text-subtle)">Loading servers...</span>
+      <span v-if="isLoading" class="text-sm text-(--text-subtle)">
+        {{ $t(`formModal.${FORM_MODAL_VIEW.CHOOSE_SERVER}.loading`) }}
+      </span>
       <div v-else class="flex flex-col justify-center gap-8">
         <!-- Option 1 -->
         <label class="option-item no-select">
@@ -93,7 +95,7 @@ function getServerLabel(server) {
           </div>
 
           <div class="flex flex-col justify-start gap-2">
-            <span class="option-text">Choose from the existing servers</span>
+            <span class="option-text">{{ $t(`formModal.${FORM_MODAL_VIEW.CHOOSE_SERVER}.chooseExisting`) }}</span>
             <select
               id="department"
               v-model="selectedServerName"
@@ -103,7 +105,7 @@ function getServerLabel(server) {
               focus:outline-none focus:ring-(--primary)"
             >
               <option v-if="!canChooseExisting" value="">
-                No configured servers
+                {{ $t(`formModal.${FORM_MODAL_VIEW.CHOOSE_SERVER}.noneConfigured`) }}
               </option>
               <template v-else>
                 <option v-for="item in availableServers" :key="item.name" :value="item.name">
@@ -126,7 +128,7 @@ function getServerLabel(server) {
               class="option-radio-button focusable"
             >
           </div>
-          <span class="option-text">Connect to a new server</span>
+          <span class="option-text">{{ $t(`formModal.${FORM_MODAL_VIEW.CHOOSE_SERVER}.createNew`) }}</span>
         </label>
       </div>
     </div>

@@ -2,8 +2,15 @@ import { SYNC_SESSION_STAGE } from '#electron/contracts/sync-session-stage.js'
 import { SYNC_PHASES, SYNC_RESULT } from '#src/core/contract.js'
 
 const syncSession = {
-  [SYNC_SESSION_STAGE.ANALYZE]: { title: 'Analyze' },
-  [SYNC_SESSION_STAGE.REVIEW]: { title: 'Review' },
+  [SYNC_SESSION_STAGE.ANALYZE]: {
+    title: 'Analyze',
+    preparing: 'Preparing Sync',
+  },
+  [SYNC_SESSION_STAGE.REVIEW]: {
+    title: 'Review',
+    initializing: 'Initializing trees',
+    empty: 'No differences found.',
+  },
   [SYNC_SESSION_STAGE.SYNC]: { title: 'Sync' },
   [SYNC_PHASES.PREPARATION]: 'Normalizing options',
   [SYNC_PHASES.BUILD_LOCAL_SNAPSHOT]: 'Building local snapshot',

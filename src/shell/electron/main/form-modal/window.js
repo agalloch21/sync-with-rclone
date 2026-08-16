@@ -21,6 +21,7 @@ export function createFormModalWindow(view, context = {}) {
     height: 450,
     parent: parentWindow,
     modal: true,
+    frame: process.platform !== 'win32',
     show: false,
     autoHideMenuBar: true,
     minimizable: false,

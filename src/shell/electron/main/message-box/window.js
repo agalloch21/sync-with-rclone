@@ -97,6 +97,7 @@ function createWindow() {
     height: 240,
     parent: getMessageBoxParentWindow(),
     modal: true,
+    frame: process.platform !== 'win32',
     show: false,
     autoHideMenuBar: true,
     minimizable: false,

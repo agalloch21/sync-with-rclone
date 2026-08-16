@@ -89,6 +89,7 @@ function createWindow(parentWindow) {
     height: 520,
     parent: parentWindow,
     modal: true,
+    frame: process.platform !== 'win32',
     show: false,
     autoHideMenuBar: true,
     minimizable: false,

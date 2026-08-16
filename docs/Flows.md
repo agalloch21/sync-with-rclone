@@ -9,7 +9,7 @@ sequenceDiagram
   participant A as App / Sync Session
   participant W as Sync Session UI
 
-  U->>S: 触发 Push / Pull / Push To... / Pull From...
+  U->>S: 触发 Push / Pull
   S->>A: 传入动作类型和本地路径
   A->>A: startSync 读取配置并解析本次同步上下文
   A->>A: 申请本地与远端范围的 sync admission
@@ -43,8 +43,8 @@ sequenceDiagram
 
   I->>I: 安装 Electron 应用本体
   I->>I: 安装 bundled rclone
-  I->>I: 分发配置模板
-  I->>M: 注册 Windows 右键菜单
+  I->>I: 准备用户配置目录
+  I->>M: 注册 Windows context menu / macOS Quick Actions
   M->>E: 传入动作类型和本地路径
   E->>A: 调用 startSync(...)
 ```
@@ -71,7 +71,7 @@ sequenceDiagram
 
 - 判断当前本地路径属于哪一组同步关系
 - 在 `Push / Pull` 下得到默认对应的远端路径
-- 在 `Push To... / Pull From...` 下得到当前范围内可选择的远端目录
+- CLI 提供显式远端路径时，确保该路径仍位于当前 mapping 的 remote root 内
 - 拒绝跨同步关系组合
 
 ## 4. `Push` 流程
@@ -138,7 +138,9 @@ sequenceDiagram
 - review 确认后，在执行 Plan 时逐项检查最终选择是否穿过本地内部 symbolic link；冲突项记录为失败，其他安全项继续批量执行
 - rclone 批次或基础设施错误仍停止后续有风险的阶段，不采用无条件 continue-on-error
 
-## 6. `Push To...` 流程
+## 6. 计划中的 `Push To...` 流程
+
+以下流程定义 PRD 中的目标行为，当前尚未接入右键菜单或 sync-session。
 
 ```mermaid
 sequenceDiagram
@@ -150,12 +152,13 @@ sequenceDiagram
 
   U->>S: 触发 Push To...
   S->>A: 传入本地路径
-  A->>A: 匹配当前映射
-  A->>T: 读取该映射对应的远端目录树
+  A->>A: 匹配当前 mapping
+  A->>T: 读取 mapping remote root 内的目录树
   T->>U: 展示可选远端目录
   U->>T: 选择目标目录
   T-->>A: 返回选中的远端目录
-  A->>A: 发起 Push 同步执行
+  A->>A: 校验目标仍位于 mapping remote root 内
+  A->>A: 确保目标目录存在
   A->>A: 扫描本地与选中远端
   A->>A: 生成 DiffSnapshot
   A-->>S: interaction.reviewDiff(diffSnapshot)
@@ -167,12 +170,15 @@ sequenceDiagram
   A->>A: 生成并执行 SyncPlan
 ```
 
-`Push To...` 的关键点是：
+`Push To...` 的目标语义是：
 
-- 当前本地目录仍然是源
-- 用户需要额外选择远端目标目录
+- 当前本地目录仍然是 source of truth
+- 用户额外选择 mapping 范围内的远端目标目录
+- 后续 review 与 apply 复用普通 Push 流程
 
-## 7. `Pull From...` 流程
+## 7. 计划中的 `Pull From...` 流程
+
+以下流程定义 PRD 中的目标行为，当前尚未接入右键菜单或 sync-session。
 
 ```mermaid
 sequenceDiagram
@@ -184,12 +190,12 @@ sequenceDiagram
 
   U->>S: 触发 Pull From...
   S->>A: 传入本地路径
-  A->>A: 匹配当前映射
-  A->>T: 读取该映射对应的远端目录树
+  A->>A: 匹配当前 mapping
+  A->>T: 读取 mapping remote root 内的目录树
   T->>U: 展示可选远端目录
   U->>T: 选择来源目录
   T-->>A: 返回选中的远端目录
-  A->>A: 发起 Pull 同步执行
+  A->>A: 校验来源仍位于 mapping remote root 内
   A->>A: 扫描选中远端与本地
   A->>A: 生成 DiffSnapshot
   A-->>S: interaction.reviewDiff(diffSnapshot)
@@ -201,10 +207,11 @@ sequenceDiagram
   A->>A: 生成并执行 SyncPlan
 ```
 
-`Pull From...` 的关键点是：
+`Pull From...` 的目标语义是：
 
+- 用户选择的远端目录是 source of truth
 - 当前本地目录仍然是目标
-- 用户需要额外选择远端来源目录
+- 后续 review 与 apply 复用普通 Pull 流程
 
 ## 8. Review 流程
 
@@ -293,9 +300,9 @@ sequenceDiagram
 
 这里的结论是：
 
-- `SyncSessionResult` 是 Electron Main 推进 final 流程和退出码判断的依据
+- `SyncSessionResult` 是 Electron Main 推进 final 流程和 controller completion status 的依据
 - `SYNC_SESSION_EVENT.RESULT`（值为 `sync.session.result`）只是观察事件，不作为 final 流程的控制点
-- cancelled 是正常运行结果；failed 会导致桌面入口以失败码退出
+- cancelled 和 failed 都作为正常的 `SyncSessionResult` 返回；Electron session 用终态页面展示结果并关闭窗口
 - review 阶段取消可以直接收尾；进入执行阶段后的取消可按策略展示 final acknowledgement
 - cancelled final acknowledgement 会展示已执行操作的汇总，并允许展开查看每个 operation 的执行状态
 - failed final acknowledgement 根据 `sessionResult.error.code` 展示多语言错误信息，并始终提供打开日志文件夹的入口
@@ -336,7 +343,7 @@ sequenceDiagram
 - Quick Action 启动不主动创建主窗口。
 - Main window is created directly by `desktop-application.js`; the Electron sync-session uses a controller because it must bridge the long-running `startSync` application operation with an interactive window.
 - Session Manager 只管理 Electron 窗口和取消生命周期；GUI、CLI 与未来 agent 调用都经过 `startSync` 的同一 admission gate。
-- Registry 位于 config directory，通过短时 mutex 和每个同步独立的 lease 在进程间共享状态；owner 进程消失后，其 lease 会在下次读取时清理。
+- Registry 位于 app runtime directory 的 `sync-admission/` 下，通过短时 mutex 和每个同步独立的 lease 在进程间共享状态；owner 进程消失后，其 lease 会在下次读取时清理。
 - 只有 canonical 本地范围和 normalized 远端范围都不重叠时才允许并行；任一侧相同或互为祖先/后代都会拒绝后来请求。远端显式路径必须在 normalization 后仍位于 mapping remote root 内。
 - 每个 session 的 progress channel 独立，history 不持久化 progress sample。
 - operation history 保存主 UI 使用的操作摘要；`diagnostics.log` 独立保存所有入口共用的技术故障信息。
@@ -400,7 +407,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant U as 用户
-  participant M as Mapping Modal
+  participant M as Form Modal
   participant EM as Electron Main
   participant OR as Operation Reporter
   participant MB as Message Box
@@ -465,7 +472,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant U as 用户
-  participant M as Mapping Modal
+  participant M as Form Modal
   participant EM as Electron Main
   participant APP as App Layer
   participant SO as Server Operations
@@ -550,9 +557,10 @@ sequenceDiagram
 - GUI 使用单一 Electron Main 进程承载可选主窗口和多个互不重叠的 sync-session
 - Windows packaged runtime 默认从 `%APPDATA%/sync-with-rclone/config/` 读取配置，macOS packaged runtime 默认从 Application Support 读取配置
 - 打包后的 session argv 会先由 `--session` 进入同步窗口，再按 `--mode`、`--local`、`--remote` 解析，避免额外参数导致位置漂移
+- 安装器准备用户配置目录，应用首次启动时创建缺失的默认 `config.json`
 
 当前不应写成既成事实的内容：
 
-- 安装器初始化配置文件已经稳定
+- `Push To...` / `Pull From...` 已接入右键菜单和 sync-session
 - 升级安装已经稳定
 - 卸载链路已经稳定

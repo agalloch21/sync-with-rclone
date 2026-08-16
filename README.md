@@ -1,270 +1,146 @@
 # sync-with-rclone
 
-`sync-with-rclone` 是一个面向中间工程的同步工具。
+A tool that uses `rclone` to sync files with `.gitignore` support by simply right-clicking the desired folder.
 
-它主要解决这样一类目录的同步问题：
-
-- 有保留价值，但还没重要到值得单独建立一个 Git 仓库
-- 目录里常常带着 `node_modules`、构建产物、缓存文件、临时文件
-- 一般同步软件不支持 `.gitignore`，无法很好地排除这些内容
-
-这个项目的目标，是让这类目录也能像项目目录一样，更可控地进行备份和找回。
-
-## 核心功能
-- 支持 `.gitignore`过滤规则
-- 右键菜单快捷操作
-- GUI界面展示差异
-
-## Roadmap
-- [x] 支持.gitignore筛选文件
-- [x] 支持发起 `Push` 或 `Pull`操作
-- [x] GUI展示差异树
-- [x] 添加右键菜单栏的便捷操作
-- [x] 形成一键安装包
-- [ ] 支持发起 `Push To` 或 `Pull From`操作
-- [ ] 发起 `Push To` 或 `Pull From`操作时展示远程文件夹的目录树供用户选择
-- [x] GUI配置管理界面
+<img src="docs/assets/showcase.avif" height="400" alt="sync-with-rclone showcase" title="sync-with-rclone showcase">
 
 ---
 
-## 如何测试
+## Introduction
 
-### 1. 安装依赖
+> - Have you ever wanted to sync an unofficial or intermediate repository that's still worth saving, without bothering to init, add, commit, and open a PR on platforms like GitHub?
+> - Have you ever wanted to sync files with a server while knowing exactly what changed, but ended up sticking to your old way of managing files after opening a Git tutorial?
+>
+> *sync-with-rclone is made for you.*
+
+### Key features
+
+- **Sync files by simply right-clicking the desired folder.**
+- **Support `.gitignore` and custom exclusion patterns.**
+- **Review a visual, selective diff tree before syncing.**
+
+---
+
+## How to use
+
+### Installation
+
+Download an installer from the [Releases page](https://github.com/agalloch21/sync-with-rclone/releases).
+
+After installation, the `Push` and `Pull` actions are available from the folder context menu.
+
+### Terminology
+
+- `rclone`: The app uses rclone as its network layer. Rclone is an independent command-line tool that connects to remote storage and performs file operations.
+- `server`: The app represents each configured remote-storage connection as a server. A server defines how to connect, but not which folders should sync.
+- `mapping`: The app uses a mapping to pair a local root with a remote root. When you sync a local subfolder, the app uses the same relative path under the remote root.
+
+### Common workflow
+
+##### 1. Connect to a server.
+Currently supported protocols:
+
+- `SFTP` (recommended)
+- `FTP`
+- `Alias` (points to another rclone remote)
+
+> [!NOTE]
+> The current diff uses reliable modification times; hashes are another possible way to distinguish file contents. Other protocols have not yet been verified for these capabilities. More protocols will be supported in the future.
+
+##### 2. Create a mapping.
+
+  For example:
+
+  ```text
+  LOCAL root:  /Users/me/workspaces
+  REMOTE root: my-nas:TeamSpaces
+  ```
+
+  Assume `some-project` is the path below the local root. When you sync `/Users/me/workspaces/some-project`, the app reuses that relative path and selects `my-nas:TeamSpaces/some-project` on the server.
+
+##### 3. Right-click a folder inside a mapping and choose `Push` or `Pull`.
+
+   - **`Push`: sends local changes to remote.**
+
+     The app filters local content using `.gitignore` rules and exclusion patterns, then compares it with the remote folder. Applying every detected change makes the remote folder match the filtered local content, including deleting extra managed files there.
+
+   - **`Pull`: brings remote changes to local.**
+
+     The app filters remote content using exclusion patterns, but does not apply `.gitignore` rules. Applying every detected change makes the local folder match the filtered remote content, so files normally hidden by a local `.gitignore` can be copied to local.
+
+   *Tip: Use Push instead of editing server folders manually to keep them clean.*
+
+> [!NOTE]
+> `.gitignore` parsing uses the [`ignore`](https://www.npmjs.com/package/ignore) library. The current scanner supports common patterns, comments, nested `.gitignore` files, and `!` negation. It trims each rule before parsing, so rules that depend on escaped leading or trailing spaces are not preserved exactly.
+
+> [!NOTE]
+> A symbolic link may be used as the synchronization root and is resolved to its real directory. Symbolic links inside that root will neither be uploaded nor traversed. During Pull, any operation that crosses an internal symbolic link will be reported as failed.
+
+##### Optional. Edit global or mapping-specific exclusion patterns.
+Exclusion patterns make matching files invisible to both Push and Pull. Use them for files that this app should never manage on either side.
+*Caution: Exclusion patterns do not support comments or `!` negation.*
+
+
+---
+
+## How to run
+
+### As an executable
+
+The same executable works as both a desktop app and a command-line tool.
+
+```bash
+# Open the desktop app
+sync-with-rclone
+
+# Open a visual Push session for a folder
+sync-with-rclone --session --mode=push --local=<local-path>
+
+# Get machine-readable information for AI or automation
+sync-with-rclone list-mappings --json
+
+# Run a non-interactive sync from AI or automation
+sync-with-rclone sync --yes push <local-path>
+```
+
+The CLI can inspect and manage servers and mappings as well as run Push and Pull operations. This makes the tool usable by AI agents and automation without opening the GUI. Machine-driven syncs must include `--yes`; it confirms all detected changes.
+
+### During development
+
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-### 2. 构建 renderer
-
-```bash
-npm run build:renderer
-```
-
-当前 Electron renderer 使用 Vite 构建，因此在运行桌面窗口前，需要先有一次 renderer 构建产物。
-
-### 3. 使用 CLI 运行
-CLI 和桌面界面共用 Electron 产品入口。入口识别正式 CLI 子命令后直接加载终端壳层，不启动 renderer。
-
-```bash
-npm start -- <command>
-
-#如果需要直接带参数运行，可参考主流程的调用方式，例如：
-npm start -- sync --mode=push --local=<local-path> --remote=<remote-path>
-
-# 如果你想跳过 config.json，直接按显式 local/remote 运行：
-npm start -- sync --bypass-config --mode=push --local=<local-path> --remote=<remote-path>
-
-# positional sync 参数仍可用于明确的 sync 子命令
-npm start -- sync push <local-path> <remote-path>
-
-# 交互终端默认展示差异并请求 yes/no 确认；--yes 跳过确认并同步全部差异
-npm start -- sync --yes push <local-path> <remote-path>
-```
-
-CLI 必须显式提供 `sync`、`list-mappings` 等正式子命令；同步参数推荐使用带名字的写法。
-当 stdin 或 stdout 不是 TTY（例如 agent、脚本或管道调用）时，同步必须显式传入 `--yes`，否则会在写入文件前拒绝执行。
-`npm start` 会先构建 renderer，因此同一个命令也可以不带参数启动主窗口，或者通过 `--session` 启动 sync-session。
-Windows 右键菜单 / Electron 打包运行时可能会额外注入其它 argv，主流程现在会优先解析 `--mode`、`--local`、`--remote`，避免因为参数位置漂移而取错值。
-
-### Symbolic link 限制
-
-symbolic link 可以作为同步根路径；context resolution 会先解析它的 real path，后续扫描、执行和并发范围判断只使用真实目录。同步根目录内部的 symbolic link 是同步边界，不会作为本地文件上传，也不会扫描或写入它指向的内容。Pull 在执行 Plan 时逐项检查目标路径；被内部 link 阻挡的操作会记录失败原因，其他安全操作继续执行。
-
-
-### 4. 使用 Electron 运行
-`src/shell/index.cjs` 是统一产品入口；它根据参数进入 Electron 桌面壳层、sync-session 或 CLI 模式。
-
-```bash
-# 如果需要按实际同步动作传入参数，可直接运行桌面入口，例如：
-npm run dev:session -- --mode=push --local=<local-path> --remote=<remote-path>
-```
-
-开发脚本会启动 renderer dev server，再把参数交给 `src/shell/index.cjs`。
-
-打包后的 Electron 可执行文件也可以作为命令入口使用：
-
-```bash
-# 打开主窗口
-sync-with-rclone
-
-# 打开 sync-session
-sync-with-rclone --session --mode=push --local=<local-path>
-
-# 执行 CLI command
-sync-with-rclone list-servers
-sync-with-rclone list-mappings --json
-sync-with-rclone sync --yes push <local-path> <remote-path>
-```
-
-直接执行构建产物时没有 npm 参与，因此不需要 npm 的参数分隔符 `--`。
-
-### 5. 使用开发模式实时预览 renderer
-如果你正在调整桌面界面或 renderer 样式，推荐直接使用对应的开发模式。
+Start the main GUI in development mode:
 
 ```bash
 npm run dev
+```
 
-# 如果需要预览右键菜单打开的同步会话窗口：
+Start a sync session in development mode:
+
+```bash
 npm run dev:session -- --mode=push --folder=<local-path>
-
-# 主窗口已经运行时，可以继续提交更多互不重叠的会话：
-npm run dev:session -- --mode=pull --folder=<another-local-path>
 ```
 
-这条命令会：
-
-- 在没有 dev server 时启动 Vite；已有本项目 Vite 时直接复用
-- 等待 dev server 就绪后自动启动 Electron
-- 让桌面 renderer 在开发时改走 Vite 页面
-- 把后续 session 请求交给同一个 Electron Main 进程
-
-这样保存 renderer 源码后，窗口会自动刷新，能实时看到变化。
-
-如果需要查看 renderer 调试信息，开发模式会默认打开 Electron DevTools。
-
-macOS Finder Quick Action 只负责异步提交同步请求。同步进度和结果由 session window 展示；失败时如果 `quick-actions.log` 存在，可以从会话窗口在 Finder 中定位该文件。结构化操作记录仍保存在主窗口 Logs panel。
-
----
-
-## 配置文件
-
-当前项目默认读取两类配置：
-
-- `sync-with-rclone`配置：`config.json`
-- `rclone` 配置：`rclone.conf`
-
-默认读取位置是：
+Build installers:
 
 ```bash
-# windows
-%APPDATA%/sync-with-rclone/config/
-
-# mac
-~/Library/Application Support/sync-with-rclone/config/
-```
-
-### config.json 字段说明
-
-```json
-{
-  "globalExclusionPatterns": [
-    ".DS_Store",
-    "Thumbs.db",
-    ".git"
-  ],
-  "mappings": [
-    {
-      "name": "ProjectsSynced",
-      "rcloneRemote": "synology-sftp",
-      "localBasePath": "D:/ProjectsSynced",
-      "remoteBasePath": "ProjectsSynced",
-      "exclusionPatterns": [],
-      "lastSyncMode": null,
-      "lastSyncFolder": null,
-      "lastSyncDate": null
-    }
-  ]
-}
-```
-
-- `globalExclusionPatterns`: 全局排除规则，作用于所有映射。匹配路径在 Push 和 Pull 中均不比较、不复制、也不删除；不支持 `!` 否定规则。
-- `mappings`: 映射列表。每个映射持久定义一个本地根目录、一个远端根目录及其同步规则；映射本身不会自动执行同步。每次用户从某个本地目录手动发起同步时，程序会从这里找出匹配的映射。
-- `mappings[].name`: 映射名称，用于标识这组同步关系，当前主要用于可读性和后续扩展。
-- `mappings[].rcloneRemote`: `rclone.conf` 中定义的 remote 名称，例如 `synology-sftp`。
-- `mappings[].localBasePath`: 本地根目录。当前右键触发的目录必须落在这个目录下，程序才会认为它属于该映射。
-- `mappings[].remoteBasePath`: 远端根目录，不带 remote 名前缀。实际运行时会和 `rcloneRemote` 拼成 `synology-sftp:ProjectsSynced` 这样的根路径；如果想直接同步到 remote 根目录，可以写成空字符串 `""`。
-- `mappings[].exclusionPatterns`: 只对当前映射生效的排除规则，会和 `globalExclusionPatterns` 取并集。项目自己的本地上传选择仍由 `.gitignore` 管理。
-- `mappings[].lastSyncMode`: 上一次同步方向，当前可为空。
-- `mappings[].lastSyncFolder`: 上一次同步的相对文件夹，当前可为空。
-- `mappings[].lastSyncDate`: 上一次同步时间，建议使用 ISO 字符串，当前可为空。
-
-### 推荐远端协议
-
-当前正式支持的 NAS 远端基线是 SFTP。同步预览会用文件路径、大小和修改时间判断差异，因此远端必须能可靠读写文件 `mtime`。rclone 的 SFTP backend 可以设置并读取 1 秒精度的 `mtime`，适合作为 Synology NAS 的默认方案。
-
-推荐的 `rclone.conf` 形态：
-
-```ini
-[synology-sftp]
-type = sftp
-host = <nas-host>
-user = <user>
-pass = <obscured-password>
-set_modtime = true
-shell_type = unix
-```
-
-普通同步不要求配置 `path_override`，也不要在基线配置里启用 `md5sum_command` 或 `sha1sum_command`。当前可靠性基线只依赖 SFTP 的 `mtime` 保留能力；hash 校验会留给未来配置界面做能力测试后再启用。
-
-不推荐使用 WebDAV 承担可靠同步。Synology WebDAV 暴露的 `getlastmodified` 不能保证等于源文件 `mtime`，会导致刚同步过的文件在下一次预览里再次显示为不同。FTP 可能具备 1 秒 `mtime`，但没有 hash 支持，连接行为也弱于 SFTP，因此只作为非推荐备选。
-
-路径匹配规则：
-
-- 如果触发目录是 `localBasePath` 本身，则默认同步到对应的远端根目录。
-- 如果触发目录是 `localBasePath` 的子目录，则会把相对子路径追加到远端根目录后面。
-- 多个 `mappings` 同时命中时，当前实现会优先选择 `localBasePath` 更长、更具体的那一项。
-
-### 环境变量
-
-- `DEBUG`: CLI 失败时输出 stack，方便排查。
-- `CONFIG_DIRECTORY`: 覆盖默认配置目录。适合测试时临时挂一套 `config.json` 和 `rclone.conf`。
-- `CONFIG_PATH`: 直接指定 `config.json` 的完整路径。
-- `RCLONE_CONFIG_PATH`: 直接指定 `rclone.conf` 的完整路径。
-
----
-
-## 如何打包
-
-构建安装包
-```bash
-# windows
-npm run dist:win
-
-# mac dmg + zip
+# macOS arm64 PKG
 npm run dist:mac
 
-# mac dmg + zip (x64)
-npm run dist:mac:x64
-
-# mac pkg
-npm run dist:pkg
-
-# mac pkg (x64)
-npm run dist:pkg:x64
+# Windows x64 NSIS installer
+npm run dist:win
 ```
+
 ---
 
-## 如何安装
+## Roadmap
 
-Windows 运行 `dist/` 下生成的 NSIS 安装包即可。
-
-mac 当前推荐使用 `pkg` 安装。
-
-运行 `.pkg` 安装器后，程序会安装到 `/Applications/sync-with-rclone.app`，并在安装阶段完成：
-
-- 创建 `~/Library/Application Support/sync-with-rclone/config/`
-- 注册 Finder 右键 Quick Actions
-
-首次启动时，应用会在缺少 `config.json` 时创建默认配置；`rclone.conf` 由 rclone 在创建 remote 时管理，缺失时表示当前没有 servers。
-
-`dmg` / `zip` 产物仍可用于开发验证和手动安装，但当前不作为主要安装初始化链路。使用这类产物时，需要手动确认配置目录和 Finder Quick Actions 已经准备好。
-
-安装目录
-
-```bash
-# windows
-# 程序目录
-默认管理员安装通常为 C:/Program Files/sync-with-rclone/
-# 配置目录
-%APPDATA%/sync-with-rclone/config/
-
-# mac
-# 程序目录
-/Applications/sync-with-rclone.app
-# 配置目录
-~/Library/Application Support/sync-with-rclone/config/
-```
-安装后即可在右键菜单里看到 `Push` / `Pull` / `Open Config` 选项
-
-Windows 升级旧版本时，安装目录中已有的 `config/` 会迁移到当前用户的 AppData 配置目录；卸载程序不会删除该用户配置目录。
+- [x] Support `.gitignore` file filtering.
+- [x] Start `Push` or `Pull` from the folder context menu.
+- [x] Display differences as a tree in the GUI.
+- [x] Provide a GUI for configuration management.
+- [ ] Support `Push To` and `Pull From`.

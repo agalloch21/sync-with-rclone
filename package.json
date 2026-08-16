@@ -98,7 +98,8 @@
       "allowAnywhere": false,
       "allowCurrentUserHome": false,
       "allowRootDirectory": true,
-      "isRelocatable": false
+      "isRelocatable": false,
+      "isVersionChecked": false
     },
     "nsis": {
       "oneClick": false,
